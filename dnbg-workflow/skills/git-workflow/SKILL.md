@@ -222,11 +222,21 @@ If at any point the operator says "stop" / "pause" / "let me drive", drop the au
 
 Address comments to the reviewer using `@username` mentions.
 
-**A bot reviewer reads the diff and CI, not the conversation.** It re-reviews from the diff at each new head SHA; prior comments are not part of that input. So an answer you post as a PR comment is invisible to it, and the finding comes back restated as still-open on the next round — which reads like rejection when it is simply that the reply was never seen.
+**Put the answer where the next review will look**, and prefer the durable forms — this is `coding-practices`' **enforceable > prose > nothing** applied to review:
 
-Put the answer where the next review will look: **in the artifact.** A code comment, the PR body, a test, the thing itself. Post the comment too — that one is for the humans — but the artifact is what closes the finding.
+1. **A test.** It proves the claim and fails loudly if it stops being true. Best answer to "are you sure this handles X?" by a wide margin.
+2. **The code.** If the concern is real, the fix *is* the answer.
+3. **The PR body.** For what you verified and how, what scope you checked, why one approach beat another. This is the as-built record, and it's exactly where `coding-practices` sends evidence and provenance.
 
-When a finding is re-raised that you have already answered, say so once and point at where the answer lives. Don't re-litigate it, and don't read the repetition as the answer having been rejected.
+Reply in the thread as well — that part is for the humans.
+
+⚠️ **A code comment is the last resort, and only when it would have earned its place anyway.** A reviewer's question is not a licence to add prose that fails the bar in `coding-practices`' "What a comment must not carry". An answer that exists only because someone asked once is the transient state that section rules out, and it will read as inexplicable defensiveness to the next person. If the answer is a *current, non-obvious constraint a future editor needs*, it was already worth a comment before the review; if it isn't, the PR body is where it goes.
+
+There is also a concrete mechanism behind it for **this plugin's** reviewer, worth knowing because the symptom is confusing. `watch-pr.sh` returns exactly one result per wake, and it checks for new commits *before* it scans for comments (`watch-pr.sh:74` exits ahead of the scan at `:77`). So replying to a thread **and** pushing a fix in the same round returns `COMMITS`, not `ACTIVITY` — which routes the reviewer into `Re-reviewing`, and that path re-reads the diff at the current HEAD. The reply is never in its input, so the finding can come back restated as still-open, reading like rejection when it was simply never seen. A reply with no push does surface as `ACTIVITY` and does get read.
+
+**Don't generalize that to other reviewers.** It describes one watcher's branch ordering and one skill's re-review path. Copilot, a cloud reviewer, or a human all behave differently, and any of them can change. The artifact rule holds for all of them; the mechanism holds only here, and only while `watch-pr.sh` is shaped this way.
+
+When a finding you have already answered is re-raised, say so once and point at where the answer lives. Don't re-litigate it, and don't read the repetition as the answer having been rejected.
 
 ## Issue and PR references
 
