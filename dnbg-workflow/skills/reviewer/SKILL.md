@@ -398,7 +398,7 @@ PR to resume (it re-assesses current state and picks the watch back up).
 
    ```bash
    "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> \
-     "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-$HOME/.config/dnbg/reviewer}/config.json")"
+     "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")"
    ```
 
    It reads with your own `gh` auth (so it doesn't expire mid-watch), tolerates
@@ -550,7 +550,11 @@ makes non-obvious:
   `agent-reviewer-<you>`), so matching `bot_login` (`…[bot]`) never hits.
 
 ```bash
-ME=$(jq -r '.slug' "${DNBG_REVIEWER_CONFIG_DIR:-$HOME/.config/dnbg/reviewer}/config.json")
+ME=$(jq -r '.slug' "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")
+# An empty slug is not a harmless default: watch-pr.sh's exclude filter can never
+# match it, so the watch wakes on the bot's own posts and re-reviews itself. Bail
+# rather than watch wrongly.
+[ -n "$ME" ] && [ "$ME" != null ] || { echo "could not read the reviewer slug — is the bot set up?"; exit 1; }
 
 # 1. List unresolved threads on this PR the bot authored (your own auth).
 env -u GH_TOKEN gh api graphql \
