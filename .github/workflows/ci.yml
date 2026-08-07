@@ -126,6 +126,50 @@ jobs:
         with:
           args: -verbose
 
+  hook-tests:
+    name: hook-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bats
+        run: npm install -g bats
+      - name: Run the hook test suite
+        # The hooks decide whether an edit is blocked, and they run on every
+        # installer's machine. Until now nothing exercised them: shellcheck
+        # catches syntax, not behaviour.
+        #
+        # The suite drives them through the real interface — a JSON payload on
+        # stdin, an exit code out — against real git repositories, because most
+        # of what they decide (is this a worktree, is this file tracked) is
+        # answered by git rather than by the script.
+        run: bats tests/
+
+  plugin-validate:
+    name: plugin-validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Claude Code
+        # The runner does not ship it. This is the cost of the check below; if
+        # it proves slow or flaky, drop the job rather than tolerating a gate
+        # that fails for reasons unrelated to the diff.
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate the marketplace and every plugin manifest
+        # `jq empty` proves the JSON parses; this proves it is a *valid manifest*
+        # — unrecognized fields, missing metadata, marketplace and plugin
+        # versions disagreeing. Today CI delegates that to Claude Code at install
+        # time, which means to strangers' machines.
+        #
+        # --strict treats warnings as errors, which the tool's own help
+        # recommends for CI.
+        run: |
+          set -euo pipefail
+          claude plugin validate . --strict
+          while IFS= read -r src; do
+            echo "  $src"
+            claude plugin validate "$src" --strict
+          done < <(jq -r '.plugins[].source' .claude-plugin/marketplace.json)
+
   changelog-fragment:
     name: changelog-fragment
     runs-on: ubuntu-latest
@@ -206,7 +250,7 @@ jobs:
     # Single umbrella job. New fanout jobs added above gate merges by being
     # added to `needs:` here.
     if: always()
-    needs: [shellcheck, actionlint, validate-manifests, changelog-fragment]
+    needs: [shellcheck, actionlint, validate-manifests, hook-tests, plugin-validate, changelog-fragment]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs succeeded
