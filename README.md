@@ -30,12 +30,8 @@ incidental coupling that a shim could paper over:
 Two skills are VCS-agnostic and useful anywhere: **`coding-practices`** and
 **`prototype-velocity`**. Neither mentions a forge.
 
-One sharp edge if you're on another host: the owner match doesn't inspect the
-remote's *host*, so a GitLab remote at `gitlab.com/acme-corp/api` still parses as
-owner `acme-corp` and, if you listed it, the worktree gate will fire. The hooks
-would work while the skills told you to run `gh` commands that don't apply —
-a half-working state that's worse than either extreme. **Leave `owners` empty on
-a non-GitHub host** and treat this as a skills-only install.
+Only `github.com` remotes are ever covered, so listing an owner cannot gate a
+same-named org on another host.
 
 ## Install
 

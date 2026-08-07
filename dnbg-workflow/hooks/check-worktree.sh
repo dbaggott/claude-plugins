@@ -32,7 +32,7 @@ DIR=$(dirname "$FILE_PATH")
 REPO_ROOT=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null) || exit 0
 
 ORIGIN=$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null) || exit 0
-owner_is_covered "$(owner_from_remote "$ORIGIN")" || exit 0
+remote_is_covered "$ORIGIN" || exit 0
 
 # Worktrees have `.git` as a regular file (containing `gitdir: ...`); the main
 # checkout has `.git` as a directory. If it's a file, we're in a worktree — allow.

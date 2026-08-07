@@ -56,7 +56,7 @@ else
   CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
   [ -n "$CWD" ] || exit 0
   ORIGIN=$(git -C "$CWD" remote get-url origin 2>/dev/null) || exit 0
-  owner_is_covered "$(owner_from_remote "$ORIGIN")" || exit 0
+  remote_is_covered "$ORIGIN" || exit 0
 fi
 
 # Was the skill loaded this session? A Skill tool invocation lands in the
