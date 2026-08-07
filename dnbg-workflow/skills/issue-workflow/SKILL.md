@@ -175,6 +175,7 @@ Nothing is lost on the web side: github.com renders full URLs to its own issues/
 When constructing a URL from a bare number of unknown type, use the `/issues/N` path — github.com redirects `/issues/N` ↔ `/pull/N` in both directions, so the path segment never has to match the artifact type.
 
 This applies to every user-facing surface — chat, issue bodies, PR descriptions, commit messages, comments. Memory files are the exception (Claude-context, not rendered to users).
+
 ## Related skills
 
 Optional — everything above is actionable without them.

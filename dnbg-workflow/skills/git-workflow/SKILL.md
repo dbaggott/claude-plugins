@@ -385,6 +385,7 @@ When told a PR has been merged (or when the merge watcher above reports `state=M
 ## After rebase or merge
 
 Always review incoming changes after rebasing or merging. Don't assume the prior state is still accurate — read the changed files before answering questions about them.
+
 ## Related skills
 
 Optional — everything above is actionable without them.

@@ -52,8 +52,8 @@ for someone reading the diff.
 Renamed the velocity skill to `velocity-tradeoff`.
 
 ## Migration
-Repos opting in via `CLAUDE.md` must change the skill name they load.
-The old name silently stops loading.
+Repos opting in via `CLAUDE.md` must change `dnbg-workflow:old-name` to
+`dnbg-workflow:new-name`. The old name silently stops loading.
 ```
 
 Add a `## Migration` section whenever a user has to act. It is published verbatim

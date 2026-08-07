@@ -48,7 +48,7 @@
     },
     {
       "name": "dnbg-work-summary",
-      "description": "Turn your merged and open GitHub PRs into an audience-shaped recap \u2014 shipped work over a window, or what's in flight.",
+      "description": "Turn your merged and open GitHub PRs into an audience-shaped recap — shipped work over a window, or what's in flight.",
       "source": "./dnbg-work-summary",
       "author": {
         "name": "Dan Baggott",
