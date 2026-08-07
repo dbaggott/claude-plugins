@@ -414,13 +414,6 @@ PR to resume (it re-assesses current state and picks the watch back up).
      Review it now, as a first review; re-arm from the reported `new_head`,
      **without** `--was-draft`.
 
-   **`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.**
-   It means comments or replies landed alongside the push. The primary result
-   says what to do first; the flag says there is also unread conversation.
-   Handle it per **Responding to comments and replies** in the same pass as the
-   re-review — not on a later wake, because step 4 below re-arms with `since_iso`
-   set to the reported `now`, which filters out everything already reported.
-   Deferring those replies deletes them.
    - **`CLOSED`** — the PR merged or closed. Stop watching — you're done.
    - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
    - **No `result=` line at all** — the task was killed or failed rather than
@@ -432,6 +425,14 @@ PR to resume (it re-assesses current state and picks the watch back up).
      SHA you actually reviewed — `gh api repos/<repo>/compare/<last>...<head>` —
      rather than from whatever state the watcher last reported. Then re-arm.
      Re-arming is cheap; assuming quiet is not.
+**`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.** It
+means comments or replies landed alongside the push. The primary result says what
+to do first; the flag says there is also unread conversation. Handle it per
+**Responding to comments and replies** in the same pass as the re-review — not on
+a later wake, because step 4 re-arms with `since_iso` set to the reported `now`,
+which filters out everything already reported. Deferring those replies deletes
+them.
+
 4. **Re-arm:** update `last_head`/`since_iso` to the values the watcher reported
    (`new_head`, `now`) and spawn it again. Repeat until `CLOSED` or the operator
    says to stop.

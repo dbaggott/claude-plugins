@@ -101,7 +101,7 @@ A comment is the only artifact in a repo with nothing enforcing it. No test fail
 when it goes stale, no build breaks, no formatter notices — it rots silently and
 surfaces only if a reader happens to open both files. So the bar is not "is this
 true?" but **"will this still be true after the next change, and does it change
-what someone does?"** These six all fail that bar:
+what someone does?"** These all fail that bar:
 
 - **History.** No "this used to claim X", "restored after being deleted", "was
   first written as Y", or narration of the bug that prompted the change. The
@@ -171,7 +171,7 @@ When a feature depends on one-time setup someone does once and never again — a
 
 **Why:** they are done once and read forever. By the time anyone reads them the system is already configured, so the steps describe a state that no longer exists.
 
-- Same for READMEs: avoid "Required one-time setup" sections. If a future maintainer needs to reproduce the setup, it belongs in onboarding docs or the relevant infrastructure-as-code module — close to where the setup actually happens — not in the consumer file.
+READMEs included: avoid "Required one-time setup" sections. If a future maintainer needs to reproduce the setup, it belongs in onboarding docs or the relevant infrastructure-as-code module — close to where the setup actually happens — rather than in the file that consumes the result.
 
 ## Logging
 

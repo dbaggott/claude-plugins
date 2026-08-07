@@ -41,7 +41,8 @@ INTERVAL=${INTERVAL:-30}   # overridable so the settle logic can be exercised wi
 # "something's wrong — wake once, don't re-spawn"), IDLE here is normal: a quiet
 # PR is expected, so the agent simply re-arms. The window only bounds runaway and
 # refreshes the poll after a long sleep.
-deadline=$(( $(date +%s) + 21600 ))
+WINDOW=${WINDOW:-21600}          # 6h; overridable alongside INTERVAL/SETTLE for testing
+deadline=$(( $(date +%s) + WINDOW ))
 
 # Settle window. An author's round is a burst — reply to three threads, then push
 # the fix — but a webhook-driven bot sees one event per action while this sees
@@ -59,6 +60,18 @@ SETTLE_MAX=${SETTLE_MAX:-300}
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 timed_out() { [ "$(date +%s)" -ge "$deadline" ]; }
 
+# Report the accumulated burst. Defined once because two paths reach it — the
+# quiet-period exit below, and the unreachable-gh path at the top of the loop,
+# which must not silently drop a burst it can no longer confirm quiet.
+report_burst() {
+  if [ "$saw_commits" = 1 ]; then
+    echo "result=COMMITS new_head=$new_head activity=$saw_activity now=$(now_iso)"
+  else
+    echo "result=ACTIVITY activity=1 now=$(now_iso)"
+  fi
+  exit 0
+}
+
 # What the burst contained. `obs_*` track the last values already accounted for,
 # so a *second* push or reply during the window registers as new and extends it
 # rather than re-reporting the same one forever.
@@ -74,7 +87,12 @@ while :; do
   # (set -e would otherwise kill the watch on a blip; an empty value must not
   # be read as a change).
   if ! J=$(gh pr view "$PR" --repo "$REPO" --json state,isDraft,headRefOid,reviews,comments 2>/dev/null); then
-    timed_out && { echo "result=IDLE now=$(now_iso)"; exit 0; }
+    # Honour the same invariant the report block below documents: never idle out
+    # from under an accumulating burst. If the cap has passed while gh is
+    # unreachable, report what was already observed rather than spinning — the
+    # burst is real even though it can't be confirmed quiet.
+    [ "$settle_until" != 0 ] && [ "$(date +%s)" -ge "$settle_cap" ] && report_burst
+    [ "$settle_until" = 0 ] && timed_out && { echo "result=IDLE now=$(now_iso)"; exit 0; }
     sleep "$INTERVAL"; continue
   fi
 
@@ -119,6 +137,13 @@ while :; do
     echo "result=READY new_head=$HEAD activity=$saw_activity now=$(now_iso)"; exit 0
   fi
 
+  # A draft we are deliberately holding back is not reportable. Without this a
+  # push returns COMMITS, which routes the reviewer into Re-reviewing — reviewing
+  # the very draft "Don't review a discovered PR that is still a draft" excludes.
+  # Keep accumulating; the READY check above is what releases the burst.
+  holding_draft=0
+  [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = true ] && holding_draft=1
+
   if [ "$changed" = 1 ]; then
     NOW=$(date +%s)
     settle_until=$(( NOW + SETTLE ))
@@ -126,18 +151,15 @@ while :; do
   fi
 
   # Report once the burst has been quiet for SETTLE, or the cap forces it.
-  if [ "$settle_until" != 0 ] \
+  if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
      && { [ "$(date +%s)" -ge "$settle_until" ] || [ "$(date +%s)" -ge "$settle_cap" ]; }; then
-    if [ "$saw_commits" = 1 ]; then
-      echo "result=COMMITS new_head=$new_head activity=$saw_activity now=$(now_iso)"
-    else
-      echo "result=ACTIVITY activity=1 now=$(now_iso)"
-    fi
-    exit 0
+    report_burst
   fi
 
-  # Only idle out when nothing is mid-settle; otherwise the burst would be
-  # discarded at the deadline having never been reported.
-  [ "$settle_until" = 0 ] && timed_out && { echo "result=IDLE now=$(now_iso)"; exit 0; }
+  # Idle out only when nothing is being withheld — either nothing is mid-settle,
+  # or a burst is accumulating behind a held-back draft, which has no release
+  # short of the draft going ready and would otherwise never time out.
+  { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && timed_out \
+    && { echo "result=IDLE now=$(now_iso)"; exit 0; }
   sleep "$INTERVAL"
 done
