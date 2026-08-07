@@ -1,0 +1,9 @@
+# Follow `# shellcheck source=` directives so the hooks' shared lib.sh is
+# analyzed rather than reported as unfollowable (SC1091). Without this the
+# hooks emit an info-level finding and CI, which fails on any finding, goes red.
+external-sources=true
+
+# Resolve `source=` paths relative to the sourcing script rather than the
+# working directory, so `shellcheck dnbg-workflow/hooks/*.sh` from the repo root
+# finds lib.sh next to its callers.
+source-path=SCRIPTDIR

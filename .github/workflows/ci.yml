@@ -1,0 +1,79 @@
+name: CI
+
+# Cheap insurance for the plugin's executable surface. The hook scripts run on
+# every installer's machine at session start and intercept their Edit/Write
+# calls, so a silent bash typo is high blast radius. Catching it pre-merge is
+# much nicer than catching it in someone else's terminal.
+#
+# Fanout jobs do the actual work, and a single `ci-required` job aggregates them
+# via `needs:`. Adding a new gating check means adding it to `ci-required.needs`
+# here — the branch-protection config only ever names the umbrella, so it never
+# has to learn about individual jobs.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck on all .sh files
+        # Bring our own shellcheck (the pre-installed one on ubuntu-latest
+        # tracks the runner image's release cadence, which lags upstream by
+        # months). Pin an exact version so the CI signal is stable across
+        # runner-image updates and a future shellcheck-action release can't
+        # silently flap the check.
+        #
+        # Source-following and SCRIPTDIR resolution come from .shellcheckrc, so
+        # the hooks' shared lib.sh is analyzed rather than reported unfollowable.
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: '.'
+
+  validate-json:
+    name: validate-json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify JSON files parse
+        # `jq empty <file>` exits non-zero on invalid JSON. Schema-shape
+        # validation is delegated to Claude Code itself at install time (its
+        # marketplace validator is the canonical check); this job just keeps
+        # obvious editor mistakes — missing commas, stray characters — from
+        # landing on main.
+        run: |
+          set -euo pipefail
+          files=(
+            .claude-plugin/marketplace.json
+            dnbg-workflow/.claude-plugin/plugin.json
+            dnbg-workflow/hooks/hooks.json
+          )
+          for f in "${files[@]}"; do
+            echo "  $f"
+            jq empty "$f"
+          done
+
+  ci-required:
+    # Single umbrella job. New fanout jobs added above gate merges by being
+    # added to `needs:` here.
+    if: always()
+    needs: [shellcheck, validate-json]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required jobs succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          set -euo pipefail
+          echo "needs.*.result = $RESULTS"
+          for r in ${RESULTS//,/ }; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::dependency reported '$r'"; exit 1 ;;
+            esac
+          done

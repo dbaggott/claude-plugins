@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-marketplace.json",
+  "name": "dnbg",
+  "owner": {
+    "name": "dbaggott"
+  },
+  "plugins": [
+    {
+      "name": "dnbg-workflow",
+      "description": "Opinionated GitHub workflow and coding-practice skills: worktree + draft PR flow, self-documenting issues, an independent PR reviewer bot, and work summaries.",
+      "source": "./dnbg-workflow"
+    }
+  ]
+}
