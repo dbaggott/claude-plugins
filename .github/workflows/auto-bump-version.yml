@@ -19,31 +19,45 @@ on:
   push:
     branches: [main]
 
-# Serialize runs so bursty merges to main don't race. Two runs starting from the
-# same pre-bump SHA would both compute the same `YYYY.N+1`, and the second
-# `git push origin auto-bump/<version>` would be rejected non-fast-forward.
-#
-# The group alone is not sufficient, and the final step is what completes it.
-# `gh pr merge --auto` returns as soon as auto-merge is *enabled*, so without
-# waiting the job would finish while its own bump was still unmerged — the next
-# queued run would then check out a main whose manifest is still pre-bump and
-# recompute the identical version. Serialization only holds if a run doesn't end
-# until its bump is actually on main.
-#
-# cancel-in-progress is intentionally false, so a merge landing mid-bump cannot
-# kill the in-flight run. It does not promise one bump per merge: GitHub holds
-# only a single *pending* run per group, so three merges in quick succession
-# supersede the middle one and its bump never happens. That is acceptable here —
-# CalVer only has to increase, not to be dense — but it is a gap in the
-# serialization, not something the group prevents.
-concurrency:
-  group: auto-bump-version
-  cancel-in-progress: false
-
 jobs:
   bump:
     name: bump-version
     runs-on: ubuntu-latest
+    # Serialize runs so bursty merges to main don't race. Two runs starting from
+    # the same pre-bump SHA would both compute the same `YYYY.N+1`, and the
+    # second `git push origin auto-bump/<version>` would be rejected
+    # non-fast-forward.
+    #
+    # The group alone is not sufficient, and the wait at the end of this job is
+    # what completes it. `gh pr merge --auto` returns as soon as auto-merge is
+    # *enabled*, so without waiting the job would finish while its own bump was
+    # still unmerged — the next queued run would then check out a main whose
+    # manifest is still pre-bump and recompute the identical version.
+    #
+    # This is scoped to the JOB, not the workflow, and that placement is the
+    # whole point. Every bump merges its own PR, which fires this workflow again;
+    # the `if` below skips that run, but a *workflow*-level group is acquired
+    # before the `if` is evaluated, so the skipping run still entered the group
+    # and evicted whatever was pending. Observed on 2026-08-07: merging two PRs
+    # three seconds apart produced runs at 03:03:03 and 03:03:06, then the first
+    # bump's own merge created a third run at 03:03:58 which cancelled the queued
+    # one at 03:03:59 and then skipped itself. Two merges, one bump. A job-level
+    # group is only acquired when the job actually starts, so a skipped job
+    # should never displace a queued one.
+    #
+    # Job scoping removes the bump's own merge as an entrant. It does not make
+    # this one-bump-per-merge: GitHub still holds only a single *pending* entry
+    # per group, so three genuine merges in a burst still lose the middle bump.
+    # Ordering is not FIFO either — jobs queueing within the same 30-second
+    # window have no guaranteed order, which is exactly this burst shape. Neither
+    # matters once the checkout below reads main's tip, since every run then
+    # computes from whatever is actually current when its turn comes.
+    #
+    # cancel-in-progress is false so a merge landing mid-bump cannot kill the
+    # in-flight run.
+    concurrency:
+      group: auto-bump-version
+      cancel-in-progress: false
     # Two guards, both load-bearing.
     #
     # 1. Loop guard. The bump PR's squash merge lands a commit on main whose
@@ -76,6 +90,18 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
+          # Read the tip of main, not this run's trigger commit. With `ref`
+          # unset, checkout uses `github.sha` — the pushed commit — so a run that
+          # waited its turn in the concurrency group above would still compute
+          # its version from a pre-bump manifest and land on the number the
+          # previous run already used. The wait makes main current; without this
+          # the job never looks at main.
+          #
+          # The failure that causes is silent rather than loud, because this repo
+          # deletes branches on merge: the previous bump's branch name is free
+          # again, so the push succeeds and opens a second PR whose diff is
+          # already on main. Merging it changes nothing.
+          ref: main
           # Use the App token for the remote so subsequent `git push` commands
           # authenticate as the App, not as GITHUB_TOKEN.
           token: ${{ steps.token.outputs.token }}
