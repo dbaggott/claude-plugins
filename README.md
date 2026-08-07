@@ -1,7 +1,7 @@
 # claude-plugins
 
-A Claude Code plugin marketplace, published as `dnbg`. It currently hosts one
-plugin.
+A Claude Code plugin marketplace, published as `dnbg`. It hosts four plugins:
+one GitHub workflow, two that work anywhere, and a bundle of all three.
 
 ## `dnbg-workflow`
 
@@ -27,8 +27,10 @@ incidental coupling that a shim could paper over:
 - `check-issue-create.sh` matches `gh issue create`, and `owners` resolves
   against `github.com` remotes.
 
-Two skills are VCS-agnostic and useful anywhere: **`coding-practices`** and
-**`prototype-velocity`**. Neither mentions a forge.
+**`dnbg-practices` is a separate plugin and mentions no forge**, so it installs
+and works anywhere: `/plugin install dnbg-practices@dnbg`. `velocity-tradeoff`
+also mentions no forge, but ships inside `dnbg-workflow` because it governs how
+to size a change and whether to split a PR — a workflow question.
 
 Only `github.com` remotes are ever covered, so listing an owner cannot gate a
 same-named org on another host.
@@ -43,12 +45,21 @@ Then, as a separate command — the install can't run until the marketplace add
 completes, and pasting both at once only registers the first as a slash command:
 
 ```
-/plugin install dnbg-workflow@dnbg
+/plugin install dnbg-all@dnbg
 ```
 
-> Three names, deliberately different. The **repo** is `claude-plugins` (it
-> can host more than one plugin), the **plugin** is `dnbg-workflow`, and the
-> **marketplace** is `dnbg` — hence `dnbg-workflow@dnbg`. Claude Code rejects
+`dnbg-all` installs all three. To take only part of it, install what you want
+instead — they are independent, and none requires another:
+
+| Plugin | What you get |
+| --- | --- |
+| `dnbg-workflow@dnbg` | The GitHub workflow, its two enforcement hooks, and the reviewer bot |
+| `dnbg-practices@dnbg` | Coding practices. No hooks, no forge, works anywhere |
+| `dnbg-work-summary@dnbg` | PR recaps. No hooks |
+
+> Three names, deliberately different. The **repo** is `claude-plugins`, a
+> **plugin** is e.g. `dnbg-workflow`, and the **marketplace** is `dnbg` — hence
+> `dnbg-workflow@dnbg`. Claude Code rejects
 > marketplace names containing "claude" as impersonating an Anthropic-official
 > marketplace, which is why the marketplace needed a name of its own.
 
@@ -112,7 +123,7 @@ To change it later, re-run the plugin's configuration from `/plugin`. The value
 is stored in your **user** `settings.json` — and unlike `enabledPlugins`, plugin
 config is deliberately *not* read from a project's `.claude/settings.json`, so a
 repository you clone can never widen or narrow what gets enforced on your
-machine. That asymmetry is also why the opt-in for `prototype-velocity` below
+machine. That asymmetry is also why the opt-in for `velocity-tradeoff` below
 goes through a repo's `CLAUDE.md` rather than through config.
 
 ## What it does to your session
@@ -142,18 +153,18 @@ plugin replaced them on a timer.
 | --- | --- |
 | `git-workflow` | Worktree → draft PR → review → merge → cleanup, end to end |
 | `issue-workflow` | Writing issues that survive a cold handoff; claiming and resolving one |
-| `coding-practices` | Design, security, naming, logging, and the smells to stop on |
 | `reviewer` | Reviewing a pushed PR under an independent GitHub App identity |
 | `reviewer-setup` | One-time creation of that App (no cloud service, no shared secret) |
-| `work-summary` | Turning your merged/open PRs into an audience-shaped recap |
-| `prototype-velocity` | Opt-in: how to size work where the risk/benefit trade favors speed |
+| `velocity-tradeoff` | Opt-in: how to size work where the risk/benefit trade favors speed |
+| `coding-practices` | Design, security, naming, logging, and the smells to stop on — in `dnbg-practices` |
+| `work-summary` | Turning your merged/open PRs into an audience-shaped recap — in `dnbg-work-summary` |
 
 The `reviewer` pair is the piece with the least in common with the rest — it
 exists because GitHub won't let you approve your own PR, and a separate App
 identity can. `reviewer-setup` creates that App and keeps its private key on
 your machine.
 
-`prototype-velocity` is **opt-in per repo** and off unless a project asks for
+`velocity-tradeoff` is **opt-in per repo** and off unless a project asks for
 it, since it trades away protections most projects need. Whether the trade holds
 is a ratio — blast radius, reversibility, how fast breakage is noticed, test
 coverage, and users — not a headcount, so a live project with forgiving users and
@@ -322,7 +333,7 @@ Three places content can live; default to the cheapest that fits.
   intent ("no flattery") justify always-on. That file is short on purpose.
 - Facts about one repo — its layout, its build tool, its conventions — belong in
   that repo's `CLAUDE.md`, not here. The same goes for a stance that isn't
-  universally true, which is why `prototype-velocity` is opt-in rather than a
+  universally true, which is why `velocity-tradeoff` is opt-in rather than a
   rule.
 
 If you're tempted to add to `always-on-rules.md`, ask whether a skill

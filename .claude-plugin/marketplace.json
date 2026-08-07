@@ -7,8 +7,27 @@
   },
   "plugins": [
     {
+      "name": "dnbg-practices",
+      "description": "Coding practices that apply on any host: design and clarity over expediency, security first, comment discipline, logging, and verifying what you don't know. No hooks, no forge.",
+      "source": "./dnbg-practices",
+      "author": {
+        "name": "Dan Baggott",
+        "url": "https://github.com/dbaggott"
+      },
+      "homepage": "https://github.com/dbaggott/claude-plugins",
+      "repository": "https://github.com/dbaggott/claude-plugins",
+      "license": "Apache-2.0",
+      "category": "development",
+      "keywords": [
+        "coding-standards",
+        "code-quality",
+        "security",
+        "code-review"
+      ]
+    },
+    {
       "name": "dnbg-workflow",
-      "description": "Opinionated GitHub workflow and coding-practice skills: worktree + draft PR flow, self-documenting issues, an independent PR reviewer bot, and work summaries.",
+      "description": "Opinionated GitHub workflow: worktree + draft PR flow, self-documenting issues, and an independent PR reviewer bot.",
       "source": "./dnbg-workflow",
       "author": {
         "name": "Dan Baggott",
@@ -25,6 +44,43 @@
         "code-review",
         "issues",
         "worktree"
+      ]
+    },
+    {
+      "name": "dnbg-work-summary",
+      "description": "Turn your merged and open GitHub PRs into an audience-shaped recap \u2014 shipped work over a window, or what's in flight.",
+      "source": "./dnbg-work-summary",
+      "author": {
+        "name": "Dan Baggott",
+        "url": "https://github.com/dbaggott"
+      },
+      "homepage": "https://github.com/dbaggott/claude-plugins",
+      "repository": "https://github.com/dbaggott/claude-plugins",
+      "license": "Apache-2.0",
+      "category": "productivity",
+      "keywords": [
+        "github",
+        "pull-request",
+        "reporting",
+        "standup"
+      ]
+    },
+    {
+      "name": "dnbg-all",
+      "description": "Everything: the workflow plugin, the coding practices, and work summaries. Installs the other three.",
+      "source": "./dnbg-all",
+      "author": {
+        "name": "Dan Baggott",
+        "url": "https://github.com/dbaggott"
+      },
+      "homepage": "https://github.com/dbaggott/claude-plugins",
+      "repository": "https://github.com/dbaggott/claude-plugins",
+      "license": "Apache-2.0",
+      "category": "workflow",
+      "keywords": [
+        "github",
+        "workflow",
+        "bundle"
       ]
     }
   ]

@@ -223,11 +223,11 @@ If at any point the operator says "stop" / "pause" / "let me drive", drop the au
 
 Address comments to the reviewer using `@username` mentions.
 
-**Put the answer where the next review will look**, and prefer the durable forms — this is `coding-practices`' **enforceable > prose > nothing** applied to review:
+**Put the answer where the next review will look**, and prefer the durable forms — **enforceable > prose > nothing**, applied to review:
 
 1. **A test.** It proves the claim and fails loudly if it stops being true. Best answer to "are you sure this handles X?" by a wide margin.
 2. **The code.** If the concern is real, the fix *is* the answer.
-3. **The PR body.** For what you verified and how, what scope you checked, why one approach beat another. This is the as-built record, and it's exactly where `coding-practices` sends evidence and provenance.
+3. **The PR body.** For what you verified and how, what scope you checked, why one approach beat another. This is the as-built record, and the right home for evidence and provenance.
 
 **Reply in the thread itself, and resolve it.** A top-level PR comment does not close a thread, and an unresolved thread is how a reviewer tracks outstanding work — so answering at the top level leaves the finding looking untouched no matter how thoroughly you fixed it. Use the thread `id` from the enumeration above:
 
@@ -239,7 +239,7 @@ gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t
 
 Resolve only what you actually addressed. A thread you are declining to act on stays open with your reasoning in it — that is a disagreement to surface, not a box to tick.
 
-⚠️ **A code comment is the last resort, and only when it would have earned its place anyway.** A reviewer's question is not a licence to add prose that fails the bar in `coding-practices`' "What a comment must not carry". An answer that exists only because someone asked once is the transient state that section rules out, and it will read as inexplicable defensiveness to the next person. If the answer is a *current, non-obvious constraint a future editor needs*, it was already worth a comment before the review; if it isn't, the PR body is where it goes.
+⚠️ **A code comment is the last resort, and only when it would have earned its place anyway.** A reviewer's question is not a licence to add prose that fails the bar every comment has to clear: *will this still be true after the next change, and does it change what someone does?* An answer that exists only because someone asked once is transient state — if the only action a changing world requires is deleting the line, it was never a comment — and it will read as inexplicable defensiveness to the next person. If the answer is a *current, non-obvious constraint a future editor needs*, it was already worth a comment before the review; if it isn't, the PR body is where it goes.
 
 When a finding you have already answered is re-raised, say so once and point at where the answer lives. Don't re-litigate it, and don't read the repetition as the answer having been rejected.
 
@@ -385,3 +385,12 @@ When told a PR has been merged (or when the merge watcher above reports `state=M
 ## After rebase or merge
 
 Always review incoming changes after rebasing or merging. Don't assume the prior state is still accurate — read the changed files before answering questions about them.
+## Related skills
+
+Optional — everything above is actionable without them.
+
+- **Your project's coding standards.** The comment bar and the
+  `enforceable > prose > nothing` ordering used in "Responding to reviewers" come
+  from somewhere; if your project has no standards of its own, `dnbg-practices`
+  is a **separate plugin** in this marketplace that carries them —
+  `/plugin install dnbg-practices@dnbg`. Nothing here assumes you have it.

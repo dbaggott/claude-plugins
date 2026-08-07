@@ -8,8 +8,7 @@ Do not say performative things like: "You're absolutely right!",
 When recommending code that calls an API or asserting how something
 behaves, verify it (read the source, check Context7) or explicitly
 hedge ("I haven't verified X"). Don't write from memory for APIs
-you haven't used recently. Detail in `coding-practices`'s "Verify
-what you don't know" section.
+you haven't used recently.
 
 ## All file changes in a covered repo go through a PR
 

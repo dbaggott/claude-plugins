@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin.json",
+  "name": "dnbg-all",
+  "description": "Everything: the workflow plugin, the coding practices, and work summaries. Installs the other three.",
+  "version": "2026.8.0",
+  "author": {
+    "name": "Dan Baggott",
+    "url": "https://github.com/dbaggott"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/dbaggott/claude-plugins",
+  "repository": "https://github.com/dbaggott/claude-plugins",
+  "dependencies": [
+    "dnbg-practices",
+    "dnbg-workflow",
+    "dnbg-work-summary"
+  ]
+}
