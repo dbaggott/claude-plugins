@@ -13,6 +13,30 @@ It is a set of **skills** (loaded on demand when they match the task), a short
 **always-on rules** file, and two **enforcement hooks** that make the worktree
 and issue flows non-optional in the repos you choose.
 
+### It is GitHub-specific
+
+Worth knowing before you install. The workflow skills drive the `gh` CLI
+throughout — `gh pr`, `gh issue`, `gh api`, `gh search` — and this isn't
+incidental coupling that a shim could paper over:
+
+- `reviewer` and `reviewer-setup` are built on **GitHub Apps**. The entire point
+  is an App identity that can post a binding verdict on a PR you authored, which
+  GitHub otherwise forbids. GitLab and Bitbucket have no equivalent construct.
+- `git-workflow`'s review, merge-state, and auto-merge handling reads
+  GitHub-shaped fields (`mergeStateStatus`, `statusCheckRollup`, review threads).
+- `check-issue-create.sh` matches `gh issue create`, and `owners` resolves
+  against `github.com` remotes.
+
+Two skills are VCS-agnostic and useful anywhere: **`coding-practices`** and
+**`prototype-velocity`**. Neither mentions a forge.
+
+One sharp edge if you're on another host: the owner match doesn't inspect the
+remote's *host*, so a GitLab remote at `gitlab.com/acme-corp/api` still parses as
+owner `acme-corp` and, if you listed it, the worktree gate will fire. The hooks
+would work while the skills told you to run `gh` commands that don't apply —
+a half-working state that's worse than either extreme. **Leave `owners` empty on
+a non-GitHub host** and treat this as a skills-only install.
+
 ## Install
 
 ```

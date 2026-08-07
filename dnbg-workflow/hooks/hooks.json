@@ -5,22 +5,26 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/update-marketplace.sh"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/update-marketplace.sh",
+            "async": true,
+            "timeout": 120
           },
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/inject-rules.sh"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/inject-rules.sh",
+            "timeout": 10
           }
         ]
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit|Write|NotebookEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/check-worktree.sh"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/check-worktree.sh",
+            "timeout": 10
           }
         ]
       },
@@ -29,7 +33,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/check-issue-create.sh"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/check-issue-create.sh",
+            "timeout": 10
           }
         ]
       }

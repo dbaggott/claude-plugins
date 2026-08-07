@@ -24,7 +24,23 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 echo "$CMD" | grep -qE '\bgh +issue +create\b' || exit 0
 
 # Target comes from --repo/-R if present, else the calling directory's origin.
-REPO_FLAG=$(echo "$CMD" | grep -oE '(--repo|-R)[= ]+[^ ]+' | head -1 | sed -E 's/^(--repo|-R)[= ]+//')
+#
+# Search only from the `gh issue create` onward. Scanning the whole command
+# string lets an unrelated earlier flag decide the verdict — in
+# `gh pr list --repo other/x && gh issue create --title y` the first --repo
+# belongs to a different command entirely. Falling back to the whole string when
+# the segment can't be isolated keeps a multi-line command from silently losing
+# its target.
+SEGMENT=$(printf '%s' "$CMD" | grep -oE '\bgh +issue +create\b.*' | head -1)
+[ -n "$SEGMENT" ] || SEGMENT="$CMD"
+
+# `tr -d` strips quotes: the `[^ ]+` above captures them, and `--repo "own/rep"`
+# is an entirely ordinary way to write the flag. Left in, the quote characters
+# make the owner comparison fail and the hook allows what it should block.
+# GitHub logins and repo names contain no quotes, so removing them cannot
+# corrupt a legitimate value.
+REPO_FLAG=$(printf '%s' "$SEGMENT" | grep -oE '(--repo|-R)[= ]+[^ ]+' | head -1 \
+  | sed -E 's/^(--repo|-R)[= ]+//' | tr -d "\"'")
 if [ -n "$REPO_FLAG" ]; then
   owner_is_covered "$(owner_from_repo_spec "$REPO_FLAG")" || exit 0
 else

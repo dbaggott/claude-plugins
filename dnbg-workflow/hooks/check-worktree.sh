@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# PreToolUse hook: block Edit/Write on tracked files in the main checkout of a
-# covered repo, forcing the worktree + draft PR flow from the git-workflow skill.
+# PreToolUse hook: block Edit/Write/NotebookEdit on tracked files in the main
+# checkout of a covered repo, forcing the worktree + draft PR flow from the
+# git-workflow skill.
 #
 # Exit 0 = allow. Exit 2 = block; stderr is shown to the agent.
 
@@ -11,13 +12,17 @@ set -e
 INPUT=$(cat)
 TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty')
 
-# Only intercept file-modifying tools.
+# Only intercept file-modifying tools. This set must stay in step with the
+# matcher in hooks.json and with the tools named in always-on-rules.md — a tool
+# missing from any of the three is editable in the main checkout without the
+# gate firing.
 case "$TOOL" in
-  Edit|Write) ;;
+  Edit|Write|NotebookEdit) ;;
   *) exit 0 ;;
 esac
 
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+# NotebookEdit names its target `notebook_path`, not `file_path`.
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty')
 [ -z "$FILE_PATH" ] && exit 0
 
 DIR=$(dirname "$FILE_PATH")

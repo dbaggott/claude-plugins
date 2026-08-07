@@ -19,9 +19,17 @@ on:
   push:
     branches: [main]
 
-# Serialize runs so bursty merges to main don't race: without this, two runs
-# starting from the same pre-bump SHA both compute the same `YYYY.N+1` and the
-# second `git push origin auto-bump/<version>` collides on the branch.
+# Serialize runs so bursty merges to main don't race. Two runs starting from the
+# same pre-bump SHA would both compute the same `YYYY.N+1`, and the second
+# `git push origin auto-bump/<version>` would be rejected non-fast-forward.
+#
+# The group alone is not sufficient, and the final step is what completes it.
+# `gh pr merge --auto` returns as soon as auto-merge is *enabled*, so without
+# waiting the job would finish while its own bump was still unmerged — the next
+# queued run would then check out a main whose manifest is still pre-bump and
+# recompute the identical version. Serialization only holds if a run doesn't end
+# until its bump is actually on main.
+#
 # cancel-in-progress is intentionally false — we want every merge to produce its
 # own bump, not have the second merge cancel the first run's bump mid-flight.
 concurrency:
@@ -131,12 +139,28 @@ jobs:
           # would be refused. Auto-merge queues it to fire when the check passes.
           # The retry covers only the brief window where GitHub hasn't computed
           # the PR's mergeable state yet — not the CI wait, which --auto owns.
+          enabled=""
           for attempt in 1 2 3 4 5; do
             if gh pr merge "$branch" --squash --auto; then
-              exit 0
+              enabled=1
+              break
             fi
             echo "Enabling auto-merge failed (attempt $attempt), retrying..."
             sleep 5
           done
-          echo "Failed to enable auto-merge on the bump PR after 5 attempts" >&2
-          exit 1
+          [ -n "$enabled" ] || { echo "Failed to enable auto-merge after 5 attempts" >&2; exit 1; }
+
+          # Wait for the bump to actually land. This is what makes the
+          # concurrency group above serialize: `--auto` returned immediately, so
+          # ending here would let the next queued run check out a main that is
+          # still pre-bump and recompute this same version. Bounded so a stuck
+          # check surfaces as a failed job rather than a 6-hour one.
+          deadline=$(( $(date +%s) + 900 ))
+          until [ "$(gh pr view "$branch" --json state --jq .state)" = "MERGED" ]; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::bump PR did not merge within 15m — check ci-required on $branch" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "Bumped to ${new}."

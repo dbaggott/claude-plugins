@@ -106,7 +106,7 @@ PRs that nobody recaps — and say you dropped them.
 
 ```bash
 # Working-day window from §2 — cutoff..next-cutoff in local time, offset from `date +%z`.
-gh search prs --owner ${user_config.owners} --author "$ME" \
+gh search prs --owner "${user_config.owners}" --author "$ME" \
   --merged-at "2026-06-11T04:00:00-07:00..2026-06-12T04:00:00-07:00" \
   --json number,title,repository,url,closedAt --limit 100
 # multi-day: widen the start to the first working day's cutoff —
@@ -122,7 +122,7 @@ well-scoped issue is real work, so gather the issues you *opened* in it:
 
 ```bash
 # Same working-day window as the PR gather above (§2).
-gh search issues --owner ${user_config.owners} --author "$ME" \
+gh search issues --owner "${user_config.owners}" --author "$ME" \
   --created "2026-06-11T04:00:00-07:00..2026-06-12T04:00:00-07:00" \
   --json number,title,repository,url,state,createdAt --limit 100
 # multi-day: widen the start to the first working day's cutoff, as above.
@@ -149,7 +149,7 @@ kept as-is.
 **In-progress:**
 
 ```bash
-gh search prs --owner ${user_config.owners} --author "$ME" --state open \
+gh search prs --owner "${user_config.owners}" --author "$ME" --state open \
   --json number,title,repository,url,isDraft,createdAt,updatedAt --limit 100
 ```
 

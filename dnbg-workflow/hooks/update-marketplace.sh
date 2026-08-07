@@ -4,7 +4,10 @@
 # running an update command.
 #
 # Claude Code loads plugins when a session begins, so content fetched here
-# applies to the NEXT session, not this one.
+# applies to the NEXT session, not this one. Because nothing in the current
+# session depends on it finishing, hooks.json marks it `async` — a hook that
+# blocks session start defaults to a 600s timeout, and a slow GitHub call has no
+# business holding up a prompt for content that lands next time anyway.
 #
 # Throttled to once per 4 hours per machine via a timestamp file so it doesn't
 # ping GitHub on every session start. Fails silently when offline or when the
