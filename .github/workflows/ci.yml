@@ -131,9 +131,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install bats
-        run: npm install -g bats
       - name: Run the hook test suite
+        # `npx` rather than a global install: `npm install -g bats` fails on the
+        # runner with EACCES, because the package writes man pages into
+        # /usr/local/share/man and the runner user cannot. sudo would work and
+        # is worse — this needs no elevation at all.
+        #
+        # Pinned to the version the suite was written against, so a bats release
+        # cannot flap the check independently of the diff.
+        #
         # The hooks decide whether an edit is blocked, and they run on every
         # installer's machine. Until now nothing exercised them: shellcheck
         # catches syntax, not behaviour.
@@ -142,7 +148,7 @@ jobs:
         # stdin, an exit code out — against real git repositories, because most
         # of what they decide (is this a worktree, is this file tracked) is
         # answered by git rather than by the script.
-        run: bats tests/
+        run: npx --yes bats@1.14.0 tests/
 
   plugin-validate:
     name: plugin-validate
