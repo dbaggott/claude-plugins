@@ -112,7 +112,7 @@ gate — but say that it's a draft, since they may not have noticed.
 Watch a held-back draft rather than dropping it, arming the ready check:
 
 ```bash
-"<skill-dir>/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> <slug> --was-draft
+"<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> <slug> --was-draft
 ```
 
 Marking a PR ready is neither a push nor a review nor a comment, so without
@@ -392,12 +392,12 @@ PR to resume (it re-assesses current state and picks the watch back up).
 
 1. **Record state** after each action: the HEAD SHA you last reviewed and a
    timestamp marking "handled up to here" (`date -u +%Y-%m-%dT%H:%M:%SZ`).
-2. **Spawn `watch-pr.sh`** (from this skill's Base directory) as a **background**
+2. **Spawn `watch-pr.sh`** as a **background**
    task — it blocks until something happens, so its idle polling never enters the
    conversation; the harness wakes you when it returns:
 
    ```bash
-   "<skill-dir>/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> \
+   "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> \
      "$(jq -r .slug "${REVIEWER_CONFIG_DIR:-$HOME/.config/agent-reviewer}/config.json")"
    ```
 
