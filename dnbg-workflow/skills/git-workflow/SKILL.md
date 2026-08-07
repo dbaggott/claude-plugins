@@ -62,7 +62,7 @@ For a multi-repo change, read this **per repo**. Siblings genuinely differ, and 
 
 ## Writing the PR description
 
-The description reflects the **as-built** state (step 7) — and every claim in it must be *true and earned*. A reviewer who catches one inflated claim discounts the whole description, so the asymmetry is stark: under-claiming costs nothing, over-claiming costs trust. This is the always-on "report outcomes faithfully" rule applied to the PR body.
+The description reflects the **as-built** state (step 7) — and every claim in it must be *true and earned*. A reviewer who catches one inflated claim discounts the whole description, so the asymmetry is stark: under-claiming costs nothing, over-claiming costs trust.
 
 - **Name what you verified, and how — don't imply more.** "Typechecks (`tsc`)" and "CI green" are not "tested"; "eyeballed one case on dev" is not "verified end-to-end." State the check you actually ran; if you didn't run one, don't phrase the body so it reads as if you did.
 - **Don't assert coverage you don't have.** No unit runner for a file? Say its helpers are covered by typecheck + manual, not that they're "tested." Never describe intended or aspirational tests as existing ones.
@@ -70,7 +70,7 @@ The description reflects the **as-built** state (step 7) — and every claim in 
 - **Claim only the scope you checked.** The over-claim usually starts one step earlier, as an unexamined assumption written up as fact: that a change generalizes, that it fixes the root cause (not just the symptom you reproduced), that the correlation you saw is the cause, that nothing else is affected. Verify the assumption, or state the scope you actually verified ("fixes the observed case; other inputs unchecked"; "removes the symptom — root cause not confirmed"). An assumption is not a result.
 - **Surface gaps, not just wins.** Known limitations, unverified branches, and deferred follow-ups belong in the body — these are as-built facts about the result, not the development narrative step 7 rules out; omitting them reads as "all handled," and the next reader inherits the surprise.
 
-The bar is the one `issue-workflow` sets for issue bodies: a *verified* anchor beats a *confident* one. When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
+`issue-workflow` holds issue bodies to the same bar, and states it there. When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
 
 ## Multi-repo changes
 

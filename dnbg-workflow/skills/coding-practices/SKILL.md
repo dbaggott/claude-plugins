@@ -7,7 +7,7 @@ description: Core engineering principles — design and clarity over expediency,
 
 These apply to all code, regardless of language or repo.
 
-Some of what a senior engineer would say here is already in the Claude Code default system prompt (default to no comments, don't narrate the code, don't reference the current task or caller in comments, no error handling for impossible cases, three similar lines beats a premature abstraction). The sections below add to that baseline rather than repeating it.
+The Claude Code system prompt already covers the baseline a senior engineer would state first. Everything here is additive to it, not a restatement — so where the two touch, the system prompt is the authority and this file is the extension.
 
 ## Design and clarity over expediency
 
@@ -29,11 +29,11 @@ If you write something insecure, fix it immediately rather than filing it as a f
 
 Duplicated logic invites drift. When you find yourself copy-pasting, extract.
 
-(The system-prompt caveat — three similar lines beats a premature abstraction — still applies. Wait until the shape of the duplication is clear before pulling out a helper. But that caveat guards only *one* of two opposite design vices — see "Two abstraction vices" below for the other, which it says nothing about and which is just as costly.)
+(Wait until the shape of the duplication is clear before pulling out a helper — the system prompt's caution against premature abstraction still applies. But it guards only *one* of two opposite design vices; see "Two abstraction vices" below for the other, which is just as costly.)
 
 ## Two abstraction vices, not one
 
-"Three similar lines beats a premature abstraction" guards against one vice — **premature generalization**: building extensibility (parameters, hooks, config, plugin points) for requirements that don't exist yet. There is an opposite vice it says nothing about — **premature fragmentation**: treating two instances of *one* problem as two problems, so a single responsibility ends up split across owners or copied into several places. The first costs speculative complexity; the second costs duplicated state that diverges and the same decision made in two places — often the very bug you're now fixing. Both are real. Don't reach for YAGNI as if avoiding abstraction were free; weigh the two costs against each other.
+The system prompt's caution against premature abstraction guards one vice — **premature generalization**: building extensibility (parameters, hooks, config, plugin points) for requirements that don't exist yet. There is an opposite vice it says nothing about — **premature fragmentation**: treating two instances of *one* problem as two problems, so a single responsibility ends up split across owners or copied into several places. The first costs speculative complexity; the second costs duplicated state that diverges and the same decision made in two places — often the very bug you're now fixing. Both are real. Don't reach for YAGNI as if avoiding abstraction were free; weigh the two costs against each other.
 
 The agent default leans hard toward avoiding generalization, so the corrective is to give the second vice equal weight. The questions are different, and design comes first:
 
@@ -60,7 +60,7 @@ The agent default leans hard toward avoiding generalization, so the corrective i
 
 ## Clean, self-documenting code
 
-The system prompt covers the comment rules in general. The additions here are about *names*:
+The system prompt covers the comment basics. What follows here — naming, then the two comment sections below it — is what that baseline doesn't reach.
 
 **Names do the work.** A well-named function, variable, or type makes the code legible without a comment. If a reader has to consult docs to understand a name, the name is wrong, not the docs.
 
@@ -155,10 +155,8 @@ Grep `see the ⚠️` and `per the ⚠️` after any such pass.
 
 When a feature depends on one-time setup someone does once and never again — an org admin installing a GitHub App, provisioning a secret, flipping a repo toggle — keep those steps in the PR description that introduces the dependency. Don't capture them in the README or in long comment blocks inside source files.
 
-**Why:** Setup steps don't add value sitting in the repo. They're done once and read forever, drifting from reality or distracting from the actual code intent. A future maintainer reading the file sees content that isn't true for them anymore — the system is already configured.
+**Why:** they are done once and read forever. By the time anyone reads them the system is already configured, so the steps describe a state that no longer exists.
 
-- A comment that explains *why* an unusual auth pattern is used is fine.
-- A comment listing "and to make this work, an admin must do X, Y, Z" is not.
 - Same for READMEs: avoid "Required one-time setup" sections. If a future maintainer needs to reproduce the setup, it belongs in onboarding docs or the relevant infrastructure-as-code module — close to where the setup actually happens — not in the consumer file.
 
 ## Logging
