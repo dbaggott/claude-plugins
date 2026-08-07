@@ -111,10 +111,20 @@ When the operator picks "Send to review" in the picker above, or otherwise signa
 3. **Spawn `watch-pr.sh`** as a **background** task (Bash `run_in_background: true`). It blocks until something happens, so its idle polling never enters the conversation, and the harness wakes you when it returns.
 
 ```bash
-"<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
-  "$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)" \
-  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  "$(gh api user --jq .login)"
+HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
+ME=$(gh api user --jq .login)
+# Both are load-bearing arguments and the script fails *quietly* on either being
+# blank: an empty head means its commit check can never fire for the whole
+# window, and an empty login makes its exclude-filter match nobody — so your own
+# thread replies would register as activity, which is the exact failure the
+# fifth argument exists to prevent. Bail loudly instead.
+[ -n "$HEAD" ] && [ -n "$ME" ] || { echo "could not resolve head SHA / login — re-run the watch"; exit 1; }
+# WINDOW=1800 overrides the script's 6h default. That default is right for
+# `reviewer`, where IDLE is routine; here IDLE means something is wrong, and a
+# signal the operator waits six hours for is not a signal. A bot reviewer
+# normally replies in 1–3 minutes, so 30 minutes is a generous safety net.
+WINDOW=1800 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
+  "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ME"
 ```
 
 The path reaches out of this skill's directory on purpose: the script is shared with `reviewer`, which watches the same PRs from the other side. `CLAUDE_PLUGIN_ROOT` is exported to *hook* processes, not to yours, so a skill can only address a sibling relative to its own announced Base directory — and skill directories are always `<plugin>/skills/<name>/`, which makes `../../scripts/` deterministic.
@@ -130,7 +140,7 @@ Being a file rather than a fenced block is itself part of the fix: `shellcheck` 
 The script prints one result line. Treat the returns differently:
 
 - **`result=ACTIVITY`** — a review, comment or reply landed. Go to "When a review comes in".
-- **`result=COMMITS`** — someone pushed to the branch. If it wasn't you, read the change before responding to anything.
+- **`result=COMMITS`** — someone pushed to the branch. If it wasn't you, read the change before responding to anything. **If `activity=1`, comments or replies landed in the same burst — handle them in this same pass**, per "When a review comes in". This is reachable from your side: a reviewer clicking "Update branch", or applying a suggestion while filing comments, produces exactly `COMMITS activity=1`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good. Same failure the third bullet above gives as a reason not to hand-roll this.
 - **`result=CLOSED`** — merged or closed. Stop watching; if `state=MERGED`, run the post-merge cleanup.
 - **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (`reviewer` treats `IDLE` as routine and re-arms, because a quiet PR is expected on that side. Same script, opposite caller.)
 
@@ -290,7 +300,7 @@ Branch on the response:
 
 ### Background poller
 
-Spawn this as a **background** poller (Bash `run_in_background: true`) — both for the proactive watch right after a clean review (state `OPEN`, nothing scheduled yet) and whenever a verify branch above says to spawn. Same rationale as the review watcher: running it in the foreground replays the `gh pr view` command and every empty intermediate result into context. The deadline below is measured from **when you spawn the poller**, not from PR creation or the review — so a verify-branch spawn hours later (e.g. the operator pings on return after the proactive watcher's session ended) still gets a full window.
+Spawn this as a **background** poller (Bash `run_in_background: true`) — both for the proactive watch right after a clean review (state `OPEN`, nothing scheduled yet) and whenever a verify branch above says to spawn. Background for the same reason the review watcher is: running it in the foreground replays the `gh pr view` command and every empty intermediate result into context, once per loop iteration. The deadline below is measured from **when you spawn the poller**, not from PR creation or the review — so a verify-branch spawn hours later (e.g. the operator pings on return after the proactive watcher's session ended) still gets a full window.
 
 ```bash
 # Deadline: several hours, so an operator who merges later in the day is still
@@ -348,7 +358,7 @@ echo "$J"
 
 `reviewDecision` is included so the surface-and-ask branch below can identify a dismissed-approval cause from the same JSON the poller already returned — no extra `gh pr view` call.
 
-Sleep 60s, not the review watcher's 15s — match the interval to how fast the watched thing moves (merges take minutes-to-hours; reviews land in 1–3 min), *not* to cost. The loop's intermediate iterations run in the background and never enter the conversation, so poll frequency costs no tokens — only GitHub API calls. The token cost is the single model wake when the loop exits, and that's set by the deadline plus the no-re-arm rule, not by the sleep. So pick the sleep for responsiveness and API-politeness; pick the deadline for how long to wait before reminding.
+Sleep 60s, rather than the 30s the shared review watcher polls at by default — match the interval to how fast the watched thing moves (merges take minutes-to-hours; reviews land in 1–3 min), *not* to cost. The loop's intermediate iterations run in the background and never enter the conversation, so poll frequency costs no tokens — only GitHub API calls. The token cost is the single model wake when the loop exits, and that's set by the deadline plus the no-re-arm rule, not by the sleep. So pick the sleep for responsiveness and API-politeness; pick the deadline for how long to wait before reminding.
 
 `mergeStateStatus=BLOCKED` is overloaded: it covers "a required check is still running" (transient — auto-merge will fire when the check passes) and "a required check failed / approval got dismissed / branch is out of date" (terminal — needs human action). GitHub does not auto-cancel an auto-merge request when a required check fails, so `autoMergeRequest` doesn't disambiguate. The pending-check count above does: BLOCKED with at least one non-terminal check is just auto-merge waiting; BLOCKED with everything completed is a real block.
 
