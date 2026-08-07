@@ -114,7 +114,17 @@ jobs:
         #
         # The upstream Docker image rather than a third-party wrapper action:
         # one less party to trust, and pinned to the version verified locally.
+        # The tag is mutable; a digest pin would be stricter, and is worth doing
+        # if this repo's threat model ever justifies the extra step.
+        #
+        # `-verbose` so a pass is self-evidencing. Without it the job logs
+        # nothing on success, and "green with no output" is indistinguishable by
+        # eye from a check that collected no files — which is exactly the shape
+        # of the failure this job was added for. It prints `Collected N YAML
+        # files`, so the log proves work happened rather than implying it.
         uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -verbose
 
   changelog-fragment:
     name: changelog-fragment
