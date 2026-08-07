@@ -90,6 +90,32 @@ jobs:
           done < <(jq -r '.plugins[] | "\(.name)\t\(.source)"' .claude-plugin/marketplace.json)
           exit "$fail"
 
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint the workflow files
+        # This exists because a workflow shipped that could not start. A
+        # continuation line at column 0 inside a `run: |` block ended the block
+        # scalar and made the file invalid YAML; four checks went green and the
+        # first run after merge failed before any job existed. actionlint was
+        # confirmed to catch that exact commit.
+        #
+        # It matters more here than in most repos because PR CI cannot catch a
+        # broken workflow by running it — and for `release.yml` it never will,
+        # since that one triggers only on push to `main`. Merging is the only way
+        # to execute it, so static analysis is the only check available.
+        #
+        # Beyond syntax, actionlint checks `${{ }}` expressions and contexts —
+        # the other way a workflow fails at startup — and runs shellcheck over
+        # `run:` blocks, which the repo's other shellcheck job cannot see because
+        # that one only scans `.sh` files.
+        #
+        # The upstream Docker image rather than a third-party wrapper action:
+        # one less party to trust, and pinned to the version verified locally.
+        uses: docker://rhysd/actionlint:1.7.12
+
   changelog-fragment:
     name: changelog-fragment
     runs-on: ubuntu-latest
@@ -170,7 +196,7 @@ jobs:
     # Single umbrella job. New fanout jobs added above gate merges by being
     # added to `needs:` here.
     if: always()
-    needs: [shellcheck, validate-manifests, changelog-fragment]
+    needs: [shellcheck, actionlint, validate-manifests, changelog-fragment]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs succeeded
