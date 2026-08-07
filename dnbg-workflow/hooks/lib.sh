@@ -5,13 +5,29 @@
 # asked me to enforce on?" — from two different inputs (a git remote, a `gh
 # --repo` argument), so the owner match lives here rather than in each script.
 
-# Owner segment of a git remote URL. Handles the three forms git emits:
+# Owner segment of a git remote URL. Handles the forms git emits:
 #   git@github.com:owner/repo.git
 #   https://github.com/owner/repo.git
 #   ssh://git@github.com/owner/repo.git
+#   ssh://git@github.com:22/owner/repo.git   (explicit port)
+#
+# The optional `(:[0-9]+)?` is what makes the port form work. Without it the
+# host strip consumes `github.com:` and leaves `22/owner/repo`, so the port
+# becomes the owner — a legitimately covered repo then reads as uncovered and
+# silently loses its gate. Restricted to digits so it cannot eat the `owner`
+# in the scp-style `github.com:owner/repo`, where the same colon separates a
+# host from a path rather than from a port.
 owner_from_remote() {
   printf '%s\n' "${1:-}" \
-    | sed -E 's#\.git$##; s#^[a-z+]+://##; s#^[^/@]+@##; s#^[^/:]+[:/]##; s#/.*$##'
+    | sed -E 's#\.git$##; s#^[a-z+]+://##; s#^[^/@]+@##; s#^[^/:]+(:[0-9]+)?[:/]##; s#/.*$##'
+}
+
+# Host segment of the same URL. Everything before the first `:` or `/` once the
+# scheme and any `user@` are gone; empty for a local path, which has no host and
+# is therefore never covered.
+host_from_remote() {
+  printf '%s\n' "${1:-}" \
+    | sed -E 's#^[a-z+]+://##; s#^[^/@]+@##; s#[:/].*$##'
 }
 
 # Owner segment of a `gh --repo` argument, which is either `owner/repo` or a
@@ -45,4 +61,22 @@ owner_is_covered() {
     *",${owner},"*) return 0 ;;
   esac
   return 1
+}
+
+# Is this remote a repo the operator asked to enforce on? Both the host and the
+# owner have to match, and this exists so that neither hook can ask one question
+# without the other.
+#
+# The host check is not pedantry. Without it the owner parser happily reports
+# `acme-corp` for `gitlab.com/acme-corp/api`, so listing a GitHub org silently
+# gates a same-named org on another host — where the hooks would block edits
+# while every skill instructs the agent to run `gh` commands that cannot work
+# there. A half-working state is worse than either extreme.
+#
+# GitHub Enterprise (`github.mycorp.com`) is deliberately *not* covered. That is
+# the safe direction to be wrong in — under-enforcing rather than mis-enforcing —
+# and the skills' `gh` usage has never been audited against Enterprise anyway.
+remote_is_covered() {
+  [ "$(host_from_remote "${1:-}")" = "github.com" ] || return 1
+  owner_is_covered "$(owner_from_remote "${1:-}")"
 }

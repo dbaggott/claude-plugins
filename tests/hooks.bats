@@ -76,6 +76,28 @@ run_issue_hook() {  # <payload>
   [ "$status" -eq 0 ]
 }
 
+@test "allows a tracked file when the remote is a non-GitHub host" {
+  # End-to-end form of the host bug: same owner name, different forge. Before
+  # host scoping this was blocked, while every skill told the agent to run `gh`
+  # against a remote where it cannot work.
+  set_origin 'https://gitlab.com/acme-corp/repo.git'
+  run_worktree_hook "$(edit_payload "$REPO/tracked.txt")"
+  [ "$status" -eq 0 ]
+}
+
+@test "still blocks the same owner on github.com" {
+  # The other half of the pair — host scoping must not have disabled the gate.
+  set_origin 'https://github.com/acme-corp/repo.git'
+  run_worktree_hook "$(edit_payload "$REPO/tracked.txt")"
+  [ "$status" -eq 2 ]
+}
+
+@test "gh issue create is not gated for a non-GitHub remote" {
+  set_origin 'https://gitlab.com/acme-corp/repo.git'
+  run_issue_hook "$(bash_payload 'gh issue create --title x')"
+  [ "$status" -eq 0 ]
+}
+
 @test "allows a tracked file when the owner is not covered" {
   set_origin 'git@github.com:someone-else/repo.git'
   run_worktree_hook "$(edit_payload "$REPO/tracked.txt")"
