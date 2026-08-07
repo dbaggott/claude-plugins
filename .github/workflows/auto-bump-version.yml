@@ -1,12 +1,34 @@
-name: Auto-bump plugin version
+name: Release
 
-# After every merge to main, bump the plugin's version using a YYYY.N CalVer
-# scheme — N increments per merge and resets to 1 when the year rolls over.
+# After every merge to main, release any plugin that has pending changelog
+# fragments: bump its version, fold its fragments into CHANGELOG.md, tag it, and
+# publish a GitHub Release.
 #
-# Why CalVer instead of semver: the plugin ships rules and skills, not an API,
-# so semver's major/minor/patch distinction would be fictional. CalVer answers
-# the only question consumers actually have — "how fresh is the running
-# plugin?" — and lets the bump be fully mechanical.
+# Versions are `YYYY.M.N` — year, unpadded month, Nth release of that plugin in
+# that month. N resets when the month changes. Each plugin carries its own
+# counter, so a release of one does not move the others.
+#
+# The scheme is CalVer for the same reason it always was: the plugins ship rules
+# and skills, not an API, so semver's major/minor/patch distinction would be
+# fictional, and "how fresh is this?" is the only question a consumer has. What
+# forces three components rather than two is a platform constraint, not a
+# semantic: `resolveVersionRange` ignores tags whose suffix does not parse as
+# semver, so a two-component `YYYY.N` tag would exist and never be selected by
+# dependency resolution. The month must not be zero-padded for the same reason —
+# semver rejects leading zeros in numeric identifiers.
+#
+# A plugin is released when it has fragments, not when its files changed. The
+# fragment is the authored statement that something release-worthy happened; a
+# whitespace fix carries none and correctly burns no version. The corollary is
+# that a real change whose author forgot a fragment does not ship, which is what
+# the reminder in .github/pull_request_template.md exists to prevent.
+#
+# Tags are created with plain `git tag`, not `claude plugin tag`. The naming is
+# fully determined (`{name}--v{version}`) and the runner does not ship Claude
+# Code, so using it would put an install of an external CLI in the release path.
+# The validation that command performs — manifest and marketplace entry agreeing,
+# version parsing as semver — belongs pre-merge in ci.yml, where a failure can
+# still block the merge, rather than post-merge here where it is too late.
 #
 # Auth is a GitHub App token, not GITHUB_TOKEN. That is forced by the required
 # status check on main: GitHub deliberately does not trigger workflows from
@@ -20,50 +42,49 @@ on:
     branches: [main]
 
 jobs:
-  bump:
-    name: bump-version
+  release:
+    name: release
     runs-on: ubuntu-latest
     # Serialize runs so bursty merges to main don't race. Two runs starting from
-    # the same pre-bump SHA would both compute the same `YYYY.N+1`, and the
-    # second `git push origin auto-bump/<version>` would be rejected
-    # non-fast-forward.
+    # the same pre-bump SHA would both compute the same version, and the second
+    # `git push origin auto-bump/<...>` would be rejected non-fast-forward.
     #
     # The group alone is not sufficient, and the wait at the end of this job is
     # what completes it. `gh pr merge --auto` returns as soon as auto-merge is
     # *enabled*, so without waiting the job would finish while its own bump was
     # still unmerged — the next queued run would then check out a main whose
-    # manifest is still pre-bump and recompute the identical version.
+    # manifests are still pre-bump and recompute identical versions.
     #
     # This is scoped to the JOB, not the workflow, and that placement is the
-    # whole point. Every bump merges its own PR, which fires this workflow again;
-    # the `if` below skips that run, but a *workflow*-level group is acquired
-    # before the `if` is evaluated, so the skipping run still entered the group
-    # and evicted whatever was pending. Observed on 2026-08-07: merging two PRs
-    # three seconds apart produced runs at 03:03:03 and 03:03:06, then the first
-    # bump's own merge created a third run at 03:03:58 which cancelled the queued
-    # one at 03:03:59 and then skipped itself. Two merges, one bump. A job-level
-    # group is only acquired when the job actually starts, so a skipped job
-    # should never displace a queued one.
+    # whole point. Every release merges its own PR, which fires this workflow
+    # again; the `if` below skips that run, but a *workflow*-level group is
+    # acquired before the `if` is evaluated, so the skipping run still entered
+    # the group and evicted whatever was pending. Observed on 2026-08-07: merging
+    # two PRs three seconds apart produced runs at 03:03:03 and 03:03:06, then
+    # the first bump's own merge created a third run at 03:03:58 which cancelled
+    # the queued one at 03:03:59 and then skipped itself. Two merges, one bump. A
+    # job-level group is only acquired when the job actually starts, so a skipped
+    # job should never displace a queued one.
     #
-    # Job scoping removes the bump's own merge as an entrant. It does not make
-    # this one-bump-per-merge: GitHub still holds only a single *pending* entry
-    # per group, so three genuine merges in a burst still lose the middle bump.
+    # Job scoping removes the release's own merge as an entrant. It does not make
+    # this one-release-per-merge: GitHub still holds only a single *pending* entry
+    # per group, so three genuine merges in a burst still lose the middle run.
     # Ordering is not FIFO either — jobs queueing within the same 30-second
     # window have no guaranteed order, which is exactly this burst shape. Neither
-    # matters once the checkout below reads main's tip, since every run then
-    # computes from whatever is actually current when its turn comes.
+    # loses work here, because fragments accumulate: a run that never happened
+    # leaves its fragments on disk for the next one to consume.
     #
-    # cancel-in-progress is false so a merge landing mid-bump cannot kill the
+    # cancel-in-progress is false so a merge landing mid-release cannot kill the
     # in-flight run.
     concurrency:
-      group: auto-bump-version
+      group: release
       cancel-in-progress: false
     # Two guards, both load-bearing.
     #
-    # 1. Loop guard. The bump PR's squash merge lands a commit on main whose
+    # 1. Loop guard. The release PR's squash merge lands a commit on main whose
     #    message starts with this prefix, which would otherwise re-trigger this
     #    workflow forever. `[skip ci]` cannot do this job here: it would also
-    #    skip the CI run on the bump PR itself, and `ci-required` is a required
+    #    skip the CI run on the release PR itself, and `ci-required` is a required
     #    check — the PR would wait forever for a check that never ran.
     #
     # 2. Fork guard. This workflow needs a GitHub App that only this repo's
@@ -75,7 +96,7 @@ jobs:
     #    secret anyway, so it belongs in a variable regardless.
     if: >-
       ${{ vars.AUTOMATION_APP_ID != ''
-          && !startsWith(github.event.head_commit.message, 'auto: bump version') }}
+          && !startsWith(github.event.head_commit.message, 'auto: release') }}
     steps:
       - name: Generate GitHub App token
         id: token
@@ -93,67 +114,117 @@ jobs:
           # Read the tip of main, not this run's trigger commit. With `ref`
           # unset, checkout uses `github.sha` — the pushed commit — so a run that
           # waited its turn in the concurrency group above would still compute
-          # its version from a pre-bump manifest and land on the number the
-          # previous run already used. The wait makes main current; without this
-          # the job never looks at main.
+          # its versions from pre-bump manifests and land on numbers the previous
+          # run already used. The wait makes main current; without this the job
+          # never looks at main.
           #
           # The failure that causes is silent rather than loud, because this repo
-          # deletes branches on merge: the previous bump's branch name is free
-          # again, so the push succeeds and opens a second PR whose diff is
-          # already on main. Merging it changes nothing.
+          # deletes branches on merge: the previous branch name is free again, so
+          # the push succeeds and opens a second PR whose diff is already on main.
+          # Merging it changes nothing.
           ref: main
-          # Use the App token for the remote so subsequent `git push` commands
-          # authenticate as the App, not as GITHUB_TOKEN.
+          # Tags are needed to compute nothing here, but `git push origin <tag>`
+          # below needs the App token on the remote, so fetch depth stays default
+          # and the token is what matters.
           token: ${{ steps.token.outputs.token }}
 
-      - name: Compute new version
-        id: version
+      - name: Plan the release
+        id: plan
         run: |
           set -euo pipefail
-          manifest=dnbg-workflow/.claude-plugin/plugin.json
-          current=$(jq -r .version "$manifest")
           year=$(date -u +%Y)
+          month=$(date -u +%-m)   # unpadded: semver rejects leading zeros
 
-          # Parse YYYY.N; if the format doesn't match or the year has rolled
-          # over, reset to YYYY.1. Otherwise increment N.
-          if [[ "$current" =~ ^([0-9]{4})\.([0-9]+)$ ]] \
-             && [[ "${BASH_REMATCH[1]}" == "$year" ]]; then
-            new="${year}.$((${BASH_REMATCH[2]} + 1))"
-          else
-            new="${year}.1"
+          # One entry per plugin to release: name, source dir, old and new
+          # version. Emitted as JSON so later steps need no re-parsing.
+          plan='[]'
+
+          # Iterate the marketplace rather than naming plugins. Adding a plugin
+          # to marketplace.json is the only step needed to include it here.
+          while IFS=$'\t' read -r name source; do
+            [ -n "$name" ] || continue
+            frags="changelog.d/${name}"
+            # No fragments means nothing release-worthy was authored for this
+            # plugin. Skip it — its version and tag stay where they are.
+            compgen -G "${frags}/*.md" >/dev/null || continue
+
+            manifest="${source}/.claude-plugin/plugin.json"
+            current=$(jq -r .version "$manifest")
+
+            # Same year and month -> increment N. Anything else, including a
+            # version in the old two-component scheme, resets to 1.
+            if [[ "$current" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] \
+               && [[ "${BASH_REMATCH[1]}" == "$year" ]] \
+               && [[ "${BASH_REMATCH[2]}" == "$month" ]]; then
+              new="${year}.${month}.$(( ${BASH_REMATCH[3]} + 1 ))"
+            else
+              new="${year}.${month}.1"
+            fi
+
+            echo "Releasing ${name}: ${current} -> ${new}"
+            plan=$(jq -c --arg n "$name" --arg s "$source" \
+                          --arg c "$current" --arg v "$new" \
+                          '. + [{name:$n, source:$s, current:$c, new:$v}]' <<<"$plan")
+          done < <(jq -r '.plugins[] | "\(.name)\t\(.source)"' .claude-plugin/marketplace.json)
+
+          if [ "$(jq 'length' <<<"$plan")" -eq 0 ]; then
+            echo "No pending fragments — nothing to release."
           fi
+          echo "plan=$plan" >> "$GITHUB_OUTPUT"
 
-          echo "Bumping $current -> $new"
-          {
-            echo "current=$current"
-            echo "new=$new"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Write new version
+      - name: Apply versions and fold in the changelog
+        if: steps.plan.outputs.plan != '[]'
         run: |
           set -euo pipefail
-          manifest=dnbg-workflow/.claude-plugin/plugin.json
-          jq --arg v "${{ steps.version.outputs.new }}" \
-             '.version = $v' "$manifest" > "$manifest.tmp"
-          mv "$manifest.tmp" "$manifest"
+          date_utc=$(date -u +%Y-%m-%d)
 
-      - name: Open and auto-merge bump PR
+          while IFS=$'\t' read -r name source current new; do
+            manifest="${source}/.claude-plugin/plugin.json"
+            jq --arg v "$new" '.version = $v' "$manifest" > "$manifest.tmp"
+            mv "$manifest.tmp" "$manifest"
+
+            # Capture the notes before deleting the fragments — the release body
+            # is published after this commit lands, by which point they are gone.
+            # RUNNER_TEMP rather than a path in the repo, so the commit below can
+            # use a plain `git add -A` without excluding a scratch directory.
+            notes="${RUNNER_TEMP}/${name}.md"
+            for f in "changelog.d/${name}"/*.md; do
+              cat "$f"
+              echo
+            done > "$notes"
+            rm -f "changelog.d/${name}"/*.md
+
+            # Prepend, so the newest release is first in the file.
+            {
+              echo "## ${name} ${new} — ${date_utc}"
+              echo
+              cat "$notes"
+              cat CHANGELOG.md 2>/dev/null || true
+            } > CHANGELOG.md.tmp
+            mv CHANGELOG.md.tmp CHANGELOG.md
+          done < <(jq -r '.[] | "\(.name)\t\(.source)\t\(.current)\t\(.new)"' \
+                     <<<'${{ steps.plan.outputs.plan }}')
+
+      - name: Open and auto-merge the release PR
+        if: steps.plan.outputs.plan != '[]'
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           set -euo pipefail
-          new="${{ steps.version.outputs.new }}"
-          current="${{ steps.version.outputs.current }}"
-          branch="auto-bump/${new}"
-          msg="auto: bump version to ${new}"
+          plan='${{ steps.plan.outputs.plan }}'
+          summary=$(jq -r 'map("\(.name) \(.current) -> \(.new)") | join(", ")' <<<"$plan")
+          # Branch name carries the run id, not a version: a release can move
+          # several plugins, so no single version names it.
+          branch="auto-release/${{ github.run_id }}"
+          msg="auto: release ${summary}"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
-          git add dnbg-workflow/.claude-plugin/plugin.json
+          git add -A
           if git diff --staged --quiet; then
-            echo "No version change to commit"
-            exit 0
+            echo "Nothing staged — plan was non-empty but produced no diff" >&2
+            exit 1
           fi
           git commit -m "$msg"
           git push origin "$branch"
@@ -162,7 +233,9 @@ jobs:
             --base main \
             --head "$branch" \
             --title "$msg" \
-            --body "Auto-generated bump from \`${current}\` to \`${new}\` per CalVer scheme (\`YYYY.N\`, counter resets each January)."
+            --body "$(jq -r 'map("- `\(.name)`: `\(.current)` -> `\(.new)`") | join("\n")' <<<"$plan")
+
+Generated by the release workflow: version bumps, \`CHANGELOG.md\` entries folded in from \`changelog.d/\`, and the consumed fragments removed."
 
           # `--auto` rather than an immediate merge: `ci-required` is a required
           # check and is still running at this point, so a plain `gh pr merge`
@@ -180,17 +253,40 @@ jobs:
           done
           [ -n "$enabled" ] || { echo "Failed to enable auto-merge after 5 attempts" >&2; exit 1; }
 
-          # Wait for the bump to actually land. This is what makes the
-          # concurrency group above serialize: `--auto` returned immediately, so
-          # ending here would let the next queued run check out a main that is
-          # still pre-bump and recompute this same version. Bounded so a stuck
+          # Wait for the release to actually land. This is what makes the
+          # concurrency group above serialize, and the tags below must point at
+          # the merged commit rather than at this branch. Bounded so a stuck
           # check surfaces as a failed job rather than a 6-hour one.
           deadline=$(( $(date +%s) + 900 ))
           until [ "$(gh pr view "$branch" --json state --jq .state)" = "MERGED" ]; do
             if [ "$(date +%s)" -ge "$deadline" ]; then
-              echo "::error::bump PR did not merge within 15m — check ci-required on $branch" >&2
+              echo "::error::release PR did not merge within 15m — check ci-required on $branch" >&2
               exit 1
             fi
             sleep 15
           done
-          echo "Bumped to ${new}."
+          echo "Released: ${summary}"
+
+      - name: Tag and publish
+        if: steps.plan.outputs.plan != '[]'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -euo pipefail
+          # Tag the squashed merge commit, not the branch tip — the branch commit
+          # is not an ancestor of main after a squash merge, so a tag on it would
+          # point at a commit reachable from nothing.
+          git fetch origin main
+          merged=$(git rev-parse origin/main)
+
+          while IFS=$'\t' read -r name new; do
+            # `{name}--v{version}` is the convention dependency resolution reads.
+            # A tag in any other shape is invisible to it.
+            tag="${name}--v${new}"
+            git tag -a "$tag" "$merged" -m "${name} ${new}"
+            git push origin "refs/tags/${tag}"
+            gh release create "$tag" \
+              --title "${name} ${new}" \
+              --notes-file "${RUNNER_TEMP}/${name}.md"
+            echo "Published ${tag}"
+          done < <(jq -r '.[] | "\(.name)\t\(.new)"' <<<'${{ steps.plan.outputs.plan }}')

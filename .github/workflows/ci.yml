@@ -35,34 +35,60 @@ jobs:
         with:
           scandir: '.'
 
-  validate-json:
-    name: validate-json
+  validate-manifests:
+    name: validate-manifests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Verify JSON files parse
-        # `jq empty <file>` exits non-zero on invalid JSON. Schema-shape
-        # validation is delegated to Claude Code itself at install time (its
-        # marketplace validator is the canonical check); this job just keeps
+        # `jq empty <file>` exits non-zero on invalid JSON. Deeper schema-shape
+        # validation is Claude Code's own `plugin validate`; this job keeps
         # obvious editor mistakes — missing commas, stray characters — from
         # landing on main.
+        #
+        # The file list is derived from the marketplace rather than hardcoded, so
+        # adding a plugin needs no edit here.
         run: |
           set -euo pipefail
-          files=(
-            .claude-plugin/marketplace.json
-            dnbg-workflow/.claude-plugin/plugin.json
-            dnbg-workflow/hooks/hooks.json
+          mapfile -t files < <(
+            echo .claude-plugin/marketplace.json
+            jq -r '.plugins[].source' .claude-plugin/marketplace.json \
+              | while read -r src; do find "$src" -name '*.json'; done
           )
           for f in "${files[@]}"; do
             echo "  $f"
             jq empty "$f"
           done
 
+      - name: Verify every plugin version is semver-parseable
+        # Not style policing. Dependency resolution ignores tags whose suffix
+        # doesn't parse as semver, so a version like `2026.3` produces a tag that
+        # exists and is never selected — the plugin silently drops out of any
+        # other plugin's version constraint. Catching it pre-merge is the only
+        # place a failure can still block; by release time the bad version is
+        # already on main.
+        #
+        # Leading zeros are rejected by semver, which is why the release
+        # workflow emits an unpadded month (`2026.8.1`, never `2026.08.1`).
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS=$'\t' read -r name source; do
+            version=$(jq -r .version "${source}/.claude-plugin/plugin.json")
+            if [[ ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+              echo "::error::${name}: version '${version}' is not semver-parseable"
+              fail=1
+            else
+              echo "  ${name} ${version}"
+            fi
+          done < <(jq -r '.plugins[] | "\(.name)\t\(.source)"' .claude-plugin/marketplace.json)
+          exit "$fail"
+
   ci-required:
     # Single umbrella job. New fanout jobs added above gate merges by being
     # added to `needs:` here.
     if: always()
-    needs: [shellcheck, validate-json]
+    needs: [shellcheck, validate-manifests]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs succeeded
