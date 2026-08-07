@@ -25,9 +25,17 @@ owner_from_remote() {
 # Host segment of the same URL. Everything before the first `:` or `/` once the
 # scheme and any `user@` are gone; empty for a local path, which has no host and
 # is therefore never covered.
+#
+# Lowercased, because hostnames are case-insensitive by DNS and git stores a
+# remote URL exactly as it was typed — it never normalises the host. Without
+# this, a perfectly ordinary `git@GitHub.com:owner/repo.git` fails the
+# `github.com` comparison below and the gate silently does not fire on a repo
+# the operator explicitly listed. Normalising here rather than at the comparison
+# keeps it true for any future caller.
 host_from_remote() {
   printf '%s\n' "${1:-}" \
-    | sed -E 's#^[a-z+]+://##; s#^[^/@]+@##; s#[:/].*$##'
+    | sed -E 's#^[a-z+]+://##; s#^[^/@]+@##; s#[:/].*$##' \
+    | tr '[:upper:]' '[:lower:]'
 }
 
 # Owner segment of a `gh --repo` argument, which is either `owner/repo` or a
@@ -64,8 +72,13 @@ owner_is_covered() {
 }
 
 # Is this remote a repo the operator asked to enforce on? Both the host and the
-# owner have to match, and this exists so that neither hook can ask one question
-# without the other.
+# owner have to match, and this exists so that no *remote* is judged on its owner
+# alone — a `git remote get-url` result has a host, so the host is always part of
+# the question.
+#
+# `gh --repo` arguments are the deliberate exception and still go through
+# `owner_is_covered` directly: `owner/repo` carries no host, and `gh` is GitHub
+# by definition, so there is nothing to check.
 #
 # The host check is not pedantry. Without it the owner parser happily reports
 # `acme-corp` for `gitlab.com/acme-corp/api`, so listing a GitHub org silently

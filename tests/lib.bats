@@ -119,6 +119,30 @@ setup() {
   [ "$(host_from_remote 'git@github.mycorp.com:acme/repo.git')" = github.mycorp.com ]
 }
 
+@test "host_from_remote: the host is lowercased" {
+  # Hostnames are case-insensitive by DNS and git stores the URL verbatim, so
+  # whatever was typed at clone time reaches the comparison. Without this an
+  # ordinary GitHub remote fails the github.com check and the gate silently
+  # does not fire on a repo the operator explicitly listed.
+  [ "$(host_from_remote 'git@GitHub.com:acme/repo.git')"     = github.com ]
+  [ "$(host_from_remote 'https://GITHUB.COM/acme/repo.git')" = github.com ]
+  [ "$(host_from_remote 'ssh://git@GitHub.COM:22/acme/r')"   = github.com ]
+}
+
+@test "remote_is_covered: mixed-case github.com is still covered" {
+  export CLAUDE_PLUGIN_OPTION_OWNERS=acme
+  for u in 'git@GitHub.com:acme/repo.git' \
+           'https://GITHUB.COM/acme/repo.git'; do
+    run remote_is_covered "$u"
+    [ "$status" -eq 0 ]
+  done
+}
+
+@test "remote_is_covered: case-folding does not accidentally cover another host" {
+  CLAUDE_PLUGIN_OPTION_OWNERS=acme run remote_is_covered 'https://GITLAB.COM/acme/repo.git'
+  [ "$status" -ne 0 ]
+}
+
 @test "host_from_remote: a local path has no host" {
   [ -z "$(host_from_remote '/local/path/repo')" ]
 }
