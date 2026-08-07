@@ -9,6 +9,57 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-practices 2026.8.1 — 2026-08-07
+
+First release. `coding-practices` now ships as its own plugin, so it can be
+installed on its own — no hooks, no `gh`, no forge assumptions, works anywhere.
+
+Previously it was only available inside `dnbg-workflow`, which meant taking two
+enforcement hooks and five GitHub-specific skills to get it.
+
+
+## dnbg-workflow 2026.8.5 — 2026-08-07
+
+`coding-practices` and `work-summary` have moved out into their own plugins,
+`dnbg-practices` and `dnbg-work-summary`. This plugin now carries the GitHub
+workflow: `git-workflow`, `issue-workflow`, `velocity-tradeoff`, `reviewer` and
+`reviewer-setup`, plus the two enforcement hooks.
+
+`prototype-velocity` is renamed `velocity-tradeoff`. The old name described a
+project stage; the skill's own framing is that the trade is a ratio — blast
+radius, reversibility, time-to-notice, test coverage, users — and not a fact
+about the project.
+
+## Migration
+**Any repo whose `CLAUDE.md` opts in must change `dnbg-workflow:prototype-velocity`
+to `dnbg-workflow:velocity-tradeoff`.** The old name does not error; it silently
+stops loading, so the opt-in simply stops taking effect.
+
+If you want `coding-practices` or `work-summary`, install them:
+
+    /plugin install dnbg-practices@dnbg
+    /plugin install dnbg-work-summary@dnbg
+
+or `/plugin install dnbg-all@dnbg` for everything. This plugin does **not**
+depend on them — the workflow skills stand alone, and their few references to
+coding standards are optional pointers rather than requirements.
+
+
+## dnbg-work-summary 2026.8.1 — 2026-08-07
+
+First release. `work-summary` now ships as its own plugin. It has no
+dependencies on the other skills and installs no hooks.
+
+
+## dnbg-all 2026.8.1 — 2026-08-07
+
+First release. Installs `dnbg-practices`, `dnbg-workflow` and
+`dnbg-work-summary` — everything in this marketplace, in one command.
+
+Its dependencies are unversioned, so it tracks whatever version of each sibling
+the marketplace provides rather than pinning them.
+
+
 ## dnbg-workflow 2026.8.4 — 2026-08-07
 
 Only `github.com` remotes are covered by the enforcement hooks now. Previously
