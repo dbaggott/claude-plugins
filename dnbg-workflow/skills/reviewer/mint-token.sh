@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mint a short-lived (1-hour) GitHub App installation token for the local
+# Mint a short-lived GitHub App installation token for the local
 # reviewer bot, and print it to stdout. Use it as `GH_TOKEN` for the `gh`
 # commands that post the review, so the review posts under the bot identity
 # rather than your own account.

@@ -62,7 +62,7 @@ For a multi-repo change, read this **per repo**. Siblings genuinely differ, and 
 
 ## Writing the PR description
 
-The description reflects the **as-built** state (step 7) — and every claim in it must be *true and earned*. A reviewer who catches one inflated claim discounts the whole description, so the asymmetry is stark: under-claiming costs nothing, over-claiming costs trust. This is the always-on "report outcomes faithfully" rule applied to the PR body.
+The description reflects the **as-built** state (step 7) — and every claim in it must be *true and earned*. A reviewer who catches one inflated claim discounts the whole description, so the asymmetry is stark: under-claiming costs nothing, over-claiming costs trust.
 
 - **Name what you verified, and how — don't imply more.** "Typechecks (`tsc`)" and "CI green" are not "tested"; "eyeballed one case on dev" is not "verified end-to-end." State the check you actually ran; if you didn't run one, don't phrase the body so it reads as if you did.
 - **Don't assert coverage you don't have.** No unit runner for a file? Say its helpers are covered by typecheck + manual, not that they're "tested." Never describe intended or aspirational tests as existing ones.
@@ -70,7 +70,7 @@ The description reflects the **as-built** state (step 7) — and every claim in 
 - **Claim only the scope you checked.** The over-claim usually starts one step earlier, as an unexamined assumption written up as fact: that a change generalizes, that it fixes the root cause (not just the symptom you reproduced), that the correlation you saw is the cause, that nothing else is affected. Verify the assumption, or state the scope you actually verified ("fixes the observed case; other inputs unchecked"; "removes the symptom — root cause not confirmed"). An assumption is not a result.
 - **Surface gaps, not just wins.** Known limitations, unverified branches, and deferred follow-ups belong in the body — these are as-built facts about the result, not the development narrative step 7 rules out; omitting them reads as "all handled," and the next reader inherits the surprise.
 
-The bar is the one `issue-workflow` sets for issue bodies: a *verified* anchor beats a *confident* one. When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
+`issue-workflow` holds issue bodies to the same bar, and states it there. When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
 
 ## Multi-repo changes
 
@@ -124,7 +124,7 @@ until
   # `2>/dev/null` keeps a transient blip from printing an error that survives in
   # the task output, making a working watch read like a failed one. The `if`
   # records that at least one poll reached GitHub: without it, an auth failure or
-  # a wrong <num>/<repo> is invisible for the full 30 minutes and then reports
+  # a wrong <num>/<repo> is invisible for the whole window and then reports
   # TIMEOUT — indistinguishable from a reviewer that simply never replied, which
   # sends the operator to check a reviewer that was never the problem.
   if R=$(gh pr view <num> --repo <repo> --json reviews \
@@ -145,8 +145,8 @@ gh pr view <num> --repo <repo> --json reviews \
 The guards and deadline are not optional polish: the loop's only exit is a review appearing on `$HEAD`, so anything that makes that unreachable — an empty `$HEAD` from a transient `gh` failure, a SHA that never gets reviewed — turns it into a silent runaway shell that polls forever. Each becomes a clean exit you get notified about. Treat the three returns differently:
 
 - **Blank `$HEAD`/`$ME` exit** — a transient hiccup at spawn time. Re-spawn the watch once.
-- **`result=UNREACHABLE`** — 30 minutes without one successful poll. The watcher was broken, not the reviewer: check `gh auth status` and that the `<num>`/`<repo>` pair is right, fix it, and re-spawn. Don't report to the operator that no review has landed — you don't know that.
-- **`result=TIMEOUT`** — GitHub was reachable and 30 minutes passed with no review on `$HEAD` (reviewer down, or the wrong SHA is being watched). **Don't silently re-spawn** — tell the operator no review has landed and ask whether to keep waiting or check the reviewer.
+- **`result=UNREACHABLE`** — the whole window elapsed without one successful poll. The watcher was broken, not the reviewer: check `gh auth status` and that the `<num>`/`<repo>` pair is right, fix it, and re-spawn. Don't report to the operator that no review has landed — you don't know that.
+- **`result=TIMEOUT`** — GitHub was reachable and the window elapsed with no review on `$HEAD` (reviewer down, or the wrong SHA is being watched). **Don't silently re-spawn** — tell the operator no review has landed and ask whether to keep waiting or check the reviewer.
 
 Silent re-spawning on any of them just turns one runaway shell into a chain of them, one model wake per cycle.
 
@@ -155,6 +155,17 @@ Silent re-spawning on any of them just turns one runaway shell into a chain of t
 The same pattern works after pushing a fix in response to feedback — the head SHA changes, and if the repo dismisses stale approvals (see "Know the repo's merge settings") the previous review dismisses on push. Either way the poller catches the next review on the new SHA.
 
 ## When a review comes in
+
+**Fetch the inline comments first — the review body is not the whole review.** Findings are routinely filed on lines of the diff, and those do **not** appear in `gh pr view --json reviews`. Read them before summarizing anything:
+
+```bash
+gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate \
+  --jq '.[] | "── \(.path):\(.line // .original_line)\n\(.body)\n"'
+```
+
+This is not belt-and-braces. A body reading "four things below" with three summary bullets is normal — the fourth, often the only real defect, is inline. Summarize from the body alone and the next round opens with every finding still outstanding, because none of them was ever addressed.
+
+Before claiming a round is handled, enumerate the threads that are still unresolved (GraphQL `reviewThreads`, filtering on `isResolved`) rather than trusting your own list of what you fixed.
 
 Read the review payload and pick one of three responses based on content. Track whether the operator has opted in to auto-handling for *this* PR — once they pick "Auto-handle all rounds" in the picker below, the choice is sticky across subsequent rounds until the PR merges or they explicitly stop.
 
@@ -210,6 +221,18 @@ If at any point the operator says "stop" / "pause" / "let me drive", drop the au
 ## Responding to reviewers
 
 Address comments to the reviewer using `@username` mentions.
+
+**Put the answer where the next review will look**, and prefer the durable forms — this is `coding-practices`' **enforceable > prose > nothing** applied to review:
+
+1. **A test.** It proves the claim and fails loudly if it stops being true. Best answer to "are you sure this handles X?" by a wide margin.
+2. **The code.** If the concern is real, the fix *is* the answer.
+3. **The PR body.** For what you verified and how, what scope you checked, why one approach beat another. This is the as-built record, and it's exactly where `coding-practices` sends evidence and provenance.
+
+Reply in the thread as well — that part is for the humans.
+
+⚠️ **A code comment is the last resort, and only when it would have earned its place anyway.** A reviewer's question is not a licence to add prose that fails the bar in `coding-practices`' "What a comment must not carry". An answer that exists only because someone asked once is the transient state that section rules out, and it will read as inexplicable defensiveness to the next person. If the answer is a *current, non-obvious constraint a future editor needs*, it was already worth a comment before the review; if it isn't, the PR body is where it goes.
+
+When a finding you have already answered is re-raised, say so once and point at where the answer lives. Don't re-litigate it, and don't read the repetition as the answer having been rejected.
 
 ## Issue and PR references
 

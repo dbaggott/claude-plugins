@@ -99,12 +99,11 @@ Over-inclusion (an unrelated repo of the same owner mentioning the issue) is the
 safe direction; judge relevance from the PR, don't narrow the query.
 
 ⚠️ **Don't review a discovered PR that is still a draft.** Check `isDraft` on
-each and hold the drafts back. `git-workflow` opens every PR as a draft and
-makes marking it ready an operator decision the coding agent is forbidden to
-take for itself, on the stated grounds that drafting "keeps reviewers (human and
-**bot**) from spending attention on something the author hasn't endorsed yet."
-A verdict on a draft spends exactly that attention, and a `--request-changes`
-leaves threads the author has to resolve on work still in progress.
+each and hold the drafts back. Draft status is the author's signal that the work
+is not yet endorsed for review — `git-workflow` covers why it opens PRs that way.
+A verdict on a draft spends the attention that signal is asking you to withhold,
+and a `--request-changes` leaves threads the author has to resolve on work still
+in progress.
 
 This applies to the **discovered** set only. A PR the operator names directly is
 reviewable whether or not it is a draft — they asked, and the ask overrides the
@@ -136,10 +135,10 @@ correct as a pair, and each half read alone looks incomplete or unmotivated.
 
 ⚠️ **Discovery is continuous, not one-shot — the set is never frozen.** The
 warning above guards the *spatial* miss (reviewing one PR of a pair). The
-*temporal* miss is the likelier one and needs its own guard: `git-workflow`'s
-multi-repo pairing shares a **branch name, not an opening time**, and it
-explicitly covers a change that turns multi-repo midway — so an infra PR and its
-app sibling routinely go up hours or days apart. Discover once and the failure is
+*temporal* miss is the likelier one and needs its own guard: siblings are paired
+by branch name rather than by when they open (see `git-workflow`, "Multi-repo
+changes"), so an infra PR and its app sibling routinely go up hours or days
+apart. Discover once and the failure is
 worse than missing a PR: the first one merges, you clean up and report the review
 complete, and the PR that joins the issue the next day is never looked at. That
 is reporting success over half a change.
@@ -207,8 +206,8 @@ PR can use your own `gh` auth; the bot token below is only needed to post.
 
 ## Get a bot token (scoped to the repo's owner)
 
-Every action against the PR runs as the bot, via a short-lived (1-hour)
-installation token. The bot may be installed on several accounts (an org and
+Every action against the PR runs as the bot, via a short-lived installation
+token. The bot may be installed on several accounts (an org and
 your personal account), so mint the token **for the target repo's owner** — pass
 the `<owner>` part of `<repo>`. Run `mint-token.sh` from this skill's directory
 (the **Base directory** shown when this skill loads) and use it as `GH_TOKEN`:
@@ -384,8 +383,7 @@ review with a top-level comment that recaps it.
 ## Watch the PR (in-session)
 
 After posting the initial review, keep watching the PR and act on changes
-automatically. Same shape as the coder side's review-watch in `git-workflow`: a
-background poller wakes you on a change, you act, then re-arm.
+automatically: a background poller wakes you on a change, you act, then re-arm.
 
 The watch runs as long as your Claude session is alive. If the laptop just sleeps
 (lid closed), the poller suspends and resumes on wake — its next poll catches
@@ -406,8 +404,7 @@ PR to resume (it re-assesses current state and picks the watch back up).
    It reads with your own `gh` auth (so it doesn't expire mid-watch), tolerates
    transient `gh` failures, and excludes the bot's own activity under *both*
    login forms (`<slug>` from GraphQL, `<slug>[bot]` from REST), so you never wake
-   to react to your own posts. `IDLE` is normal for a quiet PR — just re-arm (this
-   differs from `git-workflow`'s watchers, where a timeout signals a problem).
+   to react to your own posts. `IDLE` is normal for a quiet PR — just re-arm.
 3. **On return, branch on `result=`:**
    - **`COMMITS`** (`new_head=…`) — the author pushed. Re-review at the new HEAD
      per **Re-reviewing**, and resolve threads the new diff addressed.
@@ -416,11 +413,35 @@ PR to resume (it re-assesses current state and picks the watch back up).
    - **`READY`** (`new_head=…`) — a draft you were holding back was marked ready.
      Review it now, as a first review; re-arm from the reported `new_head`,
      **without** `--was-draft`.
+
    - **`CLOSED`** — the PR merged or closed. Stop watching — you're done.
    - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
+   - **No `result=` line at all** — the task was killed or failed rather than
+     returning (a session ending, a reload, exit 143). This is the dangerous one,
+     because it looks exactly like a quiet PR while being the opposite: the
+     watcher stopped observing and anything pushed since is unreported. **Never
+     treat a missing result as "nothing changed."** Re-read the current
+     `headRefOid` and `reviewDecision` with `gh pr view`, and diff from the last
+     SHA you actually reviewed — `gh api repos/<repo>/compare/<last>...<head>` —
+     rather than from whatever state the watcher last reported. Then re-arm.
+     Re-arming is cheap; assuming quiet is not.
+
+**`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.** It
+means comments or replies landed alongside the push. The primary result says what
+to do first; the flag says there is also unread conversation. Handle it per
+**Responding to comments and replies** in the same pass as the re-review — not on
+a later wake, because step 4 re-arms with `since_iso` set to the reported `now`,
+which filters out everything already reported. Deferring those replies deletes
+them.
+
 4. **Re-arm:** update `last_head`/`since_iso` to the values the watcher reported
    (`new_head`, `now`) and spawn it again. Repeat until `CLOSED` or the operator
    says to stop.
+
+The same applies after a watch is **paused and resumed** — an operator interrupt,
+a session restart. The gap is invisible from the watcher's side, so re-establish
+HEAD from GitHub before deciding anything rather than continuing from the state
+you had when it stopped.
 
 **End state.** The PR merging or closing (`CLOSED`) is the *only* completion. An
 `--approve` is **not** terminal — and the reason is mechanical, not stylistic: a

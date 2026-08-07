@@ -1,13 +1,13 @@
 ---
 name: coding-practices
-description: Core engineering principles — design and clarity over expediency, security as a first-class concern, DRY, clean self-documenting code, logging discipline (use a framework not stdout/stderr, one event per operation, no sensitive data, actionable WARN+), common smells to stop on, verifying what you don't know, using Context7 for library docs, and no human time estimates. Load when writing or reviewing code, naming things, deciding whether to add a comment, choosing how to emit log or diagnostic output, looking up library APIs, sizing work, or making a recommendation that rests on an unchecked assumption. Skip for pure config edits, non-code questions, and quick lookups where no logic is being authored.
+description: Core engineering principles — design and clarity over expediency, security as a first-class concern, DRY, clean self-documenting code, logging discipline (use a framework not stdout/stderr, one event per operation, no sensitive data, actionable WARN+), common smells to stop on, verifying what you don't know, using Context7 for library docs, and no human time estimates. Load when writing or reviewing code, naming things, deciding whether to add a comment or reviewing existing ones (what a comment must not carry, and emphasis as a budget), choosing how to emit log or diagnostic output, looking up library APIs, sizing work, or making a recommendation that rests on an unchecked assumption. Skip for pure config edits, non-code questions, and quick lookups where no logic is being authored.
 ---
 
 # Coding practices
 
 These apply to all code, regardless of language or repo.
 
-Some of what a senior engineer would say here is already in the Claude Code default system prompt (default to no comments, don't narrate the code, don't reference the current task or caller in comments, no error handling for impossible cases, three similar lines beats a premature abstraction). The sections below add to that baseline rather than repeating it.
+The Claude Code system prompt already covers the baseline a senior engineer would state first. Everything here is additive to it, not a restatement — so where the two touch, the system prompt is the authority and this file is the extension.
 
 ## Design and clarity over expediency
 
@@ -29,11 +29,11 @@ If you write something insecure, fix it immediately rather than filing it as a f
 
 Duplicated logic invites drift. When you find yourself copy-pasting, extract.
 
-(The system-prompt caveat — three similar lines beats a premature abstraction — still applies. Wait until the shape of the duplication is clear before pulling out a helper. But that caveat guards only *one* of two opposite design vices — see "Two abstraction vices" below for the other, which it says nothing about and which is just as costly.)
+(Wait until the shape of the duplication is clear before pulling out a helper — the system prompt's caution against premature abstraction still applies. But it guards only *one* of two opposite design vices; see "Two abstraction vices" below for the other, which is just as costly.)
 
 ## Two abstraction vices, not one
 
-"Three similar lines beats a premature abstraction" guards against one vice — **premature generalization**: building extensibility (parameters, hooks, config, plugin points) for requirements that don't exist yet. There is an opposite vice it says nothing about — **premature fragmentation**: treating two instances of *one* problem as two problems, so a single responsibility ends up split across owners or copied into several places. The first costs speculative complexity; the second costs duplicated state that diverges and the same decision made in two places — often the very bug you're now fixing. Both are real. Don't reach for YAGNI as if avoiding abstraction were free; weigh the two costs against each other.
+The system prompt's caution against premature abstraction guards one vice — **premature generalization**: building extensibility (parameters, hooks, config, plugin points) for requirements that don't exist yet. There is an opposite vice it says nothing about — **premature fragmentation**: treating two instances of *one* problem as two problems, so a single responsibility ends up split across owners or copied into several places. The first costs speculative complexity; the second costs duplicated state that diverges and the same decision made in two places — often the very bug you're now fixing. Both are real. Don't reach for YAGNI as if avoiding abstraction were free; weigh the two costs against each other.
 
 The agent default leans hard toward avoiding generalization, so the corrective is to give the second vice equal weight. The questions are different, and design comes first:
 
@@ -60,7 +60,7 @@ The agent default leans hard toward avoiding generalization, so the corrective i
 
 ## Clean, self-documenting code
 
-The system prompt covers the comment rules in general. The additions here are about *names*:
+The system prompt covers the comment basics. What follows here — naming, then the two comment sections below it — is what that baseline doesn't reach.
 
 **Names do the work.** A well-named function, variable, or type makes the code legible without a comment. If a reader has to consult docs to understand a name, the name is wrong, not the docs.
 
@@ -95,15 +95,83 @@ counter += 1  # increment counter
 counter += 1  # bump before retry so the dedup key changes
 ```
 
+## What a comment must not carry
+
+A comment is the only artifact in a repo with nothing enforcing it. No test fails
+when it goes stale, no build breaks, no formatter notices — it rots silently and
+surfaces only if a reader happens to open both files. So the bar is not "is this
+true?" but **"will this still be true after the next change, and does it change
+what someone does?"** These all fail that bar:
+
+- **History.** No "this used to claim X", "restored after being deleted", "was
+  first written as Y", or narration of the bug that prompted the change. The
+  commit and the PR record how the code got here and stay accurate; a comment
+  restating it drifts. State the present-tense fact and its consequence instead.
+  This bites hardest on review fixes, where the pull to narrate the correction is
+  strongest — the corrected fact stays, the correction goes.
+- **Another file's conclusions.** Point at *where* something is handled, never at
+  *what it decided*. A location pointer survives the other file changing its
+  mind; "see X, which establishes Y" is false the moment X stops establishing Y,
+  and nothing local will tell you.
+- **Transient state.** Litmus: *if the world changes, is the only action required
+  deleting this comment?* Then it isn't a comment — it's an issue, which closes
+  when the state changes. Evidence and provenance belong in the commit message
+  and PR body.
+- **A restatement of the identifier.** `# the user's email` above `user_email`
+  spends a line to say nothing.
+- **A defence against a mistake nobody would make.** Anticipating an implausible
+  misreading costs every real reader attention.
+- **A rationale that belongs on the definition.** When passing a config value at
+  a call site, set it plainly — the strategy, the options and why one is chosen
+  live on the variable's own `description`. Two copies is one to keep in sync.
+  Comment the call site only when the *choice* is surprising in a way the
+  definition can't cover: a temporary override, an exception to a convention.
+- **A specific value the point doesn't rest on.** "The token expires after 1
+  hour, so re-mint rather than reusing it" — when the issuer makes it two hours,
+  the advice is still right and the comment is now wrong. Nothing forces the fix,
+  so nobody makes it. This one slips past the transient-state litmus above: the
+  answer there is "no, I'd edit the number", and it rots regardless.
+  **Test: would a different value change what the reader does?** If not, name the
+  property and drop the number — "short-lived; mint per use". Scope the detail to
+  what the point actually needs.
+
+  When the value *is* load-bearing — a limit the reader must respect, a constant
+  that must match another — keep it, and put it where it can be checked: on the
+  line with the literal it explains, or asserted, per **enforceable > prose >
+  nothing** below. A number restated at a distance from its source is a copy, and
+  copies drift.
+
+What stays is a **current, non-obvious constraint** — a platform behavior, a
+fail-closed risk, two values that must move together. That is what comments are
+for. So are provenance markers that change how much a reader should trust a claim
+("observed, not deduced"; "unverified") — those describe a claim's standing now,
+not its history.
+
+**Prefer an assertion to a prose invariant.** A test fails loudly; a comment rots
+quietly. General form: **enforceable > prose > nothing.**
+
+## Emphasis is a budget, not decoration
+
+A file with twenty `⚠️` markers has no warnings. Reserve `⚠️` and ALL-CAPS for
+gate bypass, credential exposure, data loss, or outage — roughly one per file.
+That is a test each marker must pass, not a quota: three is fine when all three
+mark silent failures.
+
+⚠️ **When stripping markers en masse, watch for the marker that is a
+*referent*.** Cross-references like "see the ⚠️ at the top of this file" name the
+glyph rather than decorating with it, and removing it leaves "See the at the top
+of this file". No typechecker, linter or test catches that. **Fix it by naming
+the target in prose, never by restoring the glyph** — restoring works today and
+breaks at the next rebalancing, and the target's own marker may already be gone.
+Grep `see the ⚠️` and `per the ⚠️` after any such pass.
+
 ## One-time setup doesn't belong in the repo
 
 When a feature depends on one-time setup someone does once and never again — an org admin installing a GitHub App, provisioning a secret, flipping a repo toggle — keep those steps in the PR description that introduces the dependency. Don't capture them in the README or in long comment blocks inside source files.
 
-**Why:** Setup steps don't add value sitting in the repo. They're done once and read forever, drifting from reality or distracting from the actual code intent. A future maintainer reading the file sees content that isn't true for them anymore — the system is already configured.
+**Why:** they are done once and read forever. By the time anyone reads them the system is already configured, so the steps describe a state that no longer exists.
 
-- A comment that explains *why* an unusual auth pattern is used is fine.
-- A comment listing "and to make this work, an admin must do X, Y, Z" is not.
-- Same for READMEs: avoid "Required one-time setup" sections. If a future maintainer needs to reproduce the setup, it belongs in onboarding docs or the relevant infrastructure-as-code module — close to where the setup actually happens — not in the consumer file.
+READMEs included: avoid "Required one-time setup" sections. If a future maintainer needs to reproduce the setup, it belongs in onboarding docs or the relevant infrastructure-as-code module — close to where the setup actually happens — rather than in the file that consumes the result.
 
 ## Logging
 
