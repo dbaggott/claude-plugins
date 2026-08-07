@@ -126,15 +126,19 @@ hooks execute automatically once a marketplace is trusted. Specifically:
 
 | Hook | When | What it does |
 | --- | --- | --- |
-| `update-marketplace.sh` | session start | Refreshes this marketplace and plugin, at most once per 4h. Network access to GitHub. |
 | `inject-rules.sh` | session start | Prints `always-on-rules.md` into the session's context. |
 | `check-worktree.sh` | before every Edit/Write | **Blocks** edits to tracked files in the main checkout of a covered repo. |
 | `check-issue-create.sh` | before every Bash | **Blocks** `gh issue create` against a covered repo unless the `issue-workflow` skill is loaded. |
 
-Nothing here sends your code anywhere. Read the five files in
+Nothing here sends your code anywhere, and **nothing here updates itself**.
+These hooks make no network access at all: what you install is what runs until
+you update it deliberately. (The skills do drive `gh` — but only when you ask
+them to, which is the difference this section is about.) Read the four shell
+scripts in
 [`dnbg-workflow/hooks/`](dnbg-workflow/hooks/) before you trust them — they are
 short, and reviewing code that will run in your own terminal is a reasonable
-thing to want.
+thing to want. Reviewing them is also *durable*, which it would not be if the
+plugin replaced them on a timer.
 
 ## What's in it
 
@@ -165,21 +169,72 @@ who can unmake it. The skill carries the template.
 
 ## Keeping up to date
 
-A session-start hook silently refreshes the marketplace and plugin, at most once
-every 4 hours per machine. Because Claude Code loads plugins when a session
-*begins*, freshly fetched content applies to the **next** session — so you'll be
-on the latest within a session or two of any push, without running anything.
+**This plugin does not update itself.** Once installed it stays exactly as it is
+until you update it — which is Claude Code's own default for a third-party
+marketplace, and a deliberate one: automatically replacing code that already
+runs on your machine is a decision worth making yourself.
 
-To pull an update immediately, run these one at a time (submit the first, wait,
-then the second — pasting both only registers the first):
+An earlier version shipped its own updater and overrode that default. It has
+been removed. Claude Code does the same job better, and asking rather than
+assuming is the right posture for a plugin that executes on your machine.
+
+**To keep up automatically**, turn on auto-update for this marketplace. Either
+set it in `~/.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "dnbg": {
+      "source": { "source": "github", "repo": "dbaggott/claude-plugins" },
+      "autoUpdate": true
+    }
+  }
+}
+```
+
+or toggle it in the UI — `/plugin` → **Marketplaces** → **dnbg** → **Enable
+auto-update**. The two are the same setting: Claude Code reads the config field
+and the panel reflects it.
+
+The path matters. `extraKnownMarketplaces` is also valid in a project's
+`.claude/settings.json`, where it prompts *every collaborator* to install the
+marketplace — and that file is normally committed. Put this in your user file
+unless you mean to ask a whole repo.
+
+Either way, Claude Code checks after each session starts, with a random delay of
+up to ten minutes, then refreshes the marketplace and updates installed plugins
+on disk. Your running session keeps the version it launched with; you'll be
+prompted to `/reload-plugins`, or the new version loads next launch. That is
+more current than the removed hook, which throttled itself to once every four
+hours.
+
+The config form also works in managed settings, so an administrator can enable
+it for an organisation without asking each person to toggle it.
+
+**To update once, by hand**, run these one at a time — submit each, wait, then
+the next; pasting them together only registers the first:
 
 ```
 /plugin marketplace update dnbg
 ```
 
 ```
+/plugin update dnbg-workflow@dnbg
+```
+
+```
 /reload-plugins
 ```
+
+All three are needed, and the middle one is easy to leave out. The first
+refreshes the marketplace *catalog*; the installed plugin is a separate,
+version-pinned copy, so without the second you reload the version you already
+had. The removed hook ran both commands, which is why this sequence could be
+incomplete before now without anyone noticing.
+
+To stop plugin updates globally regardless of the above, set `DISABLE_AUTOUPDATER`.
+To keep plugin updates while disabling Claude Code's own, set
+`FORCE_AUTOUPDATE_PLUGINS=1` alongside it.
 
 ## For maintainers
 
@@ -190,7 +245,7 @@ changelog.d/<plugin>/             # pending fragments, one per PR
 dnbg-workflow/                    # the plugin
   .claude-plugin/plugin.json      # manifest, incl. the `owners` userConfig
   always-on-rules.md              # injected into every session
-  hooks/                          # auto-update, rule injection, two gates
+  hooks/                          # rule injection, two gates
   skills/                         # loaded on demand when the description matches
 ```
 
