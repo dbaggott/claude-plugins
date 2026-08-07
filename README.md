@@ -130,9 +130,11 @@ hooks execute automatically once a marketplace is trusted. Specifically:
 | `check-worktree.sh` | before every Edit/Write | **Blocks** edits to tracked files in the main checkout of a covered repo. |
 | `check-issue-create.sh` | before every Bash | **Blocks** `gh issue create` against a covered repo unless the `issue-workflow` skill is loaded. |
 
-Nothing here sends your code anywhere, and **nothing here updates itself**. The
-plugin has no network access at all: what you install is what runs until you
-update it deliberately. Read the four files in
+Nothing here sends your code anywhere, and **nothing here updates itself**.
+These hooks make no network access at all: what you install is what runs until
+you update it deliberately. (The skills do drive `gh` — but only when you ask
+them to, which is the difference this section is about.) Read the four shell
+scripts in
 [`dnbg-workflow/hooks/`](dnbg-workflow/hooks/) before you trust them — they are
 short, and reviewing code that will run in your own terminal is a reasonable
 thing to want. Reviewing them is also *durable*, which it would not be if the
@@ -204,16 +206,26 @@ hours.
 The config form also works in managed settings, so an administrator can enable
 it for an organisation without asking each person to toggle it.
 
-**To update once, by hand**, run these one at a time (submit the first, wait,
-then the second — pasting both only registers the first):
+**To update once, by hand**, run these one at a time — submit each, wait, then
+the next; pasting them together only registers the first:
 
 ```
 /plugin marketplace update dnbg
 ```
 
 ```
+/plugin update dnbg-workflow@dnbg
+```
+
+```
 /reload-plugins
 ```
+
+All three are needed, and the middle one is easy to leave out. The first
+refreshes the marketplace *catalog*; the installed plugin is a separate,
+version-pinned copy, so without the second you reload the version you already
+had. The removed hook ran both commands, which is why this sequence could be
+incomplete before now without anyone noticing.
 
 To stop plugin updates globally regardless of the above, set `DISABLE_AUTOUPDATER`.
 To keep plugin updates while disabling Claude Code's own, set
