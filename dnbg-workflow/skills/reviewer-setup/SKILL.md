@@ -23,7 +23,7 @@ service, no shared secret store.
 - Run from a machine where `gh` is authenticated (`gh auth status`), plus
   `python3`, `openssl`, `jq`, and `curl` available (the setup and review
   helpers need them).
-- If credentials already exist (default `~/.config/agent-reviewer/config.json`),
+- If credentials already exist (default `~/.config/dnbg/reviewer/config.json`),
   setup is already done — don't re-run unless repairing. Re-running creates a
   *second* App; only do it deliberately.
 
@@ -135,8 +135,8 @@ cannot change an App that already exists.
 
 ## What got stored
 
-In the config dir (default `~/.config/agent-reviewer/`, override with
-`REVIEWER_CONFIG_DIR`):
+In the config dir (default `~/.config/dnbg/reviewer/`, override with
+`DNBG_REVIEWER_CONFIG_DIR`):
 
 - `private-key.pem` — the App private key (mode 600). **Never commit or share
   it**; it's the bot's full credential. Losing the laptop means deleting the

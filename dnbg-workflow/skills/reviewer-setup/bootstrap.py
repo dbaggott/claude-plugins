@@ -276,8 +276,9 @@ def main() -> int:
     p.add_argument("--timeout", type=int, default=600, help="seconds to wait for the browser callback")
     p.add_argument("--no-browser", action="store_true", help="don't auto-open the browser")
     p.add_argument("--config-dir",
-                   default=os.environ.get("REVIEWER_CONFIG_DIR")
-                   or str(Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")) / "agent-reviewer"),
+                   default=os.environ.get("DNBG_REVIEWER_CONFIG_DIR")
+                   or str(Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+                          / "dnbg" / "reviewer"),
                    help="where to store credentials")
     return run_flow(p.parse_args())
 

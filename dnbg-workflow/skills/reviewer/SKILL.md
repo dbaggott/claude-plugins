@@ -398,7 +398,7 @@ PR to resume (it re-assesses current state and picks the watch back up).
 
    ```bash
    "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> \
-     "$(jq -r .slug "${REVIEWER_CONFIG_DIR:-$HOME/.config/agent-reviewer}/config.json")"
+     "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-$HOME/.config/dnbg/reviewer}/config.json")"
    ```
 
    It reads with your own `gh` auth (so it doesn't expire mid-watch), tolerates
@@ -550,7 +550,7 @@ makes non-obvious:
   `agent-reviewer-<you>`), so matching `bot_login` (`…[bot]`) never hits.
 
 ```bash
-ME=$(jq -r '.slug' "${REVIEWER_CONFIG_DIR:-$HOME/.config/agent-reviewer}/config.json")
+ME=$(jq -r '.slug' "${DNBG_REVIEWER_CONFIG_DIR:-$HOME/.config/dnbg/reviewer}/config.json")
 
 # 1. List unresolved threads on this PR the bot authored (your own auth).
 env -u GH_TOKEN gh api graphql \
