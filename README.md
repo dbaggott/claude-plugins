@@ -23,7 +23,7 @@ Then, as a separate command — the install can't run until the marketplace add
 completes, and pasting both at once only registers the first as a slash command:
 
 ```
-/plugin install dnbg-workflow@dnbg --scope user
+/plugin install dnbg-workflow@dnbg
 ```
 
 > Three names, deliberately different. The **repo** is `claude-plugins` (it
@@ -32,15 +32,48 @@ completes, and pasting both at once only registers the first as a slash command:
 > marketplace names containing "claude" as impersonating an Anthropic-official
 > marketplace, which is why the marketplace needed a name of its own.
 
-At `--scope user` the plugin is active in every session on the machine, in any
-directory. That is the intended setup: a per-repo install means the rules fire
-in some directories and not others depending on where Claude Code was launched
-from, which is the worst of both worlds.
+The install asks for a scope. Which one you want depends on whether you're
+adopting this for **yourself across many repos** or for **one repo shared with
+other people** — the two are different problems and the plugin supports both.
+
+### Mode A — one person, many repos
+
+```
+/plugin install dnbg-workflow@dnbg --scope user
+```
+
+Active in every session on the machine, in any directory. Then set `owners`
+(below) to the accounts you want enforced, and the hooks gate every repo under
+them without any per-repo setup.
+
+This is the mode the enforcement hooks were built for, and it does something
+project scope cannot: the hooks resolve a repo from **the path being edited**,
+not from where Claude Code was launched. Working out of a parent directory and
+editing files across three repos, the gates still apply correctly to each.
+
+### Mode B — one repo, shared with a team
+
+```
+/plugin install dnbg-workflow@dnbg --scope project
+```
+
+Writes the plugin into that repo's committed `.claude/settings.json`, so every
+collaborator picks it up. Pair it with `extraKnownMarketplaces` in the same file
+and teammates get prompted to install it when they trust the folder — the
+standard way a repository declares the tooling it expects.
+
+Leave `owners` **empty** in this mode. The skills and rules load for everyone
+working in the repo, and the blocking hooks stay inert — which is usually what
+you want, because how someone drives their own editor is a personal choice a
+repository shouldn't impose on contributors.
+
+(`--scope local` is the same as B but private to you and gitignored — useful for
+trying the plugin in a repo without committing anything.)
 
 ## Configure which repos it enforces on
 
-**This step is what turns the hooks on.** At enable time Claude Code prompts for
-one value:
+**This is what turns the hooks on, and it only matters in Mode A.** At enable
+time Claude Code prompts for one value:
 
 | Setting | Meaning |
 | --- | --- |
@@ -48,16 +81,19 @@ one value:
 
 A repository is **covered** when its `origin` remote points at one of those
 owners. In a covered repo the two hooks below block; everywhere else they do
-nothing.
+nothing. Matching ignores case and whitespace, and compares whole names — so
+`acme` does not match `acme-corp`.
 
 **Leave it empty and nothing is ever blocked.** The skills still load and still
 advise, but no hook halts an edit. That is the deliberate default: a plugin that
 can stop your work shouldn't start doing so before you've said where.
 
 To change it later, re-run the plugin's configuration from `/plugin`. The value
-is stored in your **user** `settings.json`; a project's `.claude/settings.json`
-is deliberately ignored for plugin config, so cloning a repo can never
-reconfigure this.
+is stored in your **user** `settings.json` — and unlike `enabledPlugins`, plugin
+config is deliberately *not* read from a project's `.claude/settings.json`, so a
+repository you clone can never widen or narrow what gets enforced on your
+machine. That asymmetry is also why the opt-in for `prototype-velocity` below
+goes through a repo's `CLAUDE.md` rather than through config.
 
 ## What it does to your session
 
