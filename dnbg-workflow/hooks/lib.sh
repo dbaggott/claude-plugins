@@ -5,6 +5,13 @@
 # asked me to enforce on?" — from two different inputs (a git remote, a `gh
 # --repo` argument), so the owner match lives here rather than in each script.
 
+# Three separate edges have now been found in the layered strips below — a port
+# eating the owner, an uppercase host, an uppercase scheme — each fixed and
+# pinned by a fixture. The expressions are correct as far as they are tested,
+# but the accumulation is the signal: if a *fourth* edge turns up, stop patching
+# and parse the URL once into (scheme, user, host, port, path), then answer both
+# questions from the parts.
+#
 # Owner segment of a git remote URL. Handles the forms git emits:
 #   git@github.com:owner/repo.git
 #   https://github.com/owner/repo.git
@@ -19,7 +26,7 @@
 # host from a path rather than from a port.
 owner_from_remote() {
   printf '%s\n' "${1:-}" \
-    | sed -E 's#\.git$##; s#^[a-z+]+://##; s#^[^/@]+@##; s#^[^/:]+(:[0-9]+)?[:/]##; s#/.*$##'
+    | sed -E 's#\.git$##; s#^[a-zA-Z+]+://##; s#^[^/@]+@##; s#^[^/:]+(:[0-9]+)?[:/]##; s#/.*$##'
 }
 
 # Host segment of the same URL. Everything before the first `:` or `/` once the
@@ -34,7 +41,7 @@ owner_from_remote() {
 # keeps it true for any future caller.
 host_from_remote() {
   printf '%s\n' "${1:-}" \
-    | sed -E 's#^[a-z+]+://##; s#^[^/@]+@##; s#[:/].*$##' \
+    | sed -E 's#^[a-zA-Z+]+://##; s#^[^/@]+@##; s#[:/].*$##' \
     | tr '[:upper:]' '[:lower:]'
 }
 

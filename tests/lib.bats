@@ -143,6 +143,15 @@ setup() {
   [ "$status" -ne 0 ]
 }
 
+@test "host_from_remote: an uppercase scheme does not defeat the parse" {
+  # The scheme strip runs before the case fold, so a lowercase-only pattern
+  # leaves `HTTPS://...` intact and the host cut lands on the scheme's own
+  # colon — yielding `https` as the host. Schemes are case-insensitive per
+  # RFC 3986.
+  [ "$(host_from_remote 'HTTPS://GITHUB.COM/acme/repo.git')" = github.com ]
+  [ "$(host_from_remote 'SSH://git@github.com/acme/repo.git')" = github.com ]
+}
+
 @test "host_from_remote: a local path has no host" {
   [ -z "$(host_from_remote '/local/path/repo')" ]
 }
