@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin.json",
   "name": "dnbg-workflow",
   "description": "Opinionated GitHub workflow and coding-practice skills: worktree + draft PR flow, self-documenting issues, an independent PR reviewer bot, and work summaries.",
-  "version": "2026.8.0",
+  "version": "2026.8.1",
   "author": {
     "name": "Dan Baggott",
     "url": "https://github.com/dbaggott"
@@ -14,7 +14,7 @@
     "owners": {
       "type": "string",
       "title": "GitHub owners this workflow applies to",
-      "description": "Comma-separated list of GitHub orgs and/or personal logins, e.g. 'acme-corp,yourname'. A repo is covered when its origin remote points at one of them. Leave empty and the enforcement hooks never block anything \u2014 the skills still load as guidance.",
+      "description": "Comma-separated list of GitHub orgs and/or personal logins, e.g. 'acme-corp,yourname'. A repo is covered when its origin remote points at one of them. Leave empty and the enforcement hooks never block anything — the skills still load as guidance.",
       "default": ""
     }
   }
