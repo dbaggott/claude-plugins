@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin.json",
   "name": "dnbg-workflow",
   "description": "Opinionated GitHub workflow and coding-practice skills: worktree + draft PR flow, self-documenting issues, an independent PR reviewer bot, and work summaries.",
-  "version": "2026.1",
+  "version": "2026.2",
   "author": {
     "name": "Dan Baggott",
     "url": "https://github.com/dbaggott"
