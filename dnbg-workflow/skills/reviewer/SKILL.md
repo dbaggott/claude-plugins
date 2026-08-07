@@ -425,6 +425,7 @@ PR to resume (it re-assesses current state and picks the watch back up).
      SHA you actually reviewed — `gh api repos/<repo>/compare/<last>...<head>` —
      rather than from whatever state the watcher last reported. Then re-arm.
      Re-arming is cheap; assuming quiet is not.
+
 **`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.** It
 means comments or replies landed alongside the push. The primary result says what
 to do first; the flag says there is also unread conversation. Handle it per

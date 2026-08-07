@@ -78,6 +78,10 @@ report_burst() {
 saw_commits=0; saw_activity=0; new_head=""
 obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0
 settle_until=0; settle_cap=0
+# Initialised here, not left to the per-tick assignment: the unreachable-gh path
+# reads it before any successful tick may have run. Today that is safe only
+# because `settle_until != 0` implies one has — a coincidence, not a guarantee.
+holding_draft=0
 
 # Each jq program defines `mine` (true if a login is the bot, in either API's
 # form). $slug/$s are jq vars from --arg, so the program stays single-quoted.
@@ -91,8 +95,15 @@ while :; do
     # from under an accumulating burst. If the cap has passed while gh is
     # unreachable, report what was already observed rather than spinning — the
     # burst is real even though it can't be confirmed quiet.
-    [ "$settle_until" != 0 ] && [ "$(date +%s)" -ge "$settle_cap" ] && report_burst
-    [ "$settle_until" = 0 ] && timed_out && { echo "result=IDLE now=$(now_iso)"; exit 0; }
+    # `holding_draft` carries the last successful tick's value, which is the right
+    # one to trust when gh cannot confirm draft status. Without it a held-back
+    # draft reports COMMITS here — the case the quiet-period path already
+    # excludes — and this is the laptop-sleep path, where the first poll after
+    # wake can fail while `date` has already jumped past the cap.
+    [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
+      && [ "$(date +%s)" -ge "$settle_cap" ] && report_burst
+    { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && timed_out \
+      && { echo "result=IDLE now=$(now_iso)"; exit 0; }
     sleep "$INTERVAL"; continue
   fi
 
