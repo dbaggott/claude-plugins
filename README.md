@@ -185,6 +185,8 @@ then the second — pasting both only registers the first):
 
 ```
 .claude-plugin/marketplace.json   # the catalog
+CHANGELOG.md                      # assembled at release time
+changelog.d/<plugin>/             # pending fragments, one per PR
 dnbg-workflow/                    # the plugin
   .claude-plugin/plugin.json      # manifest, incl. the `owners` userConfig
   always-on-rules.md              # injected into every session
@@ -194,16 +196,44 @@ dnbg-workflow/                    # the plugin
 
 Changes go through a PR — never push to `main` directly.
 
+### Changelog fragments
+
+Every PR with a user-visible effect adds a fragment at
+`changelog.d/<plugin>/<slug>.md`. The release workflow folds fragments into
+`CHANGELOG.md` and the GitHub Release, then deletes them.
+
+Fragments are also what *trigger* a release: a plugin with pending fragments is
+released, a plugin without them is not. So a change whose author forgot a
+fragment does not ship — nothing breaks, the version simply doesn't move. See
+[`changelog.d/README.md`](changelog.d/README.md).
+
 ### Versioning
 
-Calendar versioning (`YYYY.N`), where `N` is the Nth release of the year and
-resets each January. `.github/workflows/auto-bump-version.yml` bumps it after
-every merge to `main`, so authors never touch the version in a PR. Run
+Calendar versioning, `YYYY.M.N` — year, month, and the Nth release of *that
+plugin* in that month. Each plugin carries its own counter, so releasing one
+doesn't move the others. `.github/workflows/release.yml` computes it
+after every merge to `main`, so authors never touch a version in a PR. Run
 `claude plugin list` to see what you have installed.
 
-Semver would be fictional here: the plugin ships rules and skills, not an API,
+Semver would be fictional here: the plugins ship rules and skills, not an API,
 so there is no breaking change to anchor a major bump on. CalVer answers the
 only question a consumer actually has — how fresh is this?
+
+The third component is not a semantic, though. Claude Code resolves plugin
+dependency version constraints against `{plugin}--v{version}` git tags, and
+ignores any tag whose suffix doesn't parse as semver — so a two-component
+`YYYY.N` tag would exist and never be selected. Semver also rejects leading
+zeros in numeric identifiers, which is why the month is unpadded: `2026.8.1`,
+never `2026.08.1`. That costs the columns lining up next to `2026.10.1`, and
+nothing else; ordering is numeric and stays correct.
+
+### Installing a specific version
+
+Every release is tagged `{plugin}--v{version}` and published as a GitHub
+Release, so a given version is addressable rather than implied. Which version
+you end up on depends on whether marketplace auto-update is enabled for `dnbg`
+in `/plugin` — with it on you track releases as they land, with it off you stay
+on whatever you installed until you update deliberately.
 
 ### If you forked this
 
@@ -215,7 +245,7 @@ than assuming them. The **CI** is a different matter, since a fork inherits
 - **`ci.yml`** works anywhere. It runs shellcheck and validates the JSON. Whether
   its `ci-required` umbrella actually *blocks* merges is your branch-protection
   setting, not something this repo can decide for you.
-- **`auto-bump-version.yml`** needs a GitHub App, because a required status check
+- **`release.yml`** needs a GitHub App, because a required status check
   and `GITHUB_TOKEN` are mutually exclusive here (see the comment at the top of
   that file). **It disables itself in a fork** — the job is guarded on an
   `AUTOMATION_APP_ID` variable you won't have, so it skips silently instead of

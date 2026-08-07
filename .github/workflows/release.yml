@@ -1,0 +1,355 @@
+name: Release
+
+# After every merge to main, release any plugin that has pending changelog
+# fragments: bump its version, fold its fragments into CHANGELOG.md, tag it, and
+# publish a GitHub Release.
+#
+# Versions are `YYYY.M.N` — year, unpadded month, Nth release of that plugin in
+# that month. N resets when the month changes. Each plugin carries its own
+# counter, so a release of one does not move the others.
+#
+# The scheme is CalVer for the same reason it always was: the plugins ship rules
+# and skills, not an API, so semver's major/minor/patch distinction would be
+# fictional, and "how fresh is this?" is the only question a consumer has. What
+# forces three components rather than two is a platform constraint, not a
+# semantic: `resolveVersionRange` ignores tags whose suffix does not parse as
+# semver, so a two-component `YYYY.N` tag would exist and never be selected by
+# dependency resolution. The month must not be zero-padded for the same reason —
+# semver rejects leading zeros in numeric identifiers.
+#
+# A plugin is released when it has fragments, not when its files changed. The
+# fragment is the authored statement that something release-worthy happened; a
+# whitespace fix carries none and correctly burns no version.
+#
+# The corollary is severe enough to need a gate rather than a convention: a
+# plugin's version is Claude Code's update cache key, so a change merged without
+# a fragment never bumps the version, and every existing install keeps running
+# the old copy until some later release carries it along. ci.yml's
+# `changelog-fragment` job fails any PR that touches a plugin directory without
+# adding one; `no-changelog` on the PR is the escape hatch, and this workflow
+# applies that label to its own release PR.
+#
+# Tags are created with plain `git tag`, not `claude plugin tag`. The naming is
+# fully determined (`{name}--v{version}`) and the runner does not ship Claude
+# Code, so using it would put an install of an external CLI in the release path.
+# The validation that command performs — manifest and marketplace entry agreeing,
+# version parsing as semver — belongs pre-merge in ci.yml, where a failure can
+# still block the merge, rather than post-merge here where it is too late.
+#
+# Auth is a GitHub App token, not GITHUB_TOKEN. That is forced by the required
+# status check on main: GitHub deliberately does not trigger workflows from
+# events created with GITHUB_TOKEN, so a bump PR opened with it would never get
+# a CI run, and `ci-required` would never report — the PR would sit unmergeable
+# forever. App tokens do trigger workflows, so the bump PR gets a real CI run
+# and clears the gate the same way any other PR does.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    # Serialize runs so bursty merges to main don't race. Two runs starting from
+    # the same pre-bump SHA would both compute the same version, and the second
+    # `git push origin auto-bump/<...>` would be rejected non-fast-forward.
+    #
+    # The group alone is not sufficient, and the wait at the end of this job is
+    # what completes it. `gh pr merge --auto` returns as soon as auto-merge is
+    # *enabled*, so without waiting the job would finish while its own bump was
+    # still unmerged — the next queued run would then check out a main whose
+    # manifests are still pre-bump and recompute identical versions.
+    #
+    # This is scoped to the JOB, not the workflow, and that placement is the
+    # whole point. Every release merges its own PR, which fires this workflow
+    # again; the `if` below skips that run, but a *workflow*-level group is
+    # acquired before the `if` is evaluated, so the skipping run still entered
+    # the group and evicted whatever was pending. Observed on 2026-08-07: merging
+    # two PRs three seconds apart produced runs at 03:03:03 and 03:03:06, then
+    # the first bump's own merge created a third run at 03:03:58 which cancelled
+    # the queued one at 03:03:59 and then skipped itself. Two merges, one bump. A
+    # job-level group is only acquired when the job actually starts, so a skipped
+    # job should never displace a queued one.
+    #
+    # Job scoping removes the release's own merge as an entrant. It does not make
+    # this one-release-per-merge: GitHub still holds only a single *pending* entry
+    # per group, so three genuine merges in a burst still lose the middle run.
+    # Ordering is not FIFO either — jobs queueing within the same 30-second
+    # window have no guaranteed order, which is exactly this burst shape. Neither
+    # loses work here, because fragments accumulate: a run that never happened
+    # leaves its fragments on disk for the next one to consume.
+    #
+    # cancel-in-progress is false so a merge landing mid-release cannot kill the
+    # in-flight run.
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    # Two guards, both load-bearing.
+    #
+    # 1. Loop guard. The release PR's squash merge lands a commit on main whose
+    #    message starts with this prefix, which would otherwise re-trigger this
+    #    workflow forever. `[skip ci]` cannot do this job here: it would also
+    #    skip the CI run on the release PR itself, and `ci-required` is a required
+    #    check — the PR would wait forever for a check that never ran.
+    #
+    # 2. Fork guard. This workflow needs a GitHub App that only this repo's
+    #    owner has. A fork without AUTOMATION_APP_ID set skips the job outright
+    #    rather than failing on a missing credential — versions just stop
+    #    auto-bumping, which is the right default for someone who forked this to
+    #    build their own marketplace. `vars` rather than `secrets` because the
+    #    secrets context is unavailable in a job-level `if`; an App ID isn't
+    #    secret anyway, so it belongs in a variable regardless.
+    if: >-
+      ${{ vars.AUTOMATION_APP_ID != ''
+          && !startsWith(github.event.head_commit.message, 'auto: release') }}
+    steps:
+      - name: Generate GitHub App token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.AUTOMATION_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          # Scope the minted token to this repo alone, even if the App is
+          # installed on others. The App can be a general-purpose automation
+          # identity; the token it hands this run must not be.
+          repositories: ${{ github.event.repository.name }}
+
+      - uses: actions/checkout@v4
+        with:
+          # Read the tip of main, not this run's trigger commit. With `ref`
+          # unset, checkout uses `github.sha` — the pushed commit — so a run that
+          # waited its turn in the concurrency group above would still compute
+          # its versions from pre-bump manifests and land on numbers the previous
+          # run already used. The wait makes main current; without this the job
+          # never looks at main.
+          #
+          # The failure that causes is silent rather than loud, because this repo
+          # deletes branches on merge: the previous branch name is free again, so
+          # the push succeeds and opens a second PR whose diff is already on main.
+          # Merging it changes nothing.
+          ref: main
+          # Tags are needed to compute nothing here, but `git push origin <tag>`
+          # below needs the App token on the remote, so fetch depth stays default
+          # and the token is what matters.
+          token: ${{ steps.token.outputs.token }}
+
+      - name: Plan the release
+        id: plan
+        run: |
+          set -euo pipefail
+          year=$(date -u +%Y)
+          month=$(date -u +%-m)   # unpadded: semver rejects leading zeros
+
+          # One entry per plugin to release: name, source dir, old and new
+          # version. Emitted as JSON so later steps need no re-parsing.
+          plan='[]'
+
+          # Iterate the marketplace rather than naming plugins. Adding a plugin
+          # to marketplace.json is the only step needed to include it here.
+          while IFS=$'\t' read -r name source; do
+            [ -n "$name" ] || continue
+            frags="changelog.d/${name}"
+            # No fragments means nothing release-worthy was authored for this
+            # plugin. Skip it — its version and tag stay where they are.
+            compgen -G "${frags}/*.md" >/dev/null || continue
+
+            manifest="${source}/.claude-plugin/plugin.json"
+            current=$(jq -r .version "$manifest")
+
+            # Same year and month -> increment N. Anything else, including a
+            # version in the old two-component scheme, resets to 1.
+            if [[ "$current" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] \
+               && [[ "${BASH_REMATCH[1]}" == "$year" ]] \
+               && [[ "${BASH_REMATCH[2]}" == "$month" ]]; then
+              new="${year}.${month}.$(( ${BASH_REMATCH[3]} + 1 ))"
+            else
+              new="${year}.${month}.1"
+            fi
+
+            echo "Releasing ${name}: ${current} -> ${new}"
+            plan=$(jq -c --arg n "$name" --arg s "$source" \
+                          --arg c "$current" --arg v "$new" \
+                          '. + [{name:$n, source:$s, current:$c, new:$v}]' <<<"$plan")
+          done < <(jq -r '.plugins[] | "\(.name)\t\(.source)"' .claude-plugin/marketplace.json)
+
+          if [ "$(jq 'length' <<<"$plan")" -eq 0 ]; then
+            echo "No pending fragments — nothing to release."
+          fi
+          echo "plan=$plan" >> "$GITHUB_OUTPUT"
+
+      - name: Apply versions and fold in the changelog
+        if: steps.plan.outputs.plan != '[]'
+        # The plan reaches the script through the environment rather than being
+        # interpolated into it. A `${{ }}` expansion inside the shell would let a
+        # quote in any plugin name or source path break out of the quoting and
+        # run as script. Repo-controlled today, but the safe form costs nothing.
+        env:
+          PLAN: ${{ steps.plan.outputs.plan }}
+        run: |
+          set -euo pipefail
+          date_utc=$(date -u +%Y-%m-%d)
+
+          while IFS=$'\t' read -r name source current new; do
+            manifest="${source}/.claude-plugin/plugin.json"
+            jq --arg v "$new" '.version = $v' "$manifest" > "$manifest.tmp"
+            mv "$manifest.tmp" "$manifest"
+
+            # Capture the notes before deleting the fragments — the release body
+            # is published after this commit lands, by which point they are gone.
+            # RUNNER_TEMP rather than a path in the repo, so the commit below can
+            # use a plain `git add -A` without excluding a scratch directory.
+            notes="${RUNNER_TEMP}/${name}.md"
+            for f in "changelog.d/${name}"/*.md; do
+              cat "$f"
+              echo
+            done > "$notes"
+            rm -f "changelog.d/${name}"/*.md
+
+            # Insert after the marker, not at the top of the file. Prepending
+            # blindly would push the `# Changelog` title and its preamble below
+            # the newest entry, one release further down every run.
+            #
+            # A marker rather than a line count: the header is prose and will be
+            # edited, and a count would silently start slicing through it.
+            {
+              echo
+              echo "## ${name} ${new} — ${date_utc}"
+              echo
+              cat "$notes"
+            } > "${RUNNER_TEMP}/entry.md"
+            grep -q "^<!-- releases below -->$" CHANGELOG.md \
+              || { echo "::error::CHANGELOG.md is missing the '<!-- releases below -->' marker" >&2; exit 1; }
+            sed -i "/^<!-- releases below -->$/r ${RUNNER_TEMP}/entry.md" CHANGELOG.md
+          done < <(jq -r '.[] | "\(.name)\t\(.source)\t\(.current)\t\(.new)"' <<<"$PLAN")
+
+      - name: Open and auto-merge the release PR
+        id: merge
+        if: steps.plan.outputs.plan != '[]'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          PLAN: ${{ steps.plan.outputs.plan }}
+        run: |
+          set -euo pipefail
+          summary=$(jq -r 'map("\(.name) \(.current) -> \(.new)") | join(", ")' <<<"$PLAN")
+          # Branch name carries the run id, not a version: a release can move
+          # several plugins, so no single version names it.
+          branch="auto-release/${{ github.run_id }}"
+          msg="auto: release ${summary}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "Nothing staged — plan was non-empty but produced no diff" >&2
+            exit 1
+          fi
+          git commit -m "$msg"
+          git push origin "$branch"
+
+          # The changelog-fragment gate would otherwise fail this PR: it edits
+          # every released plugin's manifest having just deleted the fragments
+          # it consumed. It could never merge, and the wait below would time
+          # out, breaking every release. --force makes the label self-healing in
+          # a fresh clone or a fork.
+          gh label create no-changelog \
+            --description "PR has no user-visible effect; skips the changelog-fragment check" \
+            --color EDEDED --force
+
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "$msg" \
+            --label no-changelog \
+            --body "$(jq -r 'map("- `\(.name)`: `\(.current)` -> `\(.new)`") | join("\n")' <<<"$PLAN")
+
+Generated by the release workflow: version bumps, \`CHANGELOG.md\` entries folded in from \`changelog.d/\`, and the consumed fragments removed."
+
+          # `--auto` rather than an immediate merge: `ci-required` is a required
+          # check and is still running at this point, so a plain `gh pr merge`
+          # would be refused. Auto-merge queues it to fire when the check passes.
+          # The retry covers only the brief window where GitHub hasn't computed
+          # the PR's mergeable state yet — not the CI wait, which --auto owns.
+          enabled=""
+          for attempt in 1 2 3 4 5; do
+            if gh pr merge "$branch" --squash --auto; then
+              enabled=1
+              break
+            fi
+            echo "Enabling auto-merge failed (attempt $attempt), retrying..."
+            sleep 5
+          done
+          [ -n "$enabled" ] || { echo "Failed to enable auto-merge after 5 attempts" >&2; exit 1; }
+
+          # Wait for the release to actually land. This is what makes the
+          # concurrency group above serialize, and the tags below must point at
+          # the merged commit rather than at this branch. Bounded so a stuck
+          # check surfaces as a failed job rather than a 6-hour one.
+          deadline=$(( $(date +%s) + 900 ))
+          until [ "$(gh pr view "$branch" --json state --jq .state)" = "MERGED" ]; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::release PR did not merge within 15m — check ci-required on $branch" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+
+          # Record the release PR's own merge commit. The tag step must not read
+          # main's tip instead: the wait above only established that this PR
+          # reached MERGED, and an ordinary PR merging in the window between the
+          # last poll and the tag would be swept in — tagging a commit carrying
+          # changes no fragment described and no version accounted for. The
+          # concurrency group does not help; it serializes release runs, not
+          # merges to main.
+          merged=$(gh pr view "$branch" --json mergeCommit --jq .mergeCommit.oid)
+          [ -n "$merged" ] || { echo "::error::could not resolve the merge commit for $branch" >&2; exit 1; }
+          echo "merged=$merged" >> "$GITHUB_OUTPUT"
+          echo "Released: ${summary} at ${merged}"
+
+      - name: Tag and publish
+        if: steps.plan.outputs.plan != '[]'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          PLAN: ${{ steps.plan.outputs.plan }}
+        run: |
+          set -euo pipefail
+          # The squashed merge commit of the release PR specifically — captured
+          # in the previous step rather than re-derived here. Not the branch tip
+          # (a squash rewrites it, so it is an ancestor of nothing) and not
+          # main's tip (which may have moved past the release since).
+          merged='${{ steps.merge.outputs.merged }}'
+          [ -n "$merged" ] || { echo "::error::no merge commit recorded" >&2; exit 1; }
+          git fetch origin main
+
+          # Every step below is idempotent, because this loop has three failure
+          # points and none of them should make a re-run impossible. A release
+          # moving several plugins can fail partway, leaving some tagged and
+          # published and others not; a plain `git tag` would then abort the
+          # re-run on the first already-tagged plugin, before reaching the ones
+          # that still need publishing.
+          while IFS=$'\t' read -r name new; do
+            # `{name}--v{version}` is the convention dependency resolution reads.
+            # A tag in any other shape is invisible to it.
+            tag="${name}--v${new}"
+
+            if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+              echo "tag ${tag} already exists locally"
+            else
+              git tag -a "$tag" "$merged" -m "${name} ${new}"
+            fi
+
+            # A reject here means the tag is already on the remote. Never force:
+            # a tag that moved would silently change what a version constraint
+            # resolves to for anyone who already fetched it.
+            git push origin "refs/tags/${tag}" || echo "tag ${tag} already on remote"
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "release ${tag} already published"
+            else
+              gh release create "$tag" \
+                --title "${name} ${new}" \
+                --notes-file "${RUNNER_TEMP}/${name}.md"
+              echo "Published ${tag}"
+            fi
+          done < <(jq -r '.[] | "\(.name)\t\(.new)"' <<<"$PLAN")
