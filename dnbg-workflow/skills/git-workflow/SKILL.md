@@ -120,18 +120,35 @@ ME=$(gh api user --jq .login)
 # safety net; when it fires, something is wrong — wake and tell the operator,
 # don't silently re-spawn into a possibly-endless wait (see below).
 deadline=$(( $(date +%s) + 1800 ))
-until [ -n "$(gh pr view <num> --repo <repo> --json reviews \
-        --jq ".reviews | map(select(.commit.oid == \"$HEAD\" and .author.login != \"$ME\")) | last")" ]; do
-  [ "$(date +%s)" -ge "$deadline" ] && { echo "result=TIMEOUT: no review on $HEAD after 30m"; exit 2; }
+until
+  # `2>/dev/null` keeps a transient blip from printing an error that survives in
+  # the task output, making a working watch read like a failed one. The `if`
+  # records that at least one poll reached GitHub: without it, an auth failure or
+  # a wrong <num>/<repo> is invisible for the full 30 minutes and then reports
+  # TIMEOUT — indistinguishable from a reviewer that simply never replied, which
+  # sends the operator to check a reviewer that was never the problem.
+  if R=$(gh pr view <num> --repo <repo> --json reviews \
+         --jq ".reviews | map(select(.commit.oid == \"$HEAD\" and .author.login != \"$ME\")) | last" 2>/dev/null)
+  then reached=1; else R=""; fi
+  [ -n "$R" ] || [ "$(date +%s)" -ge "$deadline" ]
+do
   sleep 15
 done
+[ -n "${reached:-}" ] || { echo "result=UNREACHABLE: never reached GitHub in 30m — check gh auth and the <num>/<repo> pair, not the reviewer"; exit 2; }
+[ -n "$R" ] || { echo "result=TIMEOUT: no review on $HEAD after 30m"; exit 2; }
 gh pr view <num> --repo <repo> --json reviews \
   --jq ".reviews | map(select(.commit.oid == \"$HEAD\" and .author.login != \"$ME\")) | last | {state, body}"
 ```
 
 **The `.author.login != "$ME"` filter is load-bearing, not defensive padding.** Replying to a review thread registers as a *review event authored by you*, with an empty body and state `COMMENTED`. Without the filter, answering a reviewer's inline comment satisfies the loop's exit condition, and the watch returns your own reply dressed as the review you were waiting for — reporting a PR as reviewed when nobody has looked at the new commits yet. This is the mirror of the guard `reviewer`'s `watch-pr.sh` applies on its side (excluding the bot's own activity so it never wakes to react to itself); both watchers need it, pointed at their own identity.
 
-The guard and deadline are not optional polish: the loop's only exit is a review appearing on `$HEAD`, so anything that makes that unreachable — an empty `$HEAD` from a transient `gh` failure, a SHA that never gets reviewed — turns it into a silent runaway shell that polls forever. Both become a clean exit you get notified about. Treat them differently on return: the blank-`$HEAD` exit is a transient hiccup — re-spawn the watch once. A `result=TIMEOUT` exit means 30 min passed with no review (reviewer down, or the wrong SHA is being watched); **don't silently re-spawn** — tell the operator no review has landed and ask whether to keep waiting or check the reviewer. Silent re-spawning just turns one runaway shell into a chain of them, one model wake per cycle.
+The guards and deadline are not optional polish: the loop's only exit is a review appearing on `$HEAD`, so anything that makes that unreachable — an empty `$HEAD` from a transient `gh` failure, a SHA that never gets reviewed — turns it into a silent runaway shell that polls forever. Each becomes a clean exit you get notified about. Treat the three returns differently:
+
+- **Blank `$HEAD`/`$ME` exit** — a transient hiccup at spawn time. Re-spawn the watch once.
+- **`result=UNREACHABLE`** — 30 minutes without one successful poll. The watcher was broken, not the reviewer: check `gh auth status` and that the `<num>`/`<repo>` pair is right, fix it, and re-spawn. Don't report to the operator that no review has landed — you don't know that.
+- **`result=TIMEOUT`** — GitHub was reachable and 30 minutes passed with no review on `$HEAD` (reviewer down, or the wrong SHA is being watched). **Don't silently re-spawn** — tell the operator no review has landed and ask whether to keep waiting or check the reviewer.
+
+Silent re-spawning on any of them just turns one runaway shell into a chain of them, one model wake per cycle.
 
 **Don't poll in the foreground unless the user asks for live status.** Foreground polling replays the `gh pr view` command line and every empty intermediate result into context every loop iteration — roughly 10× the conversation tokens of the background pattern for no end-state benefit. A bot reviewer typically responds in 1–3 minutes; 15-second sleeps catch it without busy-waiting.
 
@@ -260,20 +277,44 @@ Spawn this as a **background** poller (Bash `run_in_background: true`) — both 
 # Exactly one wake either way: on the merge, or once on timeout.
 deadline=$(( $(date +%s) + 21600 ))   # 6h
 until
-  J=$(gh pr view <num> --repo <repo> --json state,mergeStateStatus,statusCheckRollup,reviewDecision)
-  STATE=$(echo "$J" | jq -r .state)
-  MSS=$(echo "$J" | jq -r .mergeStateStatus)
-  # PENDING counts checks that haven't reached a terminal state. CheckRun
-  # entries use .status (COMPLETED is terminal); StatusContext entries use
-  # .state (PENDING is non-terminal). Any non-terminal check means BLOCKED
-  # is still transient.
-  PENDING=$(echo "$J" | jq -r '[.statusCheckRollup[] | select((.status != null and .status != "COMPLETED") or .state == "PENDING")] | length')
+  # Only the gh call is silenced. Its failures are the transient ones, and their
+  # stderr would otherwise survive into the background task's result, making a
+  # watch that rode out a blip and then reported MERGED read like one that died.
+  # The jq calls below are deliberately NOT silenced: a jq failure here means the
+  # payload shape changed, which is never transient and must stay visible.
+  RAW=$(gh pr view <num> --repo <repo> --json state,mergeStateStatus,statusCheckRollup,reviewDecision 2>/dev/null)
+  # Update state only from a poll that actually succeeded, and record that at
+  # least one did. Overwriting unconditionally would let a single blip on the tick
+  # that happens to observe the deadline erase six healthy hours — the run would
+  # lose `result=TIMEOUT` (the STATE test below short-circuits on empty) and the
+  # operator would never be reminded the PR is still open.
+  if [ -n "$RAW" ]; then
+    reached=1
+    J=$RAW
+    STATE=$(echo "$J" | jq -r .state)
+    MSS=$(echo "$J" | jq -r .mergeStateStatus)
+    # PENDING counts checks that haven't reached a terminal state. CheckRun
+    # entries use .status (COMPLETED is terminal); StatusContext entries use
+    # .state (PENDING is non-terminal). Any non-terminal check means BLOCKED
+    # is still transient.
+    #
+    # `// []` because statusCheckRollup is null on a PR with no checks at all,
+    # and iterating null is a hard jq error — which would leave PENDING empty for
+    # the rest of the window and silently disable the terminal-BLOCKED test
+    # below, so a failed required check would sit unreported until the deadline.
+    PENDING=$(echo "$J" | jq -r '[(.statusCheckRollup // [])[] | select((.status != null and .status != "COMPLETED") or .state == "PENDING")] | length')
+  fi
   [ "$STATE" = MERGED ] || [ "$STATE" = CLOSED ] || [ "$MSS" = DIRTY ] \
     || { [ "$MSS" = BLOCKED ] && [ "$PENDING" = "0" ]; } \
     || [ "$(date +%s)" -ge "$deadline" ]
 do
   sleep 60
 done
+# Not a single poll succeeded across the whole window — keyed on the flag, not on
+# `$STATE`, because the last poll failing is not the same event as every poll
+# failing. Silencing gh above removed the stderr that used to hint at this, so
+# without the flag a blank result is indistinguishable from a bug in the loop.
+[ -n "${reached:-}" ] || echo "result=UNREACHABLE"
 # Plain deadline timeout (still mergeable, just no merge yet) vs a real terminal
 # state — distinguish so the return-branch can tell "remind the operator" from
 # "surface a problem".
@@ -291,6 +332,7 @@ Sleep 60s, not the review watcher's 15s — match the interval to how fast the w
 
 When the poller returns, branch on the final state:
 
+- **`result=UNREACHABLE`** — the watch never once reached GitHub. Nothing is known about the PR, so **don't infer anything from the blank state fields** — it is neither still open nor merged as far as this run is concerned. Check `gh auth status` and that the `<num>`/`<repo>` pair is right, then re-spawn. This is the one return that says the watcher itself was broken rather than the PR being quiet.
 - **`state=MERGED`** — run the post-merge cleanup below right away. Don't wait for the operator to re-confirm; the poller already established the merge.
 - **`result=TIMEOUT`** (still `state=OPEN` after the deadline) — the watch elapsed without a merge; the operator likely stepped away. Wake **once** and tell them plainly: you watched the full window and didn't see it merge, the PR is still open and still needs merging (`<full URL>`, plus the merge command re-composed per "Composing the merge command" — check state may have changed during the wait), and they should ping you when it's done so you can run cleanup/verification. **Then stop — do not silently re-arm another watcher.** A fresh watch is cheap to start if they ask, and nothing in-session survives the session ending anyway (see below), so chaining watchers just burns one model wake per cycle for a merge only the human can trigger.
 - **`state=CLOSED`** (without merge) — someone closed the PR without merging. Acknowledge, stop the workflow, leave the worktree alone in case they reopen.
