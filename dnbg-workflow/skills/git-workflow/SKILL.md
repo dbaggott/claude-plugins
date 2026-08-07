@@ -124,7 +124,7 @@ until
   # `2>/dev/null` keeps a transient blip from printing an error that survives in
   # the task output, making a working watch read like a failed one. The `if`
   # records that at least one poll reached GitHub: without it, an auth failure or
-  # a wrong <num>/<repo> is invisible for the full 30 minutes and then reports
+  # a wrong <num>/<repo> is invisible for the whole window and then reports
   # TIMEOUT — indistinguishable from a reviewer that simply never replied, which
   # sends the operator to check a reviewer that was never the problem.
   if R=$(gh pr view <num> --repo <repo> --json reviews \
@@ -145,8 +145,8 @@ gh pr view <num> --repo <repo> --json reviews \
 The guards and deadline are not optional polish: the loop's only exit is a review appearing on `$HEAD`, so anything that makes that unreachable — an empty `$HEAD` from a transient `gh` failure, a SHA that never gets reviewed — turns it into a silent runaway shell that polls forever. Each becomes a clean exit you get notified about. Treat the three returns differently:
 
 - **Blank `$HEAD`/`$ME` exit** — a transient hiccup at spawn time. Re-spawn the watch once.
-- **`result=UNREACHABLE`** — 30 minutes without one successful poll. The watcher was broken, not the reviewer: check `gh auth status` and that the `<num>`/`<repo>` pair is right, fix it, and re-spawn. Don't report to the operator that no review has landed — you don't know that.
-- **`result=TIMEOUT`** — GitHub was reachable and 30 minutes passed with no review on `$HEAD` (reviewer down, or the wrong SHA is being watched). **Don't silently re-spawn** — tell the operator no review has landed and ask whether to keep waiting or check the reviewer.
+- **`result=UNREACHABLE`** — the whole window elapsed without one successful poll. The watcher was broken, not the reviewer: check `gh auth status` and that the `<num>`/`<repo>` pair is right, fix it, and re-spawn. Don't report to the operator that no review has landed — you don't know that.
+- **`result=TIMEOUT`** — GitHub was reachable and the window elapsed with no review on `$HEAD` (reviewer down, or the wrong SHA is being watched). **Don't silently re-spawn** — tell the operator no review has landed and ask whether to keep waiting or check the reviewer.
 
 Silent re-spawning on any of them just turns one runaway shell into a chain of them, one model wake per cycle.
 

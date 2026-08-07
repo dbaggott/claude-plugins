@@ -126,6 +126,20 @@ what someone does?"** These six all fail that bar:
   live on the variable's own `description`. Two copies is one to keep in sync.
   Comment the call site only when the *choice* is surprising in a way the
   definition can't cover: a temporary override, an exception to a convention.
+- **A specific value the point doesn't rest on.** "The token expires after 1
+  hour, so re-mint rather than reusing it" — when the issuer makes it two hours,
+  the advice is still right and the comment is now wrong. Nothing forces the fix,
+  so nobody makes it. This one slips past the transient-state litmus above: the
+  answer there is "no, I'd edit the number", and it rots regardless.
+  **Test: would a different value change what the reader does?** If not, name the
+  property and drop the number — "short-lived; mint per use". Scope the detail to
+  what the point actually needs.
+
+  When the value *is* load-bearing — a limit the reader must respect, a constant
+  that must match another — keep it, and put it where it can be checked: on the
+  line with the literal it explains, or asserted, per **enforceable > prose >
+  nothing** below. A number restated at a distance from its source is a copy, and
+  copies drift.
 
 What stays is a **current, non-obvious constraint** — a platform behavior, a
 fail-closed risk, two values that must move together. That is what comments are

@@ -206,8 +206,8 @@ PR can use your own `gh` auth; the bot token below is only needed to post.
 
 ## Get a bot token (scoped to the repo's owner)
 
-Every action against the PR runs as the bot, via a short-lived (1-hour)
-installation token. The bot may be installed on several accounts (an org and
+Every action against the PR runs as the bot, via a short-lived installation
+token. The bot may be installed on several accounts (an org and
 your personal account), so mint the token **for the target repo's owner** — pass
 the `<owner>` part of `<repo>`. Run `mint-token.sh` from this skill's directory
 (the **Base directory** shown when this skill loads) and use it as `GH_TOKEN`:

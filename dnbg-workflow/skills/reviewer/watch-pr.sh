@@ -28,7 +28,7 @@
 # is also unread conversation. Ignoring it loses those replies for good, because
 # the agent re-arms with since_iso set to now.
 #
-# Reads with the dev's own gh auth (not the 1-hour bot token) so a long watch —
+# Reads with the dev's own gh auth (not the short-lived bot token) so a long watch —
 # including across laptop sleep — doesn't expire its credential mid-poll.
 set -euo pipefail
 unset GH_TOKEN   # use the dev's own (non-expiring) gh auth for the long poll
