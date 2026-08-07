@@ -176,23 +176,33 @@ An earlier version shipped its own updater and overrode that default. It has
 been removed. Claude Code does the same job better, and asking rather than
 assuming is the right posture for a plugin that executes on your machine.
 
-**To keep up automatically**, turn on auto-update for this marketplace:
+**To keep up automatically**, turn on auto-update for this marketplace. Either
+set it in your `settings.json`:
 
-1. Run `/plugin`
-2. Select **Marketplaces**
-3. Choose **dnbg**
-4. Select **Enable auto-update**
+```json
+{
+  "extraKnownMarketplaces": {
+    "dnbg": {
+      "source": { "source": "github", "repo": "dbaggott/claude-plugins" },
+      "autoUpdate": true
+    }
+  }
+}
+```
 
-Claude Code then checks after each session starts, with a random delay of up to
-ten minutes, and refreshes the marketplace and updates installed plugins on
-disk. Your running session keeps the version it launched with; you'll be
+or toggle it in the UI — `/plugin` → **Marketplaces** → **dnbg** → **Enable
+auto-update**. The two are the same setting: Claude Code reads the config field
+and the panel reflects it.
+
+Either way, Claude Code checks after each session starts, with a random delay of
+up to ten minutes, then refreshes the marketplace and updates installed plugins
+on disk. Your running session keeps the version it launched with; you'll be
 prompted to `/reload-plugins`, or the new version loads next launch. That is
 more current than the removed hook, which throttled itself to once every four
 hours.
 
-Administrators rolling this out can set `"autoUpdate": true` on the marketplace's
-[`extraKnownMarketplaces`](https://code.claude.com/docs/en/settings#extraknownmarketplaces)
-entry in managed settings instead of asking each person to toggle it.
+The config form also works in managed settings, so an administrator can enable
+it for an organisation without asking each person to toggle it.
 
 **To update once, by hand**, run these one at a time (submit the first, wait,
 then the second — pasting both only registers the first):
