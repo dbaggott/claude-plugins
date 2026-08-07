@@ -107,52 +107,35 @@ Don't offer "or run `gh pr ready` yourself" as an option or alternative. The aut
 When the operator picks "Send to review" in the picker above, or otherwise signals the PR is ready (says "ready", "go", "mark it ready", etc.):
 
 1. Run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft.
-2. Spawn a **background** poller (Bash `run_in_background: true`) that waits for a review on the *current* head SHA. The harness notifies you when the command completes, so the polling loop's transient empty results never land in the conversation:
+2. **Record state**: the current head SHA, and a timestamp marking "handled up to here".
+3. **Spawn `watch-pr.sh`** as a **background** task (Bash `run_in_background: true`). It blocks until something happens, so its idle polling never enters the conversation, and the harness wakes you when it returns.
 
 ```bash
-HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
-ME=$(gh api user --jq .login)
-# A blank HEAD or ME (transient gh/network failure) makes the match below
-# unsatisfiable or unfiltered, so bail rather than spin. Re-spawn the watch.
-[ -n "$HEAD" ] && [ -n "$ME" ] || { echo "could not resolve head SHA / login — re-run the watch"; exit 1; }
-# Deadline: a review that never lands (reviewer bot down, wrong SHA) must not
-# dead-spin. A bot reviewer normally replies in 1–3 min, so 30 min is a generous
-# safety net; when it fires, something is wrong — wake and tell the operator,
-# don't silently re-spawn into a possibly-endless wait (see below).
-deadline=$(( $(date +%s) + 1800 ))
-until
-  # `2>/dev/null` keeps a transient blip from printing an error that survives in
-  # the task output, making a working watch read like a failed one. The `if`
-  # records that at least one poll reached GitHub: without it, an auth failure or
-  # a wrong <num>/<repo> is invisible for the whole window and then reports
-  # TIMEOUT — indistinguishable from a reviewer that simply never replied, which
-  # sends the operator to check a reviewer that was never the problem.
-  if R=$(gh pr view <num> --repo <repo> --json reviews \
-         --jq ".reviews | map(select(.commit.oid == \"$HEAD\" and .author.login != \"$ME\")) | last" 2>/dev/null)
-  then reached=1; else R=""; fi
-  [ -n "$R" ] || [ "$(date +%s)" -ge "$deadline" ]
-do
-  sleep 15
-done
-[ -n "${reached:-}" ] || { echo "result=UNREACHABLE: never reached GitHub in 30m — check gh auth and the <num>/<repo> pair, not the reviewer"; exit 2; }
-[ -n "$R" ] || { echo "result=TIMEOUT: no review on $HEAD after 30m"; exit 2; }
-gh pr view <num> --repo <repo> --json reviews \
-  --jq ".reviews | map(select(.commit.oid == \"$HEAD\" and .author.login != \"$ME\")) | last | {state, body}"
+"<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
+  "$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)" \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  "$(gh api user --jq .login)"
 ```
 
-**The `.author.login != "$ME"` filter is load-bearing, not defensive padding.** Replying to a review thread registers as a *review event authored by you*, with an empty body and state `COMMENTED`. Without the filter, answering a reviewer's inline comment satisfies the loop's exit condition, and the watch returns your own reply dressed as the review you were waiting for — reporting a PR as reviewed when nobody has looked at the new commits yet. This is the mirror of the guard `reviewer`'s `watch-pr.sh` applies on its side (excluding the bot's own activity so it never wakes to react to itself); both watchers need it, pointed at their own identity.
+The path reaches out of this skill's directory on purpose: the script is shared with `reviewer`, which watches the same PRs from the other side. `CLAUDE_PLUGIN_ROOT` is exported to *hook* processes, not to yours, so a skill can only address a sibling relative to its own announced Base directory — and skill directories are always `<plugin>/skills/<name>/`, which makes `../../scripts/` deterministic.
 
-The guards and deadline are not optional polish: the loop's only exit is a review appearing on `$HEAD`, so anything that makes that unreachable — an empty `$HEAD` from a transient `gh` failure, a SHA that never gets reviewed — turns it into a silent runaway shell that polls forever. Each becomes a clean exit you get notified about. Treat the three returns differently:
+**Do not hand-roll this loop.** An earlier version of this skill inlined it here, and the inline version was wrong in ways that are not obvious until they bite:
 
-- **Blank `$HEAD`/`$ME` exit** — a transient hiccup at spawn time. Re-spawn the watch once.
-- **`result=UNREACHABLE`** — the whole window elapsed without one successful poll. The watcher was broken, not the reviewer: check `gh auth status` and that the `<num>`/`<repo>` pair is right, fix it, and re-spawn. Don't report to the operator that no review has landed — you don't know that.
-- **`result=TIMEOUT`** — GitHub was reachable and the window elapsed with no review on `$HEAD` (reviewer down, or the wrong SHA is being watched). **Don't silently re-spawn** — tell the operator no review has landed and ask whether to keep waiting or check the reviewer.
+- It polled for a review **on the current head SHA**. That is right after you push a fix, and wrong after you answer a reviewer in threads — replying moves nothing, so the filter matches the review you already handled and wakes you with stale news dressed as a fresh verdict.
+- The fifth argument is the login whose activity to **ignore** — your own. This is load-bearing, not padding: replying to a review thread registers as a *review event authored by you*, with an empty body and state `COMMENTED`, so without it your own reply satisfies the wait and reports a PR as reviewed when nobody has looked. The script also handles the two spellings GitHub uses for the same bot (`<slug>` via GraphQL, `<slug>[bot]` via REST), which a hand-written filter reliably gets wrong.
+- It returned on the first thing it saw. A round is a **burst** — a reviewer files a verdict and several inline comments — and returning early is *lossy* rather than merely mis-ordered, because you re-arm with `since` set to now and anything unread is filtered out permanently. The script settles before reporting.
 
-Silent re-spawning on any of them just turns one runaway shell into a chain of them, one model wake per cycle.
+Being a file rather than a fenced block is itself part of the fix: `shellcheck` covers `scripts/`, and covers nothing inside a `.md`.
 
-**Don't poll in the foreground unless the user asks for live status.** Foreground polling replays the `gh pr view` command line and every empty intermediate result into context every loop iteration — roughly 10× the conversation tokens of the background pattern for no end-state benefit. A bot reviewer typically responds in 1–3 minutes; 15-second sleeps catch it without busy-waiting.
+The script prints one result line. Treat the returns differently:
 
-The same pattern works after pushing a fix in response to feedback — the head SHA changes, and if the repo dismisses stale approvals (see "Know the repo's merge settings") the previous review dismisses on push. Either way the poller catches the next review on the new SHA.
+- **`result=ACTIVITY`** — a review, comment or reply landed. Go to "When a review comes in".
+- **`result=COMMITS`** — someone pushed to the branch. If it wasn't you, read the change before responding to anything.
+- **`result=CLOSED`** — merged or closed. Stop watching; if `state=MERGED`, run the post-merge cleanup.
+- **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (`reviewer` treats `IDLE` as routine and re-arms, because a quiet PR is expected on that side. Same script, opposite caller.)
+
+The same spawn works after pushing a fix in response to feedback — record the new head and a fresh timestamp, and re-arm.
+
 
 ## When a review comes in
 
@@ -165,7 +148,15 @@ gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate \
 
 This is not belt-and-braces. A body reading "four things below" with three summary bullets is normal — the fourth, often the only real defect, is inline. Summarize from the body alone and the next round opens with every finding still outstanding, because none of them was ever addressed.
 
-Before claiming a round is handled, enumerate the threads that are still unresolved (GraphQL `reviewThreads`, filtering on `isResolved`) rather than trusting your own list of what you fixed.
+**And enumerate the unresolved threads — don't trust your own list of what you fixed.** This one has a command because prose was not enough: it was stated here without one, and was skipped twice in a single PR, with three threads left open while rounds were reported as handled. The reviewer read open threads as outstanding work, which is exactly what they mean.
+
+```bash
+gh api graphql -f query='{repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){
+  reviewThreads(first:50){nodes{id isResolved path line comments(first:1){nodes{body}}}}}}}' \
+  --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved==false)]'
+```
+
+Run all three — verdict, inline comments, threads — before summarizing anything. A verdict alone is a third of the review.
 
 Read the review payload and pick one of three responses based on content. Track whether the operator has opted in to auto-handling for *this* PR — once they pick "Auto-handle all rounds" in the picker below, the choice is sticky across subsequent rounds until the PR merges or they explicitly stop.
 
@@ -228,7 +219,15 @@ Address comments to the reviewer using `@username` mentions.
 2. **The code.** If the concern is real, the fix *is* the answer.
 3. **The PR body.** For what you verified and how, what scope you checked, why one approach beat another. This is the as-built record, and it's exactly where `coding-practices` sends evidence and provenance.
 
-Reply in the thread as well — that part is for the humans.
+**Reply in the thread itself, and resolve it.** A top-level PR comment does not close a thread, and an unresolved thread is how a reviewer tracks outstanding work — so answering at the top level leaves the finding looking untouched no matter how thoroughly you fixed it. Use the thread `id` from the enumeration above:
+
+```bash
+gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(
+  input:{pullRequestReviewThreadId:$t,body:$b}){clientMutationId}}' -f t=<thread-id> -f b='<reply>'
+gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{isResolved}}}' -f t=<thread-id>
+```
+
+Resolve only what you actually addressed. A thread you are declining to act on stays open with your reasoning in it — that is a disagreement to surface, not a box to tick.
 
 ⚠️ **A code comment is the last resort, and only when it would have earned its place anyway.** A reviewer's question is not a licence to add prose that fails the bar in `coding-practices`' "What a comment must not carry". An answer that exists only because someone asked once is the transient state that section rules out, and it will read as inexplicable defensiveness to the next person. If the answer is a *current, non-obvious constraint a future editor needs*, it was already worth a comment before the review; if it isn't, the PR body is where it goes.
 
