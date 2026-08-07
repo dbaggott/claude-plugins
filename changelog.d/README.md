@@ -26,10 +26,22 @@ A plugin with pending fragments is released; a plugin without them is not. The
 fragment is the authored statement that something release-worthy happened, so a
 whitespace fix carries none and correctly burns no version.
 
-The corollary matters: **a real change whose author forgot a fragment does not
-ship.** Nothing is broken by this and nothing warns about it — the plugin's
-version simply does not move. The reminder in `.github/pull_request_template.md`
-is what prevents it.
+The corollary matters, and it is worse than a missing release note: **a change
+merged without a fragment is never delivered to anyone who already installed the
+plugin.** A plugin's version is Claude Code's update cache key — it "skips the
+update if it matches what's already installed" — so no bump means no update. The
+change sits on `main`, invisible to existing installs, until some later release
+of that plugin happens to carry it along. That could be months.
+
+Because the failure is silent and unbounded, it is enforced rather than
+suggested: `ci.yml`'s `changelog-fragment` job fails any PR that touches a
+plugin's directory without adding a fragment.
+
+**The escape hatch is the `no-changelog` label**, for changes with genuinely no
+user-visible effect — a comment fix inside a skill, a CI tweak that happens to
+touch a plugin directory. The release workflow applies it to its own PR, which
+edits every released plugin's manifest immediately after consuming its
+fragments and could otherwise never merge.
 
 ## Format
 

@@ -84,11 +84,63 @@ jobs:
           done < <(jq -r '.plugins[] | "\(.name)\t\(.source)"' .claude-plugin/marketplace.json)
           exit "$fail"
 
+  changelog-fragment:
+    name: changelog-fragment
+    runs-on: ubuntu-latest
+    # PR-only. `ci-required` below accepts `skipped`, so this not running on a
+    # push to main doesn't hold the gate open.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the check diffs against the merge-base with the base
+          # branch, which a shallow clone doesn't have.
+          fetch-depth: 0
+      - name: Require a fragment for every changed plugin
+        # A plugin's version is Claude Code's update cache key — it "skips the
+        # update if it matches what's already installed." So a change that
+        # merges without a fragment doesn't just lose a release note: the
+        # release workflow won't bump that plugin, the version won't move, and
+        # every existing install keeps running the old copy until some later
+        # release happens to carry the change along. That failure is silent and
+        # can sit indefinitely, which is why this is a gate rather than a
+        # reminder — and why the PR template alone wasn't enough.
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # Escape hatch for changes with no user-visible effect — a comment
+          # fix inside a skill, a CI tweak that happens to touch a plugin dir —
+          # and for the release workflow's own PR, which edits every released
+          # plugin's manifest immediately after consuming its fragments. Without
+          # the exemption that PR could never merge and releases would deadlock.
+          case ",${LABELS}," in
+            *,no-changelog,*) echo "no-changelog label present — skipping"; exit 0 ;;
+          esac
+
+          fail=0
+          while IFS=$'\t' read -r name source; do
+            # Three dots: compare against the merge-base, so unrelated commits
+            # landing on the base branch meanwhile don't register as this PR's.
+            if [ -z "$(git diff --name-only "origin/${BASE}...HEAD" -- "$source/")" ]; then
+              continue
+            fi
+            if compgen -G "changelog.d/${name}/*.md" >/dev/null; then
+              echo "  ok: ${name}"
+              continue
+            fi
+            echo "::error::${name} changed but changelog.d/${name}/ has no fragment. Add one (see changelog.d/README.md), or label this PR no-changelog if it has no user-visible effect."
+            fail=1
+          done < <(jq -r '.plugins[] | "\(.name)\t\(.source)"' .claude-plugin/marketplace.json)
+          exit "$fail"
+
   ci-required:
     # Single umbrella job. New fanout jobs added above gate merges by being
     # added to `needs:` here.
     if: always()
-    needs: [shellcheck, validate-manifests]
+    needs: [shellcheck, validate-manifests, changelog-fragment]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs succeeded
