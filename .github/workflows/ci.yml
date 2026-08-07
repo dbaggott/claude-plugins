@@ -106,17 +106,39 @@ jobs:
         # can sit indefinitely, which is why this is a gate rather than a
         # reminder — and why the PR template alone wasn't enough.
         env:
-          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           BASE: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
-          # Escape hatch for changes with no user-visible effect — a comment
-          # fix inside a skill, a CI tweak that happens to touch a plugin dir —
-          # and for the release workflow's own PR, which edits every released
-          # plugin's manifest immediately after consuming its fragments. Without
-          # the exemption that PR could never merge and releases would deadlock.
-          case ",${LABELS}," in
+          # The release workflow's own PR edits every released plugin's manifest
+          # immediately after deleting the fragments it consumed, so it can never
+          # satisfy this gate.
+          #
+          # Keyed on the branch prefix, NOT on the no-changelog label, because a
+          # label cannot work here: `gh pr create --label` can't attach labels at
+          # creation — GitHub's createPullRequest mutation doesn't accept them —
+          # so gh applies them in a second call, and the `pull_request.opened`
+          # payload that triggers this workflow is built with an empty labels
+          # array. `labeled` isn't in the default trigger types either, so the
+          # later application re-triggers nothing. Relying on the label would
+          # leave the release PR failing CI, auto-merge never firing, and the
+          # workflow's 15-minute merge-wait timing out — breaking every release,
+          # with no self-healing, since re-running replays the original payload.
+          case "$HEAD_REF" in
+            auto-release/*) echo "release PR — skipping"; exit 0 ;;
+          esac
+
+          # Read labels live rather than from the event payload, for the same
+          # reason: the payload is a snapshot taken at PR creation, so a label
+          # added afterwards is invisible to it. Without this, a human who hits
+          # the gate and then applies `no-changelog` gets no way to clear it —
+          # re-running the check replays the payload that lacked the label. A
+          # live read makes label-then-rerun actually work.
+          labels=$(gh pr view "$PR" --json labels --jq '[.labels[].name] | join(",")')
+          case ",${labels}," in
             *,no-changelog,*) echo "no-changelog label present — skipping"; exit 0 ;;
           esac
 

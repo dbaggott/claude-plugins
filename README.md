@@ -211,7 +211,7 @@ fragment does not ship — nothing breaks, the version simply doesn't move. See
 
 Calendar versioning, `YYYY.M.N` — year, month, and the Nth release of *that
 plugin* in that month. Each plugin carries its own counter, so releasing one
-doesn't move the others. `.github/workflows/auto-bump-version.yml` computes it
+doesn't move the others. `.github/workflows/release.yml` computes it
 after every merge to `main`, so authors never touch a version in a PR. Run
 `claude plugin list` to see what you have installed.
 
@@ -245,7 +245,7 @@ than assuming them. The **CI** is a different matter, since a fork inherits
 - **`ci.yml`** works anywhere. It runs shellcheck and validates the JSON. Whether
   its `ci-required` umbrella actually *blocks* merges is your branch-protection
   setting, not something this repo can decide for you.
-- **`auto-bump-version.yml`** needs a GitHub App, because a required status check
+- **`release.yml`** needs a GitHub App, because a required status check
   and `GITHUB_TOKEN` are mutually exclusive here (see the comment at the top of
   that file). **It disables itself in a fork** — the job is guarded on an
   `AUTOMATION_APP_ID` variable you won't have, so it skips silently instead of
