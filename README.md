@@ -146,7 +146,7 @@ thing to want.
 | `reviewer` | Reviewing a pushed PR under an independent GitHub App identity |
 | `reviewer-setup` | One-time creation of that App (no cloud service, no shared secret) |
 | `work-summary` | Turning your merged/open PRs into an audience-shaped recap |
-| `prototype-velocity` | Opt-in: how to size work in a project with no users yet |
+| `prototype-velocity` | Opt-in: how to size work where the risk/benefit trade favors speed |
 
 The `reviewer` pair is the piece with the least in common with the rest — it
 exists because GitHub won't let you approve your own PR, and a separate App
@@ -154,11 +154,14 @@ identity can. `reviewer-setup` creates that App and keeps its private key on
 your machine.
 
 `prototype-velocity` is **opt-in per repo** and off unless a project asks for
-it, since it trades away protections real users need. A repo opts in with one
-line in its own `CLAUDE.md`:
+it, since it trades away protections most projects need. Whether the trade holds
+is a ratio — blast radius, reversibility, how fast breakage is noticed, test
+coverage, and users — not a headcount, so a live project with forgiving users and
+one-command rollback can sit on the velocity side while a pre-launch one doing an
+irreversible migration cannot.
 
-> This project is prototype-stage — load `dnbg-workflow:prototype-velocity` when
-> sizing a change or deciding whether to split a PR.
+A repo opts in with a short section in its own `CLAUDE.md` naming the posture and
+who can unmake it. The skill carries the template.
 
 ## Keeping up to date
 
