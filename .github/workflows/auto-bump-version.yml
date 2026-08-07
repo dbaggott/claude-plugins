@@ -1,0 +1,170 @@
+name: Auto-bump plugin version
+
+# After every merge to main, bump the plugin's version using a YYYY.N CalVer
+# scheme — N increments per merge and resets to 1 when the year rolls over.
+#
+# Why CalVer instead of semver: the plugin ships rules and skills, not an API,
+# so semver's major/minor/patch distinction would be fictional. CalVer answers
+# the only question consumers actually have — "how fresh is the running
+# plugin?" — and lets the bump be fully mechanical.
+#
+# Auth is a GitHub App token, not GITHUB_TOKEN. That is forced by the required
+# status check on main: GitHub deliberately does not trigger workflows from
+# events created with GITHUB_TOKEN, so a bump PR opened with it would never get
+# a CI run, and `ci-required` would never report — the PR would sit unmergeable
+# forever. App tokens do trigger workflows, so the bump PR gets a real CI run
+# and clears the gate the same way any other PR does.
+
+on:
+  push:
+    branches: [main]
+
+# Serialize runs so bursty merges to main don't race. Two runs starting from the
+# same pre-bump SHA would both compute the same `YYYY.N+1`, and the second
+# `git push origin auto-bump/<version>` would be rejected non-fast-forward.
+#
+# The group alone is not sufficient, and the final step is what completes it.
+# `gh pr merge --auto` returns as soon as auto-merge is *enabled*, so without
+# waiting the job would finish while its own bump was still unmerged — the next
+# queued run would then check out a main whose manifest is still pre-bump and
+# recompute the identical version. Serialization only holds if a run doesn't end
+# until its bump is actually on main.
+#
+# cancel-in-progress is intentionally false, so a merge landing mid-bump cannot
+# kill the in-flight run. It does not promise one bump per merge: GitHub holds
+# only a single *pending* run per group, so three merges in quick succession
+# supersede the middle one and its bump never happens. That is acceptable here —
+# CalVer only has to increase, not to be dense — but it is a gap in the
+# serialization, not something the group prevents.
+concurrency:
+  group: auto-bump-version
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: bump-version
+    runs-on: ubuntu-latest
+    # Two guards, both load-bearing.
+    #
+    # 1. Loop guard. The bump PR's squash merge lands a commit on main whose
+    #    message starts with this prefix, which would otherwise re-trigger this
+    #    workflow forever. `[skip ci]` cannot do this job here: it would also
+    #    skip the CI run on the bump PR itself, and `ci-required` is a required
+    #    check — the PR would wait forever for a check that never ran.
+    #
+    # 2. Fork guard. This workflow needs a GitHub App that only this repo's
+    #    owner has. A fork without AUTOMATION_APP_ID set skips the job outright
+    #    rather than failing on a missing credential — versions just stop
+    #    auto-bumping, which is the right default for someone who forked this to
+    #    build their own marketplace. `vars` rather than `secrets` because the
+    #    secrets context is unavailable in a job-level `if`; an App ID isn't
+    #    secret anyway, so it belongs in a variable regardless.
+    if: >-
+      ${{ vars.AUTOMATION_APP_ID != ''
+          && !startsWith(github.event.head_commit.message, 'auto: bump version') }}
+    steps:
+      - name: Generate GitHub App token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.AUTOMATION_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          # Scope the minted token to this repo alone, even if the App is
+          # installed on others. The App can be a general-purpose automation
+          # identity; the token it hands this run must not be.
+          repositories: ${{ github.event.repository.name }}
+
+      - uses: actions/checkout@v4
+        with:
+          # Use the App token for the remote so subsequent `git push` commands
+          # authenticate as the App, not as GITHUB_TOKEN.
+          token: ${{ steps.token.outputs.token }}
+
+      - name: Compute new version
+        id: version
+        run: |
+          set -euo pipefail
+          manifest=dnbg-workflow/.claude-plugin/plugin.json
+          current=$(jq -r .version "$manifest")
+          year=$(date -u +%Y)
+
+          # Parse YYYY.N; if the format doesn't match or the year has rolled
+          # over, reset to YYYY.1. Otherwise increment N.
+          if [[ "$current" =~ ^([0-9]{4})\.([0-9]+)$ ]] \
+             && [[ "${BASH_REMATCH[1]}" == "$year" ]]; then
+            new="${year}.$((${BASH_REMATCH[2]} + 1))"
+          else
+            new="${year}.1"
+          fi
+
+          echo "Bumping $current -> $new"
+          {
+            echo "current=$current"
+            echo "new=$new"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write new version
+        run: |
+          set -euo pipefail
+          manifest=dnbg-workflow/.claude-plugin/plugin.json
+          jq --arg v "${{ steps.version.outputs.new }}" \
+             '.version = $v' "$manifest" > "$manifest.tmp"
+          mv "$manifest.tmp" "$manifest"
+
+      - name: Open and auto-merge bump PR
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -euo pipefail
+          new="${{ steps.version.outputs.new }}"
+          current="${{ steps.version.outputs.current }}"
+          branch="auto-bump/${new}"
+          msg="auto: bump version to ${new}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add dnbg-workflow/.claude-plugin/plugin.json
+          if git diff --staged --quiet; then
+            echo "No version change to commit"
+            exit 0
+          fi
+          git commit -m "$msg"
+          git push origin "$branch"
+
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "$msg" \
+            --body "Auto-generated bump from \`${current}\` to \`${new}\` per CalVer scheme (\`YYYY.N\`, counter resets each January)."
+
+          # `--auto` rather than an immediate merge: `ci-required` is a required
+          # check and is still running at this point, so a plain `gh pr merge`
+          # would be refused. Auto-merge queues it to fire when the check passes.
+          # The retry covers only the brief window where GitHub hasn't computed
+          # the PR's mergeable state yet — not the CI wait, which --auto owns.
+          enabled=""
+          for attempt in 1 2 3 4 5; do
+            if gh pr merge "$branch" --squash --auto; then
+              enabled=1
+              break
+            fi
+            echo "Enabling auto-merge failed (attempt $attempt), retrying..."
+            sleep 5
+          done
+          [ -n "$enabled" ] || { echo "Failed to enable auto-merge after 5 attempts" >&2; exit 1; }
+
+          # Wait for the bump to actually land. This is what makes the
+          # concurrency group above serialize: `--auto` returned immediately, so
+          # ending here would let the next queued run check out a main that is
+          # still pre-bump and recompute this same version. Bounded so a stuck
+          # check surfaces as a failed job rather than a 6-hour one.
+          deadline=$(( $(date +%s) + 900 ))
+          until [ "$(gh pr view "$branch" --json state --jq .state)" = "MERGED" ]; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::bump PR did not merge within 15m — check ci-required on $branch" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "Bumped to ${new}."
