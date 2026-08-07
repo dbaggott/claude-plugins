@@ -137,8 +137,10 @@ jobs:
         # /usr/local/share/man and the runner user cannot. sudo would work and
         # is worse — this needs no elevation at all.
         #
-        # Pinned to the version the suite was written against, so a bats release
-        # cannot flap the check independently of the diff.
+        # Pinned so a bats release cannot flap the check independently of the
+        # diff. 1.13.0 is npm's latest; the suite was written against Homebrew's
+        # 1.14.0 and was re-run against 1.13.0 to confirm it passes there too —
+        # the two version lines differ, so the local version is not a safe pin.
         #
         # The hooks decide whether an edit is blocked, and they run on every
         # installer's machine. Until now nothing exercised them: shellcheck
@@ -148,7 +150,7 @@ jobs:
         # stdin, an exit code out — against real git repositories, because most
         # of what they decide (is this a worktree, is this file tracked) is
         # answered by git rather than by the script.
-        run: npx --yes bats@1.14.0 tests/
+        run: npx --yes bats@1.13.0 tests/
 
   plugin-validate:
     name: plugin-validate
