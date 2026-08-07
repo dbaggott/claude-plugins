@@ -179,7 +179,7 @@ been removed. Claude Code does the same job better, and asking rather than
 assuming is the right posture for a plugin that executes on your machine.
 
 **To keep up automatically**, turn on auto-update for this marketplace. Either
-set it in your `settings.json`:
+set it in `~/.claude/settings.json`:
 
 ```json
 {
@@ -195,6 +195,11 @@ set it in your `settings.json`:
 or toggle it in the UI — `/plugin` → **Marketplaces** → **dnbg** → **Enable
 auto-update**. The two are the same setting: Claude Code reads the config field
 and the panel reflects it.
+
+The path matters. `extraKnownMarketplaces` is also valid in a project's
+`.claude/settings.json`, where it prompts *every collaborator* to install the
+marketplace — and that file is normally committed. Put this in your user file
+unless you mean to ask a whole repo.
 
 Either way, Claude Code checks after each session starts, with a random delay of
 up to ten minutes, then refreshes the marketplace and updates installed plugins
