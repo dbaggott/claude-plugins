@@ -30,8 +30,12 @@ on:
 # recompute the identical version. Serialization only holds if a run doesn't end
 # until its bump is actually on main.
 #
-# cancel-in-progress is intentionally false — we want every merge to produce its
-# own bump, not have the second merge cancel the first run's bump mid-flight.
+# cancel-in-progress is intentionally false, so a merge landing mid-bump cannot
+# kill the in-flight run. It does not promise one bump per merge: GitHub holds
+# only a single *pending* run per group, so three merges in quick succession
+# supersede the middle one and its bump never happens. That is acceptable here —
+# CalVer only has to increase, not to be dense — but it is a gap in the
+# serialization, not something the group prevents.
 concurrency:
   group: auto-bump-version
   cancel-in-progress: false

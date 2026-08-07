@@ -21,6 +21,15 @@ TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty')
 [ "$TOOL" = "Bash" ] || exit 0
 
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+
+# Join shell line-continuations before matching anything below. Every match here
+# is line-based, so a backslash-newline truncates the command and each half
+# fails open: a `gh issue create` split across the break goes undetected, and a
+# `--repo` written on the next line is invisible to the segment search, handing
+# the verdict to the calling directory instead. A bare newline is deliberately
+# left alone — that one genuinely separates commands.
+CMD=${CMD//\\$'\n'/ }
+
 echo "$CMD" | grep -qE '\bgh +issue +create\b' || exit 0
 
 # Target comes from --repo/-R if present, else the calling directory's origin.
@@ -28,9 +37,9 @@ echo "$CMD" | grep -qE '\bgh +issue +create\b' || exit 0
 # Search only from the `gh issue create` onward. Scanning the whole command
 # string lets an unrelated earlier flag decide the verdict — in
 # `gh pr list --repo other/x && gh issue create --title y` the first --repo
-# belongs to a different command entirely. Falling back to the whole string when
-# the segment can't be isolated keeps a multi-line command from silently losing
-# its target.
+# belongs to a different command entirely. The fallback below is belt-and-braces
+# only: the grep above already proved the phrase is present, so an empty segment
+# should be unreachable.
 SEGMENT=$(printf '%s' "$CMD" | grep -oE '\bgh +issue +create\b.*' | head -1)
 [ -n "$SEGMENT" ] || SEGMENT="$CMD"
 
