@@ -418,13 +418,12 @@ PR to resume (it re-assesses current state and picks the watch back up).
      **without** `--was-draft`.
 
    **`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.**
-   The watcher settles before reporting, so a round where the author replied to
-   threads *and* pushed comes back as one result carrying both. The primary
-   result says what to do first; the flag says there is also unread conversation.
-   Handle the replies per **Responding to comments and replies** in the same pass
-   as the re-review. Skipping them loses them for good: step 4 re-arms with
-   `since_iso` set to the reported `now`, which filters out everything the
-   watcher already saw.
+   It means comments or replies landed alongside the push. The primary result
+   says what to do first; the flag says there is also unread conversation.
+   Handle it per **Responding to comments and replies** in the same pass as the
+   re-review — not on a later wake, because step 4 below re-arms with `since_iso`
+   set to the reported `now`, which filters out everything already reported.
+   Deferring those replies deletes them.
    - **`CLOSED`** — the PR merged or closed. Stop watching — you're done.
    - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
    - **No `result=` line at all** — the task was killed or failed rather than

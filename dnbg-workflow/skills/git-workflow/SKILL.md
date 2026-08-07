@@ -232,10 +232,6 @@ Reply in the thread as well — that part is for the humans.
 
 ⚠️ **A code comment is the last resort, and only when it would have earned its place anyway.** A reviewer's question is not a licence to add prose that fails the bar in `coding-practices`' "What a comment must not carry". An answer that exists only because someone asked once is the transient state that section rules out, and it will read as inexplicable defensiveness to the next person. If the answer is a *current, non-obvious constraint a future editor needs*, it was already worth a comment before the review; if it isn't, the PR body is where it goes.
 
-**Expect a lag before a polling reviewer reacts.** A webhook-driven bot gets one event per action and responds immediately. This plugin's reviewer polls, and `watch-pr.sh` deliberately waits for a quiet period before reporting, so that a round where you reply to three threads and then push comes back as **one** wake carrying both rather than as whichever it happened to see first. That costs up to a minute of latency and is the reason a reply plus a push doesn't produce two separate reviews.
-
-**Don't generalize any of that to other reviewers.** Copilot, a cloud bot, or a human all behave differently and any of them can change. The artifact ranking above holds regardless of who is reading; the batching behavior is specific to this watcher.
-
 When a finding you have already answered is re-raised, say so once and point at where the answer lives. Don't re-litigate it, and don't read the repetition as the answer having been rejected.
 
 ## Issue and PR references
