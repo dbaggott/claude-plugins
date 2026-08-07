@@ -8,7 +8,23 @@
     {
       "name": "dnbg-workflow",
       "description": "Opinionated GitHub workflow and coding-practice skills: worktree + draft PR flow, self-documenting issues, an independent PR reviewer bot, and work summaries.",
-      "source": "./dnbg-workflow"
+      "source": "./dnbg-workflow",
+      "author": {
+        "name": "Dan Baggott",
+        "url": "https://github.com/dbaggott"
+      },
+      "homepage": "https://github.com/dbaggott/claude-plugins",
+      "repository": "https://github.com/dbaggott/claude-plugins",
+      "license": "Apache-2.0",
+      "category": "workflow",
+      "keywords": [
+        "git",
+        "github",
+        "pull-request",
+        "code-review",
+        "issues",
+        "worktree"
+      ]
     }
   ]
 }

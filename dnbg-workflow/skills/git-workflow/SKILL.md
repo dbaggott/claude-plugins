@@ -120,8 +120,12 @@ ME=$(gh api user --jq .login)
 # safety net; when it fires, something is wrong — wake and tell the operator,
 # don't silently re-spawn into a possibly-endless wait (see below).
 deadline=$(( $(date +%s) + 1800 ))
+# `2>/dev/null` on the polling call: a transient gh/network failure should skip
+# the tick, not print an error. An empty result already means "keep waiting", so
+# the loop handles the failure correctly either way — but the stderr survives in
+# the background task's output, where a run that worked reads like one that died.
 until [ -n "$(gh pr view <num> --repo <repo> --json reviews \
-        --jq ".reviews | map(select(.commit.oid == \"$HEAD\" and .author.login != \"$ME\")) | last")" ]; do
+        --jq ".reviews | map(select(.commit.oid == \"$HEAD\" and .author.login != \"$ME\")) | last" 2>/dev/null)" ]; do
   [ "$(date +%s)" -ge "$deadline" ] && { echo "result=TIMEOUT: no review on $HEAD after 30m"; exit 2; }
   sleep 15
 done
@@ -260,20 +264,31 @@ Spawn this as a **background** poller (Bash `run_in_background: true`) — both 
 # Exactly one wake either way: on the merge, or once on timeout.
 deadline=$(( $(date +%s) + 21600 ))   # 6h
 until
-  J=$(gh pr view <num> --repo <repo> --json state,mergeStateStatus,statusCheckRollup,reviewDecision)
-  STATE=$(echo "$J" | jq -r .state)
-  MSS=$(echo "$J" | jq -r .mergeStateStatus)
+  # Silence both the gh call and the jq derivations. A transient failure leaves
+  # every variable empty, no branch below matches, and the loop correctly waits
+  # for the next tick — the handling is already right. What's wrong without the
+  # redirects is the *output*: the errors survive in the background task's
+  # result, so a watch that rode out a network blip and then reported MERGED
+  # reads like one that failed. `|| echo ""` keeps a jq error from aborting the
+  # assignment under any shell that treats it as fatal.
+  J=$(gh pr view <num> --repo <repo> --json state,mergeStateStatus,statusCheckRollup,reviewDecision 2>/dev/null)
+  STATE=$(echo "$J" | jq -r .state 2>/dev/null || echo "")
+  MSS=$(echo "$J" | jq -r .mergeStateStatus 2>/dev/null || echo "")
   # PENDING counts checks that haven't reached a terminal state. CheckRun
   # entries use .status (COMPLETED is terminal); StatusContext entries use
   # .state (PENDING is non-terminal). Any non-terminal check means BLOCKED
   # is still transient.
-  PENDING=$(echo "$J" | jq -r '[.statusCheckRollup[] | select((.status != null and .status != "COMPLETED") or .state == "PENDING")] | length')
+  PENDING=$(echo "$J" | jq -r '[.statusCheckRollup[] | select((.status != null and .status != "COMPLETED") or .state == "PENDING")] | length' 2>/dev/null || echo "")
   [ "$STATE" = MERGED ] || [ "$STATE" = CLOSED ] || [ "$MSS" = DIRTY ] \
     || { [ "$MSS" = BLOCKED ] && [ "$PENDING" = "0" ]; } \
     || [ "$(date +%s)" -ge "$deadline" ]
 do
   sleep 60
 done
+# An empty STATE means the whole window elapsed without a single reachable poll.
+# Say so: silencing gh above removed the stderr that used to hint at this, and a
+# blank result line is otherwise indistinguishable from a bug in the loop.
+[ -n "$STATE" ] || echo "result=UNREACHABLE"
 # Plain deadline timeout (still mergeable, just no merge yet) vs a real terminal
 # state — distinguish so the return-branch can tell "remind the operator" from
 # "surface a problem".
