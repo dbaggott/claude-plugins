@@ -1,9 +1,9 @@
 ---
-name: prototype-velocity
+name: velocity-tradeoff
 description: How to size and split work in a project that has explicitly opted into trading safety margin for speed — land whole capabilities in one PR instead of fragmenting into "safe" increments, skip backwards-compat and migration shims, and keep automated test coverage heavy anyway. Load when deciding whether to split a change across PRs, proposing a "step 1 now, follow-up later" plan, weighing a migration shim or feature flag, or sizing a change in a repo whose CLAUDE.md opts into this skill. Skip entirely unless the project opted in — this trades away protections most projects need.
 ---
 
-# Prototype velocity
+# Velocity tradeoff
 
 **This skill only applies where a project has opted in.** It trades away
 protections that production software needs, so it is wrong by default. Check
@@ -17,7 +17,7 @@ one people leave out:
 
 > ## How to size a change here
 >
-> Load `dnbg-workflow:prototype-velocity` when sizing a change or deciding
+> Load `dnbg-workflow:velocity-tradeoff` when sizing a change or deciding
 > whether to split a PR. <Project> is on the velocity side of that skill's
 > risk/benefit trade.
 >

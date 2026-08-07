@@ -221,7 +221,11 @@ jobs:
             grep -q "^<!-- releases below -->$" CHANGELOG.md \
               || { echo "::error::CHANGELOG.md is missing the '<!-- releases below -->' marker" >&2; exit 1; }
             sed -i "/^<!-- releases below -->$/r ${RUNNER_TEMP}/entry.md" CHANGELOG.md
-          done < <(jq -r '.[] | "\(.name)\t\(.source)\t\(.new)"' <<<"$PLAN")
+          # `reverse` so the entries end up in marketplace order. Each iteration
+          # inserts directly after the marker and pushes the previous one down,
+          # so processing forwards yields the exact reverse — deterministic, and
+          # invisible until a release moves more than one plugin.
+          done < <(jq -r 'reverse | .[] | "\(.name)\t\(.source)\t\(.new)"' <<<"$PLAN")
 
       - name: Open and auto-merge the release PR
         id: merge

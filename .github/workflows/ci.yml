@@ -66,6 +66,26 @@ jobs:
             jq empty "$f"
           done
 
+      - name: Verify each marketplace description matches its plugin manifest
+        # Two copies of the same string, and nothing compared them. The
+        # marketplace copy is what someone reads in `/plugin` while deciding
+        # whether to install; the manifest copy is what tooling reads. They
+        # drifted apart the moment there was more than one plugin, silently.
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS=$'\t' read -r name source; do
+            a=$(jq -r --arg n "$name" '.plugins[] | select(.name==$n) | .description' .claude-plugin/marketplace.json)
+            b=$(jq -r .description "${source}/.claude-plugin/plugin.json")
+            if [ "$a" != "$b" ]; then
+              echo "::error::${name}: marketplace and plugin.json descriptions differ"
+              fail=1
+            else
+              echo "  ${name} ok"
+            fi
+          done < <(jq -r '.plugins[] | "\(.name)\t\(.source)"' .claude-plugin/marketplace.json)
+          exit "$fail"
+
       - name: Verify every plugin version is semver-parseable
         # Not style policing. Dependency resolution ignores tags whose suffix
         # doesn't parse as semver, so a version like `2026.3` produces a tag that
@@ -173,10 +193,19 @@ jobs:
         run: |
           set -euo pipefail
           claude plugin validate . --strict
+          # `select(type == "string")` because the marketplace schema also permits
+          # an object source. `jq -r` would emit that as JSON and `validate`
+          # would choke on it obscurely; failing loudly here says what is wrong.
           while IFS= read -r src; do
             echo "  $src"
             claude plugin validate "$src" --strict
-          done < <(jq -r '.plugins[].source' .claude-plugin/marketplace.json)
+          done < <(jq -r '.plugins[].source | select(type == "string")' .claude-plugin/marketplace.json)
+          declared=$(jq '.plugins | length' .claude-plugin/marketplace.json)
+          checked=$(jq '[.plugins[].source | select(type == "string")] | length' .claude-plugin/marketplace.json)
+          [ "$declared" = "$checked" ] || {
+            echo "::error::${declared} plugins declared but only ${checked} have a string source — the rest went unvalidated"
+            exit 1
+          }
 
   changelog-fragment:
     name: changelog-fragment
