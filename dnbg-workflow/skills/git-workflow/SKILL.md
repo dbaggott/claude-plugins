@@ -156,6 +156,17 @@ The same pattern works after pushing a fix in response to feedback — the head 
 
 ## When a review comes in
 
+**Fetch the inline comments first — the review body is not the whole review.** Findings are routinely filed on lines of the diff, and those do **not** appear in `gh pr view --json reviews`. Read them before summarizing anything:
+
+```bash
+gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate \
+  --jq '.[] | "── \(.path):\(.line // .original_line)\n\(.body)\n"'
+```
+
+This is not belt-and-braces. A body reading "four things below" with three summary bullets is normal — the fourth, often the only real defect, is inline. Summarize from the body alone and the next round opens with every finding still outstanding, because none of them was ever addressed.
+
+Before claiming a round is handled, enumerate the threads that are still unresolved (GraphQL `reviewThreads`, filtering on `isResolved`) rather than trusting your own list of what you fixed.
+
 Read the review payload and pick one of three responses based on content. Track whether the operator has opted in to auto-handling for *this* PR — once they pick "Auto-handle all rounds" in the picker below, the choice is sticky across subsequent rounds until the PR merges or they explicitly stop.
 
 **Clean review (APPROVED, no actionable findings).** Tell the operator the PR is ready to merge, then **immediately spawn the merge watcher** (see "Watching for the merge to complete" → start it proactively) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per "Composing the merge command" below — hand over exactly one form, the one that will work:
@@ -210,6 +221,12 @@ If at any point the operator says "stop" / "pause" / "let me drive", drop the au
 ## Responding to reviewers
 
 Address comments to the reviewer using `@username` mentions.
+
+**A bot reviewer reads the diff and CI, not the conversation.** It re-reviews from the diff at each new head SHA; prior comments are not part of that input. So an answer you post as a PR comment is invisible to it, and the finding comes back restated as still-open on the next round — which reads like rejection when it is simply that the reply was never seen.
+
+Put the answer where the next review will look: **in the artifact.** A code comment, the PR body, a test, the thing itself. Post the comment too — that one is for the humans — but the artifact is what closes the finding.
+
+When a finding is re-raised that you have already answered, say so once and point at where the answer lives. Don't re-litigate it, and don't read the repetition as the answer having been rejected.
 
 ## Issue and PR references
 

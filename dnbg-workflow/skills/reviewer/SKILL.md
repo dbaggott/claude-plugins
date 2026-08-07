@@ -418,9 +418,23 @@ PR to resume (it re-assesses current state and picks the watch back up).
      **without** `--was-draft`.
    - **`CLOSED`** — the PR merged or closed. Stop watching — you're done.
    - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
+   - **No `result=` line at all** — the task was killed or failed rather than
+     returning (a session ending, a reload, exit 143). This is the dangerous one,
+     because it looks exactly like a quiet PR while being the opposite: the
+     watcher stopped observing and anything pushed since is unreported. **Never
+     treat a missing result as "nothing changed."** Re-read the current
+     `headRefOid` and `reviewDecision` with `gh pr view`, and diff from the last
+     SHA you actually reviewed — `gh api repos/<repo>/compare/<last>...<head>` —
+     rather than from whatever state the watcher last reported. Then re-arm.
+     Re-arming is cheap; assuming quiet is not.
 4. **Re-arm:** update `last_head`/`since_iso` to the values the watcher reported
    (`new_head`, `now`) and spawn it again. Repeat until `CLOSED` or the operator
    says to stop.
+
+The same applies after a watch is **paused and resumed** — an operator interrupt,
+a session restart. The gap is invisible from the watcher's side, so re-establish
+HEAD from GitHub before deciding anything rather than continuing from the state
+you had when it stopped.
 
 **End state.** The PR merging or closing (`CLOSED`) is the *only* completion. An
 `--approve` is **not** terminal — and the reason is mechanical, not stylistic: a
