@@ -41,7 +41,7 @@ EOF
 # (a) every poll fails -> exactly one ERROR, and never IDLE.
 @test "a source failing FAIL_MAX times reports ERROR, not IDLE" {
   touch "$FAIL_PRVIEW"
-  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   [ "$status" -eq 0 ]
   [ "$(grep -c '^result=ERROR' <<<"$output")" -eq 1 ]
   [[ "$output" == *"reason=pr-view"* ]]
@@ -60,7 +60,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=0 FAIL_MAX=3 WINDOW=3 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=3 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   [[ "$output" != *"result=ERROR"* ]]
   [[ "$output" == *"result=IDLE"* ]]
 }
@@ -69,15 +69,18 @@ EOF
 # while thread replies silently never register.
 @test "a failing comments query reports ERROR naming that source" {
   touch "$FAIL_COMMENTS"
-  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   [[ "$output" == *"result=ERROR"* ]]
   [[ "$output" == *"reason=comments"* ]]
 }
 
 # (d) the curve: gaps widen while nothing happens, and collapse on a change.
+# POLL_CURVE is the real knob (lib-poll.sh); tests/lib-poll.bats covers its shape
+# as a pure function, so what's being checked here is that the watch actually
+# drives it — that quiet widens the gap and a change resets it.
 @test "the interval grows while quiet and returns to the floor on a change" {
   ( sleep 4; echo 1 > "$HEADCOUNT" ) &
-  POLL_FLOOR=1 POLL_PLATEAU=1 POLL_CAP=4 PLATEAU_HOLD=0 SETTLE=1 WINDOW=20 \
+  POLL_CURVE="0:1 3:4" SETTLE=1 WINDOW=20 \
     run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   [[ "$output" == *"result=COMMITS"* ]]
   # Gaps between successive polls: must reach >1s while quiet (grown past the
@@ -97,7 +100,7 @@ EOF
 @test "ERROR still trips at floor speed after the ramp reached the cap" {
   ( sleep 6; touch "$FAIL_PRVIEW" ) &
   start=$(date +%s)
-  POLL_FLOOR=1 POLL_PLATEAU=1 POLL_CAP=8 PLATEAU_HOLD=0 FAIL_MAX=3 WINDOW=60 \
+  POLL_CURVE="0:1 2:8" FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 \
     run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   elapsed=$(( $(date +%s) - start ))
   [[ "$output" == *"result=ERROR"* ]]
@@ -121,7 +124,7 @@ EOF
   chmod +x "$STUB/gh"
   # The head differs from the armed LAST_HEAD, so a burst starts on tick 1.
   # SETTLE is long enough that it cannot settle on its own before FAIL_MAX trips.
-  INTERVAL=0 FAIL_MAX=3 SETTLE=120 SETTLE_MAX=120 WINDOW=60 \
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 SETTLE=120 SETTLE_MAX=120 WINDOW=60 \
     run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   [[ "$output" == *"result=COMMITS"* ]]
   [[ "$output" != *"result=ERROR"* ]]
@@ -140,7 +143,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   [ "$status" -eq 0 ]
   [[ "$output" == *"reason=pr-view-shape"* ]]
   [[ "$output" != *"result=IDLE"* ]]
@@ -155,7 +158,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
   [ "$status" -eq 0 ]
   [[ "$output" == *"reason=issue-view-shape"* ]]
 }
@@ -172,7 +175,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=0 FAIL_MAX=99 WINDOW=2 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
+  INTERVAL=0 FAIL_MAX=99 FAIL_MIN_SECONDS=0 WINDOW=2 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   [ "$status" -eq 0 ]
   [[ "$output" == *"result="* ]]
 }
@@ -187,6 +190,6 @@ EOF
 
 @test "--issue reports ERROR when it cannot poll at all" {
   touch "$FAIL_PRVIEW"
-  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
   [[ "$output" == *"reason=issue-view"* ]]
 }
