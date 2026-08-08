@@ -226,18 +226,17 @@ the next; pasting them together only registers the first:
 ```
 
 ```
-/plugin update dnbg-workflow@dnbg
-```
-
-```
 /reload-plugins
 ```
 
-All three are needed, and the middle one is easy to leave out. The first
-refreshes the marketplace *catalog*; the installed plugin is a separate,
-version-pinned copy, so without the second you reload the version you already
-had. The removed hook ran both commands, which is why this sequence could be
-incomplete before now without anyone noticing.
+The first refreshes the catalog **and** updates the installed plugins from this
+marketplace — it reports how many it bumped, and says nothing about plugins when
+there was nothing to bump. The second applies them to the running session.
+
+To move a single plugin without refreshing the catalog, use
+`/plugin update <plugin>@dnbg`. It reports *already at the latest version* when
+there is nothing to do, so silence after a marketplace update usually means the
+update already happened rather than that the command failed.
 
 To stop plugin updates globally regardless of the above, set `DISABLE_AUTOUPDATER`.
 To keep plugin updates while disabling Claude Code's own, set
