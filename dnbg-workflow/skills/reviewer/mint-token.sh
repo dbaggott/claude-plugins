@@ -13,14 +13,14 @@
 # installation (fine for a single-account setup, e.g. the setup verify step).
 #
 # Credentials are written by the `reviewer-setup` skill into the config dir
-# (default ~/.config/agent-reviewer): config.json + private-key.pem. The App
+# (default ~/.config/dnbg/reviewer): config.json + private-key.pem. The App
 # private key never leaves this machine — this script signs a JWT locally and
 # exchanges it with GitHub for an installation token.
 set -euo pipefail
 
 OWNER="${1:-}"; OWNER="${OWNER%%/*}"   # optional target repo owner; trim owner/repo -> owner
 
-CONFIG_DIR="${REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/agent-reviewer}"
+CONFIG_DIR="${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}"
 CONFIG_DIR="${CONFIG_DIR/#\~/$HOME}"   # expand a leading ~, matching bootstrap.py's expanduser()
 CONFIG="$CONFIG_DIR/config.json"
 PEM="$CONFIG_DIR/private-key.pem"
