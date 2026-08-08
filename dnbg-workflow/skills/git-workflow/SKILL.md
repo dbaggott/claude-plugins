@@ -49,14 +49,24 @@ gh api repos/<owner>/<repo> --jq \
 | `allow_squash_merge` / `allow_merge_commit` / `allow_rebase_merge` | which merge flag to hand the operator, and whether the branch tip ends up an ancestor of the base (which decides `-d` vs `-D` locally) |
 | `delete_branch_on_merge` | whether the remote branch still needs deleting after the merge |
 
-One more setting lives on a different endpoint and requires **admin** on the repo:
+**Don't read branch protection to find out whether an approval still counts.** Reaching for the repo's `dismiss_stale_reviews` flag is wrong twice over. That flag lives on the branch-protection endpoint, which requires **admin** — so on a repo where you have only write access (common when contributing to an org repo you don't administer) it answers 403 or 404 and tells you nothing. And where it *does* answer, the answer misleads: `dismiss_stale_reviews: true` alongside `required_approving_review_count: 0` means no approval is required, so there is no approval gate to make stale and nothing is ever dismissed. That pairing is the default on a personal repo that gates on CI, and it is what two sessions running two different skills tripped over: each read `true` off that flag, concluded a pushed-past approval was gone, and reported a PR as needing another review when nothing had been dismissed.
+
+The question that field gets reached for is always really **"is HEAD approved?"**. Where approvals are *required* — `reviewDecision` is non-null — that field answers it directly and is the primary source: it accounts for supersession and for multiple required reviewers, neither of which the check below models. Where they are not required, `reviewDecision` is `null` and says nothing, and this is what remains:
 
 ```bash
-gh api repos/<owner>/<repo>/branches/<default-branch>/protection \
-  --jq '.required_pull_request_reviews.dismiss_stale_reviews'
+gh pr view <num> --repo <repo> --json headRefOid,reviews --jq \
+  '{head: .headRefOid,
+    last_verdict: ([.reviews[]
+      | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED" or .state=="DISMISSED")]
+      | last)}'
 ```
 
-On a repo where you have only write access — common when contributing to an org repo you don't administer — that call answers 403 or 404. **That is not an error and not a signal.** Fall back to observation: if a push visibly dropped a previous approval, stale dismissal is on. Until you have one of those two signals, treat it as unknown and say so rather than guessing.
+HEAD is approved **iff** `last_verdict.state == "APPROVED"` and `last_verdict.commit.oid == head`. Both halves are load-bearing:
+
+- **The latest verdict, not the latest approval.** Filtering to `APPROVED` and taking the last one reads an `APPROVED` followed by a `CHANGES_REQUESTED` at the *same* SHA as approved. Two routes reach that: a second reviewer objecting over a standing approval, and a reviewer reversing itself after a reply. Where `reviewDecision` is `null` nothing downstream catches it.
+- **`COMMENTED` is not a verdict** and must stay out of the set — a reviewer answering a thread posts one, and counting it would blank the verdict on every exchange.
+
+An approval further down the list is an approval of a diff nobody is merging. Use this wherever the answer matters — before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
 
 For a multi-repo change, read this **per repo**. Siblings genuinely differ, and a setting borrowed from the wrong one produces a merge command that fails or a cleanup step that silently does nothing.
 
@@ -145,6 +155,8 @@ The script prints one result line. Treat the returns differently:
 - **`result=ERROR reason=<source>`** — the watch itself is broken: that source failed repeatedly, so it cannot see. **Do not re-arm** — you would poll straight back into the same failure. Check `gh auth status` and the `<num>`/`<repo>` pair, then tell the operator. Unlike `IDLE` this means nothing about the PR; the watch never got a look at it.
 - **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (`reviewer` treats `IDLE` as routine and re-arms, because a quiet PR is expected on that side. Same script, opposite caller.)
 
+  **Check whether HEAD is already approved before reporting that no review landed** — run the `last_verdict` check from "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it: it was armed with a `since` past the review, or the verdict landed in the gap between the last poll and the spawn. Reporting "no review has landed" there is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands and the reviewer really is the thing to check.
+
 The same spawn works after pushing a fix in response to feedback — record the new head and a fresh timestamp, and re-arm.
 
 
@@ -171,7 +183,9 @@ Run all three — verdict, inline comments, threads — before summarizing anyth
 
 Read the review payload and pick one of three responses based on content. Track whether the operator has opted in to auto-handling for *this* PR — once they pick "Auto-handle all rounds" in the picker below, the choice is sticky across subsequent rounds until the PR merges or they explicitly stop.
 
-**Clean review (APPROVED, no actionable findings).** Tell the operator the PR is ready to merge, then **immediately spawn the merge watcher** (see "Watching for the merge to complete" → start it proactively) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per "Composing the merge command" below — hand over exactly one form, the one that will work:
+**Clean review (APPROVED, no actionable findings).** First, **confirm the standing verdict is an approval attached to the current HEAD** — run the `last_verdict` check from "Know the repo's merge settings". `APPROVED` in the watcher payload only tells you an approval exists somewhere in the list; it may sit on a commit you have since pushed past, or have been superseded by a later `CHANGES_REQUESTED` from another reviewer. Where the repo doesn't dismiss stale approvals — the common case, since dismissal needs `required_approving_review_count` above 0 — the merge box shows an unqualified green check over exactly that state, so nothing on the PR will correct you. If the last verdict isn't `APPROVED` at HEAD, this isn't the clean-review case: say what the standing verdict is and which SHA it sits on, and wait for the reviewer to re-verdict (which `reviewer` now does unprompted on any HEAD move).
+
+Once they match, tell the operator the PR is ready to merge, then **immediately spawn the merge watcher** (see "Watching for the merge to complete" → start it proactively) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per "Composing the merge command" below — hand over exactly one form, the one that will work:
 
 > Reviewer approved at <commit>. No actionable findings. Ready to merge: <full URL>.
 >
@@ -357,7 +371,7 @@ echo "state=$STATE mergeStateStatus=$MSS pending_checks=$PENDING"
 echo "$J"
 ```
 
-`reviewDecision` is included so the surface-and-ask branch below can identify a dismissed-approval cause from the same JSON the poller already returned — no extra `gh pr view` call.
+`reviewDecision` is included so the surface-and-ask branch below can identify a dismissed-approval cause from the same JSON the poller already returned — no extra `gh pr view` call. Read it as a *gate* question, not an approval question: `null` means no review is required to merge on this repo, which rules review out as the cause of a `BLOCKED`. It says nothing about whether HEAD is approved — that is the `commit.oid` comparison, and on a repo with `reviewDecision: null` it is the only thing that answers it.
 
 Sleep 60s, rather than the 30s the shared review watcher polls at by default — match the interval to how fast the watched thing moves (merges take minutes-to-hours; reviews land in 1–3 min), *not* to cost. The loop's intermediate iterations run in the background and never enter the conversation, so poll frequency costs no tokens — only GitHub API calls. The token cost is the single model wake when the loop exits, and that's set by the deadline plus the no-re-arm rule, not by the sleep. So pick the sleep for responsiveness and API-politeness; pick the deadline for how long to wait before reminding.
 
@@ -370,7 +384,24 @@ When the poller returns, branch on the final state:
 - **`result=TIMEOUT`** (still `state=OPEN` after the deadline) — the watch elapsed without a merge; the operator likely stepped away. Wake **once** and tell them plainly: you watched the full window and didn't see it merge, the PR is still open and still needs merging (`<full URL>`, plus the merge command re-composed per "Composing the merge command" — check state may have changed during the wait), and they should ping you when it's done so you can run cleanup/verification. **Then stop — do not silently re-arm another watcher.** A fresh watch is cheap to start if they ask, and nothing in-session survives the session ending anyway (see below), so chaining watchers just burns one model wake per cycle for a merge only the human can trigger.
 - **`state=CLOSED`** (without merge) — someone closed the PR without merging. Acknowledge, stop the workflow, leave the worktree alone in case they reopen.
 - **`mergeStateStatus=DIRTY`** — a conflict developed while checks were running, typically because another PR merged into the base branch and touched the same lines. Surface the URL and the cause; ask how they want to proceed. Don't try to resolve the conflict autonomously — which side wins is their call.
-- **`mergeStateStatus=BLOCKED`** (with `pending_checks=0`) — a required check failed, an approval got dismissed, or the branch is out of date with base. Inspect `statusCheckRollup` in the returned `$J` to identify the failing check, and `reviewDecision` (also in `$J`) for a dismissed-approval cause. Surface the URL and the specific cause, and ask how they want to proceed.
+- **`mergeStateStatus=BLOCKED`** (with `pending_checks=0`) — a required check failed, an **unresolved review thread** is outstanding, an approval got dismissed, or the branch is out of date with base. **`BLOCKED` is a summary over unrelated conditions and names none of them — never report a cause you haven't read off a source.** Two sessions guessed it on two PRs and got it wrong in opposite directions: "needs another review" when CI was still settling, then "BLOCKED means CI here, never review" when an inline thread was open. Read all three before saying anything:
+
+  ```bash
+  # 1. failing check — from the $J the poller already returned. Both rollup
+  #    shapes, same as the PENDING count above: CheckRun has .name/.conclusion,
+  #    StatusContext has .context/.state. `// []` for a PR with no checks.
+  echo "$J" | jq -r '(.statusCheckRollup // [])[]
+    | {n: (.name // .context), r: (.conclusion // .state)}
+    | select(.r != "SUCCESS" and .r != "NEUTRAL") | "\(.n) \(.r)"'
+  # 2. unresolved review threads — a hard blocker wherever required_conversation_resolution is on
+  gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){
+    pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved path}}}}}' \
+    -F o=<owner> -F r=<repo> -F n=<num> \
+    --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'
+  # 3. dismissed/missing approval — reviewDecision is in $J; null means no review is required at all
+  ```
+
+  Surface the URL and the specific cause you actually found, and ask how they want to proceed. A `null` `reviewDecision` means review is not a merge gate on this repo, so it rules review *out* as the cause of a block — it does not mean a review isn't wanted. The operator asked for one by sending the PR to review; that request is what the watch serves, and branch protection has no opinion on it.
 
 **Session lifetime.** All of this lives inside the current session — a background watcher dies when the session ends, and you keep no cross-session memory that a PR is owed a watch. So the watcher covers within-a-day AFK *while the session is alive*; for a genuinely long gap (overnight, session closed) the operator pings on return and the "operator says something about the merge" path above picks it back up.
 

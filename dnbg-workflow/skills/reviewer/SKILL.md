@@ -347,6 +347,12 @@ do, verify, or change something on that line. Purely informational observations
 on a line — an informational inline comment has nowhere to be resolved to and
 stalls the merge.
 
+On a repo with `required_conversation_resolution` enabled that is mechanical
+rather than a matter of the merger's reading: *every* unresolved thread blocks the
+merge outright, so an FYI filed on a line is a merge blocker with no action
+attached to clear it. Assume it may be on — the setting is not readable without
+admin, and the body is the right home for an informational note either way.
+
 **Post one atomic review.** When you have inline findings, use the reviews
 endpoint so the verdict *and* all inline comments land as a single review (one
 review per invocation, not a verdict review plus N separate comment threads).
@@ -462,9 +468,11 @@ you had when it stopped.
 
 **End state.** The PR merging or closing (`CLOSED`) is the *only* completion. An
 `--approve` is **not** terminal — and the reason is mechanical, not stylistic: a
-later push can dismiss the approval, and the diff it dismissed the approval over
-has not been reviewed by anyone. Stopping at "approved" leaves a PR that reads as
-reviewed and isn't. So the reviewer stays subscribed, idling and re-arming on a
+later push moves HEAD past the SHA your approval is attached to, so the diff
+being merged has not been reviewed by anyone. That holds whether or not GitHub
+dismissed the approval; where it doesn't dismiss, the merge box still shows green
+over the unreviewed diff, which is the worse case. Stopping at "approved" leaves
+a PR that reads as reviewed and isn't. So the reviewer stays subscribed, idling and re-arming on a
 quiet-but-open PR, until the PR is actually finished. The operator can stop the
 watch early; quitting the session *pauses* it (re-invoke to resume), which is not
 the same as completion.
@@ -507,20 +515,64 @@ When asked to re-review a PR your bot already reviewed — new commits were push
 or the author asks for another look — re-read the diff at the **current HEAD** and
 post a fresh review. The verdict is keyed to the new HEAD:
 
-- **Prior verdict `--approve`**: whether the push dismissed your approval depends
-  on the repo's *Dismiss stale pull request approvals* setting — read it per
-  `git-workflow`'s "Know the repo's merge settings", or infer it from whether the
-  approval actually disappeared. If it dismissed, re-post: `--approve` if the new
-  diff is still clean (restoring the protection that was just removed), or
-  `--request-changes` if it introduces issues. This includes no-op-substance
-  pushes (whitespace, formatter, merge-from-base): still re-approve, so the PR
-  isn't left silently unapproved. If the setting is off, the prior approval still
-  stands — re-review only if the new commits change your verdict.
+- **Prior verdict `--approve`**: **re-post a verdict whenever HEAD has moved past
+  the SHA your standing approval is attached to** — `--approve` if the new diff is
+  still clean, `--request-changes` if it introduces issues. Even when your verdict
+  is unchanged, and including no-op-substance pushes (whitespace, formatter,
+  merge-from-base). **Name the SHA in the body** ("Re-approving at `1a2b3c4`").
+
+  The trigger is the SHA mismatch, not whether the change was substantive.
+  Judging substantive-ness is what produced the failure this rule exists to fix:
+  the author cannot distinguish silence-because-trivial from
+  silence-because-the-reviewer-is-gone, so both read as a reviewer who might still
+  speak, and their watcher waits for a signal you decided not to send.
+
+  It also moves the *record*, not just the conversation. A review carries a
+  `commit_id`, and GitHub renders a stale approval in the merge box with no
+  caveat — one green check over "read the new commits and is fine", "hasn't looked
+  yet", and "no verdict is ever coming". A fresh verdict re-attaches `commit_id`
+  to the current HEAD, so "is HEAD approved?" becomes answerable from the API by
+  the author, a human merger, or a later session, without asking anyone.
+
+  **Review the delta before re-approving.** This rule invites rubber-stamping,
+  which is worse than the silence it replaces: silence is merely uninformative,
+  while a verdict nobody stood behind is confidently wrong and gets merged on.
+
+- Whether GitHub dismissed the approval on the push does not enter into it. Under
+  the rule above you re-verdict either way, so the repo's *Dismiss stale pull
+  request approvals* setting changes no behaviour of yours — don't read branch
+  protection to decide this (it needs **admin** and answers 403/404 on write-only
+  access, so the branch was unreliable as well as unnecessary). Where stale
+  dismissal genuinely bites, GitHub already forces the re-approval and this rule
+  is a no-op; it only fires in the ambiguous case.
 - **Prior verdict `--request-changes`**: the PR stays blocked until a fresh
   review lands (a top-level comment doesn't dismiss it). `--approve` if the new
   diff fixes the findings; `--request-changes` again if not. If the new commits
   are no-op substance that didn't address the findings, leave it — the PR stays
   correctly blocked.
+
+One call answers "has HEAD moved past my verdict?" — and the same call is what
+the author's side uses to answer "is HEAD approved?", which is the point of
+keeping the record current:
+
+```bash
+gh pr view <n> --repo <repo> --json headRefOid,reviews --jq \
+  '{head: .headRefOid,
+    last_verdict: ([.reviews[]
+      | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED" or .state=="DISMISSED")]
+      | last)}'
+```
+
+Your verdict is current iff `last_verdict.commit.oid == head`. Take the last
+**verdict**, not the last approval — an `APPROVED` followed by a
+`CHANGES_REQUESTED` on the same SHA is not an approval, and `COMMENTED` (what a
+thread reply posts) is not a verdict at all.
+
+Where approvals are **required**, `reviewDecision` answers "is HEAD approved?"
+directly and is the primary source — it handles supersession and multiple
+reviewers, which this comparison does not. This is the answer where no approval
+is required, and it is the only one there: `reviewDecision` is `null`, and
+neither the merge box nor `dismiss_stale_reviews` fills the gap.
 
 Alongside the fresh review, **resolve any inline thread whose concern is now
 answered** (below).
@@ -603,6 +655,12 @@ your point stays open so they know to come back to it.
 
 Don't post comments that are neither actionable nor informative — no "Reviewed,
 looks good, posting approval" filler. The verdict and body carry the signal.
+
+This does **not** cover the re-verdict on a moved HEAD ("Re-reviewing" above).
+That one is informative even when its body is a single sentence: it is the only
+thing that attaches an `APPROVED` `commit_id` to the current HEAD, so it carries
+information nothing else on the PR carries. The rule here bans content-free
+commentary, not a verdict whose content is the verdict.
 
 ## When to ask, when to skip
 
