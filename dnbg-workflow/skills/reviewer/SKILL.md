@@ -269,8 +269,8 @@ review.
    gh api "repos/<repo>/contents/<path>?ref=<head-sha>" -H "Accept: application/vnd.github.raw"
    ```
 
-   **Read as little of each file as answers the question.** Add `changeType` to
-   the `--json files` list above and let it decide:
+   **Read as little of each file as answers the question.** The `--json files`
+   call above already returns `changeType` per entry — let it decide:
 
    - **`ADDED`** — the diff *is* the file, every line prefixed `+`. Fetching it
      again duplicates what you have; fetch only if you skipped the full diff.
@@ -487,8 +487,8 @@ PR to resume (it re-assesses current state and picks the watch back up).
      watcher stopped observing and anything pushed since is unreported. **Never
      treat a missing result as "nothing changed."** Re-read the current
      `headRefOid` and `reviewDecision` with `gh pr view`, and diff from the last
-     SHA you actually reviewed — `gh api repos/<repo>/compare/<last>...<head>` —
-     rather than from whatever state the watcher last reported. Then re-arm.
+     SHA you actually reviewed — per **Re-reviewing** below — rather than from
+     whatever state the watcher last reported. Then re-arm.
      Re-arming is cheap; assuming quiet is not.
 
 **`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.** It
@@ -560,13 +560,18 @@ to the new HEAD.
 **Read the delta, not the whole PR diff again:**
 
 ```bash
-gh api repos/<repo>/compare/<last-reviewed-sha>...<new-head>
+gh api repos/<repo>/compare/<last-reviewed-sha>...<new-head> \
+  -H "Accept: application/vnd.github.diff"
 ```
 
 You already track the last-reviewed SHA for the watcher, so the input is on
 hand. This is cheaper than re-reading the full diff and a better-targeted
 question: it is exactly the set of changes your prior verdict didn't cover. Fall
 back to the full diff only when you have no prior SHA to compare from.
+
+The `Accept` header is load-bearing: without it the response is JSON whose
+`patch` fields are escaped and interleaved with metadata, several times the size
+of the plain unified diff it wraps.
 
 - **Prior verdict `--approve`**: **re-post a verdict whenever HEAD has moved past
   the SHA your standing approval is attached to** — `--approve` if the new diff is
