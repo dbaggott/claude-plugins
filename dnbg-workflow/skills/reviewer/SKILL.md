@@ -168,8 +168,8 @@ idle polling never enters the conversation:
 
 The same script the PR watch uses, in `--issue` mode — so this wait gets the same
 backoff curve and the same failure counting rather than its own. It returns
-`ACTIVITY` when a linked PR appears, `CLOSED` if the issue closes, and `IDLE` on
-timeout.
+`ACTIVITY` when a linked PR appears, `CLOSED` if the issue closes, `IDLE` on
+timeout, and `ERROR reason=issue-view` when the poll itself keeps failing.
 
 This replaced an inline `sleep 120` loop rather than tuning it. A second
 hand-written wait is a second place for the curve and the failure counter to be
@@ -180,10 +180,22 @@ blip and wrong for a bad issue number or expired auth — those cost a full wind
 before anything said so. `ERROR` is that fix: repeated failure of the poll now
 reports itself instead of looking like a quiet issue.
 
-On return: references listed → back to step 2. Issue `CLOSED` with none → the work
-was dropped or resolved without a PR; say so and stop. Neither → the deadline
-elapsed; re-arm, and after the second empty window tell the operator nothing has
-landed rather than waiting silently forever.
+On return, dispatch on the result — **including `ERROR`, which must not fall to
+the catch-all**:
+
+- **`ACTIVITY`** — references listed. Back to step 2.
+- **`CLOSED`** — the work was dropped or resolved without a PR. Say so and stop.
+- **`ERROR reason=issue-view`** — the watch could not see the issue. **Do not
+  re-arm**, and do **not** report that nothing has landed: you do not know that.
+  Expired auth or a wrong issue number produce exactly this. Check `gh auth
+  status` and that the issue number resolves, then tell the operator.
+- **`IDLE`** — the deadline elapsed with nothing. Re-arm, and after the second
+  empty window tell the operator nothing has landed rather than waiting silently.
+
+The `ERROR` branch is the whole point of using the shared script here. Routing it
+into the `IDLE` catch-all would re-arm into the same failure and then state
+something false about the issue — a report that nothing has landed, made by a
+watch that never saw it.
 
 Per PR, run the rest of this skill: mint a token, review, post, and watch.
 

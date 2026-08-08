@@ -106,6 +106,27 @@ EOF
   [ "$elapsed" -lt 20 ]
 }
 
+# The least obvious invariant in the new code, and the one a refactor is most
+# likely to invert: an observed burst outranks ERROR. Reporting ERROR instead
+# would drop real activity the caller can never recover, because it re-arms with
+# `since` set to now.
+@test "a burst in hand outranks ERROR" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "pr view") echo '{"state":"OPEN","isDraft":false,"headRefOid":"sha9","reviews":[],"comments":[]}' ;;
+  *) exit 1 ;;   # comments query always fails
+esac
+EOF
+  chmod +x "$STUB/gh"
+  # The head differs from the armed LAST_HEAD, so a burst starts on tick 1.
+  # SETTLE is long enough that it cannot settle on its own before FAIL_MAX trips.
+  INTERVAL=0 FAIL_MAX=3 SETTLE=120 SETTLE_MAX=120 WINDOW=60 \
+    run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
+  [[ "$output" == *"result=COMMITS"* ]]
+  [[ "$output" != *"result=ERROR"* ]]
+}
+
 # issue mode shares the loop; only what it polls differs.
 @test "--issue wakes when a linked PR appears" {
   ( sleep 2; echo '[{"number":9}]' > "$LINKED" ) &

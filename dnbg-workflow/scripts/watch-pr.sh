@@ -210,7 +210,18 @@ while :; do
     # updates the *exported* value, so a generic uppercase internal here would
     # clobber a caller's environment variable — and this script's children are
     # `gh` invocations that read the environment.
-    linked_n=$(echo "$J" | jq '.closedByPullRequestsReferences | length' 2>/dev/null || echo 0)
+    # Counted, not swallowed. `$J` came from a call that already succeeded, so a
+    # failure here is a payload-shape change — never transient, and exactly the
+    # case the comments path below stopped treating as "nothing new". `|| echo 0`
+    # would make a blind wait look like a calm one, which is the defect this
+    # whole change exists to remove.
+    if linked_n=$(echo "$J" | jq '.closedByPullRequestsReferences | length' 2>/dev/null)
+    then fails_primary=0
+    else
+      fails_primary=$(( fails_primary + 1 )); linked_n=0
+      [ "$fails_primary" -ge "$FAIL_MAX" ] && { reset_interval; report_error issue-view-shape; }
+      reset_interval
+    fi
     if [ "${linked_n:-0}" -gt 0 ]; then
       echo "result=ACTIVITY activity=1 now=$(now_iso)"; exit 0
     fi
@@ -228,10 +239,17 @@ while :; do
   HEAD=$(echo "$J" | jq -r '.headRefOid // empty')
 
   # New formal reviews / top-level comments after SINCE, not authored by the bot.
-  NEW=$(echo "$J" | jq --arg s "$SINCE" --arg slug "$SLUG" '
+  # Same treatment as the two queries: a shape change here is not "no activity".
+  if NEW=$(echo "$J" | jq --arg s "$SINCE" --arg slug "$SLUG" '
     def mine: . == $slug or . == ($slug + "[bot]");
     [ (.reviews[]?  | select(.submittedAt > $s and (.author.login | mine | not))),
-      (.comments[]? | select(.createdAt  > $s and (.author.login | mine | not))) ] | length' 2>/dev/null || echo 0)
+      (.comments[]? | select(.createdAt  > $s and (.author.login | mine | not))) ] | length' 2>/dev/null)
+  then :
+  else
+    fails_primary=$(( fails_primary + 1 )); NEW="$obs_new"
+    [ "$fails_primary" -ge "$FAIL_MAX" ] && { reset_interval; report_error pr-view-shape; }
+    reset_interval
+  fi
   # New inline review-comments (thread replies) after SINCE, not by the bot.
   # Split the fetch from the parse so a failure is not read as "no new replies".
   # It previously ended in `|| echo 0`, which made this path fail *closed and
@@ -250,7 +268,7 @@ while :; do
   else
     fails_comments=$(( fails_comments + 1 )); NEWC="$obs_newc"
   fi
-  if [ "$fails_comments" -ge "$FAIL_MAX" ]; then reset_interval; report_error comments; fi
+  if [ "$fails_comments" -ge "$FAIL_MAX" ]; then report_error comments; fi
   [ "$fails_comments" -gt 0 ] && reset_interval
 
   # Accumulate this tick's deltas, and restart the quiet timer on anything new.
@@ -280,10 +298,13 @@ while :; do
   [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = true ] && holding_draft=1
 
   if [ "$changed" = 1 ]; then
-    # Reset-on-change is also what keeps the interval at the floor for the whole
-    # of an accumulating burst, so SETTLE keeps its resolution: the quiet-period
-    # check runs once per tick, and a backed-off interval would let SETTLE_MAX
-    # release bursts that should have settled.
+    # Reset-on-change also keeps SETTLE's resolution usable: the quiet-period
+    # check runs once per tick, so a backed-off interval would let SETTLE_MAX
+    # release bursts that should have settled quietly.
+    #
+    # It returns to the floor on each change, not for the whole burst — the quiet
+    # tail still advances, so from a 10s floor a SETTLE=45 window releases nearer
+    # 70s. SETTLE is a lower bound, so that is late rather than wrong.
     reset_interval
     NOW=$(date +%s)
     settle_until=$(( NOW + SETTLE ))
