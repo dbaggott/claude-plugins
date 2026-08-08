@@ -269,17 +269,35 @@ review.
    gh api "repos/<repo>/contents/<path>?ref=<head-sha>" -H "Accept: application/vnd.github.raw"
    ```
 
+   **Read as little of each file as answers the question.** The `--json files`
+   call above already returns `changeType` per entry — let it decide:
+
+   - **`ADDED`** — the diff *is* the file, every line prefixed `+`. Fetching it
+     again duplicates what you have; fetch only if you skipped the full diff.
+   - **`MODIFIED`** — read the hunks. Fetch whole only when they don't carry
+     enough to judge the change — an invariant, type, or caller you can't see.
+
+   **Batch fetches by the question you're answering, not by directory
+   adjacency** — that's how a +22/−1 change costs a 750-line read.
+
    When a review genuinely needs the tree — running a type-checker, tracing call
-   sites across many files — create a worktree **you own** and note that you
-   created it, because you remove it when the review ends (see "End state"):
+   sites across many files, or an instrumented probe (see step 3) — create a
+   worktree **you own** and note that you created it, because you remove it when
+   the review ends (see "End state"). **Re-running the project's test suite is
+   not on that list** — see step 3. Create the worktree when a specific need
+   arrives, not speculatively at the start of the review:
 
    ```bash
    git fetch origin pull/<n>/head
-   git worktree add .worktrees/review-<n> --detach FETCH_HEAD
+   git worktree add .worktrees/review-<n> --detach <head-sha>
    ```
 
    Via the PR ref rather than `origin/<head-branch>`, which doesn't exist for a
-   fork-based PR. **This branch is the only part of the skill that needs a local
+   fork-based PR. Check out the **head SHA** (from `gh pr view <n> --json
+   headRefOid`), not `FETCH_HEAD`: `FETCH_HEAD` is per-worktree, so it resolves
+   only where the fetch ran and is absent in the review worktree you just made.
+
+   **This branch is the only part of the skill that needs a local
    clone of the target repo** — everything else runs from any directory via
    `--repo`, and the remote read above is what keeps that true. Working with no
    clone? Read remotely, or clone deliberately and remove it at the end like any
@@ -304,7 +322,31 @@ review.
    so an `--approve` over in-progress or red CI bypasses nothing. Don't lecture
    about passing checks or pad the review with CI status.
 
-3. **Review for** (in priority order):
+   **Never wait for CI, and never poll it.** Read whatever state exists when you
+   look, once, and proceed. Branch protection is the pre-merge gate whether or
+   not you watch, and a check that reddens after you post is the author's to fix.
+
+3. **Read the check results; don't reproduce them.** **Don't re-run the project's
+   test suite**, whole or per-file, and don't sweep it for flakes. A local run
+   reproduces the *author's* environment, not CI's — so on a timing- or
+   load-sensitive defect your machine wins the race a loaded runner loses, and
+   every green run argues "flaky, ignore it", the wrong verdict reached
+   expensively. This holds even when the suite is cheap.
+
+   **Instrumented reproduction of one doubted claim is the exception, and it's
+   your sharpest tool.** Reach for a probe when a claim is load-bearing and you
+   don't believe it — a comment asserting a guard closes a hazard, a race the
+   code claims to handle.
+
+   ⚠️ **The trigger is doubt about a specific claim, not a failing check.** The
+   most valuable probes are routinely run while CI is green; a rule keyed on red
+   CI talks you out of exactly those. Don't read check state to decide.
+
+   Say what the probe must **exercise**, then confirm the run reached that path —
+   a probe that never drives the path produces a negative reading as
+   confirmation. Put the answer in the assertion message; runners swallow stdout.
+
+4. **Review for** (in priority order):
    - **Bugs**: logic errors, off-by-one, race conditions, null dereferences,
      error paths that swallow exceptions.
    - **Security**: SQL/command injection, hardcoded secrets, auth bypasses,
@@ -314,7 +356,7 @@ review.
    - **Style and clarity**: only when it materially affects readability. Don't
      nitpick formatting a linter would catch.
 
-4. **Eyes out for complexity.** If you're re-reviewing and bugs keep getting
+5. **Eyes out for complexity.** If you're re-reviewing and bugs keep getting
    discovered cycle after cycle, check for a deeper unaddressed problem. Call out
    the structural issue rather than letting symptoms get patched one at a time.
 
@@ -445,8 +487,8 @@ PR to resume (it re-assesses current state and picks the watch back up).
      watcher stopped observing and anything pushed since is unreported. **Never
      treat a missing result as "nothing changed."** Re-read the current
      `headRefOid` and `reviewDecision` with `gh pr view`, and diff from the last
-     SHA you actually reviewed — `gh api repos/<repo>/compare/<last>...<head>` —
-     rather than from whatever state the watcher last reported. Then re-arm.
+     SHA you actually reviewed — per **Re-reviewing** below — rather than from
+     whatever state the watcher last reported. Then re-arm.
      Re-arming is cheap; assuming quiet is not.
 
 **`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.** It
@@ -512,8 +554,24 @@ by hand if the review is being abandoned rather than resumed.
 ## Re-reviewing
 
 When asked to re-review a PR your bot already reviewed — new commits were pushed,
-or the author asks for another look — re-read the diff at the **current HEAD** and
-post a fresh review. The verdict is keyed to the new HEAD:
+or the author asks for another look — post a fresh review. The verdict is keyed
+to the new HEAD.
+
+**Read the delta, not the whole PR diff again:**
+
+```bash
+gh api repos/<repo>/compare/<last-reviewed-sha>...<new-head> \
+  -H "Accept: application/vnd.github.diff"
+```
+
+You already track the last-reviewed SHA for the watcher, so the input is on
+hand. This is cheaper than re-reading the full diff and a better-targeted
+question: it is exactly the set of changes your prior verdict didn't cover. Fall
+back to the full diff only when you have no prior SHA to compare from.
+
+The `Accept` header is load-bearing: without it the response is JSON whose
+`patch` fields are escaped and interleaved with metadata, several times the size
+of the plain unified diff it wraps.
 
 - **Prior verdict `--approve`**: **re-post a verdict whenever HEAD has moved past
   the SHA your standing approval is attached to** — `--approve` if the new diff is
