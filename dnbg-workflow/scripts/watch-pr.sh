@@ -25,9 +25,10 @@
 #   result=ERROR reason=<source> now=<iso>                # the watch itself is broken — do NOT re-arm
 #
 # ERROR is not IDLE. IDLE means the PR was quiet; ERROR means one source failed
-# FAIL_MAX ticks running and the watch cannot see. Both callers stop and tell the
-# operator what to check (gh auth, the number/repo pair) rather than re-arming
-# into the same failure.
+# for FAIL_MAX ticks AND at least FAIL_MIN_SECONDS of awake time, so the watch
+# cannot see. Both callers stop and tell the operator what to check (gh auth, the
+# number/repo pair) rather than re-arming into the same failure. Short outages —
+# a wifi hiccup, the reconnect after a lid opens — are ridden out.
 #
 # `activity=1` on a COMMITS or READY result means comments or replies landed in
 # the same burst. The primary result names what to do first; the flag says there
@@ -76,6 +77,10 @@ SETTLE=${SETTLE:-45}
 SETTLE_MAX=${SETTLE_MAX:-300}
 
 fails_primary=0; fails_comments=0; fails_shape=0
+# When each transient streak began, in awake seconds — poll_broken needs both a
+# tick count and a duration, so a fast blind streak at the floor (a wifi hiccup,
+# or the reconnect right after a lid opens) can't end a long watch.
+fails_primary_since=0; fails_comments_since=0
 poll_init
 
 # A burst in hand outranks ERROR: the observed activity is real, and reporting
@@ -130,7 +135,9 @@ while :; do
     # A source that has failed FAIL_MAX ticks running is not a blip. Without
     # this the watch runs out its window and prints the line a genuinely quiet
     # PR prints, so a caller cannot tell a broken watch from a calm one.
-    [ "$fails_primary" -ge "$FAIL_MAX" ] && report_error "$([ "$ISSUE_MODE" = 1 ] && echo issue-view || echo pr-view)"
+    [ "$fails_primary" = 1 ] && fails_primary_since=$(poll_awake)
+    poll_broken "$fails_primary" "$fails_primary_since" \
+      && report_error "$([ "$ISSUE_MODE" = 1 ] && echo issue-view || echo pr-view)"
     poll_reset
     # Honour the same invariant the report block below documents: never idle out
     # from under an accumulating burst. If the cap has passed while gh is
@@ -235,7 +242,8 @@ while :; do
   else
     fails_comments=$(( fails_comments + 1 )); NEWC="$obs_newc"
   fi
-  if [ "$fails_comments" -ge "$FAIL_MAX" ]; then report_error comments; fi
+  [ "$fails_comments" = 1 ] && fails_comments_since=$(poll_awake)
+  if poll_broken "$fails_comments" "$fails_comments_since"; then report_error comments; fi
   [ "$fails_comments" -gt 0 ] && poll_reset
 
   # Accumulate this tick's deltas, and restart the quiet timer on anything new.

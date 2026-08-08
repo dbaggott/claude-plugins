@@ -17,7 +17,9 @@
 #
 # ERROR carries no state line and no JSON on purpose: the watch never got a look,
 # so there is nothing true to say about the PR. Anything printed there would be
-# stale or blank and would read as fact.
+# stale or blank and would read as fact. It takes both FAIL_MAX ticks and
+# FAIL_MIN_SECONDS of awake time, so a short outage is ridden out rather than
+# ending a six-hour watch.
 #
 # This never merges anything. It only reads.
 #
@@ -44,7 +46,7 @@ report() {
 
 report_error() { echo "result=ERROR reason=$1 now=$(poll_now_iso)"; exit 0; }
 
-fails_poll=0; fails_shape=0
+fails_poll=0; fails_shape=0; fails_poll_since=0
 poll_init
 
 while :; do
@@ -56,7 +58,8 @@ while :; do
     fails_poll=0
   else
     fails_poll=$(( fails_poll + 1 ))
-    [ "$fails_poll" -ge "$FAIL_MAX" ] && report_error pr-view
+    [ "$fails_poll" = 1 ] && fails_poll_since=$(poll_awake)
+    poll_broken "$fails_poll" "$fails_poll_since" && report_error pr-view
     poll_reset
     # A window that runs out while gh is unreachable still reports what the last
     # good poll saw — but only if there was one. With no successful poll the
@@ -75,7 +78,14 @@ while :; do
   shape_ok=1
   S=$(echo "$RAW" | jq -r '.state // empty' 2>/dev/null) || shape_ok=0
   [ -n "${S:-}" ] || shape_ok=0
+  # mergeStateStatus is gated exactly like state, and for the same reason. It is
+  # the one field DIRTY and terminal-BLOCKED are read from, so an empty one
+  # silently disables both for the rest of the window and the watch reports
+  # TIMEOUT — which git-workflow reads as "still open and mergeable, remind the
+  # operator". That is a positive claim about the PR, and it would be false on a
+  # PR that is actually conflicted.
   M=$(echo "$RAW" | jq -r '.mergeStateStatus // empty' 2>/dev/null) || shape_ok=0
+  [ -n "${M:-}" ] || shape_ok=0
   # PENDING counts checks that have not reached a terminal state. The rollup
   # holds two shapes: CheckRun uses .status (COMPLETED is terminal), StatusContext
   # uses .state (PENDING is not). Any non-terminal check means a BLOCKED is still

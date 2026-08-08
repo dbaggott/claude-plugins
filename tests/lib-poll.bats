@@ -196,6 +196,39 @@ EOF
   [ "$output" = 15 ]   # charged for all 15s, nothing banked as suspend
 }
 
+# poll_broken needs BOTH conditions. Ticks alone are not a duration once a
+# failure resets the curve to the floor, and seconds alone would call a single
+# slow tick a broken watch.
+@test "poll_broken needs both the tick count and the elapsed time" {
+  setup_clock
+  run bash -c "export FAIL_MAX=10 FAIL_MIN_SECONDS=180; . '$LIB'
+    poll_init
+    poll_broken 9 0  && echo A_YES || echo A_NO      # too few ticks
+    poll_broken 10 0 && echo B_YES || echo B_NO      # enough ticks, no time
+    sleep 200
+    poll_broken 10 0 && echo C_YES || echo C_NO      # both
+    poll_broken 9 0  && echo D_YES || echo D_NO      # time, too few ticks"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"A_NO"* ]]
+  [[ "$output" == *"B_NO"* ]]
+  [[ "$output" == *"C_YES"* ]]
+  [[ "$output" == *"D_NO"* ]]
+}
+
+# The floor is awake time, so a suspend cannot satisfy it either: waking to a
+# reconnecting network must not look like three minutes of being broken.
+@test "suspended time does not count toward the failure floor" {
+  setup_clock
+  run bash -c "export FAIL_MAX=3 FAIL_MIN_SECONDS=180; . '$LIB'
+    poll_init
+    start=\$(poll_awake)
+    echo 100000 > '$SUSPEND'
+    poll_nap
+    poll_broken 5 \$start && echo BROKEN || echo RIDING"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"RIDING"* ]]
+}
+
 @test "poll_reset returns the curve to the floor without refunding the window" {
   setup_clock
   run bash -c "export WINDOW=100000 POLL_CURVE='0:10 1000:60'; . '$LIB'

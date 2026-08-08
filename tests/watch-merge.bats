@@ -118,7 +118,7 @@ result_of() { sed -n 's/^result=\([A-Z]*\).*/\1/p' <<<"$1"; }
 # a PR is still open on no evidence at all.
 @test "a persistently unreachable gh reports ERROR, not TIMEOUT" {
   touch "$FAIL_GH"
-  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
   [ "$status" -eq 0 ]
   [ "$(result_of "$output")" = ERROR ]
   [[ "$output" == *"reason=pr-view"* ]]
@@ -130,7 +130,7 @@ result_of() { sed -n 's/^result=\([A-Z]*\).*/\1/p' <<<"$1"; }
 @test "the window running out while blind reports ERROR, not a blank TIMEOUT" {
   touch "$FAIL_GH"
   # FAIL_MAX high enough that the window, not the counter, ends the watch.
-  INTERVAL=1 FAIL_MAX=999 WINDOW=2 run "$WATCH" o/r 1
+  INTERVAL=1 FAIL_MAX=999 FAIL_MIN_SECONDS=0 WINDOW=2 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = ERROR ]
   [[ "$output" != *"state="* ]]
 }
@@ -148,7 +148,7 @@ esac
 EOF
   chmod +x "$STUB/gh"
   pr_state OPEN CLEAN '[]'
-  INTERVAL=0 FAIL_MAX=3 WINDOW=3 run "$WATCH" o/r 1
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=3 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = TIMEOUT ]
 }
 
@@ -158,7 +158,7 @@ EOF
 echo '<html>an error page</html>'
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
   [ "$status" -eq 0 ]
   [ "$(result_of "$output")" = ERROR ]
   [[ "$output" == *"reason=pr-view-shape"* ]]
@@ -173,7 +173,7 @@ EOF
 echo '{"unexpected":"payload"}'
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = ERROR ]
   [[ "$output" == *"reason=pr-view-shape"* ]]
 }
@@ -213,8 +213,58 @@ EOF
   [ "$(result_of "$output")" = MERGED ]
 }
 
+# The finding a reviewer caught: .state was gated but .mergeStateStatus was not,
+# and `// empty` turns a missing field into "" rather than a parse failure. That
+# left DIRTY and terminal-BLOCKED unreachable for the whole window, and the watch
+# reported TIMEOUT — which git-workflow reads as "still open and mergeable",
+# a false claim about a PR that might be conflicted.
+@test "valid JSON missing mergeStateStatus is a shape error, not a false TIMEOUT" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+echo '{"state":"OPEN","statusCheckRollup":[],"reviewDecision":"APPROVED"}'
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
+  [ "$(result_of "$output")" = ERROR ]
+  [[ "$output" == *"reason=pr-view-shape"* ]]
+  [[ "$output" != *"result=TIMEOUT"* ]]
+}
+
+# A failure resets the curve to the floor, so FAIL_MAX alone is ~100 seconds of
+# blindness. Waking from suspend also resets to the floor, which makes
+# lid-open-then-reconnect exactly this shape: a healthy PR would otherwise end
+# its six-hour watch with "the watch is broken, check gh auth" after a wifi blip.
+@test "a short outage does not end the watch" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+n=$(( $(cat "$CALLS.n" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$CALLS.n"
+# 20 consecutive failures — twice FAIL_MAX — then healthy again.
+[ "$n" -le 20 ] && exit 1
+cat "$STATEFILE"
+EOF
+  chmod +x "$STUB/gh"
+  pr_state MERGED CLEAN '[]'
+  # FAIL_MIN_SECONDS at its default 180: the streak is long in ticks but seconds
+  # short, so the watch must ride it out and still see the merge.
+  INTERVAL=0 FAIL_MAX=10 WINDOW=60 run "$WATCH" o/r 1
+  [ "$(result_of "$output")" = MERGED ]
+  [[ "$output" != *"result=ERROR"* ]]
+}
+
+# ...but a genuinely broken watch must still say so, or the floor above would
+# just be a way of never reporting ERROR at all.
+@test "an outage past the time floor still reports ERROR" {
+  touch "$FAIL_GH"
+  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=2 WINDOW=120 run "$WATCH" o/r 1
+  [ "$(result_of "$output")" = ERROR ]
+  [[ "$output" == *"reason=pr-view"* ]]
+}
+
 # A reviewer/author watcher must never be able to merge anything. Cheap to
 # assert, and the failure it guards against is unrecoverable.
 @test "the merge watcher never mutates the PR" {
-  ! grep -qE 'gh (pr )?(merge|close|review|comment|edit)|--merge|-X (POST|PATCH|PUT|DELETE)' "$WATCH"
+  # Covers the CLI verbs, `-X VERB`, and `--method VERB` — the last of these was
+  # missing, so `gh api .../merge --method PUT` would have passed a test the
+  # skill describes as proving there is no mutating call at all.
+  ! grep -qE 'gh (pr )?(merge|close|review|comment|edit)|--merge|(-X|--method) *(POST|PATCH|PUT|DELETE)' "$WATCH"
 }

@@ -50,8 +50,27 @@ POLL_CURVE=${POLL_CURVE-"0:10 1800:30 5400:60 7200:300"}
 
 # Consecutive failed ticks of one source before a watch declares itself broken.
 # Counted in TICKS, not elapsed time: ticks are elastic, so an elapsed threshold
-# would mean something different at the floor than at the cap.
+# alone would mean something different at the floor than at the cap.
 FAIL_MAX=${FAIL_MAX:-10}
+
+# ...but ticks alone are not enough either, because a failure resets the curve to
+# the floor. Ten ticks at a 10s floor is 100 seconds, so a two-minute wifi hiccup
+# would end a six-hour watch and report it as broken.
+#
+# That is not hypothetical: waking from suspend also resets to the floor, so
+# lid-open-and-reconnect is precisely a fast blind streak. A watch must ride that
+# out. Both conditions have to hold — enough ticks AND enough awake time — before
+# a transient source is called broken.
+FAIL_MIN_SECONDS=${FAIL_MIN_SECONDS:-180}
+
+# For sources whose failures are transient by nature (a network call). A shape
+# break is NOT one of these: the payload will not start parsing on its own, so
+# waiting three minutes to say so only delays the report. Those keep the plain
+# FAIL_MAX check at their call site.
+poll_broken() {   # $1 = consecutive failures, $2 = awake seconds when the streak began
+  [ "$1" -ge "$FAIL_MAX" ] || return 1
+  [ $(( $(poll_awake) - $2 )) -ge "$FAIL_MIN_SECONDS" ]
+}
 
 # How long a watch runs before reporting that nothing happened. Awake seconds —
 # see the header. Callers differ on what a timeout *means* (routine for the

@@ -17,6 +17,11 @@ one poll curve.
   and `tests/watch-merge.bats` pins every branch — including a payload that
   stops parsing, and a blocked-but-still-running check, neither of which had any
   coverage before.
+- **A short outage no longer ends a watch.** Declaring the watch broken needs
+  both a run of failed ticks and a few minutes of awake time, because a failure
+  resets the poll interval to its 10-second floor — so ten ticks was only ~100
+  seconds. Waking from suspend resets to the floor too, which made
+  lid-open-then-reconnect the likeliest way to lose a watch on a healthy PR.
 - **It reports a `result=` line for every outcome**, where the inline version
   printed one only for timeouts and total failures and left the caller to infer
   the rest from state fields. `result=UNREACHABLE` is replaced by
