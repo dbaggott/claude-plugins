@@ -162,29 +162,40 @@ branch name, so a later follow-up PR on its own branch is invisible to it.
 idle polling never enters the conversation:
 
 ```bash
-deadline=$(( $(date +%s) + 21600 ))   # 6h; nothing-yet is normal — re-arm on timeout
-until
-  # Capture the exit status: a failed call must not read as a legitimate zero.
-  if N=$(env -u GH_TOKEN gh issue view <n> --repo <repo> \
-         --json closedByPullRequestsReferences,state \
-         --jq '(.closedByPullRequestsReferences | length) + (if .state == "CLOSED" then 1 else 0 end)')
-  then :; else N=""; fi
-  [ -n "$N" ] && [ "$N" -gt 0 ] || [ "$(date +%s)" -ge "$deadline" ]
-do
-  sleep 120
-done
-env -u GH_TOKEN gh issue view <n> --repo <repo> --json state,closedByPullRequestsReferences
+"<skill-dir>/../../scripts/watch-pr.sh" --issue <owner>/<repo> <n> "" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")"
 ```
 
-An empty `N` keeps waiting rather than exiting, which is right for a transient
-`gh` blip. It also means a wrong issue number costs a full window before anything
-says so — so when the deadline elapses with nothing, check the issue resolves at
-all before re-arming.
+The same script the PR watch uses, in `--issue` mode — so this wait gets the same
+backoff curve and the same failure counting rather than its own. It returns
+`ACTIVITY` when a linked PR appears, `CLOSED` if the issue closes, `IDLE` on
+timeout, and `ERROR reason=issue-view` when the poll itself keeps failing.
 
-On return: references listed → back to step 2. Issue `CLOSED` with none → the work
-was dropped or resolved without a PR; say so and stop. Neither → the deadline
-elapsed; re-arm, and after the second empty window tell the operator nothing has
-landed rather than waiting silently forever.
+This replaced an inline `sleep 120` loop rather than tuning it. A second
+hand-written wait is a second place for the curve and the failure counter to be
+wrong, and only one of the two would have been under test.
+
+The old loop treated a failed `gh` call as "keep waiting", which is right for a
+blip and wrong for a bad issue number or expired auth — those cost a full window
+before anything said so. `ERROR` is that fix: repeated failure of the poll now
+reports itself instead of looking like a quiet issue.
+
+On return, dispatch on the result — **including `ERROR`, which must not fall to
+the catch-all**:
+
+- **`ACTIVITY`** — references listed. Back to step 2.
+- **`CLOSED`** — the work was dropped or resolved without a PR. Say so and stop.
+- **`ERROR reason=issue-view`** — the watch could not see the issue. **Do not
+  re-arm**, and do **not** report that nothing has landed: you do not know that.
+  Expired auth or a wrong issue number produce exactly this. Check `gh auth
+  status` and that the issue number resolves, then tell the operator.
+- **`IDLE`** — the deadline elapsed with nothing. Re-arm, and after the second
+  empty window tell the operator nothing has landed rather than waiting silently.
+
+The `ERROR` branch is the whole point of using the shared script here. Routing it
+into the `IDLE` catch-all would re-arm into the same failure and then state
+something false about the issue — a report that nothing has landed, made by a
+watch that never saw it.
 
 Per PR, run the rest of this skill: mint a token, review, post, and watch.
 
@@ -416,6 +427,12 @@ PR to resume (it re-assesses current state and picks the watch back up).
 
    - **`CLOSED`** — the PR merged or closed. Stop watching — you're done.
    - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
+   - **`ERROR reason=<source>`** — that source failed repeatedly and the watch
+     cannot see. **Do not re-arm**: unlike `IDLE`, this says nothing about the PR,
+     so re-arming polls straight back into the same failure while reporting
+     nothing wrong — the silent-blindness case the next bullet describes for a
+     killed task. Check `gh auth status` and the number/repo pair, then say so
+     rather than continuing to watch.
    - **No `result=` line at all** — the task was killed or failed rather than
      returning (a session ending, a reload, exit 143). This is the dangerous one,
      because it looks exactly like a quiet PR while being the opposite: the
