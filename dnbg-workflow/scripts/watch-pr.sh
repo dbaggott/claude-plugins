@@ -232,8 +232,14 @@ while :; do
     # clobber a caller's environment variable — and this script's children are
     # `gh` invocations that read the environment.
     # `// []` rather than a second guard: the shape gate above already proved the
-    # payload parses, so a total expression here cannot fail and needs no counter
-    # of its own. A missing field reads as zero linked PRs, which is correct.
+    # payload parses, so a missing or null field is the only realistic gap left
+    # here, and it reads as zero linked PRs — correct.
+    #
+    # Not total in general: `//` substitutes only on null or false, so a
+    # wrong-typed field (`true`, a number, a string) still errors or miscounts.
+    # Left unguarded deliberately — reaching it needs well-formed JSON carrying a
+    # schema-valid field of the wrong type, while every realistic corruption
+    # (an HTML error page, a truncated body, empty output) is caught by the gate.
     linked_n=$(echo "$J" | jq '(.closedByPullRequestsReferences // []) | length')
     if [ "${linked_n:-0}" -gt 0 ]; then
       echo "result=ACTIVITY activity=1 now=$(now_iso)"; exit 0
@@ -252,8 +258,11 @@ while :; do
   HEAD=$(echo "$J" | jq -r '.headRefOid // empty')
 
   # New formal reviews / top-level comments after SINCE, not authored by the bot.
-  # Total by construction (`[]?` skips a missing or non-array field), so the shape
-  # gate above is the only place a payload change needs counting.
+  # `[]?` skips a missing or non-array field, so the shape gate above is the only
+  # place a payload change needs counting in practice. It guards the *iteration*,
+  # not the elements: `reviews: [1,2]` would still error on `.submittedAt`. Same
+  # judgement as the linked-PR count above — unreachable without well-formed JSON
+  # of the wrong shape, and not worth a guard the gate already covers.
   NEW=$(echo "$J" | jq --arg s "$SINCE" --arg slug "$SLUG" '
     def mine: . == $slug or . == ($slug + "[bot]");
     [ (.reviews[]?  | select(.submittedAt > $s and (.author.login | mine | not))),
