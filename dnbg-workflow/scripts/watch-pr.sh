@@ -39,41 +39,22 @@
 set -euo pipefail
 unset GH_TOKEN   # use the dev's own (non-expiring) gh auth for the long poll
 
-# --issue switches what is watched, not how. Everything below the poll itself —
-# the curve, the failure counters, the sleep detection — is shared, which is the
-# reason this is a mode rather than a sibling script: two copies of that logic
-# would drift, and only one of them would be the one under test.
+# --issue switches what is watched, not how: the curve, the awake clock and the
+# failure counting are the same code either way (lib-poll.sh), which is why this
+# is a mode rather than a sibling script. What separates a mode from a sibling is
+# whether the *result* means something different — watch-merge.sh is a sibling
+# because MERGED/DIRTY/BLOCKED are not COMMITS/ACTIVITY with a different label.
 ISSUE_MODE=0; [ "${1:-}" = "--issue" ] && { ISSUE_MODE=1; shift; }
 REPO="${1:?owner/repo}"; PR="${2:?pr or issue number}"
 LAST_HEAD="${3:-}"; SINCE="${4:-1970-01-01T00:00:00Z}"; SLUG="${5:-}"
 WAS_DRAFT=0; [ "${6:-}" = "--was-draft" ] && WAS_DRAFT=1
 
-# Poll interval is a curve, not a constant, because a watch lives in two regimes
-# that want opposite things. Phase A ramps from the floor to the plateau so a
-# reply right after a verdict lands almost immediately. Phase B holds the plateau
-# for PLATEAU_HOLD after the last observed change — the collaborative window,
-# where two agents are working an issue and responsiveness beats call volume.
-# Phase C doubles to the cap once nothing has happened for an hour.
-#
-# All of the saving is phase C: a 6h watch drops from ~1440 API calls to ~294,
-# while the first hour costs ~244 against the old ~240.
-#
-# INTERVAL pins all three, disabling the curve. Kept because callers and tests
-# already use it, and a fixed rate is what a test wants.
-POLL_FLOOR=${INTERVAL:-${POLL_FLOOR:-10}}
-POLL_PLATEAU=${INTERVAL:-${POLL_PLATEAU:-30}}
-POLL_CAP=${INTERVAL:-${POLL_CAP:-900}}
-PLATEAU_HOLD=${PLATEAU_HOLD:-3600}
-# Consecutive failed ticks of one source before the watch declares itself broken.
-# Counted in TICKS, not elapsed time: across laptop sleep `date` jumps hours while
-# no polls ran, so an elapsed threshold fires on the single post-wake failure.
-FAIL_MAX=${FAIL_MAX:-10}
-# 6h window. Unlike git-workflow's review/merge watchers (where a timeout means
-# "something's wrong — wake once, don't re-spawn"), IDLE here is normal: a quiet
-# PR is expected, so the agent simply re-arms. The window only bounds runaway and
-# refreshes the poll after a long sleep.
-WINDOW=${WINDOW:-21600}          # 6h; overridable alongside INTERVAL/SETTLE for testing
-deadline=$(( $(date +%s) + WINDOW ))
+# The poll curve, the awake clock, FAIL_MAX and WINDOW all come from here. This
+# script's own default window is the shared 6h: unlike git-workflow's watchers
+# (where a timeout means "something's wrong — wake once, don't re-spawn"), IDLE
+# here is routine, since a quiet PR is expected and the agent simply re-arms.
+# shellcheck source=./lib-poll.sh
+. "$(dirname "$0")/lib-poll.sh"
 
 # Settle window. An author's round is a burst — reply to three threads, then push
 # the fix — but a webhook-driven bot sees one event per action while this sees
@@ -85,48 +66,17 @@ deadline=$(( $(date +%s) + WINDOW ))
 # So once something changes, keep polling until SETTLE seconds pass with nothing
 # further, and report the whole burst at once. SETTLE_MAX caps it so an author
 # who keeps working can't hold the watch open indefinitely.
+#
+# Deliberately wall-clock, not awake time, and the only duration here that is.
+# SETTLE exists to coalesce one author's burst of actions; a machine that
+# suspended mid-burst has ended it by definition, so releasing immediately on
+# wake is right. Charging it awake-seconds would hold a hours-old burst back
+# waiting for quiet that already happened.
 SETTLE=${SETTLE:-45}
 SETTLE_MAX=${SETTLE_MAX:-300}
 
-now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
-timed_out() { [ "$(date +%s)" -ge "$deadline" ]; }
-
-interval=$POLL_FLOOR
-last_change=$(date +%s)
-
-# Back to the floor, and the plateau clock restarts. Called on an observed change,
-# on a failed poll, and on detected machine sleep.
-#
-# Resetting on *failure* is what keeps FAIL_MAX honest once ticks are elastic:
-# without it, ten consecutive failures at the 900s cap would take ~2.5h to trip,
-# so the detector would silently degrade by a factor of thirty on exactly the
-# long watch it exists to protect.
-reset_interval() { interval=$POLL_FLOOR; last_change=$(date +%s); }
-
-advance_interval() {
-  local now; now=$(date +%s)
-  if [ "$interval" -lt "$POLL_PLATEAU" ]; then
-    interval=$(( interval + 5 ))
-    [ "$interval" -gt "$POLL_PLATEAU" ] && interval=$POLL_PLATEAU
-  elif [ $(( now - last_change )) -lt "$PLATEAU_HOLD" ]; then
-    interval=$POLL_PLATEAU
-  else
-    interval=$(( interval * 2 ))
-    [ "$interval" -gt "$POLL_CAP" ] && interval=$POLL_CAP
-  fi
-  return 0
-}
-
-# Sleep, then notice if the machine was suspended. Waking at the dormant cap
-# means being least responsive exactly when the human returns.
-nap() {
-  local before after
-  before=$(date +%s); sleep "$interval"; after=$(date +%s)
-  [ $(( after - before )) -gt $(( interval * 2 + 30 )) ] && reset_interval
-  return 0
-}
-
 fails_primary=0; fails_comments=0; fails_shape=0
+poll_init
 
 # A burst in hand outranks ERROR: the observed activity is real, and reporting
 # ERROR instead would send the caller to re-arm straight back into the failure
@@ -134,7 +84,7 @@ fails_primary=0; fails_comments=0; fails_shape=0
 # enforces.
 report_error() {
   [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] && report_burst
-  echo "result=ERROR reason=$1 now=$(now_iso)"
+  echo "result=ERROR reason=$1 now=$(poll_now_iso)"
   exit 0
 }
 
@@ -143,9 +93,9 @@ report_error() {
 # which must not silently drop a burst it can no longer confirm quiet.
 report_burst() {
   if [ "$saw_commits" = 1 ]; then
-    echo "result=COMMITS new_head=$new_head activity=$saw_activity now=$(now_iso)"
+    echo "result=COMMITS new_head=$new_head activity=$saw_activity now=$(poll_now_iso)"
   else
-    echo "result=ACTIVITY activity=1 now=$(now_iso)"
+    echo "result=ACTIVITY activity=1 now=$(poll_now_iso)"
   fi
   exit 0
 }
@@ -181,7 +131,7 @@ while :; do
     # this the watch runs out its window and prints the line a genuinely quiet
     # PR prints, so a caller cannot tell a broken watch from a calm one.
     [ "$fails_primary" -ge "$FAIL_MAX" ] && report_error "$([ "$ISSUE_MODE" = 1 ] && echo issue-view || echo pr-view)"
-    reset_interval
+    poll_reset
     # Honour the same invariant the report block below documents: never idle out
     # from under an accumulating burst. If the cap has passed while gh is
     # unreachable, report what was already observed rather than spinning — the
@@ -193,9 +143,9 @@ while :; do
     # wake can fail while `date` has already jumped past the cap.
     [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
       && [ "$(date +%s)" -ge "$settle_cap" ] && report_burst
-    { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && timed_out \
-      && { echo "result=IDLE now=$(now_iso)"; exit 0; }
-    nap; continue
+    { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out \
+      && { echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+    poll_nap; continue
   fi
   fails_primary=0
 
@@ -216,10 +166,10 @@ while :; do
     fails_shape=$(( fails_shape + 1 ))
     [ "$fails_shape" -ge "$FAIL_MAX" ] \
       && report_error "$([ "$ISSUE_MODE" = 1 ] && echo issue-view-shape || echo pr-view-shape)"
-    reset_interval
-    { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && timed_out \
-      && { echo "result=IDLE now=$(now_iso)"; exit 0; }
-    nap; continue
+    poll_reset
+    { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out \
+      && { echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+    poll_nap; continue
   fi
 
   # Issue mode ends here: nothing to settle, no drafts, no head SHA. Wake as soon
@@ -242,10 +192,10 @@ while :; do
     # (an HTML error page, a truncated body, empty output) is caught by the gate.
     linked_n=$(echo "$J" | jq '(.closedByPullRequestsReferences // []) | length')
     if [ "${linked_n:-0}" -gt 0 ]; then
-      echo "result=ACTIVITY activity=1 now=$(now_iso)"; exit 0
+      echo "result=ACTIVITY activity=1 now=$(poll_now_iso)"; exit 0
     fi
-    timed_out && { echo "result=IDLE now=$(now_iso)"; exit 0; }
-    advance_interval; nap; continue
+    poll_timed_out && { echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+    poll_nap; continue
   fi
   if [ "$STATE" = MERGED ] || [ "$STATE" = CLOSED ]; then
     echo "result=CLOSED state=$STATE"; exit 0
@@ -286,7 +236,7 @@ while :; do
     fails_comments=$(( fails_comments + 1 )); NEWC="$obs_newc"
   fi
   if [ "$fails_comments" -ge "$FAIL_MAX" ]; then report_error comments; fi
-  [ "$fails_comments" -gt 0 ] && reset_interval
+  [ "$fails_comments" -gt 0 ] && poll_reset
 
   # Accumulate this tick's deltas, and restart the quiet timer on anything new.
   changed=0
@@ -304,7 +254,7 @@ while :; do
   # Reported immediately rather than settled: a draft going ready is the signal to
   # start a first review, and nothing else in the burst changes that.
   if [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = false ]; then
-    echo "result=READY new_head=$HEAD activity=$saw_activity now=$(now_iso)"; exit 0
+    echo "result=READY new_head=$HEAD activity=$saw_activity now=$(poll_now_iso)"; exit 0
   fi
 
   # A draft we are deliberately holding back is not reportable. Without this a
@@ -322,7 +272,7 @@ while :; do
     # It returns to the floor on each change, not for the whole burst — the quiet
     # tail still advances, so from a 10s floor a SETTLE=45 window releases nearer
     # 70s. SETTLE is a lower bound, so that is late rather than wrong.
-    reset_interval
+    poll_reset
     NOW=$(date +%s)
     settle_until=$(( NOW + SETTLE ))
     [ "$settle_cap" = 0 ] && settle_cap=$(( NOW + SETTLE_MAX ))
@@ -337,8 +287,9 @@ while :; do
   # Idle out only when nothing is being withheld — either nothing is mid-settle,
   # or a burst is accumulating behind a held-back draft, which has no release
   # short of the draft going ready and would otherwise never time out.
-  { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && timed_out \
-    && { echo "result=IDLE now=$(now_iso)"; exit 0; }
-  [ "$changed" = 1 ] || advance_interval
-  nap
+  { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out \
+    && { echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+  # No poll_reset on a quiet tick: the curve is a function of how long it has
+  # been since something happened, so quiet is exactly what widens it.
+  poll_nap
 done

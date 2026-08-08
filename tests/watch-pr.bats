@@ -75,9 +75,12 @@ EOF
 }
 
 # (d) the curve: gaps widen while nothing happens, and collapse on a change.
+# POLL_CURVE is the real knob (lib-poll.sh); tests/lib-poll.bats covers its shape
+# as a pure function, so what's being checked here is that the watch actually
+# drives it — that quiet widens the gap and a change resets it.
 @test "the interval grows while quiet and returns to the floor on a change" {
   ( sleep 4; echo 1 > "$HEADCOUNT" ) &
-  POLL_FLOOR=1 POLL_PLATEAU=1 POLL_CAP=4 PLATEAU_HOLD=0 SETTLE=1 WINDOW=20 \
+  POLL_CURVE="0:1 3:4" SETTLE=1 WINDOW=20 \
     run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   [[ "$output" == *"result=COMMITS"* ]]
   # Gaps between successive polls: must reach >1s while quiet (grown past the
@@ -97,7 +100,7 @@ EOF
 @test "ERROR still trips at floor speed after the ramp reached the cap" {
   ( sleep 6; touch "$FAIL_PRVIEW" ) &
   start=$(date +%s)
-  POLL_FLOOR=1 POLL_PLATEAU=1 POLL_CAP=8 PLATEAU_HOLD=0 FAIL_MAX=3 WINDOW=60 \
+  POLL_CURVE="0:1 2:8" FAIL_MAX=3 WINDOW=60 \
     run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
   elapsed=$(( $(date +%s) - start ))
   [[ "$output" == *"result=ERROR"* ]]

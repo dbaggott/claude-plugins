@@ -294,7 +294,7 @@ gh pr merge 48 --repo <owner>/examples --squash --delete-branch
 
 ## Watching for the merge to complete
 
-**Start it proactively.** The moment a review comes back clean (the clean-review handoff above), spawn the background poller below on the PR — don't wait for the operator to announce anything. It watches until the PR merges, closes, hits a conflict, hits a terminal block, or its deadline elapses, then wakes you once. This removes the round-trip in the common case (operator merges right away) and the unwatched gap in the AFK case (operator merges hours later). Spawning a watcher is read-only — it never merges; only a human does.
+**Start it proactively.** The moment a review comes back clean (the clean-review handoff above), spawn the background poller below on the PR — don't wait for the operator to announce anything. It watches until the PR merges, closes, hits a conflict, hits a terminal block, or its window elapses, then wakes you once. This removes the round-trip in the common case (operator merges right away) and the unwatched gap in the AFK case (operator merges hours later). Spawning a watcher is read-only — it never merges; only a human does.
 
 **One watcher per PR.** A proactive watcher is normally already in flight by the time the operator says anything about the merge. Don't spawn a second — verify state as below and let the running one carry it to completion.
 
@@ -315,82 +315,40 @@ Branch on the response:
 
 ### Background poller
 
-Spawn this as a **background** poller (Bash `run_in_background: true`) — both for the proactive watch right after a clean review (state `OPEN`, nothing scheduled yet) and whenever a verify branch above says to spawn. Background for the same reason the review watcher is: running it in the foreground replays the `gh pr view` command and every empty intermediate result into context, once per loop iteration. The deadline below is measured from **when you spawn the poller**, not from PR creation or the review — so a verify-branch spawn hours later (e.g. the operator pings on return after the proactive watcher's session ended) still gets a full window.
+Spawn this as a **background** poller (Bash `run_in_background: true`) — both for the proactive watch right after a clean review (state `OPEN`, nothing scheduled yet) and whenever a verify branch above says to spawn. Background for the same reason the review watcher is: running it in the foreground replays the `gh pr view` command and every empty intermediate result into context, once per loop iteration. The window is measured from **when you spawn the poller**, not from PR creation or the review — so a verify-branch spawn hours later (e.g. the operator pings on return after the proactive watcher's session ended) still gets a full one.
 
 ```bash
-# Deadline: several hours, so an operator who merges later in the day is still
-# caught. We never silently re-arm (on timeout we wake and remind, once), so the
-# deadline only sets *when to remind*, not how often we wake — make it generous.
-# Exactly one wake either way: on the merge, or once on timeout.
-deadline=$(( $(date +%s) + 21600 ))   # 6h
-until
-  # Only the gh call is silenced. Its failures are the transient ones, and their
-  # stderr would otherwise survive into the background task's result, making a
-  # watch that rode out a blip and then reported MERGED read like one that died.
-  # The jq calls below are deliberately NOT silenced: a jq failure here means the
-  # payload shape changed, which is never transient and must stay visible.
-  RAW=$(gh pr view <num> --repo <repo> --json state,mergeStateStatus,statusCheckRollup,reviewDecision 2>/dev/null)
-  # Update state only from a poll that actually succeeded, and record that at
-  # least one did. Overwriting unconditionally would let a single blip on the tick
-  # that happens to observe the deadline erase six healthy hours — the run would
-  # lose `result=TIMEOUT` (the STATE test below short-circuits on empty) and the
-  # operator would never be reminded the PR is still open.
-  if [ -n "$RAW" ]; then
-    reached=1
-    J=$RAW
-    STATE=$(echo "$J" | jq -r .state)
-    MSS=$(echo "$J" | jq -r .mergeStateStatus)
-    # PENDING counts checks that haven't reached a terminal state. CheckRun
-    # entries use .status (COMPLETED is terminal); StatusContext entries use
-    # .state (PENDING is non-terminal). Any non-terminal check means BLOCKED
-    # is still transient.
-    #
-    # `// []` because statusCheckRollup is null on a PR with no checks at all,
-    # and iterating null is a hard jq error — which would leave PENDING empty for
-    # the rest of the window and silently disable the terminal-BLOCKED test
-    # below, so a failed required check would sit unreported until the deadline.
-    PENDING=$(echo "$J" | jq -r '[(.statusCheckRollup // [])[] | select((.status != null and .status != "COMPLETED") or .state == "PENDING")] | length')
-  fi
-  [ "$STATE" = MERGED ] || [ "$STATE" = CLOSED ] || [ "$MSS" = DIRTY ] \
-    || { [ "$MSS" = BLOCKED ] && [ "$PENDING" = "0" ]; } \
-    || [ "$(date +%s)" -ge "$deadline" ]
-do
-  sleep 60
-done
-# Not a single poll succeeded across the whole window — keyed on the flag, not on
-# `$STATE`, because the last poll failing is not the same event as every poll
-# failing. Silencing gh above removed the stderr that used to hint at this, so
-# without the flag a blank result is indistinguishable from a bug in the loop.
-[ -n "${reached:-}" ] || echo "result=UNREACHABLE"
-# Plain deadline timeout (still mergeable, just no merge yet) vs a real terminal
-# state — distinguish so the return-branch can tell "remind the operator" from
-# "surface a problem".
-[ "$STATE" = OPEN ] && [ "$MSS" != DIRTY ] && ! { [ "$MSS" = BLOCKED ] && [ "$PENDING" = "0" ]; } \
-  && [ "$(date +%s)" -ge "$deadline" ] && echo "result=TIMEOUT"
-echo "state=$STATE mergeStateStatus=$MSS pending_checks=$PENDING"
-echo "$J"
+"<skill-dir>/../../scripts/watch-merge.sh" <owner>/<repo> <num>
 ```
 
-`reviewDecision` is included so the surface-and-ask branch below can identify a dismissed-approval cause from the same JSON the poller already returned — no extra `gh pr view` call. Read it as a *gate* question, not an approval question: `null` means no review is required to merge on this repo, which rules review out as the cause of a `BLOCKED`. It says nothing about whether HEAD is approved — that is the `commit.oid` comparison, and on a repo with `reviewDecision: null` it is the only thing that answers it.
+**Do not hand-roll this loop** — the same rule, and the same reasons, as the review watcher above. It was inlined here as a fenced block until it grew a `reached` flag, a two-shape pending-check count, and a `TIMEOUT`-vs-broken distinction, none of which `shellcheck` could see and none of which any test covered. `tests/watch-merge.bats` now pins every branch: merged, closed, conflicted, terminally blocked, blocked-but-still-running, timed out, unreachable, and a payload that stops parsing.
 
-Sleep 60s, rather than the 30s the shared review watcher polls at by default — match the interval to how fast the watched thing moves (merges take minutes-to-hours; reviews land in 1–3 min), *not* to cost. The loop's intermediate iterations run in the background and never enter the conversation, so poll frequency costs no tokens — only GitHub API calls. The token cost is the single model wake when the loop exits, and that's set by the deadline plus the no-re-arm rule, not by the sleep. So pick the sleep for responsiveness and API-politeness; pick the deadline for how long to wait before reminding.
+It reads only — the test suite asserts the script contains no mutating `gh` call at all, because a watcher that could merge is a failure nothing else would catch.
+
+The default window is 6h of **laptop-open time**, and the poll interval follows the shared curve in `scripts/lib-poll.sh` — 10s at the start, easing to 30s over half an hour, a minute by the 90-minute mark, and 5 minutes thereafter. A merge that's going to happen usually happens in the first few minutes, and nearly always within the hour; past that the odds flatten and a fast poll buys nothing. Both are overridable (`WINDOW`, `POLL_CURVE`) but the defaults are tuned for exactly this watch.
+
+**Laptop-open time, not wall-clock**, matters here more than anywhere else in this skill. The old loop measured its deadline against the clock, so closing the lid overnight meant waking to an already-blown deadline: it reported `TIMEOUT` — "I watched the full window and didn't see it merge" — having never once looked. The shared clock discounts suspended time from both the window and the curve, so a watch resumes where it left off and comes back at the 10s floor, which is the responsiveness you want at exactly the moment the operator has reopened the machine.
+
+`reviewDecision` is in the JSON the script prints so the surface-and-ask branch below can identify a dismissed-approval cause without a second `gh pr view`. Read it as a *gate* question, not an approval question: `null` means no review is required to merge on this repo, which rules review out as the cause of a `BLOCKED`. It says nothing about whether HEAD is approved — that is the `commit.oid` comparison, and on a repo with `reviewDecision: null` it is the only thing that answers it.
 
 `mergeStateStatus=BLOCKED` is overloaded: it covers "a required check is still running" (transient — auto-merge will fire when the check passes) and "a required check failed / approval got dismissed / branch is out of date" (terminal — needs human action). GitHub does not auto-cancel an auto-merge request when a required check fails, so `autoMergeRequest` doesn't disambiguate. The pending-check count above does: BLOCKED with at least one non-terminal check is just auto-merge waiting; BLOCKED with everything completed is a real block.
 
 When the poller returns, branch on the final state:
 
-- **`result=UNREACHABLE`** — the watch never once reached GitHub. Nothing is known about the PR, so **don't infer anything from the blank state fields** — it is neither still open nor merged as far as this run is concerned. Check `gh auth status` and that the `<num>`/`<repo>` pair is right, then re-spawn. This is the one return that says the watcher itself was broken rather than the PR being quiet.
-- **`state=MERGED`** — run the post-merge cleanup below right away. Don't wait for the operator to re-confirm; the poller already established the merge.
-- **`result=TIMEOUT`** (still `state=OPEN` after the deadline) — the watch elapsed without a merge; the operator likely stepped away. Wake **once** and tell them plainly: you watched the full window and didn't see it merge, the PR is still open and still needs merging (`<full URL>`, plus the merge command re-composed per "Composing the merge command" — check state may have changed during the wait), and they should ping you when it's done so you can run cleanup/verification. **Then stop — do not silently re-arm another watcher.** A fresh watch is cheap to start if they ask, and nothing in-session survives the session ending anyway (see below), so chaining watchers just burns one model wake per cycle for a merge only the human can trigger.
-- **`state=CLOSED`** (without merge) — someone closed the PR without merging. Acknowledge, stop the workflow, leave the worktree alone in case they reopen.
-- **`mergeStateStatus=DIRTY`** — a conflict developed while checks were running, typically because another PR merged into the base branch and touched the same lines. Surface the URL and the cause; ask how they want to proceed. Don't try to resolve the conflict autonomously — which side wins is their call.
-- **`mergeStateStatus=BLOCKED`** (with `pending_checks=0`) — a required check failed, an **unresolved review thread** is outstanding, an approval got dismissed, or the branch is out of date with base. **`BLOCKED` is a summary over unrelated conditions and names none of them — never report a cause you haven't read off a source.** Two sessions guessed it on two PRs and got it wrong in opposite directions: "needs another review" when CI was still settling, then "BLOCKED means CI here, never review" when an inline thread was open. Read all three before saying anything:
+- **`result=ERROR reason=<source>`** — that source failed repeatedly and the watch cannot see. Nothing is known about the PR, so **don't infer anything** — it is neither still open nor merged as far as this run is concerned. (The script prints no state line here, precisely so there is nothing stale to misread as fact.) Check `gh auth status` and that the `<num>`/`<repo>` pair is right, then re-spawn. This is the one return that says the watcher itself was broken rather than the PR being quiet.
+- **`result=MERGED`** — run the post-merge cleanup below right away. Don't wait for the operator to re-confirm; the poller already established the merge.
+- **`result=TIMEOUT`** (still `state=OPEN` after the window) — the watch ran its full window without a merge; the operator likely stepped away. Wake **once** and tell them plainly: the PR is still open and still needs merging (`<full URL>`, plus the merge command re-composed per "Composing the merge command" — check state may have changed during the wait), and they should ping you when it's done so you can run cleanup/verification. **Then stop — do not silently re-arm another watcher.** A fresh watch is cheap to start if they ask, and nothing in-session survives the session ending anyway (see below), so chaining watchers just burns one model wake per cycle for a merge only the human can trigger.
+
+  The window is 6h of laptop-open time, so this genuinely means six hours of *watching* — a suspended machine doesn't spend it. Don't tell the operator how long you watched in wall-clock terms; you don't know that, and it's the wrong number anyway.
+- **`result=CLOSED`** — someone closed the PR without merging. Acknowledge, stop the workflow, leave the worktree alone in case they reopen.
+- **`result=DIRTY`** — a conflict developed while checks were running, typically because another PR merged into the base branch and touched the same lines. Surface the URL and the cause; ask how they want to proceed. Don't try to resolve the conflict autonomously — which side wins is their call.
+- **`result=BLOCKED`** (always with `pending_checks=0`; a block with checks still running isn't terminal and the watcher keeps waiting) — a required check failed, an **unresolved review thread** is outstanding, an approval got dismissed, or the branch is out of date with base. **`BLOCKED` is a summary over unrelated conditions and names none of them — never report a cause you haven't read off a source.** Two sessions guessed it on two PRs and got it wrong in opposite directions: "needs another review" when CI was still settling, then "BLOCKED means CI here, never review" when an inline thread was open. Read all three before saying anything:
 
   ```bash
-  # 1. failing check — from the $J the poller already returned. Both rollup
-  #    shapes, same as the PENDING count above: CheckRun has .name/.conclusion,
-  #    StatusContext has .context/.state. `// []` for a PR with no checks.
-  echo "$J" | jq -r '(.statusCheckRollup // [])[]
+  # 1. failing check. Both rollup shapes, same as the watcher's pending count:
+  #    CheckRun has .name/.conclusion, StatusContext has .context/.state.
+  #    `// []` for a PR with no checks at all.
+  gh pr view <num> --repo <repo> --json statusCheckRollup --jq '(.statusCheckRollup // [])[]
     | {n: (.name // .context), r: (.conclusion // .state)}
     | select(.r != "SUCCESS" and .r != "NEUTRAL") | "\(.n) \(.r)"'
   # 2. unresolved review threads — a hard blocker wherever required_conversation_resolution is on
@@ -398,7 +356,8 @@ When the poller returns, branch on the final state:
     pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved path}}}}}' \
     -F o=<owner> -F r=<repo> -F n=<num> \
     --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'
-  # 3. dismissed/missing approval — reviewDecision is in $J; null means no review is required at all
+  # 3. dismissed/missing approval — reviewDecision is in the JSON the watcher
+  #    printed; null means no review is required on this repo at all
   ```
 
   Surface the URL and the specific cause you actually found, and ask how they want to proceed. A `null` `reviewDecision` means review is not a merge gate on this repo, so it rules review *out* as the cause of a block — it does not mean a review isn't wanted. The operator asked for one by sending the PR to review; that request is what the watch serves, and branch protection has no opinion on it.
@@ -407,11 +366,11 @@ When the poller returns, branch on the final state:
 
 ## After a merge
 
-When told a PR has been merged (or when the merge watcher above reports `state=MERGED`), clean up **before starting any new work**, in this order:
+When told a PR has been merged (or when the merge watcher above reports `result=MERGED`), clean up **before starting any new work**, in this order:
 
 1. Remove the worktree: `git worktree remove .worktrees/<branch-name>`
 2. `git switch <default-branch> && git pull --ff-only --prune` — make sure the primary checkout is on the default branch (a no-op given the rule at the top of this skill, but cheap defense in depth against the pull silently fast-forwarding the wrong branch), then fast-forward with the merge commit. `--prune` also clears the remote-tracking branch, if the repo already deleted it on merge.
-3. Delete the local branch: `git branch -d <branch-name>`. **On a squash-merge repo this fails**, and that's expected rather than a problem: a squash rewrites the commits, so the feature branch tip is never an ancestor of the base branch, and `-d` walks that ancestry and refuses. Check `allow_squash_merge` from "Know the repo's merge settings" — where squash is the repo's merge method, go straight to `git branch -D`. The operator's "merged" confirmation (or the watcher's `state=MERGED`) is what authorises the force delete; git's ancestry check can't.
+3. Delete the local branch: `git branch -d <branch-name>`. **On a squash-merge repo this fails**, and that's expected rather than a problem: a squash rewrites the commits, so the feature branch tip is never an ancestor of the base branch, and `-d` walks that ancestry and refuses. Check `allow_squash_merge` from "Know the repo's merge settings" — where squash is the repo's merge method, go straight to `git branch -D`. The operator's "merged" confirmation (or the watcher's `result=MERGED`) is what authorises the force delete; git's ancestry check can't.
 4. Delete the remote branch **only if the repo doesn't do it for you**: `delete_branch_on_merge` from the settings read says which. When it's on, GitHub already deleted it and step 2's `--prune` cleared your local view — nothing to do. When it's off, `git push origin --delete <branch-name>`.
 
 ## After rebase or merge
