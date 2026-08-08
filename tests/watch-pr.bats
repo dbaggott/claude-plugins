@@ -127,6 +127,56 @@ EOF
   [[ "$output" != *"result=ERROR"* ]]
 }
 
+# The shape paths, at FAIL_MAX > 1. At FAIL_MAX=1 both of these pass while the
+# defect is fully present: the successful poll resets the poll counter every
+# iteration, so a shape failure sharing it can never exceed 1. That is why the
+# threshold matters more than the assertion here.
+@test "a persistent payload-shape break reports ERROR, not IDLE" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "pr view") echo 'not json at all' ;;
+  *) echo '[]' ;;
+esac
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"reason=pr-view-shape"* ]]
+  [[ "$output" != *"result=IDLE"* ]]
+}
+
+@test "a persistent shape break in --issue mode reports ERROR" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "issue view") echo '<html>an error page</html>' ;;
+  *) echo '[]' ;;
+esac
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=0 FAIL_MAX=3 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"reason=issue-view-shape"* ]]
+}
+
+@test "malformed JSON never kills the watch without a result line" {
+  # Unguarded, the payload parse dies under `set -e`: exit 5, no result= at all.
+  # The reviewer skill handles a missing line, but a watch that vanishes is the
+  # blindness this whole change removes, wearing a louder costume.
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "pr view") echo 'not json at all' ;;
+  *) echo '[]' ;;
+esac
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=0 FAIL_MAX=99 WINDOW=2 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result="* ]]
+}
+
 # issue mode shares the loop; only what it polls differs.
 @test "--issue wakes when a linked PR appears" {
   ( sleep 2; echo '[{"number":9}]' > "$LINKED" ) &

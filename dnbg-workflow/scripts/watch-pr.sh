@@ -126,7 +126,7 @@ nap() {
   return 0
 }
 
-fails_primary=0; fails_comments=0
+fails_primary=0; fails_comments=0; fails_shape=0
 
 # A burst in hand outranks ERROR: the observed activity is real, and reporting
 # ERROR instead would send the caller to re-arm straight back into the failure
@@ -199,7 +199,28 @@ while :; do
   fi
   fails_primary=0
 
-  STATE=$(echo "$J" | jq -r '.state // empty')
+  # One shape gate for the payload, counted on its own. A parse failure here is
+  # not a poll failure: `$J` came from a call that succeeded, so this is a
+  # payload-shape change, which is never transient.
+  #
+  # It needs its own counter because the successful poll above resets
+  # `fails_primary` on every iteration — sharing that counter caps a shape
+  # failure at 1, so it can never reach FAIL_MAX and the watch idles out exactly
+  # as it did when the parse was swallowed with `|| echo 0`.
+  #
+  # Guarded, not bare: an unguarded assignment dies under `set -e` with no
+  # `result=` line at all, which is the same blindness in a louder costume.
+  if STATE=$(echo "$J" | jq -r '.state // empty' 2>/dev/null); then
+    fails_shape=0
+  else
+    fails_shape=$(( fails_shape + 1 ))
+    [ "$fails_shape" -ge "$FAIL_MAX" ] \
+      && report_error "$([ "$ISSUE_MODE" = 1 ] && echo issue-view-shape || echo pr-view-shape)"
+    reset_interval
+    { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && timed_out \
+      && { echo "result=IDLE now=$(now_iso)"; exit 0; }
+    nap; continue
+  fi
 
   # Issue mode ends here: nothing to settle, no drafts, no head SHA. Wake as soon
   # as a linked PR exists or the issue closes; otherwise fall through to the same
@@ -210,18 +231,10 @@ while :; do
     # updates the *exported* value, so a generic uppercase internal here would
     # clobber a caller's environment variable — and this script's children are
     # `gh` invocations that read the environment.
-    # Counted, not swallowed. `$J` came from a call that already succeeded, so a
-    # failure here is a payload-shape change — never transient, and exactly the
-    # case the comments path below stopped treating as "nothing new". `|| echo 0`
-    # would make a blind wait look like a calm one, which is the defect this
-    # whole change exists to remove.
-    if linked_n=$(echo "$J" | jq '.closedByPullRequestsReferences | length' 2>/dev/null)
-    then fails_primary=0
-    else
-      fails_primary=$(( fails_primary + 1 )); linked_n=0
-      [ "$fails_primary" -ge "$FAIL_MAX" ] && { reset_interval; report_error issue-view-shape; }
-      reset_interval
-    fi
+    # `// []` rather than a second guard: the shape gate above already proved the
+    # payload parses, so a total expression here cannot fail and needs no counter
+    # of its own. A missing field reads as zero linked PRs, which is correct.
+    linked_n=$(echo "$J" | jq '(.closedByPullRequestsReferences // []) | length')
     if [ "${linked_n:-0}" -gt 0 ]; then
       echo "result=ACTIVITY activity=1 now=$(now_iso)"; exit 0
     fi
@@ -239,17 +252,12 @@ while :; do
   HEAD=$(echo "$J" | jq -r '.headRefOid // empty')
 
   # New formal reviews / top-level comments after SINCE, not authored by the bot.
-  # Same treatment as the two queries: a shape change here is not "no activity".
-  if NEW=$(echo "$J" | jq --arg s "$SINCE" --arg slug "$SLUG" '
+  # Total by construction (`[]?` skips a missing or non-array field), so the shape
+  # gate above is the only place a payload change needs counting.
+  NEW=$(echo "$J" | jq --arg s "$SINCE" --arg slug "$SLUG" '
     def mine: . == $slug or . == ($slug + "[bot]");
     [ (.reviews[]?  | select(.submittedAt > $s and (.author.login | mine | not))),
-      (.comments[]? | select(.createdAt  > $s and (.author.login | mine | not))) ] | length' 2>/dev/null)
-  then :
-  else
-    fails_primary=$(( fails_primary + 1 )); NEW="$obs_new"
-    [ "$fails_primary" -ge "$FAIL_MAX" ] && { reset_interval; report_error pr-view-shape; }
-    reset_interval
-  fi
+      (.comments[]? | select(.createdAt  > $s and (.author.login | mine | not))) ] | length')
   # New inline review-comments (thread replies) after SINCE, not by the bot.
   # Split the fetch from the parse so a failure is not read as "no new replies".
   # It previously ended in `|| echo 0`, which made this path fail *closed and
