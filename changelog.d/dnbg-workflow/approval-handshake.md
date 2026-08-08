@@ -5,12 +5,13 @@ left the approval pointing at an older commit while GitHub's merge box showed an
 unqualified green check — and left the author's watcher waiting for a signal the
 reviewer had been told not to send.
 
-Both skills now answer "is HEAD approved?" by comparing an `APPROVED` review's
-`commit_id` to `headRefOid`, rather than inferring it from the repo's *Dismiss
-stale pull request approvals* setting. That setting is meaningless where no
-approval is required (the default on a personal repo), so the inference produced
-confidently wrong answers in both directions. Nothing in either skill reads
-branch protection any more — one less call that needs admin.
+Both skills now answer "is HEAD approved?" by checking that the latest *verdict*
+on the PR is an `APPROVED` attached to `headRefOid` — not by inferring it from the
+repo's *Dismiss stale pull request approvals* setting. That setting is meaningless
+where no approval is required (the default on a personal repo that gates on CI),
+so the inference produced confidently wrong answers in both directions. Where
+approvals are required, `reviewDecision` remains the primary source. Nothing in
+either skill reads branch protection any more — one less call that needs admin.
 
 `git-workflow` no longer reports a cause for `mergeStateStatus: BLOCKED` without
 reading one: an unresolved review thread is now listed alongside a failing check

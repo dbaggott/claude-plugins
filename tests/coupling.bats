@@ -51,9 +51,16 @@ ROOT="${BATS_TEST_DIRNAME}/.."
 
   # And the comparison is present in both skills, so removing it can't pass by
   # simply deleting the rule along with the endpoint.
+  #
+  # CHANGES_REQUESTED is pinned alongside APPROVED because the first cut of this
+  # check took the last *approval* rather than the last *verdict*, so an approval
+  # reversed at the same SHA still read as approved. The verdict set is the fix,
+  # and it is the part a later simplification would quietly drop.
   for skill in reviewer git-workflow; do
     f="$ROOT/dnbg-workflow/skills/$skill/SKILL.md"
     grep -q 'headRefOid' "$f" || { echo "$skill/SKILL.md never mentions headRefOid"; false; }
     grep -q 'state=="APPROVED"' "$f" || { echo "$skill/SKILL.md has no APPROVED commit-oid check"; false; }
+    grep -q 'state=="CHANGES_REQUESTED"' "$f" || {
+      echo "$skill/SKILL.md checks the last approval, not the last verdict"; false; }
   done
 }

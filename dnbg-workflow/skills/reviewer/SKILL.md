@@ -348,10 +348,10 @@ on a line — an informational inline comment has nowhere to be resolved to and
 stalls the merge.
 
 On a repo with `required_conversation_resolution` enabled that is mechanical
-rather than a matter of the merger's reading: *every* unresolved thread blocks
-the merge outright. Both `dbaggott/claude-plugins` and `dbaggott/landfall` have it
-on, so an FYI filed on a line there is a merge blocker with no action attached to
-clear it.
+rather than a matter of the merger's reading: *every* unresolved thread blocks the
+merge outright, so an FYI filed on a line is a merge blocker with no action
+attached to clear it. Assume it may be on — the setting is not readable without
+admin, and the body is the right home for an informational note either way.
 
 **Post one atomic review.** When you have inline findings, use the reviews
 endpoint so the verdict *and* all inline comments land as a single review (one
@@ -558,12 +558,21 @@ keeping the record current:
 ```bash
 gh pr view <n> --repo <repo> --json headRefOid,reviews --jq \
   '{head: .headRefOid,
-    approved_at: [.reviews[] | select(.state=="APPROVED") | .commit.oid] | last}'
+    last_verdict: ([.reviews[]
+      | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED" or .state=="DISMISSED")]
+      | last)}'
 ```
 
-`approved_at == head` is the whole question. Nothing else answers it: neither the
-merge box, nor `dismiss_stale_reviews`, nor the presence of an approval anywhere
-in the list.
+Your verdict is current iff `last_verdict.commit.oid == head`. Take the last
+**verdict**, not the last approval — an `APPROVED` followed by a
+`CHANGES_REQUESTED` on the same SHA is not an approval, and `COMMENTED` (what a
+thread reply posts) is not a verdict at all.
+
+Where approvals are **required**, `reviewDecision` answers "is HEAD approved?"
+directly and is the primary source — it handles supersession and multiple
+reviewers, which this comparison does not. This is the answer where no approval
+is required, and it is the only one there: `reviewDecision` is `null`, and
+neither the merge box nor `dismiss_stale_reviews` fills the gap.
 
 Alongside the fresh review, **resolve any inline thread whose concern is now
 answered** (below).
