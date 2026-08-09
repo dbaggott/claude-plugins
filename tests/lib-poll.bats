@@ -11,6 +11,9 @@
 
 LIB="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/lib-poll.sh"
 
+# Reaps anything a test backgrounds; see tests/reap.bash for why it is shared.
+load reap
+
 # A clock we control. `sleep N` advances it by N instead of sleeping; if a
 # SUSPEND file holds a number, the next sleep also jumps by that much and clears
 # it — which is exactly what a laptop lid does to a poll loop.
@@ -249,4 +252,203 @@ EOF
   [ "$quiet" = 0 ]
   # The window runs from poll_init, and a reset must not give any of it back.
   [ "$awake" -ge 500 ]
+}
+
+# ---------------------------------------------------------------------------
+# Tracing (WATCH_LOG). The point of these is the SHAPE of the evidence a dead
+# watch leaves, so they assert on what is present AND on what is absent.
+
+@test "WATCH_LOG=off installs no traps, so the opted-out path is unchanged" {
+  setup_clock
+  # The traps are the only thing tracing adds that alters the exit path, so
+  # "none installed" is the real claim — stronger than "no file was written",
+  # which would pass simply because nothing named one.
+  run bash -c "export WATCH_LOG=off WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; trap -p TERM EXIT | wc -l"
+  [ "$status" -eq 0 ]
+  [ "$(tr -d '[:space:]' <<<"$output")" = 0 ]
+}
+
+@test "WATCH_LOG records a start, one line per tick, and the exit" {
+  setup_clock
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  run bash -c "export WATCH_LOG='$log' WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; poll_nap"
+  [ "$status" -eq 0 ]
+  grep -q ' START script=' "$log"
+  [ "$(grep -c ' tick interval=' "$log")" = 2 ]
+  grep -q ' EXIT code=0' "$log"
+}
+
+@test "the exit line carries the status that killed the watch" {
+  setup_clock
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  # A `set -e` death is the case worth pinning: it is indistinguishable from a
+  # clean finish in the task output, because both leave the same empty file.
+  run bash -c "export WATCH_LOG='$log' WINDOW=50 POLL_CURVE='0:10'; set -e; . '$LIB'
+    poll_init; false; echo unreachable"
+  [ "$status" -ne 0 ]
+  [[ "$output" != *unreachable* ]]
+  grep -q 'EXIT code=1' "$log"
+}
+
+@test "a signal is logged mid-nap and re-raised with its own status" {
+  # Deliberately NOT setup_clock: this one needs a real nap to be interrupted.
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  # Bounded (`1 2 3`), not `while :`. The teardown above is the real guard, but a
+  # loop that cannot outlive three naps means even a leak that escapes it expires on
+  # its own rather than becoming another 6-hour orphan.
+  bash -c "export WATCH_LOG='$log' WINDOW=600 POLL_CURVE='0:30'; . '$LIB'
+    poll_init; for _ in 1 2 3; do poll_nap; done" &
+  local pid=$! i=0
+  echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
+  # Generously bounded: this only waits for the child to install its traps and write
+  # START. Too short and a loaded runner lets the `kill` land before any trap exists,
+  # failing for a reason unrelated to what is under test. The 3s deadline below is
+  # the assertion and stays tight; this one is setup and should not be.
+  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  [ -s "$log" ] || { echo "child never started tracing"; return 1; }
+  kill -TERM "$pid"
+
+  # ⚠️ THE DEADLINE IS THE ASSERTION. The nap is 30s; a foreground `sleep` defers
+  # the trap until it finishes, so if poll_nap ever goes back to one, nothing is
+  # in the log within three seconds and this fails. That regression is otherwise
+  # invisible — the line still appears eventually, just far too late to be true.
+  local j=0
+  while ! grep -q 'SIGNAL=TERM' "$log" 2>/dev/null && [ "$j" -lt 30 ]; do sleep 0.1; j=$((j + 1)); done
+  grep -q 'SIGNAL=TERM' "$log"
+
+  local st=0; wait "$pid" || st=$?
+  [ "$st" -eq 143 ]                 # re-raised, so the status still names the signal
+  ! grep -q 'EXIT code=' "$log"     # ...and the EXIT trap did not also claim it
+}
+
+@test "a zero interval is refused rather than spinning" {
+  # `INTERVAL=1` made poll_nap return instantly, turning the watch into a busy loop
+  # around `gh` — measured at 200 naps in 2s, which is the hourly REST budget gone
+  # inside a minute and the watch then blind behind rate-limit failures, still
+  # reporting an ordinary IDLE. Offsets may be 0; intervals may not.
+  run bash -c "export INTERVAL=0; . '$LIB'"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"at least 1s"* ]]
+  # The offset half must still accept 0 — the curve is required to start there.
+  run bash -c "export POLL_CURVE='0:10 60:30'; . '$LIB'; poll_interval_at 0"
+  [ "$status" -eq 0 ]
+  [ "$output" = 10 ]
+}
+
+@test "a signalled watch does not leave its sleep behind" {
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  bash -c "export WATCH_LOG='$log' WINDOW=600 POLL_CURVE='0:30'; . '$LIB'
+    poll_init; for _ in 1 2 3; do poll_nap; done" &
+  local pid=$! i=0
+  echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
+  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  # The sleep is the child of the watch; find it before the watch dies.
+  local nap; nap=$(pgrep -P "$pid" 2>/dev/null | head -1)
+  [ -n "$nap" ] || skip "could not observe the nap child on this platform"
+  kill -TERM "$pid"; wait "$pid" 2>/dev/null || true
+  # Re-raising kills the shell; without the reap the sleep outlives it by up to a
+  # full interval — 300s at the cap.
+  local j=0
+  while kill -0 "$nap" 2>/dev/null && [ "$j" -lt 30 ]; do sleep 0.1; j=$((j + 1)); done
+  ! kill -0 "$nap" 2>/dev/null
+}
+
+@test "a SIGKILL leaves a heartbeat and neither a signal nor an exit line" {
+  # ⚠️ ROW THREE OF THE TABLE, and the only outcome that is an ABSENCE. The whole
+  # design rests on "heartbeat, but no SIGNAL and no EXIT" meaning an uncatchable
+  # kill, so it is the row most exposed to silent regression: anything that later
+  # buffers the tick line, or adds a trap catching what should be uncatchable, turns
+  # a real SIGKILL into "the watch was never running" with every other test green.
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  bash -c "export WATCH_LOG='$log' WINDOW=600 POLL_CURVE='0:30'; . '$LIB'
+    poll_init; for _ in 1 2 3; do poll_nap; done" &
+  local pid=$! i=0
+  echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
+  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  [ -s "$log" ] || { echo "child never started tracing"; return 1; }
+
+  kill -KILL "$pid"
+  local st=0; wait "$pid" 2>/dev/null || st=$?
+  [ "$st" -eq 137 ]                        # uncatchable, so the status says so
+  grep -q ' tick interval=' "$log"         # ...the heartbeat is what dates the death
+  ! grep -q 'SIGNAL=' "$log"               # ...and neither handler can have run
+  ! grep -q 'EXIT code=' "$log"
+}
+
+@test "an unwritable WATCH_LOG fails loudly instead of tracing nothing" {
+  # A path under a directory that does not exist wrote nothing at all — not even
+  # START — which reads as row three: killed before its first tick. The most
+  # misleading outcome the feature has, from the likeliest operator typo.
+  run bash -c "export WATCH_LOG='$BATS_TEST_TMPDIR/nope/watch.log'; . '$LIB'; poll_init"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"not writable"* ]]
+}
+
+@test "a reap of an already-dead nap child does not abort the handler" {
+  # The race the reap opened: `wait` reaps the nap child a moment before
+  # `_poll_napper` is cleared, so a signal arriving in that window finds a pid that
+  # is already gone. Under `set -e` the failing `kill` aborted the handler before
+  # the re-raise, and the death was recorded as an ordinary exit — a SIGNAL line and
+  # an EXIT line together, which the header table says cannot happen.
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  run bash -c "set -euo pipefail; export WATCH_LOG='$log'; . '$LIB'
+    poll_init
+    _poll_napper=999999   # certainly gone
+    kill -TERM \$\$
+    sleep 5"
+  [ "$status" -eq 143 ]              # re-raised, so the status still names the signal
+  grep -q 'SIGNAL=TERM' "$log"
+  ! grep -q 'EXIT code=' "$log"      # ...and the handler did not fall through to EXIT
+}
+
+@test "tracing is on with no WATCH_LOG set, and lands under TMPDIR" {
+  # ⚠️ THE POINT OF THE WHOLE FEATURE. The failure it catches is intermittent and
+  # unreproducible, so a knob nobody set beforehand captures nothing — the default
+  # is what makes the next occurrence diagnosable rather than the one after somebody
+  # remembers. This test is what stops it quietly reverting to opt-in.
+  setup_clock
+  local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home"
+  run bash -c "unset WATCH_LOG; export TMPDIR='$home' WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; echo \"log=\$WATCH_LOG\""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"log=$home/dnbg-watch/"* ]]
+  local f; f=$(find "$home/dnbg-watch" -name '*.log' | head -1)
+  [ -n "$f" ]
+  grep -q ' START ' "$f"
+  grep -q ' tick interval=' "$f"
+}
+
+@test "an unwritable DEFAULT location disables tracing instead of killing the watch" {
+  # The asymmetry against the explicit-path test above: a path the operator typed is
+  # their error and must be loud, but the default is nobody's request. Now that
+  # tracing is on by default, dying here would turn an unwritable TMPDIR into every
+  # watch on the machine failing to start — a diagnostic taking down the thing it
+  # exists to diagnose.
+  setup_clock
+  local blocked="$BATS_TEST_TMPDIR/blocked"
+  : > "$blocked"          # a FILE where the code wants a directory, so mkdir -p fails
+  run bash -c "unset WATCH_LOG; export TMPDIR='$blocked' WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *ok* ]]
+}
+
+@test "an unwritable default location leaks nothing to stderr" {
+  # ⚠️ THE DIRECTORY EXISTS BUT IS NOT WRITABLE, which is the case the sibling test
+  # cannot reach: there `mkdir -p` fails, so the append is never attempted. Only this
+  # shape gets as far as the `: >> "$WATCH_LOG"` probe, which is where a misordered
+  # `2>/dev/null` lets bash print its own "Permission denied" before the suppression
+  # applies. Tracing defaults on, so that line runs in every watch on the machine.
+  setup_clock
+  local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home/dnbg-watch"
+  chmod 500 "$home/dnbg-watch"
+  run bash -c "unset WATCH_LOG; export TMPDIR='$home' WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; echo ok"
+  chmod 700 "$home/dnbg-watch"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *ok* ]]
+  # bats folds stderr into $output, so a leak shows up here.
+  [[ "$output" != *"Permission denied"* ]]
 }

@@ -10,6 +10,9 @@
 
 WATCH="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/watch-merge.sh"
 
+# Reaps anything a test backgrounds; see tests/reap.bash for why it is shared.
+load reap
+
 setup() {
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   export STATEFILE="$BATS_TEST_TMPDIR/state"
@@ -36,7 +39,7 @@ result_of() { sed -n 's/^result=\([A-Z]*\).*/\1/p' <<<"$1"; }
 
 @test "a merged PR reports MERGED with its state line and payload" {
   pr_state MERGED CLEAN '[]'
-  INTERVAL=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 WINDOW=60 run "$WATCH" o/r 1
   [ "$status" -eq 0 ]
   [ "$(result_of "$output")" = MERGED ]
   [[ "$output" == *"state=MERGED mergeStateStatus=CLEAN pending_checks=0"* ]]
@@ -46,19 +49,19 @@ result_of() { sed -n 's/^result=\([A-Z]*\).*/\1/p' <<<"$1"; }
 
 @test "a PR closed without merging reports CLOSED" {
   pr_state CLOSED CLEAN '[]'
-  INTERVAL=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 WINDOW=60 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = CLOSED ]
 }
 
 @test "a conflict reports DIRTY" {
   pr_state OPEN DIRTY '[]'
-  INTERVAL=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 WINDOW=60 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = DIRTY ]
 }
 
 @test "BLOCKED with nothing pending is terminal" {
   pr_state OPEN BLOCKED '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]'
-  INTERVAL=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 WINDOW=60 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = BLOCKED ]
   [[ "$output" == *"pending_checks=0"* ]]
 }
@@ -88,7 +91,7 @@ result_of() { sed -n 's/^result=\([A-Z]*\).*/\1/p' <<<"$1"; }
 # test for the rest of the window.
 @test "a PR with no checks at all does not break the count" {
   pr_state OPEN BLOCKED 'null'
-  INTERVAL=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 WINDOW=60 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = BLOCKED ]
   [[ "$output" == *"pending_checks=0"* ]]
 }
@@ -109,7 +112,7 @@ result_of() { sed -n 's/^result=\([A-Z]*\).*/\1/p' <<<"$1"; }
 
 @test "exactly one result line is printed" {
   pr_state MERGED CLEAN '[]'
-  INTERVAL=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 WINDOW=60 run "$WATCH" o/r 1
   [ "$(grep -c '^result=' <<<"$output")" -eq 1 ]
 }
 
@@ -118,7 +121,7 @@ result_of() { sed -n 's/^result=\([A-Z]*\).*/\1/p' <<<"$1"; }
 # a PR is still open on no evidence at all.
 @test "a persistently unreachable gh reports ERROR, not TIMEOUT" {
   touch "$FAIL_GH"
-  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
   [ "$status" -eq 0 ]
   [ "$(result_of "$output")" = ERROR ]
   [[ "$output" == *"reason=pr-view"* ]]
@@ -148,7 +151,7 @@ esac
 EOF
   chmod +x "$STUB/gh"
   pr_state OPEN CLEAN '[]'
-  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=3 run "$WATCH" o/r 1
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=3 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = TIMEOUT ]
 }
 
@@ -158,7 +161,7 @@ EOF
 echo '<html>an error page</html>'
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
   [ "$status" -eq 0 ]
   [ "$(result_of "$output")" = ERROR ]
   [[ "$output" == *"reason=pr-view-shape"* ]]
@@ -173,7 +176,7 @@ EOF
 echo '{"unexpected":"payload"}'
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = ERROR ]
   [[ "$output" == *"reason=pr-view-shape"* ]]
 }
@@ -224,7 +227,7 @@ EOF
 echo '{"state":"OPEN","statusCheckRollup":[],"reviewDecision":"APPROVED"}'
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = ERROR ]
   [[ "$output" == *"reason=pr-view-shape"* ]]
   [[ "$output" != *"result=TIMEOUT"* ]]
@@ -246,7 +249,7 @@ EOF
   pr_state MERGED CLEAN '[]'
   # FAIL_MIN_SECONDS at its default 180: the streak is long in ticks but seconds
   # short, so the watch must ride it out and still see the merge.
-  INTERVAL=0 FAIL_MAX=10 WINDOW=60 run "$WATCH" o/r 1
+  INTERVAL=1 FAIL_MAX=10 WINDOW=60 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = MERGED ]
   [[ "$output" != *"result=ERROR"* ]]
 }
@@ -255,7 +258,7 @@ EOF
 # just be a way of never reporting ERROR at all.
 @test "an outage past the time floor still reports ERROR" {
   touch "$FAIL_GH"
-  INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=2 WINDOW=120 run "$WATCH" o/r 1
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=2 WINDOW=120 run "$WATCH" o/r 1
   [ "$(result_of "$output")" = ERROR ]
   [[ "$output" == *"reason=pr-view"* ]]
 }

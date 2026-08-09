@@ -24,6 +24,12 @@
 #   result=IDLE now=<iso>                                 # nothing within the window — re-arm
 #   result=ERROR reason=<source> now=<iso>                # the watch itself is broken — do NOT re-arm
 #
+# A bad argument reports `result=ERROR reason=bad-args` and still exits 0, rather
+# than dying silently: a caller reads a MISSING result line as "killed", so a typo
+# would otherwise imitate the vanished watch this script exists to make legible. A
+# malformed POLL_CURVE still dies at source time via `_poll_die` — that one is a
+# caller bug caught before the loop, and predates this contract.
+#
 # ERROR is not IDLE. IDLE means the PR was quiet; ERROR means one source failed
 # for FAIL_MAX ticks AND at least FAIL_MIN_SECONDS of awake time, so the watch
 # cannot see. Both callers stop and tell the operator what to check (gh auth, the
@@ -37,6 +43,14 @@
 #
 # Reads with the dev's own gh auth (not the short-lived bot token) so a long watch —
 # including across laptop sleep — doesn't expire its credential mid-poll.
+#
+# Every watch traces its own life — a line per tick, per signal, and at exit — to
+# `${TMPDIR:-/tmp}/dnbg-watch/<script>-<pid>.log`, for diagnosing a watch that stops
+# without printing a result. ON BY DEFAULT, because the failure it catches is
+# intermittent: a knob nobody thought to set beforehand captures nothing.
+# `WATCH_LOG=<path>` redirects it, `WATCH_LOG=off` disables it. See "Tracing a watch
+# that vanishes" in lib-poll.sh for how to read one, and why a *missing* line is the
+# most informative outcome.
 set -euo pipefail
 unset GH_TOKEN   # use the dev's own (non-expiring) gh auth for the long poll
 
@@ -56,6 +70,28 @@ WAS_DRAFT=0; [ "${6:-}" = "--was-draft" ] && WAS_DRAFT=1
 # here is routine, since a quiet PR is expected and the agent simply re-arms.
 # shellcheck source=./lib-poll.sh
 . "$(dirname "$0")/lib-poll.sh"
+
+# ⚠️ AN EMPTY SLUG IS FATAL ON THE PR PATH RATHER THAN A DEFAULT. `mine` reduces to
+# `. == "" or . == "[bot]"`, which matches no login at all — so the watch stops
+# excluding its own activity and wakes on its OWN review, which is precisely the
+# self-triggering loop the fifth argument exists to prevent. Both callers document a
+# bail on a blank slug, but documentation is not enforcement, and this failure is
+# invisible: the watch looks healthy and simply reports its own posts as news.
+#
+# PR path only — `--issue` mode never reads the slug. An empty `<last_head>` is NOT
+# fatal in the same way; it self-heals from the first observed HEAD (see the loop).
+if [ "$ISSUE_MODE" = 0 ] && [ -z "$SLUG" ]; then
+  # ⚠️ A RESULT LINE, NOT `_poll_die`, AND THE DIFFERENCE MATTERS HERE MORE THAN
+  # ANYWHERE. Callers branch on `result=`, and `reviewer`'s only handler for a
+  # MISSING one reads it as "the task was killed — do not assume quiet, re-read
+  # HEAD". So exiting 1 silently would make a plain typo in the fifth argument
+  # present as exactly the vanished watch this script's tracing exists to make
+  # legible: the one diagnosis we are trying to keep trustworthy, wrong at the
+  # first opportunity. ERROR is the honest code — the watch cannot see — and its
+  # handler already says don't re-arm, check the arguments.
+  echo "result=ERROR reason=bad-args now=$(poll_now_iso)"
+  exit 0
+fi
 
 # Settle window. An author's round is a burst — reply to three threads, then push
 # the fix — but a webhook-driven bot sees one event per action while this sees
@@ -167,7 +203,27 @@ while :; do
   #
   # Guarded, not bare: an unguarded assignment dies under `set -e` with no
   # `result=` line at all, which is the same blindness in a louder costume.
-  if STATE=$(echo "$J" | jq -r '.state // empty' 2>/dev/null); then
+  # ⚠️ IT MUST PROVE THE FIELDS ARE THERE, NOT ONLY THAT THE PAYLOAD PARSES. `// empty`
+  # alone established the second and was read as establishing the first: an error body
+  # like `{"message":"Not Found"}` is well-formed JSON, so it passed the gate with
+  # `fails_shape=0` and `STATE=""` — matching neither MERGED nor CLOSED — and the watch
+  # ran its entire window against it and reported IDLE on a PR that had already closed.
+  # That is exactly the "broken watch indistinguishable from a calm one" this counter
+  # exists to prevent, arriving through the gate meant to catch it.
+  #
+  # `isDraft` is checked on the PR path for the same reason and is not cosmetic: a
+  # missing field renders as the string `null`, which equals neither `true` nor
+  # `false`, so the READY transition and `holding_draft` both silently stop working.
+  # It also lets the unguarded `//` uses further down keep their justification — they
+  # need the FIELDS present, which only this establishes.
+  shape_ok=1
+  STATE=$(echo "$J" | jq -r '.state // empty' 2>/dev/null) || shape_ok=0
+  [ -n "${STATE:-}" ] || shape_ok=0
+  if [ "$ISSUE_MODE" = 0 ] && [ "$shape_ok" = 1 ]; then
+    DRAFT=$(echo "$J" | jq -r 'if .isDraft == null then "" else .isDraft end' 2>/dev/null) || shape_ok=0
+    [ -n "${DRAFT:-}" ] || shape_ok=0
+  fi
+  if [ "$shape_ok" = 1 ]; then
     fails_shape=0
   else
     fails_shape=$(( fails_shape + 1 ))
@@ -208,11 +264,20 @@ while :; do
     echo "result=CLOSED state=$STATE"; exit 0
   fi
 
-  # NOT `.isDraft // empty`: jq's `//` treats `false` as absent, so the
-  # alternative would fire exactly when the PR is ready, and the check below
-  # could never match.
-  DRAFT=$(echo "$J" | jq -r '.isDraft')
+  # `DRAFT` comes from the shape gate above, which is where its presence is proved.
+  # Note for anyone tempted to write `.isDraft // empty` there: jq's `//` treats
+  # `false` as absent, so it would fire exactly when the PR is ready — hence the
+  # explicit `== null` test.
   HEAD=$(echo "$J" | jq -r '.headRefOid // empty')
+
+  # ⚠️ ADOPT THE FIRST HEAD WE SEE WHEN THE CALLER GAVE US NONE. `obs_head` gates the
+  # commit branch below and is assigned only inside it, so an empty `<last_head>` used
+  # to be a closed loop: the gate could never open, a push went undetected for the
+  # whole window, and the watch reported IDLE on a PR that had moved. Self-healing
+  # here costs one missed detection at most — the push that happened before we ever
+  # looked, which no baseline could have caught — instead of failing for the life of
+  # the watch. Deliberately after the shape gate, so a `null` HEAD never becomes one.
+  [ -z "$obs_head" ] && [ -n "$HEAD" ] && obs_head="$HEAD"
 
   # New formal reviews / top-level comments after SINCE, not authored by the bot.
   # `[]?` skips a missing or non-array field, so the shape gate above is the only
@@ -229,7 +294,28 @@ while :; do
   # It previously ended in `|| echo 0`, which made this path fail *closed and
   # silent*: `gh pr view` keeps succeeding, so the watch looks healthy while
   # thread replies never register — partial blindness nothing reported.
-  if RAWC=$(gh api "repos/$REPO/pulls/$PR/comments" 2>/dev/null); then
+  # ⚠️ PAGINATED, AND THE ORDER IS WHY IT HAS TO BE. This endpoint caps at 30 per
+  # page and returns OLDEST FIRST, so on a PR that has accumulated more than 30
+  # inline comments every page-one result is old news and each new reply lands on
+  # the LAST page. Unpaginated, `NEWC` is then computed over nothing but history:
+  # it never rises, no reply ever registers, and the watch idles out looking
+  # perfectly healthy. That is the same fail-closed-and-silent shape the note
+  # above describes, reached by a different route, and a busy PR with several
+  # reviewers is exactly where it bites.
+  #
+  # ⚠️ NEWEST FIRST, WHICH IS WHAT MAKES ONE REQUEST ENOUGH. Paging through the whole
+  # thread history would also be correct, but it re-fetches every page on every tick,
+  # so its cost scales with the PR's TOTAL comment count rather than with what is
+  # new: a PR at ~250 inline comments is 3 requests per tick, and at the 10s floor
+  # that is ~1080/hour against a 5000/hour budget — for a watch whose whole job is to
+  # notice the handful of comments at the end. `direction=desc` puts those first, so
+  # page one always carries everything created after `$SINCE` and the problem stops
+  # existing rather than being paged around.
+  #
+  # The bound this trades for is 100 new comments within a single window, which is
+  # not a real burst — and even at the bound it degrades safely: the count saturates
+  # rather than resetting, so it still rises and still wakes the watch.
+  if RAWC=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direction=desc" 2>/dev/null); then
     if NEWC=$(echo "$RAWC" | jq --arg s "$SINCE" --arg slug "$SLUG" '
         def mine: . == $slug or . == ($slug + "[bot]");
         [ .[] | select(.created_at > $s and (.user.login | mine | not)) ] | length' 2>/dev/null)
