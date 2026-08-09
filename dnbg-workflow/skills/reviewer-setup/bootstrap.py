@@ -104,6 +104,13 @@ def convert_manifest(code: str) -> dict:
 
 def save_credentials(config_dir: Path, owner_type: str, org: str, app: dict) -> None:
     config_dir.mkdir(parents=True, exist_ok=True)
+    # 0700, and chmod rather than mkdir(mode=...): that argument is masked by the
+    # umask and is ignored outright when the directory already exists, which is
+    # the common case on a re-run. The file modes below are not sufficient on
+    # their own — a 0600 PEM inside a group-writable directory can still be
+    # REPLACED, and mint-token.sh would sign a JWT with whatever it finds. It
+    # refuses such a directory; this is the other half of that contract.
+    config_dir.chmod(stat.S_IRWXU)
     pem_path = config_dir / "private-key.pem"
     # Create the key file restricted from the start — no world-readable window.
     # (write_text would create it at 0644-ish and only narrow it after the bytes
