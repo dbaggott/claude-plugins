@@ -93,7 +93,7 @@ The issue is already in progress if any of: an assignee is set, **any** `assigne
 
 The `assigned:*` namespace is deliberately open: whatever else works these repos — another agent, a bot, a teammate's tooling — claims with its own label in that namespace, and the check above matches the prefix rather than an enumerated list, so a new claimant needs no change here.
 
-One case needs a second look: a claim of `@me` + `assigned:agent-session` may be this very session's earlier mark, or a sibling session run by the same operator — the assignee can't tell them apart, since every session runs under the operator's account. The **session id in the claim comment** does. Read the comment and compare:
+One case needs a second look: a claim of `@me` + `assigned:agent-session` — or a legacy `assigned:claude-code`, which claims made before the rename still carry, since claims are never cleaned up — may be this very session's earlier mark, or a sibling session run by the same operator. The assignee can't tell them apart, since every session runs under the operator's account. The **session id in the claim comment** does. Read the comment and compare:
 
 ```bash
 gh issue view <n> --repo <repo> --json comments --jq '.comments[].body' \
@@ -104,7 +104,9 @@ Test the **latest** claim comment, not any of them — `tail -1` is load-bearing
 
 - **The id matches `${CLAUDE_CODE_SESSION_ID:0:8}`** — this session's own mark, and still the standing one. Proceed; note it in one line. A resumed session keeps its id, so re-reading your own claim after `claude --resume` matches rather than looking like a stranger's.
 - **The id is different** — a sibling session, which is a real claim by another worker. Stop and ask, exactly as for any other claimant.
-- **The comment carries no id** — it predates this scheme, or came from a harness that exports no session id. Fall back to the old judgement: interactively, note the claim in one line and proceed; in an unattended run, stop and ask via a comment.
+- **The comment carries no id, or the grep returns nothing at all** — the claim predates this scheme, came from a harness that exports no session id, or the label was applied by hand with no claim comment behind it. Fall back to the old judgement: interactively, note the claim in one line and proceed; in an unattended run, stop and ask via a comment.
+
+One quirk worth knowing rather than guarding against: `:92` has an unattended session surface an existing claim *as a comment*, so a claim quoted verbatim at line-start can itself become the `tail -1` match. The id inside a quotation is the sibling's, not yours, so the comparison still lands on stop-and-ask — the benign direction.
 
 The test is deliberately one-directional — only an exact id match licenses proceeding — so every id it can't positively account for lands on stop-and-ask, the safe side. That is what makes it usable unattended, where the old "mechanically indistinguishable" wording forced a stop in precisely the case that stopping costs most.
 
