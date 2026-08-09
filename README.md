@@ -209,6 +209,52 @@ exists because GitHub won't let you approve your own PR, and a separate App
 identity can. `reviewer-setup` creates that App and keeps its private key on
 your machine.
 
+### The reviewer bot's private key
+
+That key is the bot's entire credential, so it's worth being explicit about how
+it's handled rather than leaving you to read the scripts.
+
+**By default it is a plaintext PEM at `~/.config/dnbg/reviewer/private-key.pem`,
+mode `0600`, in a `0700` directory.** That is a deliberate choice, not an
+oversight — `aws`, `npm`, and `docker` all keep plaintext credentials in your
+home directory, and anyone who can read that file can already read your shell
+profile. It is stated here so you can disagree with it, because you have two
+ways to.
+
+The key is resolved from the first of these that yields one:
+
+| Order | Source | For |
+| --- | --- | --- |
+| 1 | `DNBG_REVIEWER_PRIVATE_KEY` | CI and headless runs |
+| 2 | `DNBG_REVIEWER_PRIVATE_KEY_COMMAND`, or `private_key_command` in `config.json` | any secret manager |
+| 3 | `$CONFIG_DIR/private-key.pem` | the default |
+
+Route 2 is one hook that reaches every manager without this project integrating
+with any of them — `op read`, `pass show`, `security find-generic-password -w`,
+`secret-tool lookup`, `vault kv get`, `sops -d`. `git`'s `credential.helper` is
+the same idea.
+
+Route 1 stands alone: with `DNBG_REVIEWER_APP_ID` set too, no config file or PEM
+needs to exist anywhere, which is what makes running the reviewer in CI possible.
+
+Three properties worth knowing, each of which has a test:
+
+- **The command is read only from your user config or environment — never from a
+  repository.** Nothing reads config from the working directory. This is the
+  property the feature's safety rests on: the command is harmless because anyone
+  who can write `~/.config/dnbg/reviewer` can already edit your shell profile,
+  and that stops being true the moment a repo you cloned can supply the value.
+- **The key is never written to disk on its way to `openssl`.** It's passed
+  through a pipe, so there is no temp file to leak on a crash or a `SIGKILL` —
+  the guarantee holds by construction rather than by cleanup.
+- **A group- or world-writable config directory or key file is refused**, the way
+  `ssh` refuses an over-permissive private key. A key others can *replace* is as
+  dangerous as one they can read.
+
+The key never leaves your machine in any case: the scripts sign a ~9-minute JWT
+locally and exchange it for a short-lived installation token, and only that token
+is sent anywhere.
+
 `velocity-tradeoff` is **opt-in per repo** and off unless a project asks for
 it, since it trades away protections most projects need. Whether the trade holds
 is a ratio — blast radius, reversibility, how fast breakage is noticed, test

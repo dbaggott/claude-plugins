@@ -16,6 +16,28 @@
 # (default ~/.config/dnbg/reviewer): config.json + private-key.pem. The App
 # private key never leaves this machine — this script signs a JWT locally and
 # exchanges it with GitHub for an installation token.
+#
+# ## Where the key comes from
+#
+# Three sources, tried in this order. The first that yields a key wins:
+#
+#   1. DNBG_REVIEWER_PRIVATE_KEY          the PEM itself, in the environment
+#   2. DNBG_REVIEWER_PRIVATE_KEY_COMMAND  a command whose stdout is the PEM
+#      (or `private_key_command` in config.json)
+#   3. $CONFIG_DIR/private-key.pem        the plaintext file bootstrap.py writes
+#
+# (2) is the single hook that reaches every secret manager without this project
+# knowing any of them exist — `op read`, `pass show`, `security find-generic-
+# password -w`, `secret-tool lookup`, `vault kv get`, `sops -d`. `git`'s
+# `credential.helper` is the precedent.
+#
+# ⚠️ THE COMMAND IS READ ONLY FROM USER CONFIG OR THE ENVIRONMENT, NEVER FROM A
+# REPOSITORY, and that is the property the whole feature's safety rests on. It is
+# safe because someone who can write `~/.config/dnbg/reviewer` can already write
+# `~/.zshrc` or swap the PEM outright — so the command grants no capability they
+# lacked. That argument evaporates the instant a repo can supply the value, which
+# is the class of bug `credential.helper` has been bitten by repeatedly. Nothing
+# here reads a config file from the working directory, and a test asserts it.
 set -euo pipefail
 
 OWNER="${1:-}"; OWNER="${OWNER%%/*}"   # optional target repo owner; trim owner/repo -> owner
@@ -25,18 +47,93 @@ CONFIG_DIR="${CONFIG_DIR/#\~/$HOME}"   # expand a leading ~, matching bootstrap.
 CONFIG="$CONFIG_DIR/config.json"
 PEM="$CONFIG_DIR/private-key.pem"
 
-if [ ! -f "$CONFIG" ] || [ ! -f "$PEM" ]; then
-  echo "reviewer bot is not set up (no credentials in $CONFIG_DIR)." >&2
-  echo "Run the reviewer-setup skill first to create your reviewer App." >&2
-  exit 1
-fi
 for cmd in jq openssl curl; do
   command -v "$cmd" >/dev/null || { echo "$cmd is required but not installed" >&2; exit 1; }
 done
 
-APP_ID=$(jq -r '.app_id // empty' "$CONFIG")
-INSTALLATION_ID=$(jq -r '.installation_id // empty' "$CONFIG")
-[ -n "$APP_ID" ] || { echo "app_id missing from $CONFIG" >&2; exit 1; }
+# Refuse a credential anyone but the owner can rewrite, the way ssh refuses an
+# over-permissive private key. A 0600 PEM in a 0777 directory is not protected:
+# the file cannot be read, but it can be REPLACED, and this script would then
+# sign a JWT with the attacker's key and hand back a real token for the bot.
+#
+# `find -perm` rather than `stat`: the format flags differ between BSD and GNU
+# (`stat -f '%Lp'` vs `stat -c '%a'`), and this comparison does not need the
+# number — only whether either write bit is set.
+refuse_if_writable() {  # <path> <what>
+  [ -e "$1" ] || return 0
+  [ -n "$(find "$1" -maxdepth 0 \( -perm -g+w -o -perm -o+w \) 2>/dev/null)" ] || return 0
+  echo "refusing to use $2: $1 is group- or world-writable." >&2
+  echo "A credential anyone can replace is not a credential. Fix with: chmod go-w '$1'" >&2
+  exit 1
+}
+
+# The env-var route must stand alone — that is the headless/CI case, where there
+# is no config dir at all. So app_id has its own variable: it lives in
+# config.json on a workstation, and without it there is no JWT to sign.
+APP_ID="${DNBG_REVIEWER_APP_ID:-}"
+INSTALLATION_ID="${DNBG_REVIEWER_INSTALLATION_ID:-}"
+KEY_COMMAND="${DNBG_REVIEWER_PRIVATE_KEY_COMMAND:-}"
+
+if [ -f "$CONFIG" ]; then
+  refuse_if_writable "$CONFIG_DIR" "the reviewer config directory"
+  refuse_if_writable "$CONFIG" "the reviewer config"
+  [ -n "$APP_ID" ] || APP_ID=$(jq -r '.app_id // empty' "$CONFIG")
+  [ -n "$INSTALLATION_ID" ] || INSTALLATION_ID=$(jq -r '.installation_id // empty' "$CONFIG")
+  [ -n "$KEY_COMMAND" ] || KEY_COMMAND=$(jq -r '.private_key_command // empty' "$CONFIG")
+fi
+
+if [ -z "$APP_ID" ]; then
+  echo "reviewer bot is not set up: no app_id." >&2
+  echo "Run the reviewer-setup skill, or set DNBG_REVIEWER_APP_ID for a headless run." >&2
+  exit 1
+fi
+
+# Resolve the key into memory, in the documented order. `KEY` holds the PEM from
+# here on and is never written anywhere.
+KEY=""
+KEY_SOURCE=""
+if [ -n "${DNBG_REVIEWER_PRIVATE_KEY:-}" ]; then
+  KEY="$DNBG_REVIEWER_PRIVATE_KEY"; KEY_SOURCE="DNBG_REVIEWER_PRIVATE_KEY"
+elif [ -n "$KEY_COMMAND" ]; then
+  # `sh -c` so the configured value can be an ordinary command line with flags
+  # and pipes, which is what every manager's documented invocation looks like.
+  KEY=$(sh -c "$KEY_COMMAND") || {
+    echo "the configured private key command failed: $KEY_COMMAND" >&2
+    exit 1
+  }
+  KEY_SOURCE="private key command"
+elif [ -f "$PEM" ]; then
+  refuse_if_writable "$CONFIG_DIR" "the reviewer config directory"
+  refuse_if_writable "$PEM" "the reviewer private key"
+  KEY=$(cat "$PEM"); KEY_SOURCE="$PEM"
+fi
+
+if [ -z "$KEY" ]; then
+  echo "reviewer bot is not set up (no private key)." >&2
+  echo "Tried: DNBG_REVIEWER_PRIVATE_KEY, a key command, then $PEM." >&2
+  echo "Run the reviewer-setup skill first to create your reviewer App." >&2
+  exit 1
+fi
+
+# ⚠️ THE KEY IS HANDED TO openssl THROUGH A PIPE, NEVER A PATH ON DISK, and the
+# guard below is what keeps that unconditional. `openssl dgst -sign` takes a file
+# path, so the obvious implementation writes a temp file and removes it in a
+# trap — but a trap does not run on SIGKILL, and there is a window between
+# `mktemp` and installing it, so "no key on disk" would hold only most of the
+# time. Process substitution gives openssl `/dev/fd/N`, which is the pipe: there
+# is no path for anything to leave behind, on any signal.
+#
+# Verified signing from a pipe under OpenSSL 3.6.2 and LibreSSL 3.3.6; CI covers
+# Linux. Deliberately NOT falling back to a temp file if this fails: openssl
+# exits 1 both for "cannot open the key" and "the key is malformed", with
+# different wording per implementation, so a fallback cannot tell those apart —
+# it would fire on a bad key and write it to disk before failing anyway, dropping
+# the guarantee at exactly the moment something is already wrong. Fail loudly.
+if ! { [ -r /dev/fd/3 ]; } 3</dev/null; then
+  echo "/dev/fd is not usable on this system, so the key cannot be passed to openssl" >&2
+  echo "without writing it to disk. Refusing rather than weakening the key handling." >&2
+  exit 1
+fi
 
 # base64url with no padding, per JWT (RFC 7515).
 b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
@@ -46,7 +143,11 @@ now=$(date +%s)
 header=$(printf '%s' '{"alg":"RS256","typ":"JWT"}' | b64url)
 payload=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$((now - 60))" "$((now + 540))" "$APP_ID" | b64url)
 unsigned="$header.$payload"
-signature=$(printf '%s' "$unsigned" | openssl dgst -sha256 -sign "$PEM" -binary | b64url)
+signature=$(printf '%s' "$unsigned" \
+  | openssl dgst -sha256 -sign <(printf '%s\n' "$KEY") -binary | b64url) || {
+  echo "signing the App JWT failed — the key from $KEY_SOURCE is not a usable RSA private key" >&2
+  exit 1
+}
 jwt="$unsigned.$signature"
 
 gh_app_api() {

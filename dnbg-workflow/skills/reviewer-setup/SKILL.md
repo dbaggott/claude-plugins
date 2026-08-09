@@ -145,6 +145,31 @@ In the config dir (default `~/.config/dnbg/reviewer/`, override with
   blank by design: the App can have several installations (org + personal), so
   `mint-token.sh <owner>` resolves the right one per repo at review time.
 
+The directory itself is created `0700`, and `mint-token.sh` refuses to use it if
+it is group- or world-writable. That is not belt-and-braces on the `0600` file
+mode: a key that cannot be *read* by others can still be *replaced* by anyone who
+can write the directory, and the next mint would sign with theirs.
+
+## Keeping the key somewhere other than a file
+
+The plaintext PEM is the default, not the only option — see the README's
+"The reviewer bot's private key" for the full posture. Two alternatives, both
+resolved ahead of the file:
+
+- `DNBG_REVIEWER_PRIVATE_KEY` — the PEM itself. With `DNBG_REVIEWER_APP_ID` it
+  needs no config dir at all, which is what makes CI and headless runs possible.
+- `DNBG_REVIEWER_PRIVATE_KEY_COMMAND`, or `private_key_command` in `config.json`
+  — a command whose stdout is the PEM. This is the hook for any secret manager:
+
+  ```
+  op read "op://Private/reviewer/private key"
+  pass show reviewer/private-key
+  security find-generic-password -s dnbg-reviewer -w
+  ```
+
+`bootstrap.py` deliberately does not write to a manager. It writes the file; move
+it wherever you want and set the command.
+
 ## Repair / rotate
 
 - **Lost or leaked key**: delete the App (or generate a new private key) in the
