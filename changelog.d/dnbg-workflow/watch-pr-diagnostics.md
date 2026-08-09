@@ -1,9 +1,17 @@
 The PR and merge watchers can now explain their own death, and three ways a watch
 could go silently blind are fixed.
 
-**Tracing.** Set `WATCH_LOG=<path>` on either watcher and it records a line per
-poll, per signal, and at exit. It is off unless set, and installs nothing when
-unset. It exists because a watch that is killed leaves no evidence anywhere else:
+**Tracing, on by default.** Both watchers now record a line per poll, per signal,
+and at exit, to `${TMPDIR:-/tmp}/dnbg-watch/<script>-<pid>.log`, swept after three
+days. `WATCH_LOG=<path>` redirects it and `WATCH_LOG=off` turns it off, after
+which nothing is installed and nothing is spent.
+
+It defaults ON rather than being a knob, because the failure it exists to catch
+is intermittent and unreproducible — it has happened four times, never on demand.
+A knob somebody has to remember to set *before* a random failure is off exactly
+when it matters, so the feature would have shipped and never once fired.
+Defaulting also covers every caller, including spawn sites written later, which
+wiring the knob into today's callers would not. It exists because a watch that is killed leaves no evidence anywhere else:
 its one result line is written at exit, so a killed watch produces an empty output
 file, and macOS records ordinary process signals nowhere. Three outcomes separate
 the causes, and the third is an absence — a heartbeat with no `SIGNAL` and no

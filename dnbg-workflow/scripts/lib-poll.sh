@@ -85,11 +85,12 @@ POLL_SUSPEND_SLACK=${POLL_SUSPEND_SLACK:-30}
 
 _poll_die() { echo "watch: $*" >&2; exit 1; }
 
-# ## Tracing a watch that vanishes (opt-in)
+# ## Tracing a watch that vanishes (on by default)
 #
-# Set WATCH_LOG=<path> and a watch records its own life there: one line per tick,
-# one per signal, one at exit. Unset — the normal case — every function below is
-# an immediate return and nothing is spent.
+# Every watch records its own life: one line per tick, one per signal, one at exit.
+# Traces land in `${TMPDIR:-/tmp}/dnbg-watch/<script>-<pid>.log` and are swept after
+# three days. `WATCH_LOG=<path>` redirects it; `WATCH_LOG=off` turns it off, after
+# which every function below is an immediate return and nothing is spent.
 #
 # ⚠️ IT EXISTS BECAUSE A VANISHED WATCH LEAVES NO EVIDENCE ANYWHERE ELSE, which is
 # not obvious until you go looking for it. A background task reported as killed
@@ -108,7 +109,34 @@ _poll_die() { echo "watch: $*" >&2; exit 1; }
 # The absence only means anything against a heartbeat, which is why the tick line
 # earns its place: without one, "the watch died silently" and "the watch was never
 # running" produce identical logs.
-WATCH_LOG=${WATCH_LOG:-}
+#
+# ⚠️ ON BY DEFAULT, AND THAT IS THE WHOLE POINT — an opt-in knob is off exactly when
+# it matters. The failure this traces is intermittent and unreproducible: it has
+# happened four times, never on demand, and nobody knows in advance which watch will
+# be the one that dies. A knob somebody has to remember to set BEFORE a random
+# failure captures nothing, so the feature would ship and never once fire.
+#
+# `WATCH_LOG=off` opts out. Any other value is an explicit path.
+#
+# Defaulting also covers every caller for free, including the six spawn sites in the
+# skills and any written later — wiring the knob into those instead would leave each
+# new spawn site silently opted out again.
+_poll_trace_default() {
+  local dir="${TMPDIR:-/tmp}/dnbg-watch"
+  mkdir -p "$dir" 2>/dev/null || return 1
+  # Best-effort sweep, so unattended tracing cannot grow without bound. Failures are
+  # ignored: housekeeping must never be the reason a watch does not start.
+  find "$dir" -name '*.log' -mtime +3 -delete 2>/dev/null || true
+  printf '%s/%s-%s.log' "$dir" "$(basename "${0%.sh}")" "$$"
+}
+
+_poll_trace_defaulted=0
+if [ "${WATCH_LOG:-}" = off ]; then
+  WATCH_LOG=""
+elif [ -z "${WATCH_LOG:-}" ]; then
+  WATCH_LOG=$(_poll_trace_default) || WATCH_LOG=""
+  _poll_trace_defaulted=1
+fi
 
 # ⚠️ THE LIVE PARENT, NOT `$PPID`. Bash captures `$PPID` once at startup and never
 # refreshes it, so after the parent dies it still names the dead one — exactly the
@@ -170,7 +198,18 @@ poll_trace_init() {
   # its first tick. That reading is confidently wrong, and the path is typed by
   # hand, at the moment something has just gone wrong, by someone already primed to
   # expect a silent death.
-  : >> "$WATCH_LOG" || _poll_die "WATCH_LOG=$WATCH_LOG is not writable"
+  if ! : >> "$WATCH_LOG" 2>/dev/null; then
+    # ⚠️ LOUD FOR A PATH THE CALLER TYPED, SILENT FOR THE DEFAULT, and the asymmetry
+    # is the point. An explicit path that cannot be written is a caller error, and
+    # swallowing it produces the most misleading outcome this feature has: no file at
+    # all, which the table above reads as row three. The default path is nobody's
+    # request, so it must never take down a watch that was otherwise doing its job —
+    # now that tracing is on by default, dying here would turn an unwritable TMPDIR
+    # into every watch failing to start.
+    [ "$_poll_trace_defaulted" = 1 ] || _poll_die "WATCH_LOG=$WATCH_LOG is not writable"
+    WATCH_LOG=""
+    return 0
+  fi
   local s
   for s in TERM INT HUP QUIT PIPE USR1 USR2; do
     # SC2064 expands $s at install time deliberately — the handler has to know

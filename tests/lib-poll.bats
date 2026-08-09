@@ -258,12 +258,12 @@ EOF
 # Tracing (WATCH_LOG). The point of these is the SHAPE of the evidence a dead
 # watch leaves, so they assert on what is present AND on what is absent.
 
-@test "tracing off installs no traps, so the default path is unchanged" {
+@test "WATCH_LOG=off installs no traps, so the opted-out path is unchanged" {
   setup_clock
   # The traps are the only thing tracing adds that alters the exit path, so
   # "none installed" is the real claim — stronger than "no file was written",
   # which would pass simply because nothing named one.
-  run bash -c "unset WATCH_LOG; export WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+  run bash -c "export WATCH_LOG=off WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
     poll_init; poll_nap; trap -p TERM EXIT | wc -l"
   [ "$status" -eq 0 ]
   [ "$(tr -d '[:space:]' <<<"$output")" = 0 ]
@@ -401,4 +401,36 @@ EOF
   [ "$status" -eq 143 ]              # re-raised, so the status still names the signal
   grep -q 'SIGNAL=TERM' "$log"
   ! grep -q 'EXIT code=' "$log"      # ...and the handler did not fall through to EXIT
+}
+
+@test "tracing is on with no WATCH_LOG set, and lands under TMPDIR" {
+  # ⚠️ THE POINT OF THE WHOLE FEATURE. The failure it catches is intermittent and
+  # unreproducible, so a knob nobody set beforehand captures nothing — the default
+  # is what makes the next occurrence diagnosable rather than the one after somebody
+  # remembers. This test is what stops it quietly reverting to opt-in.
+  setup_clock
+  local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home"
+  run bash -c "unset WATCH_LOG; export TMPDIR='$home' WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; echo \"log=\$WATCH_LOG\""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"log=$home/dnbg-watch/"* ]]
+  local f; f=$(find "$home/dnbg-watch" -name '*.log' | head -1)
+  [ -n "$f" ]
+  grep -q ' START ' "$f"
+  grep -q ' tick interval=' "$f"
+}
+
+@test "an unwritable DEFAULT location disables tracing instead of killing the watch" {
+  # The asymmetry against the explicit-path test above: a path the operator typed is
+  # their error and must be loud, but the default is nobody's request. Now that
+  # tracing is on by default, dying here would turn an unwritable TMPDIR into every
+  # watch on the machine failing to start — a diagnostic taking down the thing it
+  # exists to diagnose.
+  setup_clock
+  local blocked="$BATS_TEST_TMPDIR/blocked"
+  : > "$blocked"          # a FILE where the code wants a directory, so mkdir -p fails
+  run bash -c "unset WATCH_LOG; export TMPDIR='$blocked' WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *ok* ]]
 }
