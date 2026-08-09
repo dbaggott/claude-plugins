@@ -18,7 +18,6 @@ load reap
 load trace-dir
 
 setup() {
-  # Traces into this test's tmpdir, not the developer's — see tests/trace-dir.bash.
   contain_traces
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   export STATEFILE="$BATS_TEST_TMPDIR/state"

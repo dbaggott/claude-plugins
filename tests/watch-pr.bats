@@ -55,7 +55,6 @@ EOF
 }
 
 setup() {
-  # Traces into this test's tmpdir, not the developer's — see tests/trace-dir.bash.
   contain_traces
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"

@@ -21,7 +21,18 @@
 #
 # Tests that deliberately exercise the DEFAULT trace path set their own `TMPDIR`
 # inline and so override this — which is why it needs no per-test exceptions.
+#
+# ⚠️ THE DIRECTORY NAME MUST NOT BE ONE OF THOSE TESTS' OWN, and `tmp` was: three of
+# them build `$BATS_TEST_TMPDIR/tmp` as their `$home`, so pointing containment at the
+# same path made their `export TMPDIR=…` a no-op. `tracing is on with no WATCH_LOG set,
+# and lands under TMPDIR` then passed with that export deleted — the one assertion it
+# exists to make, silently gone. A distinct name is the whole fix; keep it distinct.
+#
+# ⚠️ CONTAINMENT IS BY ENVIRONMENT INHERITANCE, so anything that strips the environment
+# escapes it. A watch invoked under `env -i` (the shape `tests/hooks.bats` uses for
+# hooks) sees no `TMPDIR`, falls back to `/tmp/dnbg-watch`, and this function is
+# silently doing nothing. Pass `WATCH_LOG` explicitly in that case.
 contain_traces() {
-  export TMPDIR="$BATS_TEST_TMPDIR/tmp"
+  export TMPDIR="$BATS_TEST_TMPDIR/ambient-tmp"
   mkdir -p "$TMPDIR"
 }
