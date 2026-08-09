@@ -434,3 +434,21 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *ok* ]]
 }
+
+@test "an unwritable default location leaks nothing to stderr" {
+  # ⚠️ THE DIRECTORY EXISTS BUT IS NOT WRITABLE, which is the case the sibling test
+  # cannot reach: there `mkdir -p` fails, so the append is never attempted. Only this
+  # shape gets as far as the `: >> "$WATCH_LOG"` probe, which is where a misordered
+  # `2>/dev/null` lets bash print its own "Permission denied" before the suppression
+  # applies. Tracing defaults on, so that line runs in every watch on the machine.
+  setup_clock
+  local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home/dnbg-watch"
+  chmod 500 "$home/dnbg-watch"
+  run bash -c "unset WATCH_LOG; export TMPDIR='$home' WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; echo ok"
+  chmod 700 "$home/dnbg-watch"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *ok* ]]
+  # bats folds stderr into $output, so a leak shows up here.
+  [[ "$output" != *"Permission denied"* ]]
+}

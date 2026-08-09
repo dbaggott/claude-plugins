@@ -198,7 +198,15 @@ poll_trace_init() {
   # its first tick. That reading is confidently wrong, and the path is typed by
   # hand, at the moment something has just gone wrong, by someone already primed to
   # expect a silent death.
-  if ! : >> "$WATCH_LOG" 2>/dev/null; then
+  # ⚠️ `2>/dev/null` FIRST, BEFORE THE APPEND. Redirections are applied left to right,
+  # so writing it the other way round attempts `>>` while stderr is still the
+  # caller's — bash prints its own `Permission denied` there before the suppression
+  # is in effect. Now that tracing defaults on, this line is reached by every watch
+  # on the machine, and the branch below deliberately carries on without dying: a raw
+  # error on the stderr of a watch that then runs perfectly normally is a confusing
+  # thing to hand somebody, especially on the one script whose stderr gets read when
+  # they are already trying to work out why a watch misbehaved.
+  if ! : 2>/dev/null >> "$WATCH_LOG"; then
     # ⚠️ LOUD FOR A PATH THE CALLER TYPED, SILENT FOR THE DEFAULT, and the asymmetry
     # is the point. An explicit path that cannot be written is a caller error, and
     # swallowing it produces the most misleading outcome this feature has: no file at
