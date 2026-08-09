@@ -385,3 +385,20 @@ EOF
   [ "$status" -ne 0 ]
   [[ "$output" == *"not writable"* ]]
 }
+
+@test "a reap of an already-dead nap child does not abort the handler" {
+  # The race the reap opened: `wait` reaps the nap child a moment before
+  # `_poll_napper` is cleared, so a signal arriving in that window finds a pid that
+  # is already gone. Under `set -e` the failing `kill` aborted the handler before
+  # the re-raise, and the death was recorded as an ordinary exit — a SIGNAL line and
+  # an EXIT line together, which the header table says cannot happen.
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  run bash -c "set -euo pipefail; export WATCH_LOG='$log'; . '$LIB'
+    poll_init
+    _poll_napper=999999   # certainly gone
+    kill -TERM \$\$
+    sleep 5"
+  [ "$status" -eq 143 ]              # re-raised, so the status still names the signal
+  grep -q 'SIGNAL=TERM' "$log"
+  ! grep -q 'EXIT code=' "$log"      # ...and the handler did not fall through to EXIT
+}

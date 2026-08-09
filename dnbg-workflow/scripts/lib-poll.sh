@@ -137,7 +137,15 @@ _poll_on_signal() {
   # would outlive it by up to a whole interval — 300s at the cap. Harmless in
   # itself, but leaving a stray process behind is a poor look for the one code path
   # whose entire job is to make a death legible.
-  [ -n "${_poll_napper:-}" ] && kill "$_poll_napper" 2>/dev/null
+  # ⚠️ `|| true` IS LOAD-BEARING, NOT TIDINESS. `kill` here follows the final `&&`,
+  # which `set -e` does NOT exempt, and both watchers run under `set -euo pipefail`.
+  # The nap child is often already gone — `wait` reaps it a moment before
+  # `_poll_napper` is cleared — so the kill fails, the handler aborts before the
+  # re-raise, and the death is recorded as an ordinary exit. That is a FALSE trace
+  # (a SIGNAL line and an EXIT line together, contradicting the table, with the
+  # status no longer naming the signal), which costs strictly more than the stray
+  # `sleep` the reap was added to prevent.
+  if [ -n "${_poll_napper:-}" ]; then kill "$_poll_napper" 2>/dev/null || true; fi
   trap - "$1"
   kill -s "$1" $$
 }
