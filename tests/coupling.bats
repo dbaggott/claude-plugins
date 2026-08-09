@@ -77,6 +77,13 @@ ROOT="${BATS_TEST_DIRNAME}/.."
   # The watcher scripts and the library are the only things that start a watch, so
   # naming one is what makes a suite a watch-spawning suite.
   for f in $(grep -rl 'watch-pr\.sh\|watch-merge\.sh\|lib-poll\.sh' "$ROOT"/tests/*.bats); do
+    # ⚠️ SKIP SELF. This file has to name the watcher scripts to select on them, so the
+    # selection is one prose mention away from including this file — which spawns no
+    # watch and loads neither helper, so it would fail with "coupling.bats spawns a
+    # watch but never loads reap": true of the text, useless as a diagnosis. Today the
+    # only mention is the pattern above, which happens not to match itself; that is a
+    # coincidence of spelling, not a property worth relying on.
+    if [ "$(basename "$f")" = "$(basename "$BATS_TEST_FILENAME")" ]; then continue; fi
     grep -q '^load reap$' "$f" || {
       echo "$(basename "$f") spawns a watch but never loads reap"; missing=1; }
     grep -q '^load trace-dir$' "$f" || {
