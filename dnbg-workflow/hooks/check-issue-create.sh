@@ -53,8 +53,15 @@ CMD=${CMD//\\$'\n'/ }
 # a skill went unloaded, which `issue-workflow`'s own claim check largely covers,
 # while a false positive blocks real work and points the author at a skill that
 # has nothing to do with what they were doing. Precision over recall.
+# ⚠️ COMMAND POSITION MEANS "AFTER ANY PREFIX RUN", NOT "IMMEDIATELY AFTER THE
+# SEPARATOR". An invocation is routinely prefixed — `env -u GH_TOKEN gh issue
+# create` is MANDATED by reviewer/SKILL.md for every `gh` call once a bot token is
+# exported, and `VAR=x gh …` is ordinary shell. Anchoring straight to `gh` un-gates
+# all of those, which is worse than the over-blocking this replaces: the gate would
+# fail open on the single commonest real invocation in this repo.
+PREFIX='(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|command|time|sudo|env([[:space:]]+(-[^[:space:]]+|[A-Z_][A-Z0-9_]*))*)[[:space:]]+)*'
 SCAN=$(printf '%s' "$CMD" | sed -E 's/"[^"]*"/ /g; s/'"'"'[^'"'"']*'"'"'/ /g')
-printf '%s\n' "$SCAN" | grep -qE '(^|[;&|(])[[:space:]]*gh +issue +create\b' || exit 0
+printf '%s\n' "$SCAN" | grep -qE "(^|[;&|(])[[:space:]]*${PREFIX}gh +issue +create\b" || exit 0
 
 # Target comes from --repo/-R if present, else the calling directory's origin.
 #

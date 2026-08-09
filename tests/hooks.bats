@@ -219,6 +219,25 @@ MSG')"
   [ "$status" -eq 2 ]
 }
 
+@test "an env-prefixed invocation is still gated" {
+  # ⚠️ THE FORM reviewer/SKILL.md MANDATES for every `gh` call once a bot token is
+  # exported. Anchoring the match straight to `gh` un-gates it — a hole worse than
+  # the over-blocking the anchor was added to fix, because it fails OPEN on the
+  # commonest real invocation in this repo.
+  run_issue_hook "$(bash_payload 'env -u GH_TOKEN gh issue create --title x')"
+  [ "$status" -eq 2 ]
+}
+
+@test "a var-assignment prefix is still gated" {
+  run_issue_hook "$(bash_payload 'GH_TOKEN=abc gh issue create --title x')"
+  [ "$status" -eq 2 ]
+}
+
+@test "a prefixed invocation after a separator is still gated" {
+  run_issue_hook "$(bash_payload 'git add -A && env -u GH_TOKEN gh issue create --title x')"
+  [ "$status" -eq 2 ]
+}
+
 @test "ignores gh issue edit" {
   run_issue_hook "$(bash_payload 'gh issue edit 5 --add-label x')"
   [ "$status" -eq 0 ]
