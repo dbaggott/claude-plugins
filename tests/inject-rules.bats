@@ -108,6 +108,29 @@ run_hook() {  # PATH comes from the preceding stub_path call
   [[ "$output" == *'`gh` is not installed'* ]]
 }
 
+@test "with jq missing too, the git message drops its still-gated claim" {
+  # The degraded message says check-issue-create still gates a --repo-qualified
+  # command. That holds only while jq is present: with no parser the hook aborts
+  # at its first jq call, before it ever reaches the --repo extraction, so it
+  # gates nothing. Printed anyway, it would contradict the INACTIVE block right
+  # above it — injected context asserting a gate is live while it is inert,
+  # which is the failure this whole preflight exists to remove.
+  stub_path
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"enforcement is DEGRADED"* ]]
+  [[ "$output" != *"does still gate"* ]]
+}
+
+@test "with only git missing, the still-gated claim is present" {
+  # The other half: conditioning the sentence must not delete it outright, or
+  # the degraded case understates what is still protected.
+  stub_path jq gh
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"does still gate"* ]]
+}
+
 @test "still emits the rules when a dependency is missing" {
   # The warning is additive. If it ever replaced the rules, a machine without jq
   # would lose the always-on guidance as well as the gates — the two failures

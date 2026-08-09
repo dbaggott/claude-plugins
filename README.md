@@ -53,7 +53,7 @@ the reviewer bot:
 
 | Tool | Needed for | Without it |
 | --- | --- | --- |
-| `jq` | Both enforcement hooks parse their stdin payload with it | **Enforcement is off.** Ships with macOS; on Linux, install it |
+| `jq` | Both enforcement hooks parse their stdin payload with it | **Enforcement is off.** Ships with macOS 15+; install it on Linux and on older macOS |
 | `git` | `check-worktree.sh` resolves the edited path to a repo | **`check-worktree` never fires**; `check-issue-create` still gates a `--repo`-qualified command |
 | `gh` | Every workflow skill, for all PR/issue/review operations | The skills cannot run |
 | `python3` | `reviewer-setup`'s `bootstrap.py` (stdlib only) | Cannot create the reviewer App |

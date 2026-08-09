@@ -63,9 +63,21 @@ EOF
 
 `check-worktree.sh` resolves the edited path to a repository with `git`, so
 without it that gate never fires: edits to tracked files in the main checkout of
-a covered repo are **not** being blocked. `check-issue-create.sh` still gates a
-`gh issue create` that names its target with `--repo`, but cannot judge one that
-relies on the working directory. Install `git` to restore enforcement.
+a covered repo are **not** being blocked.
+EOF
+      # Only true while `jq` is present, so it is only printed then. Without a
+      # parser, `check-issue-create.sh` aborts at its first `jq` call — before
+      # it ever reaches the `--repo` extraction — and gates nothing at all.
+      # Printed unconditionally, this sentence would contradict the INACTIVE
+      # block above it whenever both binaries are absent: injected context
+      # telling the agent a gate is live while it is inert, which is the exact
+      # failure this preflight exists to remove.
+      command -v jq >/dev/null 2>&1 && cat <<'EOF'
+`check-issue-create.sh` does still gate a `gh issue create` that names its
+target with `--repo`, but cannot judge one that relies on the working directory.
+EOF
+      cat <<'EOF'
+Install `git` to restore enforcement.
 EOF
       ;;
   esac
