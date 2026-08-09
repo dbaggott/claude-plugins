@@ -452,3 +452,16 @@ EOF
   # bats folds stderr into $output, so a leak shows up here.
   [[ "$output" != *"Permission denied"* ]]
 }
+
+@test "the reaper spares a pid that is no longer ours" {
+  # A recycled pid belongs to a stranger, possibly in another session. The reaper
+  # fires at pids that are routinely already dead, so "kill whatever holds this
+  # number" is one recycle away from killing something unrelated.
+  tail -f /dev/null & local decoy=$!
+  echo "$decoy" >> "$BATS_TEST_TMPDIR/pids"
+  teardown                          # the reaper, called directly
+  kill -0 "$decoy" 2>/dev/null      # ...and the stranger is still alive
+  local alive=$?
+  kill "$decoy" 2>/dev/null
+  [ "$alive" -eq 0 ]
+}

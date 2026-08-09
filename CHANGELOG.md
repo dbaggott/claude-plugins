@@ -24,7 +24,9 @@ is intermittent and unreproducible — it has happened four times, never on dema
 A knob somebody has to remember to set *before* a random failure is off exactly
 when it matters, so the feature would have shipped and never once fired.
 Defaulting also covers every caller, including spawn sites written later, which
-wiring the knob into today's callers would not. It exists because a watch that is killed leaves no evidence anywhere else:
+wiring the knob into today's callers would not.
+
+It exists because a watch that is killed leaves no evidence anywhere else:
 its one result line is written at exit, so a killed watch produces an empty output
 file, and macOS records ordinary process signals nowhere. Three outcomes separate
 the causes, and the third is an absence — a heartbeat with no `SIGNAL` and no

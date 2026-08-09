@@ -16,6 +16,22 @@
 teardown() {
   local p
   [ -f "${BATS_TEST_TMPDIR:-}/pids" ] || return 0
-  while read -r p; do [ -n "$p" ] && kill "$p" 2>/dev/null; done < "$BATS_TEST_TMPDIR/pids"
+  while read -r p; do
+    [ -n "$p" ] || continue
+    # ⚠️ VERIFY BEFORE KILLING. Recorded pids are routinely already dead by the time
+    # this runs — the signal tests kill the watch themselves, and one test records a
+    # `( sleep 2 ) &` inside a ~25s test. `kill` on a corpse is a harmless no-op right
+    # up until the number is recycled, at which point it kills a stranger, possibly in
+    # another session. Reuse needs a full wrap of the pid space and is not plausible at
+    # observed churn (~5/sec against a ~23s worst-case window), but the guard costs one
+    # `ps` and removes the failure mode rather than relying on that arithmetic holding.
+    case "$(ps -o command= -p "$p" 2>/dev/null)" in
+      # Deliberately NOT matching a bare `sleep`: the nap child is reaped by the
+      # signal handler, and the one test that backgrounds a `sleep` lets it expire on
+      # its own — while `sleep` is common enough that matching it would put most of
+      # the recycled-pid risk straight back.
+      *watch-pr.sh*|*watch-merge.sh*|*lib-poll.sh*) kill "$p" 2>/dev/null ;;
+    esac
+  done < "$BATS_TEST_TMPDIR/pids"
   return 0
 }
