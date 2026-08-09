@@ -62,6 +62,18 @@ WAS_DRAFT=0; [ "${6:-}" = "--was-draft" ] && WAS_DRAFT=1
 # shellcheck source=./lib-poll.sh
 . "$(dirname "$0")/lib-poll.sh"
 
+# ⚠️ AN EMPTY SLUG IS FATAL ON THE PR PATH RATHER THAN A DEFAULT. `mine` reduces to
+# `. == "" or . == "[bot]"`, which matches no login at all — so the watch stops
+# excluding its own activity and wakes on its OWN review, which is precisely the
+# self-triggering loop the fifth argument exists to prevent. Both callers document a
+# bail on a blank slug, but documentation is not enforcement, and this failure is
+# invisible: the watch looks healthy and simply reports its own posts as news.
+#
+# PR path only — `--issue` mode never reads the slug. An empty `<last_head>` is NOT
+# fatal in the same way; it self-heals from the first observed HEAD (see the loop).
+[ "$ISSUE_MODE" = 1 ] || [ -n "$SLUG" ] \
+  || _poll_die "<bot_slug> is empty — the watch would wake on its own posts"
+
 # Settle window. An author's round is a burst — reply to three threads, then push
 # the fix — but a webhook-driven bot sees one event per action while this sees
 # whichever it polls into first. Returning on that first sighting is not merely
@@ -172,7 +184,27 @@ while :; do
   #
   # Guarded, not bare: an unguarded assignment dies under `set -e` with no
   # `result=` line at all, which is the same blindness in a louder costume.
-  if STATE=$(echo "$J" | jq -r '.state // empty' 2>/dev/null); then
+  # ⚠️ IT MUST PROVE THE FIELDS ARE THERE, NOT ONLY THAT THE PAYLOAD PARSES. `// empty`
+  # alone established the second and was read as establishing the first: an error body
+  # like `{"message":"Not Found"}` is well-formed JSON, so it passed the gate with
+  # `fails_shape=0` and `STATE=""` — matching neither MERGED nor CLOSED — and the watch
+  # ran its entire window against it and reported IDLE on a PR that had already closed.
+  # That is exactly the "broken watch indistinguishable from a calm one" this counter
+  # exists to prevent, arriving through the gate meant to catch it.
+  #
+  # `isDraft` is checked on the PR path for the same reason and is not cosmetic: a
+  # missing field renders as the string `null`, which equals neither `true` nor
+  # `false`, so the READY transition and `holding_draft` both silently stop working.
+  # It also lets the unguarded `//` uses further down keep their justification — they
+  # need the FIELDS present, which only this establishes.
+  shape_ok=1
+  STATE=$(echo "$J" | jq -r '.state // empty' 2>/dev/null) || shape_ok=0
+  [ -n "${STATE:-}" ] || shape_ok=0
+  if [ "$ISSUE_MODE" = 0 ] && [ "$shape_ok" = 1 ]; then
+    DRAFT=$(echo "$J" | jq -r 'if .isDraft == null then "" else .isDraft end' 2>/dev/null) || shape_ok=0
+    [ -n "${DRAFT:-}" ] || shape_ok=0
+  fi
+  if [ "$shape_ok" = 1 ]; then
     fails_shape=0
   else
     fails_shape=$(( fails_shape + 1 ))
@@ -213,11 +245,20 @@ while :; do
     echo "result=CLOSED state=$STATE"; exit 0
   fi
 
-  # NOT `.isDraft // empty`: jq's `//` treats `false` as absent, so the
-  # alternative would fire exactly when the PR is ready, and the check below
-  # could never match.
-  DRAFT=$(echo "$J" | jq -r '.isDraft')
+  # `DRAFT` comes from the shape gate above, which is where its presence is proved.
+  # Note for anyone tempted to write `.isDraft // empty` there: jq's `//` treats
+  # `false` as absent, so it would fire exactly when the PR is ready — hence the
+  # explicit `== null` test.
   HEAD=$(echo "$J" | jq -r '.headRefOid // empty')
+
+  # ⚠️ ADOPT THE FIRST HEAD WE SEE WHEN THE CALLER GAVE US NONE. `obs_head` gates the
+  # commit branch below and is assigned only inside it, so an empty `<last_head>` used
+  # to be a closed loop: the gate could never open, a push went undetected for the
+  # whole window, and the watch reported IDLE on a PR that had moved. Self-healing
+  # here costs one missed detection at most — the push that happened before we ever
+  # looked, which no baseline could have caught — instead of failing for the life of
+  # the watch. Deliberately after the shape gate, so a `null` HEAD never becomes one.
+  [ -z "$obs_head" ] && [ -n "$HEAD" ] && obs_head="$HEAD"
 
   # New formal reviews / top-level comments after SINCE, not authored by the bot.
   # `[]?` skips a missing or non-array field, so the shape gate above is the only

@@ -133,6 +133,11 @@ poll_log() {
 # this handler.
 _poll_on_signal() {
   poll_log "SIGNAL=$1 parent=$(_poll_parent)"
+  # Take the nap's `sleep` down first. Re-raising kills this shell, and the child
+  # would outlive it by up to a whole interval — 300s at the cap. Harmless in
+  # itself, but leaving a stray process behind is a poor look for the one code path
+  # whose entire job is to make a death legible.
+  [ -n "${_poll_napper:-}" ] && kill "$_poll_napper" 2>/dev/null
   trap - "$1"
   kill -s "$1" $$
 }
@@ -180,7 +185,15 @@ _poll_parse_curve() {
     esac
     t=${pair%%:*}; i=${pair##*:}
     case $t in ''|*[!0-9]*) _poll_die "POLL_CURVE offset '$t' is not a non-negative integer" ;; esac
+    # ⚠️ OFFSETS MAY BE ZERO, INTERVALS MAY NOT, and the asymmetry is the point: the
+    # curve has to start at offset 0, while a zero INTERVAL makes `poll_nap` return
+    # at once and turns the watch into a busy loop around `gh`. Measured before this
+    # check: 200 naps in 2s, which is the hourly REST budget gone inside a minute and
+    # the watch then blind behind rate-limit failures for the rest of its window —
+    # while still reporting a perfectly ordinary IDLE. `INTERVAL` is the knob tests
+    # and callers reach for, so `INTERVAL=0` is a live typo, not a hypothetical.
     case $i in ''|*[!0-9]*) _poll_die "POLL_CURVE interval '$i' is not a non-negative integer" ;; esac
+    [ "$i" -ge 1 ] || _poll_die "POLL_CURVE interval must be at least 1s (got $i) — 0 spins"
     # Strictly increasing, so the interpolation below can never divide by zero
     # and the segment search can never pick a later breakpoint than it meant to.
     [ "$t" -gt "$prev" ] || _poll_die "POLL_CURVE offsets must strictly increase (got $t after $prev)"
@@ -255,9 +268,16 @@ poll_nap() {
   #
   # Only trapped signals cut `wait` short, and the traps are installed only while
   # tracing — so with WATCH_LOG unset this sleeps precisely as it did before.
+  # ⚠️ THIS CLOBBERS `$!` FOR THE CALLER. Neither watcher backgrounds anything, so
+  # nothing is broken today — but this is a shared library function, so a future
+  # caller that backgrounds a job and reads `$!` after a nap would get the sleep.
+  # The pid is kept in `_poll_napper` rather than left in `$!` so the signal
+  # handler can reap it, and so that this is stated rather than discovered.
   before=$(date +%s)
   sleep "$iv" &
-  wait $! 2>/dev/null || true
+  _poll_napper=$!
+  wait "$_poll_napper" 2>/dev/null || true
+  _poll_napper=""
   after=$(date +%s)
   over=$(( after - before - iv ))
   if [ "$over" -gt "$POLL_SUSPEND_SLACK" ]; then

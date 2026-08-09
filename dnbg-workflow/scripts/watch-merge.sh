@@ -30,6 +30,14 @@ unset GH_TOKEN
 
 REPO="${1:?owner/repo}"; PR="${2:?pr number}"
 
+# WATCH_LOG=<path> traces this watch's life to a file — a line per tick, per signal,
+# and at exit — for diagnosing a watch that stops without printing a result. Off
+# unless set, and inherited from lib-poll.sh below rather than implemented here, so
+# it behaves identically in both watchers. Stated here as well as in watch-pr.sh
+# because somebody debugging a vanished MERGE watch reads this header, and has no
+# reason to look in the other one for the knob. See "Tracing a watch that vanishes"
+# in lib-poll.sh for how to read one.
+
 # shellcheck source=./lib-poll.sh
 . "$(dirname "$0")/lib-poll.sh"
 

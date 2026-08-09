@@ -11,6 +11,24 @@
 
 LIB="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/lib-poll.sh"
 
+# ⚠️ ANY TEST THAT BACKGROUNDS A WATCH RECORDS ITS PID HERE, AND THIS REAPS IT.
+#
+# A watch loop has no exit condition of its own — that is the point of it — so a
+# backgrounded one is stopped only by the `kill` its test performs. Anything between
+# the spawn and that kill (an earlier assertion failing, the suite interrupted, the
+# session dying) orphans it to `ppid=1`, where nothing will ever stop it. This is not
+# hypothetical: two orphaned trees from an earlier branch were found on a developer
+# machine at 5h57m each, ~12 CPU-hours between them.
+#
+# File-wide rather than per-test on purpose — the leak predates any one test, so the
+# fix belongs where every present and future spawn is covered by it.
+teardown() {
+  local p
+  [ -f "${BATS_TEST_TMPDIR:-}/pids" ] || return 0
+  while read -r p; do [ -n "$p" ] && kill "$p" 2>/dev/null; done < "$BATS_TEST_TMPDIR/pids"
+  return 0
+}
+
 # A clock we control. `sleep N` advances it by N instead of sleeping; if a
 # SUSPEND file holds a number, the next sleep also jumps by that much and clears
 # it — which is exactly what a laptop lid does to a poll loop.
@@ -292,10 +310,19 @@ EOF
 @test "a signal is logged mid-nap and re-raised with its own status" {
   # Deliberately NOT setup_clock: this one needs a real nap to be interrupted.
   local log="$BATS_TEST_TMPDIR/trace.log"
+  # Bounded (`1 2 3`), not `while :`. The teardown above is the real guard, but a
+  # loop that cannot outlive three naps means even a leak that escapes it expires on
+  # its own rather than becoming another 6-hour orphan.
   bash -c "export WATCH_LOG='$log' WINDOW=600 POLL_CURVE='0:30'; . '$LIB'
-    poll_init; while :; do poll_nap; done" &
+    poll_init; for _ in 1 2 3; do poll_nap; done" &
   local pid=$! i=0
-  while [ ! -s "$log" ] && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+  echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
+  # Generously bounded: this only waits for the child to install its traps and write
+  # START. Too short and a loaded runner lets the `kill` land before any trap exists,
+  # failing for a reason unrelated to what is under test. The 3s deadline below is
+  # the assertion and stays tight; this one is setup and should not be.
+  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  [ -s "$log" ] || { echo "child never started tracing"; return 1; }
   kill -TERM "$pid"
 
   # ⚠️ THE DEADLINE IS THE ASSERTION. The nap is 30s; a foreground `sleep` defers
@@ -309,4 +336,36 @@ EOF
   local st=0; wait "$pid" || st=$?
   [ "$st" -eq 143 ]                 # re-raised, so the status still names the signal
   ! grep -q 'EXIT code=' "$log"     # ...and the EXIT trap did not also claim it
+}
+
+@test "a zero interval is refused rather than spinning" {
+  # `INTERVAL=1` made poll_nap return instantly, turning the watch into a busy loop
+  # around `gh` — measured at 200 naps in 2s, which is the hourly REST budget gone
+  # inside a minute and the watch then blind behind rate-limit failures, still
+  # reporting an ordinary IDLE. Offsets may be 0; intervals may not.
+  run bash -c "export INTERVAL=1; . '$LIB'"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"at least 1s"* ]]
+  # The offset half must still accept 0 — the curve is required to start there.
+  run bash -c "export POLL_CURVE='0:10 60:30'; . '$LIB'; poll_interval_at 0"
+  [ "$status" -eq 0 ]
+  [ "$output" = 10 ]
+}
+
+@test "a signalled watch does not leave its sleep behind" {
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  bash -c "export WATCH_LOG='$log' WINDOW=600 POLL_CURVE='0:30'; . '$LIB'
+    poll_init; for _ in 1 2 3; do poll_nap; done" &
+  local pid=$! i=0
+  echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
+  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  # The sleep is the child of the watch; find it before the watch dies.
+  local nap; nap=$(pgrep -P "$pid" 2>/dev/null | head -1)
+  [ -n "$nap" ] || skip "could not observe the nap child on this platform"
+  kill -TERM "$pid"; wait "$pid" 2>/dev/null || true
+  # Re-raising kills the shell; without the reap the sleep outlives it by up to a
+  # full interval — 300s at the cap.
+  local j=0
+  while kill -0 "$nap" 2>/dev/null && [ "$j" -lt 30 ]; do sleep 0.1; j=$((j + 1)); done
+  ! kill -0 "$nap" 2>/dev/null
 }
