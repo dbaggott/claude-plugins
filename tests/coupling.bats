@@ -37,7 +37,10 @@ matcher_tools() {  # <hooks.json>
 # wrote the list that way. A tool claimed gated in free prose *outside* the run
 # is not seen here; the run is the enumeration.
 rules_tools() {  # <always-on-rules.md>
-  sed -n "/^## $GATE_SECTION\$/,/^## /p" "$1" \
+  # awk rather than a sed range: a `/^## x/,/^## /` range ends *inclusive* of the
+  # next heading, so a future heading that itself carried a slash-run would be
+  # read as part of the gate enumeration. This stops before it.
+  awk -v h="## $GATE_SECTION" '$0 == h { inside = 1; next } /^## / { inside = 0 } inside' "$1" \
     | grep -oE '[A-Z][A-Za-z]+(/[A-Z][A-Za-z]+)+' | tr '/' '\n' | sort -u
 }
 
@@ -71,8 +74,11 @@ gate_agrees() {  # <always-on-rules.md> <check-worktree.sh> <hooks.json>
 }
 
 # A rules file in the shape the extractor expects, with the tool run substituted.
-# The decoy run in the first section is load-bearing: it is what fails if the
-# section scoping is ever dropped.
+# The decoy run in the first section is load-bearing, but only through the
+# positive test below: the two negative tests assert a mismatch, and a decoy
+# leaking in through an unscoped extractor only deepens a mismatch they were
+# going to see anyway. It takes a fixture that is supposed to *agree* for the
+# stray tools to break something.
 fixture_rules() {  # <slash-delimited tool run>
   cat > "$BATS_TEST_TMPDIR/rules.md" <<EOF
 ## No flattery
@@ -94,6 +100,18 @@ EOF
 
 @test "the gated tool list agrees across the case, the matcher, and the rules" {
   run gate_agrees "$ROOT/dnbg-workflow/always-on-rules.md" \
+    "$ROOT/dnbg-workflow/hooks/check-worktree.sh" \
+    "$ROOT/dnbg-workflow/hooks/hooks.json"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "a rules file naming exactly the gated set agrees, decoys and all" {
+  # The only one of these fixtures that is supposed to pass, and so the only one
+  # that pins the section scoping: drop the scoping and the decoy `Read/Glob` in
+  # the fixture's first section joins the enumeration, which makes this fail.
+  # It is also the only direction that catches rules_tools returning too little.
+  run gate_agrees "$(fixture_rules 'Edit/Write/NotebookEdit')" \
     "$ROOT/dnbg-workflow/hooks/check-worktree.sh" \
     "$ROOT/dnbg-workflow/hooks/hooks.json"
   echo "$output"

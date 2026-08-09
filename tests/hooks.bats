@@ -50,9 +50,15 @@ edit_payload() {
 # quoted command string. The interpolated form held only while no test command
 # contained a single quote; the first one that did would have broken in the
 # harness, as a shell quoting error nowhere near the test that caused it.
+#
+# The owners value is `local` before it is exported, so it reaches this hook and
+# no further. Exporting it unscoped would leave the first call's owners standing
+# for a second call in the same test — no test does that today, which is exactly
+# when the cheap version of this is worth taking.
 run_hook() {  # <hook-script> <payload>
+  local CLAUDE_PLUGIN_OPTION_OWNERS="${OWNERS-acme-corp}"
+  export CLAUDE_PLUGIN_OPTION_OWNERS
   printf '%s' "$2" > "$TMP/payload.json"
-  export CLAUDE_PLUGIN_OPTION_OWNERS="${OWNERS-acme-corp}"
   run "$HOOKS/$1" < "$TMP/payload.json"
 }
 
