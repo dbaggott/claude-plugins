@@ -21,9 +21,12 @@ Three properties, each with a test:
   makes the hook safe — the command grants no capability someone who can already
   write `~/.config` lacked, and that argument fails the moment a cloned repo can
   supply the value.
-- **The key is never written to disk on its way to `openssl`.** It is passed
-  through a pipe rather than a temp file, so nothing can be stranded by a crash
-  or an uncatchable signal.
+- **A key from route 1 or 2 is never written to disk.** It is passed through a
+  pipe rather than a temp file, so nothing can be stranded by a crash or an
+  uncatchable signal — if you keep the key in a vault, the tool must not quietly
+  materialise it in `/tmp` on every mint. Route 3 is unchanged and still hands
+  `openssl` the path it already had, so the default setup gains no new
+  dependency.
 - **A group- or world-writable config directory or key file is refused**, the way
   `ssh` refuses an over-permissive private key.
 

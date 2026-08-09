@@ -105,23 +105,32 @@ elif [ -n "$KEY_COMMAND" ]; then
 elif [ -f "$PEM" ]; then
   refuse_if_writable "$CONFIG_DIR" "the reviewer config directory"
   refuse_if_writable "$PEM" "the reviewer private key"
-  KEY=$(cat "$PEM"); KEY_SOURCE="$PEM"
+  # ⚠️ THE PATH, NOT THE CONTENTS. This route's key is already a file on this
+  # disk, at this mode — so reading it into memory and piping it back to openssl
+  # protects nothing, and would make the *default* setup depend on /dev/fd for no
+  # gain. Handing openssl the path it already had keeps this route working
+  # anywhere openssl runs, which is what it did before any of this.
+  KEY_PATH="$PEM"; KEY_SOURCE="$PEM"
 fi
 
-if [ -z "$KEY" ]; then
+if [ -z "$KEY" ] && [ -z "${KEY_PATH:-}" ]; then
   echo "reviewer bot is not set up (no private key)." >&2
   echo "Tried: DNBG_REVIEWER_PRIVATE_KEY, a key command, then $PEM." >&2
   echo "Run the reviewer-setup skill first to create your reviewer App." >&2
   exit 1
 fi
 
-# ⚠️ THE KEY IS HANDED TO openssl THROUGH A PIPE, NEVER A PATH ON DISK, and the
-# guard below is what keeps that unconditional. `openssl dgst -sign` takes a file
-# path, so the obvious implementation writes a temp file and removes it in a
-# trap — but a trap does not run on SIGKILL, and there is a window between
-# `mktemp` and installing it, so "no key on disk" would hold only most of the
-# time. Process substitution gives openssl `/dev/fd/N`, which is the pipe: there
-# is no path for anything to leave behind, on any signal.
+# ⚠️ A KEY RESOLVED INTO MEMORY REACHES openssl THROUGH A PIPE, NEVER A TEMP FILE.
+# `openssl dgst -sign` takes a path, so the obvious implementation writes one and
+# removes it in a trap — but a trap does not run on SIGKILL, and there is a window
+# between `mktemp` and installing it, so "no key on disk" would hold only most of
+# the time. Process substitution gives openssl `/dev/fd/N`, which is the pipe:
+# nothing to strand, on any signal.
+#
+# This matters only for the env and command routes. Someone using `op read` has
+# decided the key is not to sit at rest on this disk, and quietly writing it to
+# TMPDIR on every mint would reverse that decision without telling them. The file
+# route is exempt above — its key is already on disk, so it hands over the path.
 #
 # Verified signing from a pipe under OpenSSL 3.6.2 and LibreSSL 3.3.6; CI covers
 # Linux. Deliberately NOT falling back to a temp file if this fails: openssl
@@ -129,9 +138,10 @@ fi
 # different wording per implementation, so a fallback cannot tell those apart —
 # it would fire on a bad key and write it to disk before failing anyway, dropping
 # the guarantee at exactly the moment something is already wrong. Fail loudly.
-if ! { [ -r /dev/fd/3 ]; } 3</dev/null; then
-  echo "/dev/fd is not usable on this system, so the key cannot be passed to openssl" >&2
-  echo "without writing it to disk. Refusing rather than weakening the key handling." >&2
+if [ -z "${KEY_PATH:-}" ] && ! { [ -r /dev/fd/3 ]; } 3</dev/null; then
+  echo "/dev/fd is not usable on this system, so a key held in memory cannot reach" >&2
+  echo "openssl without being written to disk. Refusing rather than weakening the" >&2
+  echo "key handling — use the private-key.pem file route, which needs no /dev/fd." >&2
   exit 1
 fi
 
@@ -143,8 +153,12 @@ now=$(date +%s)
 header=$(printf '%s' '{"alg":"RS256","typ":"JWT"}' | b64url)
 payload=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$((now - 60))" "$((now + 540))" "$APP_ID" | b64url)
 unsigned="$header.$payload"
-signature=$(printf '%s' "$unsigned" \
-  | openssl dgst -sha256 -sign <(printf '%s\n' "$KEY") -binary | b64url) || {
+if [ -n "${KEY_PATH:-}" ]; then
+  signature=$(printf '%s' "$unsigned" | openssl dgst -sha256 -sign "$KEY_PATH" -binary | b64url)
+else
+  signature=$(printf '%s' "$unsigned" \
+    | openssl dgst -sha256 -sign <(printf '%s\n' "$KEY") -binary | b64url)
+fi || {
   echo "signing the App JWT failed — the key from $KEY_SOURCE is not a usable RSA private key" >&2
   exit 1
 }

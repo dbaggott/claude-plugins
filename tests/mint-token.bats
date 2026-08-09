@@ -130,6 +130,55 @@ write_config() { printf '%s\n' "$1" > "$CONFDIR/config.json"; chmod 600 "$CONFDI
   [ ! -e "$marker" ]
 }
 
+# --- which form reaches openssl ----------------------------------------------
+
+# Record what `-sign` was handed, then delegate to the real openssl so signing
+# still happens for real.
+spy_on_openssl() {
+  SIGNLOG="$BATS_TEST_TMPDIR/signarg"; : > "$SIGNLOG"
+  local real; real=$(command -v openssl)
+  cat > "$STUB/openssl" <<EOF
+#!/usr/bin/env bash
+if [ "\$1" = dgst ]; then
+  prev=""
+  for a in "\$@"; do [ "\$prev" = -sign ] && echo "\$a" >> "$SIGNLOG"; prev="\$a"; done
+fi
+exec "$real" "\$@"
+EOF
+  chmod +x "$STUB/openssl"
+}
+
+@test "the file route hands openssl the path, needing no /dev/fd" {
+  # The default setup must not acquire a /dev/fd dependency it never had. Its key
+  # is already on disk at this path, so piping it back would protect nothing and
+  # would break the common case anywhere /dev/fd is unavailable.
+  spy_on_openssl
+  cp "$KEYFILE" "$CONFDIR/private-key.pem"; chmod 600 "$CONFDIR/private-key.pem"
+  write_config '{"app_id":"42"}'
+  mint
+  [ "$status" -eq 0 ]
+  [ "$(cat "$SIGNLOG")" = "$CONFDIR/private-key.pem" ]
+}
+
+@test "the command route hands openssl a pipe, never a path" {
+  # The converse, and the one that carries the guarantee: a key that was never on
+  # disk must not land there on its way to openssl.
+  spy_on_openssl
+  write_config '{"app_id":"42","private_key_command":"cat '"$KEYFILE"'"}'
+  mint
+  [ "$status" -eq 0 ]
+  [[ "$(cat "$SIGNLOG")" == /dev/fd/* ]]
+}
+
+@test "the env route hands openssl a pipe, never a path" {
+  spy_on_openssl
+  export DNBG_REVIEWER_APP_ID=42
+  export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
+  mint
+  [ "$status" -eq 0 ]
+  [[ "$(cat "$SIGNLOG")" == /dev/fd/* ]]
+}
+
 # --- the key must not reach disk ---------------------------------------------
 
 @test "no file containing the key is left behind after a run" {

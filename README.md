@@ -237,6 +237,16 @@ the same idea.
 Route 1 stands alone: with `DNBG_REVIEWER_APP_ID` set too, no config file or PEM
 needs to exist anywhere, which is what makes running the reviewer in CI possible.
 
+Two things to weigh before switching off the default:
+
+- **The command runs on every mint**, and the reviewer mints per review action.
+  If yours prompts — a Touch ID or vault unlock on `op read` — you will see that
+  prompt repeatedly during a busy PR. Nothing here caches the key.
+- **Route 1 puts the PEM in your environment**, where any process you own can
+  read it (`/proc/PID/environ` on Linux). Exporting it from a shell profile is
+  arguably worse than the `0600` file it replaces. It is meant for CI, where the
+  runner is ephemeral and the secret store injects it for one job.
+
 Three properties worth knowing, each of which has a test:
 
 - **The command is read only from your user config or environment — never from a
@@ -244,9 +254,13 @@ Three properties worth knowing, each of which has a test:
   property the feature's safety rests on: the command is harmless because anyone
   who can write `~/.config/dnbg/reviewer` can already edit your shell profile,
   and that stops being true the moment a repo you cloned can supply the value.
-- **The key is never written to disk on its way to `openssl`.** It's passed
+- **A key from routes 1 or 2 is never written to disk.** It reaches `openssl`
   through a pipe, so there is no temp file to leak on a crash or a `SIGKILL` —
-  the guarantee holds by construction rather than by cleanup.
+  the guarantee holds by construction rather than by cleanup. This is the point
+  of those routes: if you keep the key in a vault, the tool must not quietly
+  materialise it in `/tmp` on every mint. Route 3 hands `openssl` the path it
+  already had, because its key is by definition already on that disk — so the
+  default setup gains no new dependency.
 - **A group- or world-writable config directory or key file is refused**, the way
   `ssh` refuses an over-permissive private key. A key others can *replace* is as
   dangerous as one they can read.
