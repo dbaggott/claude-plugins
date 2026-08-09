@@ -130,6 +130,16 @@ _poll_trace_default() {
   printf '%s/%s-%s.log' "$dir" "$(basename "${0%.sh}")" "$$"
 }
 
+# ⚠️ CAPTURED AT SOURCE TIME, because inside a function `$@` is the FUNCTION's
+# arguments, not the script's. Sourcing inherits the caller's positional parameters,
+# so this is the only place the watcher's own arguments are reachable.
+#
+# Logged in START so a trace says WHICH watch died, not merely that one did. Without
+# it a stray trace identifies only a script name and a pid — enough to know a watch
+# was killed, useless for correlating a cohort of kills against the PRs they were
+# watching, which is exactly what a post-mortem needs.
+_poll_argv="$*"
+
 _poll_trace_defaulted=0
 if [ "${WATCH_LOG:-}" = off ]; then
   WATCH_LOG=""
@@ -230,7 +240,7 @@ poll_trace_init() {
   # status that caused it rather than as a clean finish.
   # shellcheck disable=SC2064
   trap 'poll_log "EXIT code=$?"' EXIT
-  poll_log "START script=$(basename "$0") parent=$(_poll_parent) window=${WINDOW}s curve=${POLL_CURVE}"
+  poll_log "START script=$(basename "$0") args=[${_poll_argv}] parent=$(_poll_parent) window=${WINDOW}s curve=${POLL_CURVE}"
 }
 
 # Breakpoints, split into parallel arrays at source time so a malformed knob

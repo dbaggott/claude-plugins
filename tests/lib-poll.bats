@@ -452,3 +452,45 @@ EOF
   # bats folds stderr into $output, so a leak shows up here.
   [[ "$output" != *"Permission denied"* ]]
 }
+
+@test "the reaper spares a pid that is no longer ours" {
+  # A recycled pid belongs to a stranger, possibly in another session. The reaper
+  # fires at pids that are routinely already dead, so "kill whatever holds this
+  # number" is one recycle away from killing something unrelated.
+  tail -f /dev/null & local decoy=$!
+  echo "$decoy" >> "$BATS_TEST_TMPDIR/pids"
+  teardown                          # the reaper, called directly
+  kill -0 "$decoy" 2>/dev/null      # ...and the stranger is still alive
+  local alive=$?
+  kill "$decoy" 2>/dev/null
+  [ "$alive" -eq 0 ]
+}
+
+@test "the reaper does kill a process that is still ours" {
+  # ⚠️ THE POSITIVE HALF, and it exists because the negative one cannot fail safely.
+  # "a stranger survives" passes just as well when the guard matches NOTHING — which
+  # is exactly what a width-truncated `ps` produces on a CI runner with no tty. This
+  # asserts the guard still recognises a real watch, so truncation fails loudly here
+  # rather than quietly disarming the reaper.
+  # ⚠️ WAIT ON THE TRACE, NOT ON THE PID. `kill -0` succeeds the instant `&` returns
+  # — the pid exists from the fork — so it gates on nothing. What matters is the
+  # child having EXEC'd: until then `ps` reports the bats harness's command line,
+  # which the guard correctly declines to match, and calling the reaper inside that
+  # window spares a live watch and fails the test for the wrong reason.
+  #
+  # The log file is the honest gate: it cannot exist until the child has exec'd,
+  # sourced the lib and run `poll_init`. It is also independent of `ps`, so the
+  # readiness check does not depend on the mechanism the test is asserting.
+  local log="$BATS_TEST_TMPDIR/ready.log"
+  bash -c "export WATCH_LOG='$log'; . '$LIB'; poll_init; for _ in 1 2 3; do poll_nap; done" &
+  local pid=$!
+  echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
+  local i=0
+  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  [ -s "$log" ] || { echo "child never started"; return 1; }
+
+  teardown                                  # the reaper, called directly
+  local j=0
+  while kill -0 "$pid" 2>/dev/null && [ "$j" -lt 40 ]; do sleep 0.1; j=$((j + 1)); done
+  ! kill -0 "$pid" 2>/dev/null
+}

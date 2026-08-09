@@ -264,3 +264,15 @@ EOF
   [[ "$output" == *"result=ERROR"* ]]
   [[ "$output" == *"reason=bad-args"* ]]
 }
+
+# A stray trace has to say WHICH watch died. Without the arguments it names only a
+# script and a pid — enough to see that a watch was killed, useless for correlating
+# a cohort of kills against the PRs they were watching.
+@test "START records the watcher's own arguments" {
+  local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home"
+  TMPDIR="$home" INTERVAL=1 WINDOW=3 run "$WATCH" o/r 77 sha0 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  local f; f=$(find "$home/dnbg-watch" -name 'watch-pr-*.log' | head -1)
+  [ -n "$f" ]
+  grep -q 'args=\[o/r 77 sha0 1970-01-01T00:00:00Z bot\]' "$f"
+}
