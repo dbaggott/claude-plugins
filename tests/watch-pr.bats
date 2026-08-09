@@ -9,6 +9,9 @@
 
 WATCH="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/watch-pr.sh"
 
+# Reaps anything a test backgrounds; see tests/reap.bash for why it is shared.
+load reap
+
 setup() {
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
@@ -217,4 +220,47 @@ EOF
   [ "$status" -eq 0 ]
   # Drop direction=desc and this is result=IDLE with a real reply unseen.
   [[ "$output" == *"result=ACTIVITY"* ]]
+}
+
+# A payload that parses but has lost `.state` — an API error body is the live case.
+# `// empty` alone passed it, leaving STATE="" to match neither MERGED nor CLOSED, so
+# the watch ran its whole window against an error and reported IDLE on a closed PR.
+@test "a payload missing state is a shape error, not a quiet wait" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "pr view") echo '{"message":"Not Found"}' ;;
+  *) echo '[]' ;;
+esac
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=1 FAIL_MAX=2 FAIL_MIN_SECONDS=0 WINDOW=20 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=ERROR"* ]]
+  [[ "$output" == *"pr-view-shape"* ]]
+  [[ "$output" != *"result=IDLE"* ]]
+}
+
+# An empty <last_head> used to close the commit branch for the life of the watch:
+# obs_head gates it and is assigned only inside it, so a push went undetected and the
+# watch reported IDLE on a PR that had moved. It now adopts the first HEAD it sees.
+@test "an empty last_head self-heals instead of going blind to pushes" {
+  echo 0 > "$HEADCOUNT"
+  ( sleep 2; echo 9 > "$HEADCOUNT" ) &
+  echo $! >> "$BATS_TEST_TMPDIR/pids"
+  INTERVAL=1 SETTLE=1 WINDOW=25 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=COMMITS"* ]]
+  [[ "$output" == *"new_head=sha9"* ]]
+}
+
+# An empty slug makes `mine` match no login, so the watch wakes on its OWN posts and
+# re-reviews itself — the exact loop the argument exists to prevent, and silent.
+@test "an empty bot slug is refused on the PR path" {
+  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z ""
+  # A result line, not a silent non-zero exit: callers read a MISSING result as
+  # "killed", which is the one diagnosis this script must not fake.
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=ERROR"* ]]
+  [[ "$output" == *"reason=bad-args"* ]]
 }

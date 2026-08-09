@@ -11,23 +11,8 @@
 
 LIB="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/lib-poll.sh"
 
-# ⚠️ ANY TEST THAT BACKGROUNDS A WATCH RECORDS ITS PID HERE, AND THIS REAPS IT.
-#
-# A watch loop has no exit condition of its own — that is the point of it — so a
-# backgrounded one is stopped only by the `kill` its test performs. Anything between
-# the spawn and that kill (an earlier assertion failing, the suite interrupted, the
-# session dying) orphans it to `ppid=1`, where nothing will ever stop it. This is not
-# hypothetical: two orphaned trees from an earlier branch were found on a developer
-# machine at 5h57m each, ~12 CPU-hours between them.
-#
-# File-wide rather than per-test on purpose — the leak predates any one test, so the
-# fix belongs where every present and future spawn is covered by it.
-teardown() {
-  local p
-  [ -f "${BATS_TEST_TMPDIR:-}/pids" ] || return 0
-  while read -r p; do [ -n "$p" ] && kill "$p" 2>/dev/null; done < "$BATS_TEST_TMPDIR/pids"
-  return 0
-}
+# Reaps anything a test backgrounds; see tests/reap.bash for why it is shared.
+load reap
 
 # A clock we control. `sleep N` advances it by N instead of sleeping; if a
 # SUSPEND file holds a number, the next sleep also jumps by that much and clears

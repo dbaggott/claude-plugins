@@ -24,6 +24,12 @@
 #   result=IDLE now=<iso>                                 # nothing within the window — re-arm
 #   result=ERROR reason=<source> now=<iso>                # the watch itself is broken — do NOT re-arm
 #
+# A bad argument reports `result=ERROR reason=bad-args` and still exits 0, rather
+# than dying silently: a caller reads a MISSING result line as "killed", so a typo
+# would otherwise imitate the vanished watch this script exists to make legible. A
+# malformed POLL_CURVE still dies at source time via `_poll_die` — that one is a
+# caller bug caught before the loop, and predates this contract.
+#
 # ERROR is not IDLE. IDLE means the PR was quiet; ERROR means one source failed
 # for FAIL_MAX ticks AND at least FAIL_MIN_SECONDS of awake time, so the watch
 # cannot see. Both callers stop and tell the operator what to check (gh auth, the
@@ -71,8 +77,18 @@ WAS_DRAFT=0; [ "${6:-}" = "--was-draft" ] && WAS_DRAFT=1
 #
 # PR path only — `--issue` mode never reads the slug. An empty `<last_head>` is NOT
 # fatal in the same way; it self-heals from the first observed HEAD (see the loop).
-[ "$ISSUE_MODE" = 1 ] || [ -n "$SLUG" ] \
-  || _poll_die "<bot_slug> is empty — the watch would wake on its own posts"
+if [ "$ISSUE_MODE" = 0 ] && [ -z "$SLUG" ]; then
+  # ⚠️ A RESULT LINE, NOT `_poll_die`, AND THE DIFFERENCE MATTERS HERE MORE THAN
+  # ANYWHERE. Callers branch on `result=`, and `reviewer`'s only handler for a
+  # MISSING one reads it as "the task was killed — do not assume quiet, re-read
+  # HEAD". So exiting 1 silently would make a plain typo in the fifth argument
+  # present as exactly the vanished watch this script's tracing exists to make
+  # legible: the one diagnosis we are trying to keep trustworthy, wrong at the
+  # first opportunity. ERROR is the honest code — the watch cannot see — and its
+  # handler already says don't re-arm, check the arguments.
+  echo "result=ERROR reason=bad-args now=$(poll_now_iso)"
+  exit 0
+fi
 
 # Settle window. An author's round is a burst — reply to three threads, then push
 # the fix — but a webhook-driven bot sees one event per action while this sees
