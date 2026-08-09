@@ -7,6 +7,10 @@
 #
 #   watch-pr.sh <owner/repo> <pr> <last_head_sha> <since_iso> <bot_slug> [--was-draft]
 #
+# last_head_sha is a FULL 40-character lowercase SHA, or empty. Anything else is
+# rejected as bad-args rather than compared — see the check below for why an
+# abbreviated one is worse than no baseline at all.
+#
 # bot_slug is the App slug WITHOUT the [bot] suffix. Both forms are excluded:
 # gh pr view (GraphQL) reports a Bot author's login as `<slug>`, while gh api
 # (REST) reports `<slug>[bot]` — so the bot never wakes itself.
@@ -78,9 +82,39 @@ WAS_DRAFT=0; [ "${6:-}" = "--was-draft" ] && WAS_DRAFT=1
 # bail on a blank slug, but documentation is not enforcement, and this failure is
 # invisible: the watch looks healthy and simply reports its own posts as news.
 #
-# PR path only — `--issue` mode never reads the slug. An empty `<last_head>` is NOT
-# fatal in the same way; it self-heals from the first observed HEAD (see the loop).
-if [ "$ISSUE_MODE" = 0 ] && [ -z "$SLUG" ]; then
+# PR path only — `--issue` mode never reads the slug.
+
+# ⚠️ AN ABBREVIATED `<last_head>` IS A SILENT FALSE POSITIVE, NOT A CONVENIENCE. It is
+# compared as a string against the 40-character `headRefOid` GitHub returns, so a short
+# SHA can never equal it: the first tick reports COMMITS naming a push that never
+# happened. Observed live — two watches armed with 7-character SHAs both returned
+# COMMITS within seconds, each naming the full SHA as `new_head`. `reviewer` routes that
+# into re-reviewing a delta that does not exist, and `git-workflow` reads it as the
+# author having pushed; neither can tell it from a real push.
+#
+# Rejected rather than prefix-matched: every caller can obtain the full value from
+# `gh pr view --json headRefOid`, and accepting abbreviations would make a genuine
+# mismatch indistinguishable from a truncation. Uppercase hex is rejected for exactly
+# the reason it looks harmless to allow — GitHub returns lowercase, so an uppercase SHA
+# would pass a case-insensitive check and then mismatch on every single tick.
+#
+# Empty is NOT rejected: it self-heals from the first observed HEAD (see the loop), and
+# `--issue` mode passes it on purpose.
+# ⚠️ THE HEX CLASS IS ENUMERATED, NOT A RANGE, AND `a-f` IS THE REASON. Bracket ranges
+# are matched in COLLATION order, which under bash 3.2 — stock macOS, and what
+# `env bash` finds on a machine with no Homebrew bash — interleaves case in a UTF-8
+# locale: `a-f` spans `a A b B … f F`, so `[!0-9a-f]` does not match `A` and the
+# uppercase rejection silently becomes a no-op. Bash 4.3's `globasciiranges` fixes it
+# and 5.x defaults it on, which is why CI (ubuntu, bash 5.x) would never show this.
+# The length test below is unaffected — no locale touches `${#LAST_HEAD}`.
+bad_head=0
+case $LAST_HEAD in
+  '') ;;
+  *[!0123456789abcdef]*) bad_head=1 ;;
+  *) [ "${#LAST_HEAD}" = 40 ] || bad_head=1 ;;
+esac
+
+if [ "$ISSUE_MODE" = 0 ] && { [ -z "$SLUG" ] || [ "$bad_head" = 1 ]; }; then
   # ⚠️ A RESULT LINE, NOT `_poll_die`, AND THE DIFFERENCE MATTERS HERE MORE THAN
   # ANYWHERE. Callers branch on `result=`, and `reviewer`'s only handler for a
   # MISSING one reads it as "the task was killed — do not assume quiet, re-read
@@ -333,6 +367,20 @@ while :; do
   [ "$fails_comments" -gt 0 ] && poll_reset
 
   # Accumulate this tick's deltas, and restart the quiet timer on anything new.
+  #
+  # ⚠️ `obs_*` ARE SAFE AS COUNTS ONLY BECAUSE `settle_until` IS NEVER CLEARED. The
+  # strictly-greater tests below are a ratchet: once `obs_new` has risen, an item
+  # arriving at or below that mark — a delete-and-replace nets to the same total —
+  # does not register. That is harmless today, and the reason is two lines away rather
+  # than local: raising `obs_*` always sets `changed=1`, which arms `settle_until`, and
+  # nothing ever sets it back to 0 — so the idle-out below is disabled and a report is
+  # already guaranteed. `ACTIVITY` carries no payload, so the caller re-reads everything
+  # since `$SINCE` and finds the replacement anyway.
+  #
+  # Clear `settle_until` anywhere and that stops holding: the watch could then return
+  # to a quiet, still-running state carrying a raised high-water mark, and genuinely new
+  # items below it would go unreported for the rest of the window. Track identities
+  # instead of counts if that day comes — `.id` is on both payloads already.
   changed=0
   if [ -n "$HEAD" ] && [ -n "$obs_head" ] && [ "$HEAD" != "$obs_head" ]; then
     saw_commits=1; new_head="$HEAD"; obs_head="$HEAD"; changed=1

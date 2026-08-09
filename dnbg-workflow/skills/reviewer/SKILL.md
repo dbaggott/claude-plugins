@@ -115,6 +115,13 @@ Watch a held-back draft rather than dropping it, arming the ready check:
 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> <slug> --was-draft
 ```
 
+`<last_head>` is the full 40-character SHA from
+`gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid` — the watcher
+refuses anything shorter (`result=ERROR reason=bad-args`). Worth saying here and
+not only at the re-arm site below: this spawn happens during *discovery*, where
+the SHA in hand is as likely to have come from something that printed one for a
+human as from a `headRefOid` read.
+
 Marking a PR ready is neither a push nor a review nor a comment, so without
 `--was-draft` the transition is invisible and the PR would be picked up only on
 its next push, or never.
@@ -451,6 +458,13 @@ PR to resume (it re-assesses current state and picks the watch back up).
 
 1. **Record state** after each action: the HEAD SHA you last reviewed and a
    timestamp marking "handled up to here" (`date -u +%Y-%m-%dT%H:%M:%SZ`).
+
+   ⚠️ **`<last_head>` is the full 40-character SHA** — take it from
+   `gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid`, never an
+   abbreviated one you happened to print for a human. The watcher compares it as a
+   string against what GitHub returns, so a short SHA can never match; it now
+   refuses one (`result=ERROR reason=bad-args`), and before that it reported a
+   push that had not happened on its very first tick.
 2. **Spawn `watch-pr.sh`** as a **background**
    task — it blocks until something happens, so its idle polling never enters the
    conversation; the harness wakes you when it returns:
@@ -481,6 +495,13 @@ PR to resume (it re-assesses current state and picks the watch back up).
      nothing wrong — the silent-blindness case the next bullet describes for a
      killed task. Check `gh auth status` and the number/repo pair, then say so
      rather than continuing to watch.
+   - **`ERROR reason=bad-args`** — the same code, a different cause, and the
+     remedy above is the wrong one: nothing failed, the watch refused to start
+     because an argument could not do its job. Fix the argument and re-spawn.
+     The two that reach here are an empty `<slug>` (its filter would match no
+     login, so the watch wakes on its own posts) and a `<last_head>` that is
+     neither empty nor a full 40-character lowercase SHA. Don't send the
+     operator to `gh auth status` for either.
    - **No `result=` line at all** — the task was killed or failed rather than
      returning (a session ending, a reload, exit 143). This is the dangerous one,
      because it looks exactly like a quiet PR while being the opposite: the
