@@ -377,6 +377,65 @@ EOF
   ! grep -q 'EXIT code=' "$log"
 }
 
+@test "an orphaned watch names its new parent, not the one it started under" {
+  # ⚠️ THE FACT THAT MADE THE FIRST REAL CAPTURE READABLE. `_poll_parent` re-reads the
+  # live parent every tick instead of using `$PPID`, which bash captures once at
+  # startup and never refreshes. In that capture:
+  #
+  #   06:31:42  tick interval=17s awake=685s  parent=/bin/zsh(26502)
+  #   06:31:50  SIGNAL=TERM                   parent=/sbin/launchd(1)
+  #
+  # the parent CHANGING between the last tick and the signal is what said the wrapper
+  # shell died first and the watch was orphaned — a different failure from being
+  # killed, and invisible in the log otherwise. `$PPID` would have reported
+  # `zsh(26502)` at the moment of death and hidden it. Nothing asserted that until
+  # here, so a change back to `$PPID` — or one that cached the lookup — would have
+  # passed the whole suite while removing the distinction.
+  #
+  # Deliberately NOT setup_clock: a real reparent needs real processes, and the
+  # stubbed clock's `sleep` never yields to let one happen.
+  local log="$BATS_TEST_TMPDIR/trace.log" pidfile="$BATS_TEST_TMPDIR/watch.pid"
+  # A wrapper shell whose death is what orphans the watch. It holds with `wait`, a
+  # builtin, so killing it strands no `sleep` of its own — and it passes $LIB as an
+  # argument so its OWN command line carries the path too, which is what lets
+  # tests/reap.bash recognise it (the guard matches on `*lib-poll.sh*`).
+  # Bounded at 30 naps like the other real-process cases: even an escapee expires.
+  bash -c '
+    export WATCH_LOG="$2" WINDOW=600 POLL_CURVE="0:1"
+    bash -c ". \"$1\"; poll_init; for _ in {1..30}; do poll_nap; done" &
+    echo $! > "$3"
+    wait
+  ' _ "$LIB" "$log" "$pidfile" &
+  local mid=$! i=0
+  echo "$mid" >> "$BATS_TEST_TMPDIR/pids"
+
+  # Wait on the trace, not on a pid: `kill -0` succeeds from the fork, so it gates on
+  # nothing, while the log cannot exist until the child has exec'd, sourced the lib
+  # and run `poll_init`. Generously bounded — this is setup, not the assertion.
+  while [ ! -s "$pidfile" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  local watch; watch=$(cat "$pidfile" 2>/dev/null)
+  [ -n "$watch" ] || { echo "wrapper never published the watch pid"; return 1; }
+  echo "$watch" >> "$BATS_TEST_TMPDIR/pids"
+
+  # The "before" half, and it is not decoration: without it, a `_poll_parent` that
+  # simply always printed `(1)` would pass the assertion below.
+  while ! grep -qE "tick .*parent=[^ ]*\($mid\)\$" "$log" 2>/dev/null && [ "$i" -lt 150 ]; do
+    sleep 0.1; i=$((i + 1))
+  done
+  grep -qE "tick .*parent=[^ ]*\($mid\)\$" "$log"
+
+  # SIGKILL so the wrapper cannot linger in a handler; the watch is not signalled at
+  # all, which is the point — it keeps ticking, under a new parent.
+  kill -KILL "$mid" 2>/dev/null || true
+  local j=0
+  while ! grep -qE 'tick .*parent=[^ ]*\(1\)$' "$log" 2>/dev/null && [ "$j" -lt 100 ]; do
+    sleep 0.1; j=$((j + 1))
+  done
+  # pid 1 on both platforms the suite runs on: launchd locally, init/systemd in CI.
+  grep -qE 'tick .*parent=[^ ]*\(1\)$' "$log"
+  kill -TERM "$watch" 2>/dev/null || true
+}
+
 @test "an unwritable WATCH_LOG fails loudly instead of tracing nothing" {
   # A path under a directory that does not exist wrote nothing at all — not even
   # START — which reads as row three: killed before its first tick. The most
