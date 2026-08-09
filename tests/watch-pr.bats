@@ -193,3 +193,26 @@ EOF
   INTERVAL=0 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
   [[ "$output" == *"reason=issue-view"* ]]
 }
+
+# A reply on a PR with more than a page of inline comments. The endpoint returns
+# OLDEST FIRST, so the new reply is on the LAST page — unpaginated, the watch sees
+# only history, never registers the reply, and idles out looking healthy.
+@test "a reply past the first page of comments still registers" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "pr view") echo '{"state":"OPEN","isDraft":false,"headRefOid":"sha0","reviews":[],"comments":[]}' ;;
+  "api "*|"api")
+    # Page one is entirely old traffic, which is what a long-running PR looks like.
+    echo '[{"created_at":"1970-01-01T00:00:00Z","user":{"login":"someone"}}]'
+    # The reply only exists for a caller that asked for every page.
+    case "$*" in *--paginate*) echo '[{"created_at":"2999-01-01T00:00:00Z","user":{"login":"someone"}}]' ;; esac ;;
+  *) exit 1 ;;
+esac
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=0 SETTLE=0 WINDOW=5 run "$WATCH" o/r 1 sha0 2000-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  # Drop --paginate and this is result=IDLE: the reply is real and unseen.
+  [[ "$output" == *"result=ACTIVITY"* ]]
+}

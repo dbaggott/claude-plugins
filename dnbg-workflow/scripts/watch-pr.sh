@@ -234,10 +234,24 @@ while :; do
   # It previously ended in `|| echo 0`, which made this path fail *closed and
   # silent*: `gh pr view` keeps succeeding, so the watch looks healthy while
   # thread replies never register — partial blindness nothing reported.
-  if RAWC=$(gh api "repos/$REPO/pulls/$PR/comments" 2>/dev/null); then
-    if NEWC=$(echo "$RAWC" | jq --arg s "$SINCE" --arg slug "$SLUG" '
+  # ⚠️ PAGINATED, AND THE ORDER IS WHY IT HAS TO BE. This endpoint caps at 30 per
+  # page and returns OLDEST FIRST, so on a PR that has accumulated more than 30
+  # inline comments every page-one result is old news and each new reply lands on
+  # the LAST page. Unpaginated, `NEWC` is then computed over nothing but history:
+  # it never rises, no reply ever registers, and the watch idles out looking
+  # perfectly healthy. That is the same fail-closed-and-silent shape the note
+  # above describes, reached by a different route, and a busy PR with several
+  # reviewers is exactly where it bites.
+  #
+  # `jq -s` rather than `gh --slurp`: --paginate emits one JSON array per page and
+  # `gh`'s own --jq would run per page (yielding one count per page, not a total),
+  # while `--slurp` cannot be combined with `--jq` at all. Slurping on the jq side
+  # folds the pages into one array — hence `.[][]` — and asks nothing of `gh`
+  # beyond --paginate, which every version that has the flag supports.
+  if RAWC=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100" --paginate 2>/dev/null); then
+    if NEWC=$(echo "$RAWC" | jq -s --arg s "$SINCE" --arg slug "$SLUG" '
         def mine: . == $slug or . == ($slug + "[bot]");
-        [ .[] | select(.created_at > $s and (.user.login | mine | not)) ] | length' 2>/dev/null)
+        [ .[][] | select(.created_at > $s and (.user.login | mine | not)) ] | length' 2>/dev/null)
     then fails_comments=0
     else
       # A jq failure here is a payload-shape change, never transient — the same
