@@ -35,6 +35,51 @@ to size a change and whether to split a PR — a workflow question.
 Only `github.com` remotes are ever covered, so listing an owner cannot gate a
 same-named org on another host.
 
+## Requirements
+
+**Claude Code v2.1.207 or newer.** The manifest format has no field for a
+minimum version, so this is documented rather than enforced — nothing stops an
+older client installing the plugin and misbehaving quietly. It is a floor
+derived from the dated behaviors the plugin relies on, not a tested boundary:
+plugin config reaches the hooks as `CLAUDE_PLUGIN_OPTION_*` environment
+variables, which is the arrangement that settled at v2.1.207 when
+`${user_config.*}` stopped substituting into shell-form fields, and `dnbg-all`
+resolves its `dependencies`, which arrived at v2.1.143. Verified working on
+v2.1.226.
+
+**Command-line tools.** Not all of them are needed for all of it — the first two
+are what the enforcement hooks run on, and the last three only matter if you use
+the reviewer bot:
+
+| Tool | Needed for | Without it |
+| --- | --- | --- |
+| `jq` | Both enforcement hooks parse their stdin payload with it | **Enforcement is off.** Ships with macOS 15+; install it on Linux and on older macOS |
+| `git` | `check-worktree.sh` resolves the edited path to a repo | **`check-worktree` never fires**; `check-issue-create` still gates a `--repo`-qualified command |
+| `gh` | Every workflow skill, for all PR/issue/review operations | The skills cannot run |
+| `python3` | `reviewer-setup`'s `bootstrap.py` (stdlib only) | Cannot create the reviewer App |
+| `openssl` | `mint-token.sh` signs the App JWT locally | Cannot mint a reviewer token |
+| `curl` | `mint-token.sh` exchanges that JWT with GitHub | Cannot mint a reviewer token |
+
+The two hooks **fail open**, so a missing `jq` or `git` does not block your work
+— it silently stops protecting it. Claude Code classes a hook exiting non-zero
+and non-2 as a non-blocking error: the edit proceeds, you get a `hook error`
+notice naming the missing binary, and *Claude does not see that notice at all*,
+so the agent goes on believing the gates are live. `inject-rules.sh` therefore
+checks at session start and says so once, in output both you and Claude can see.
+Making the gates fail closed instead was considered and rejected: a gate learns
+which repo an edit targets by parsing its payload, so with no parser it cannot
+tell a covered repo from any other, and the only available "closed" is blocking
+every edit on the machine.
+
+`mint-token.sh` checks for its own three and exits with a clear message, so
+those fail loudly at the point of use rather than needing a session-start
+warning.
+
+**Platform: macOS and Linux.** Both are exercised. The hooks are `bash` scripts
+using `date`, `mkdir`, `$HOME/.cache`, and `#!/usr/bin/env bash`; they are
+expected to work under Git Bash on Windows, but that has never been tested and
+is not claimed.
+
 ## Install
 
 ```
