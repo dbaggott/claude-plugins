@@ -8,6 +8,10 @@
 # what the hooks decide — is this a worktree, is this file tracked — is answered
 # by git itself. A mock would test the test.
 
+# Required before `run` accepts an expected-status flag; the fail-open tests at
+# the bottom of this file use `run -127`. CI pins bats 1.13.0, well past this.
+bats_require_minimum_version 1.5.0
+
 HOOKS="${BATS_TEST_DIRNAME}/../dnbg-workflow/hooks"
 
 setup() {
@@ -189,4 +193,57 @@ create --title x')"
 @test "ignores non-Bash tools" {
   run bash -c "printf '%s' '$(edit_payload "$REPO/tracked.txt")' | CLAUDE_PLUGIN_OPTION_OWNERS=acme-corp '$HOOKS/check-issue-create.sh'"
   [ "$status" -eq 0 ]
+}
+
+# --- missing dependencies: the gates must fail open --------------------------
+#
+# Exit 2 is the *only* status that blocks; Claude Code classes any other
+# non-zero as a non-blocking error and lets the tool call through. So what these
+# assert is "not 2", not "0": the hook aborting under `set -e` with 127 — bash's
+# command-not-found status, reached the moment the first `jq` runs — is a
+# fail-open, and is the designed behavior. `run -127` states that expected
+# status so bats does not warn about it on every run.
+#
+# Making the gates fail closed instead is not an option, and these tests are
+# what stop someone "fixing" it that way. A gate learns which repo an edit
+# targets by parsing its payload, so with no parser it cannot distinguish a
+# covered repo from any other — the only reachable "closed" is blocking every
+# Edit/Write on the machine, in projects the operator never listed. The
+# session-start warning in inject-rules.sh covers the silence instead; see
+# tests/inject-rules.bats.
+
+# A PATH lacking jq but carrying what the hooks otherwise need. `command -v`
+# cannot be shadowed into failing, so absence has to be built rather than faked.
+path_without_jq() {
+  STUB="$TMP/bin"
+  mkdir -p "$STUB"
+  local bin src
+  for bin in bash cat dirname git sed tr grep head printf; do
+    src="$(command -v "$bin")" || continue
+    ln -sf "$src" "$STUB/$bin"
+  done
+}
+
+@test "with jq missing, an edit in a covered repo is not blocked" {
+  path_without_jq
+  run -127 env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_OPTION_OWNERS=acme-corp \
+    bash -c "printf '%s' '$(edit_payload "$REPO/tracked.txt")' | '$HOOKS/check-worktree.sh'"
+  [ "$status" -ne 2 ]
+}
+
+@test "with jq missing, an edit in an unrelated repo is not blocked" {
+  # The blast-radius half. A user who installed this at user scope must not find
+  # every project on the machine uneditable because one binary is absent.
+  path_without_jq
+  echo loose > "$TMP/loose.txt"
+  run -127 env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_OPTION_OWNERS=acme-corp \
+    bash -c "printf '%s' '$(edit_payload "$TMP/loose.txt")' | '$HOOKS/check-worktree.sh'"
+  [ "$status" -ne 2 ]
+}
+
+@test "with jq missing, gh issue create is not blocked" {
+  path_without_jq
+  run -127 env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_OPTION_OWNERS=acme-corp \
+    bash -c "printf '%s' '$(bash_payload 'gh issue create --title x')' | '$HOOKS/check-issue-create.sh'"
+  [ "$status" -ne 2 ]
 }
