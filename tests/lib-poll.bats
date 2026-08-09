@@ -343,7 +343,7 @@ EOF
   # around `gh` — measured at 200 naps in 2s, which is the hourly REST budget gone
   # inside a minute and the watch then blind behind rate-limit failures, still
   # reporting an ordinary IDLE. Offsets may be 0; intervals may not.
-  run bash -c "export INTERVAL=1; . '$LIB'"
+  run bash -c "export INTERVAL=0; . '$LIB'"
   [ "$status" -ne 0 ]
   [[ "$output" == *"at least 1s"* ]]
   # The offset half must still accept 0 — the curve is required to start there.
@@ -368,4 +368,35 @@ EOF
   local j=0
   while kill -0 "$nap" 2>/dev/null && [ "$j" -lt 30 ]; do sleep 0.1; j=$((j + 1)); done
   ! kill -0 "$nap" 2>/dev/null
+}
+
+@test "a SIGKILL leaves a heartbeat and neither a signal nor an exit line" {
+  # ⚠️ ROW THREE OF THE TABLE, and the only outcome that is an ABSENCE. The whole
+  # design rests on "heartbeat, but no SIGNAL and no EXIT" meaning an uncatchable
+  # kill, so it is the row most exposed to silent regression: anything that later
+  # buffers the tick line, or adds a trap catching what should be uncatchable, turns
+  # a real SIGKILL into "the watch was never running" with every other test green.
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  bash -c "export WATCH_LOG='$log' WINDOW=600 POLL_CURVE='0:30'; . '$LIB'
+    poll_init; for _ in 1 2 3; do poll_nap; done" &
+  local pid=$! i=0
+  echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
+  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  [ -s "$log" ] || { echo "child never started tracing"; return 1; }
+
+  kill -KILL "$pid"
+  local st=0; wait "$pid" 2>/dev/null || st=$?
+  [ "$st" -eq 137 ]                        # uncatchable, so the status says so
+  grep -q ' tick interval=' "$log"         # ...the heartbeat is what dates the death
+  ! grep -q 'SIGNAL=' "$log"               # ...and neither handler can have run
+  ! grep -q 'EXIT code=' "$log"
+}
+
+@test "an unwritable WATCH_LOG fails loudly instead of tracing nothing" {
+  # A path under a directory that does not exist wrote nothing at all — not even
+  # START — which reads as row three: killed before its first tick. The most
+  # misleading outcome the feature has, from the likeliest operator typo.
+  run bash -c "export WATCH_LOG='$BATS_TEST_TMPDIR/nope/watch.log'; . '$LIB'; poll_init"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"not writable"* ]]
 }

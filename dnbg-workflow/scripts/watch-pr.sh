@@ -284,15 +284,22 @@ while :; do
   # above describes, reached by a different route, and a busy PR with several
   # reviewers is exactly where it bites.
   #
-  # `jq -s` rather than `gh --slurp`: --paginate emits one JSON array per page and
-  # `gh`'s own --jq would run per page (yielding one count per page, not a total),
-  # while `--slurp` cannot be combined with `--jq` at all. Slurping on the jq side
-  # folds the pages into one array — hence `.[][]` — and asks nothing of `gh`
-  # beyond --paginate, which every version that has the flag supports.
-  if RAWC=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100" --paginate 2>/dev/null); then
-    if NEWC=$(echo "$RAWC" | jq -s --arg s "$SINCE" --arg slug "$SLUG" '
+  # ⚠️ NEWEST FIRST, WHICH IS WHAT MAKES ONE REQUEST ENOUGH. Paging through the whole
+  # thread history would also be correct, but it re-fetches every page on every tick,
+  # so its cost scales with the PR's TOTAL comment count rather than with what is
+  # new: a PR at ~250 inline comments is 3 requests per tick, and at the 10s floor
+  # that is ~1080/hour against a 5000/hour budget — for a watch whose whole job is to
+  # notice the handful of comments at the end. `direction=desc` puts those first, so
+  # page one always carries everything created after `$SINCE` and the problem stops
+  # existing rather than being paged around.
+  #
+  # The bound this trades for is 100 new comments within a single window, which is
+  # not a real burst — and even at the bound it degrades safely: the count saturates
+  # rather than resetting, so it still rises and still wakes the watch.
+  if RAWC=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direction=desc" 2>/dev/null); then
+    if NEWC=$(echo "$RAWC" | jq --arg s "$SINCE" --arg slug "$SLUG" '
         def mine: . == $slug or . == ($slug + "[bot]");
-        [ .[][] | select(.created_at > $s and (.user.login | mine | not)) ] | length' 2>/dev/null)
+        [ .[] | select(.created_at > $s and (.user.login | mine | not)) ] | length' 2>/dev/null)
     then fails_comments=0
     else
       # A jq failure here is a payload-shape change, never transient — the same

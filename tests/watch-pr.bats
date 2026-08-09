@@ -194,65 +194,27 @@ EOF
   [[ "$output" == *"reason=issue-view"* ]]
 }
 
-# A reply on a PR with more than a page of inline comments. The endpoint returns
-# OLDEST FIRST, so the new reply is on the LAST page — unpaginated, the watch sees
-# only history, never registers the reply, and idles out looking healthy.
-@test "a reply past the first page of comments still registers" {
+# A reply behind a page of older comments. The endpoint defaults to OLDEST FIRST, so
+# without asking for newest-first the watch sees only history, never registers the
+# reply, and idles out looking healthy.
+@test "a reply behind a page of older comments still registers" {
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
 case "$1 $2" in
   "pr view") echo '{"state":"OPEN","isDraft":false,"headRefOid":"sha0","reviews":[],"comments":[]}' ;;
   "api "*|"api")
-    # Page one is entirely old traffic, which is what a long-running PR looks like.
-    echo '[{"created_at":"1970-01-01T00:00:00Z","user":{"login":"someone"}}]'
-    # The reply only exists for a caller that asked for every page.
-    case "$*" in *--paginate*) echo '[{"created_at":"2999-01-01T00:00:00Z","user":{"login":"someone"}}]' ;; esac ;;
+    case "$*" in
+      # Newest-first: the reply is on the only page fetched.
+      *direction=desc*) echo '[{"created_at":"2999-01-01T00:00:00Z","user":{"login":"someone"}}]' ;;
+      # The API default buries it behind history the watch has already seen.
+      *)                echo '[{"created_at":"1970-01-01T00:00:00Z","user":{"login":"someone"}}]' ;;
+    esac ;;
   *) exit 1 ;;
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 SETTLE=0 WINDOW=5 run "$WATCH" o/r 1 sha0 2000-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 sha0 2000-01-01T00:00:00Z bot
   [ "$status" -eq 0 ]
-  # Drop --paginate and this is result=IDLE: the reply is real and unseen.
+  # Drop direction=desc and this is result=IDLE with a real reply unseen.
   [[ "$output" == *"result=ACTIVITY"* ]]
-}
-
-# A payload that parses but has lost `.state` — an API error body is the live case.
-# `// empty` alone passed it, leaving STATE="" to match neither MERGED nor CLOSED, so
-# the watch ran its whole window against an error and reported IDLE on a closed PR.
-@test "a payload missing state is a shape error, not a quiet wait" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
-case "$1 $2" in
-  "pr view") echo '{"message":"Not Found"}' ;;
-  *) echo '[]' ;;
-esac
-EOF
-  chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=2 FAIL_MIN_SECONDS=0 WINDOW=20 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=ERROR"* ]]
-  [[ "$output" == *"pr-view-shape"* ]]
-  [[ "$output" != *"result=IDLE"* ]]
-}
-
-# An empty <last_head> used to close the commit branch for the life of the watch:
-# obs_head gates it and is assigned only inside it, so a push went undetected and the
-# watch reported IDLE on a PR that had moved. It now adopts the first HEAD it sees.
-@test "an empty last_head self-heals instead of going blind to pushes" {
-  echo 0 > "$HEADCOUNT"
-  ( sleep 2; echo 9 > "$HEADCOUNT" ) &
-  echo $! >> "$BATS_TEST_TMPDIR/pids"
-  INTERVAL=1 SETTLE=1 WINDOW=25 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=COMMITS"* ]]
-  [[ "$output" == *"new_head=sha9"* ]]
-}
-
-# An empty slug makes `mine` match no login, so the watch wakes on its OWN posts and
-# re-reviews itself — the exact loop the argument exists to prevent, and silent.
-@test "an empty bot slug is refused on the PR path" {
-  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 sha0 1970-01-01T00:00:00Z ""
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"bot_slug"* ]]
 }

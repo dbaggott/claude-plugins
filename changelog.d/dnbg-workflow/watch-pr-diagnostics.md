@@ -18,11 +18,13 @@ handler never ran at all. This applies whether or not you enable tracing.
 Fixes, each of which previously left a watch running and reporting something
 plausible but wrong:
 
-- **Replies past the first page of inline comments were invisible.** The comments
-  query was unpaginated, and that endpoint caps at 30 and returns oldest-first — so
-  on a PR with more than 30 inline comments every new reply landed on a page the
-  watch never fetched. It saw only history, never woke, and idled out looking
-  healthy. Most likely to bite on a busy PR with several reviewers.
+- **Replies behind a page of older comments were invisible.** The comments query
+  took the endpoint's default ordering, which is oldest-first and caps at 30 — so on
+  a PR with more than 30 inline comments every new reply sat on a page the watch
+  never fetched. It saw only history, never woke, and idled out looking healthy.
+  Most likely to bite on a busy PR with several reviewers. It now asks for
+  newest-first, which is both correct and one request per poll regardless of how
+  long the thread gets.
 - **A payload that parsed but had lost `.state` passed the shape gate.** An API
   error body is well-formed JSON, so it was accepted with an empty state that
   matched neither MERGED nor CLOSED; the watch ran its whole window against it and

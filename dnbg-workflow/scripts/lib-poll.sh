@@ -154,6 +154,15 @@ _poll_log_tick() {
 # something to carry on the default path in exchange for nothing.
 poll_trace_init() {
   [ -n "$WATCH_LOG" ] || return 0
+  # ⚠️ ONE UNGUARDED WRITE, FIRST. `poll_log` swallows per-line failures, which is
+  # right — a trace is worth less than the watch — but swallowing the FIRST one
+  # turns a mistyped path into the most misleading outcome this feature has. A
+  # `WATCH_LOG` under a directory that does not exist writes nothing at all, not
+  # even START, and no file is exactly row three of the table above: killed before
+  # its first tick. That reading is confidently wrong, and the path is typed by
+  # hand, at the moment something has just gone wrong, by someone already primed to
+  # expect a silent death.
+  : >> "$WATCH_LOG" || _poll_die "WATCH_LOG=$WATCH_LOG is not writable"
   local s
   for s in TERM INT HUP QUIT PIPE USR1 USR2; do
     # SC2064 expands $s at install time deliberately — the handler has to know
