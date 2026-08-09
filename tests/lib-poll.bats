@@ -472,11 +472,22 @@ EOF
   # is exactly what a width-truncated `ps` produces on a CI runner with no tty. This
   # asserts the guard still recognises a real watch, so truncation fails loudly here
   # rather than quietly disarming the reaper.
-  bash -c "export WATCH_LOG=off; . '$LIB'; poll_init; for _ in 1 2 3; do poll_nap; done" &
+  # ⚠️ WAIT ON THE TRACE, NOT ON THE PID. `kill -0` succeeds the instant `&` returns
+  # — the pid exists from the fork — so it gates on nothing. What matters is the
+  # child having EXEC'd: until then `ps` reports the bats harness's command line,
+  # which the guard correctly declines to match, and calling the reaper inside that
+  # window spares a live watch and fails the test for the wrong reason.
+  #
+  # The log file is the honest gate: it cannot exist until the child has exec'd,
+  # sourced the lib and run `poll_init`. It is also independent of `ps`, so the
+  # readiness check does not depend on the mechanism the test is asserting.
+  local log="$BATS_TEST_TMPDIR/ready.log"
+  bash -c "export WATCH_LOG='$log'; . '$LIB'; poll_init; for _ in 1 2 3; do poll_nap; done" &
   local pid=$!
   echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
   local i=0
-  while ! kill -0 "$pid" 2>/dev/null && [ "$i" -lt 20 ]; do sleep 0.1; i=$((i + 1)); done
+  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  [ -s "$log" ] || { echo "child never started"; return 1; }
 
   teardown                                  # the reaper, called directly
   local j=0
