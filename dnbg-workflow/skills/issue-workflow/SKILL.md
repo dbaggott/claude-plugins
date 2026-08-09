@@ -1,6 +1,6 @@
 ---
 name: issue-workflow
-description: How to create, maintain, and pick up GitHub issues so context survives the handoff — self-documenting issue bodies (verified anchors, proposed approach, decisions-with-defaults, acceptance criteria inline and runnable at the end of the issue that carries them, state-independent cross-references), labeling along the type and `area:*` (subsystem) axes, required-vs-optional cross-references, keeping the body current as work ships, claiming an issue on pickup (assignee + `assigned:claude-code` label + comment) after checking it isn't already claimed, and disciplined link-following plus a freshness probe when resolving, critically reviewing the issue itself (misdiagnosis, symptom-vs-root-cause, wrong approach, false premise) before writing code, and getting operator buy-in on any approach you have to design rather than implementing it unasked, including surfacing substantive design changes that emerge mid-implementation in chat before a PR leaves draft. Load when about to create a GitHub issue (any `gh issue create`), file follow-up work as an issue, update an issue after partial progress or a referenced PR closing, pick up/resolve an existing issue named by number or URL ("resolve #245", "do issue 245", "work on <issue URL>" — those bare forms are user phrasing, not a license to emit bare `#N` yourself; load this before reading any file or opening a worktree, not after), or assign/dispatch an issue to anyone (person or bot). The pickup trigger is an issue being named, not the user's choice of words. Skip for merely referencing an issue.
+description: How to create, maintain, and pick up GitHub issues so context survives the handoff — self-documenting issue bodies (verified anchors, proposed approach, decisions-with-defaults, acceptance criteria inline and runnable at the end of the issue that carries them, state-independent cross-references), labeling along the type and `area:*` (subsystem) axes, required-vs-optional cross-references, keeping the body current as work ships, claiming an issue on pickup (assignee + `assigned:agent-session` label + session-identified comment) after checking it isn't already claimed, and disciplined link-following plus a freshness probe when resolving, critically reviewing the issue itself (misdiagnosis, symptom-vs-root-cause, wrong approach, false premise) before writing code, and getting operator buy-in on any approach you have to design rather than implementing it unasked, including surfacing substantive design changes that emerge mid-implementation in chat before a PR leaves draft. Load when about to create a GitHub issue (any `gh issue create`), file follow-up work as an issue, update an issue after partial progress or a referenced PR closing, pick up/resolve an existing issue named by number or URL ("resolve #245", "do issue 245", "work on <issue URL>" — those bare forms are user phrasing, not a license to emit bare `#N` yourself; load this before reading any file or opening a worktree, not after), or assign/dispatch an issue to anyone (person or bot). The pickup trigger is an issue being named, not the user's choice of words. Skip for merely referencing an issue.
 ---
 
 # Issue workflow
@@ -93,21 +93,35 @@ The issue is already in progress if any of: an assignee is set, **any** `assigne
 
 The `assigned:*` namespace is deliberately open: whatever else works these repos — another agent, a bot, a teammate's tooling — claims with its own label in that namespace, and the check above matches the prefix rather than an enumerated list, so a new claimant needs no change here.
 
-One exception: a claim of `@me` + `assigned:claude-code` may be this very session's earlier mark, or a sibling session run by the same operator — mechanically indistinguishable, since every session runs under the operator's account. Interactively, the dispatch itself disambiguates: the operator can see their own sessions, so note the existing claim in one line and proceed. In an unattended run there is no operator watching — still stop and ask via a comment.
+One case needs a second look: a claim of `@me` + `assigned:agent-session` may be this very session's earlier mark, or a sibling session run by the same operator — the assignee can't tell them apart, since every session runs under the operator's account. The **session id in the claim comment** does. Read the comment and compare:
+
+```bash
+gh issue view <n> --repo <repo> --json comments --jq '.comments[].body' \
+  | grep -i '^Claimed by' | tail -1
+```
+
+Test the **latest** claim comment, not any of them — `tail -1` is load-bearing. An issue can carry more than one claim (a sibling claimed, the operator waved you past it, and now you are back), and matching against the whole set means finding your own older id and proceeding straight past a sibling who is working the issue right now. The most recent claim is the one that is live.
+
+- **The id matches `${CLAUDE_CODE_SESSION_ID:0:8}`** — this session's own mark, and still the standing one. Proceed; note it in one line. A resumed session keeps its id, so re-reading your own claim after `claude --resume` matches rather than looking like a stranger's.
+- **The id is different** — a sibling session, which is a real claim by another worker. Stop and ask, exactly as for any other claimant.
+- **The comment carries no id** — it predates this scheme, or came from a harness that exports no session id. Fall back to the old judgement: interactively, note the claim in one line and proceed; in an unattended run, stop and ask via a comment.
+
+The test is deliberately one-directional — only an exact id match licenses proceeding — so every id it can't positively account for lands on stop-and-ask, the safe side. That is what makes it usable unattended, where the old "mechanically indistinguishable" wording forced a stop in precisely the case that stopping costs most.
 
 The same check guards the dispatch direction: before routing an issue to anyone else — assigning a person, applying another agent's `assigned:*` label — run it and surface any existing claim before applying the new one.
 
 **2. Claim it.** Three marks, each serving a different reader:
 
 ```bash
-gh label create "assigned:claude-code" --repo <repo> --color BFD4F2 --description "Claimed by a Claude Code session" --force  # idempotent; no-op when the label exists
-gh issue edit <n> --repo <repo> --add-assignee "@me" --add-label "assigned:claude-code"
-gh issue comment <n> --repo <repo> --body "Claimed by a Claude Code session."
+SID="${CLAUDE_CODE_SESSION_ID:0:8}"  # short prefix — enough to tell sessions apart, short enough to read
+gh label create "assigned:agent-session" --repo <repo> --color BFD4F2 --description "Claimed by an agent session" --force  # idempotent; no-op when the label exists
+gh issue edit <n> --repo <repo> --add-assignee "@me" --add-label "assigned:agent-session"
+gh issue comment <n> --repo <repo> --body "Claimed by an agent session (${SID:-id unavailable})."
 ```
 
 - The **assignee** makes the claim visible in issue lists and on the issue page.
-- The **label** disambiguates what the assignee can't: sessions run under the operator's account, so assignee-alone could mean "the operator will get to this someday". `assigned:claude-code` means a session took it. The unconditional `gh label create --force` makes the block work first-try in any repo.
-- The **comment** timestamps the claim — GitHub's own comment timestamp, no date in the body needed — which is what makes staleness detectable later.
+- The **label** disambiguates what the assignee can't: sessions run under the operator's account, so assignee-alone could mean "the operator will get to this someday". `assigned:agent-session` means an agent session took it. The name stays agent-agnostic on purpose — it matches what the mark actually communicates, and keeps the mark this plugin applies inside the open `assigned:*` namespace described above rather than carving out a vendor-specific corner of it. The unconditional `gh label create --force` makes the block work first-try in any repo.
+- The **comment** timestamps the claim — GitHub's own comment timestamp, no date in the body needed — and names the claiming session. The timestamp is what makes staleness detectable; the id is what makes the own-claim test above mechanical instead of a judgement call. `${SID:-id unavailable}` keeps the comment honest where no session id is exported, rather than posting an empty pair of parentheses that reads like a match failure.
 
 Claims are never cleaned up. Once a linked draft PR exists it supersedes the claim as the in-progress signal, and when the issue closes, closed is closed regardless of labels. A lingering `assigned:*` label on an open issue is informative, not litter — it is exactly what makes the stale-claim signature above detectable.
 
