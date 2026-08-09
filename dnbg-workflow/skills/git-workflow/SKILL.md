@@ -123,11 +123,15 @@ When the operator picks "Send to review" in the picker above, or otherwise signa
 ```bash
 HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
 ME=$(gh api user --jq .login)
-# Both are load-bearing arguments and the script fails *quietly* on either being
-# blank: an empty head means its commit check can never fire for the whole
-# window, and an empty login makes its exclude-filter match nobody — so your own
-# thread replies would register as activity, which is the exact failure the
-# fifth argument exists to prevent. Bail loudly instead.
+# Both are load-bearing, and a blank one means the `gh` call above failed — that
+# is what this catches. The watcher's two responses differ, and neither reads
+# clearly off its result line:
+#   - A blank login is REFUSED (`result=ERROR reason=bad-args`), because the
+#     exclude filter would match nobody and your own thread replies would
+#     register as activity — the exact failure the fifth argument prevents.
+#   - A blank head is ACCEPTED: the watcher adopts the first HEAD it observes.
+#     That self-heal costs only the push it could never have seen, but here that
+#     window is real, since `gh pr ready` ran moments ago.
 [ -n "$HEAD" ] && [ -n "$ME" ] || { echo "could not resolve head SHA / login — re-run the watch"; exit 1; }
 # WINDOW=1800 overrides the script's 6h default. That default is right for
 # `reviewer`, where IDLE is routine; here IDLE means something is wrong, and a
