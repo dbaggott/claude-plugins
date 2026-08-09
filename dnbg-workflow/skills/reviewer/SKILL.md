@@ -451,6 +451,13 @@ PR to resume (it re-assesses current state and picks the watch back up).
 
 1. **Record state** after each action: the HEAD SHA you last reviewed and a
    timestamp marking "handled up to here" (`date -u +%Y-%m-%dT%H:%M:%SZ`).
+
+   ⚠️ **`<last_head>` is the full 40-character SHA** — take it from
+   `gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid`, never an
+   abbreviated one you happened to print for a human. The watcher compares it as a
+   string against what GitHub returns, so a short SHA can never match; it now
+   refuses one (`result=ERROR reason=bad-args`), and before that it reported a
+   push that had not happened on its very first tick.
 2. **Spawn `watch-pr.sh`** as a **background**
    task — it blocks until something happens, so its idle polling never enters the
    conversation; the harness wakes you when it returns:
