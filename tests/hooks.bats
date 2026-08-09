@@ -46,8 +46,18 @@ edit_payload() {
   printf '{"tool_name":"%s","tool_input":{"%s":"%s"}}' "${2:-Edit}" "${3:-file_path}" "$1"
 }
 
+# The payload reaches the hook on stdin via a file, never by interpolation into a
+# quoted command string. The interpolated form held only while no test command
+# contained a single quote; the first one that did would have broken in the
+# harness, as a shell quoting error nowhere near the test that caused it.
+run_hook() {  # <hook-script> <payload>
+  printf '%s' "$2" > "$TMP/payload.json"
+  export CLAUDE_PLUGIN_OPTION_OWNERS="${OWNERS-acme-corp}"
+  run "$HOOKS/$1" < "$TMP/payload.json"
+}
+
 run_worktree_hook() {  # <payload>
-  run bash -c "printf '%s' '$1' | CLAUDE_PLUGIN_OPTION_OWNERS='${OWNERS-acme-corp}' '$HOOKS/check-worktree.sh'"
+  run_hook check-worktree.sh "$1"
 }
 
 bash_payload() {  # <command> [transcript-override]
@@ -56,7 +66,7 @@ bash_payload() {  # <command> [transcript-override]
 }
 
 run_issue_hook() {  # <payload>
-  run bash -c "printf '%s' '$1' | CLAUDE_PLUGIN_OPTION_OWNERS='${OWNERS-acme-corp}' '$HOOKS/check-issue-create.sh'"
+  run_hook check-issue-create.sh "$1"
 }
 
 # --- check-worktree ----------------------------------------------------------
@@ -202,6 +212,14 @@ create --title x')"
   [ "$status" -eq 0 ]
 }
 
+@test "a payload carrying a single quote reaches the hook intact" {
+  # The harness guard for run_hook. Under the old interpolated form this payload
+  # did not fail the assertion — it never reached the hook at all, dying as a
+  # shell quoting error in the command the harness built.
+  run_issue_hook "$(bash_payload "git commit -m \"don't document the gh issue create gate\"")"
+  [ "$status" -eq 0 ]
+}
+
 @test "a mention inside a heredoc body is not an issue creation" {
   # ⚠️ THE CASE QUOTE-STRIPPING ALONE DOES NOT COVER, and the most common one here:
   # a heredoc body is not quoted, and heredocs are how commit messages and PR
@@ -244,7 +262,7 @@ MSG')"
 }
 
 @test "ignores non-Bash tools" {
-  run bash -c "printf '%s' '$(edit_payload "$REPO/tracked.txt")' | CLAUDE_PLUGIN_OPTION_OWNERS=acme-corp '$HOOKS/check-issue-create.sh'"
+  run_issue_hook "$(edit_payload "$REPO/tracked.txt")"
   [ "$status" -eq 0 ]
 }
 
@@ -277,26 +295,29 @@ path_without_jq() {
   done
 }
 
-@test "with jq missing, an edit in a covered repo is not blocked" {
+# These cannot use run_hook: stripping the environment is the whole point, so the
+# hook has to be reached through `env -i`. The payload still travels as a value —
+# an env var `env` hands over intact — rather than interpolated into a command.
+run_hook_without_jq() {  # <hook-script> <payload>
   path_without_jq
   run -127 env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_OPTION_OWNERS=acme-corp \
-    bash -c "printf '%s' '$(edit_payload "$REPO/tracked.txt")' | '$HOOKS/check-worktree.sh'"
+    HOOK="$HOOKS/$1" PAYLOAD="$2" bash -c 'printf "%s" "$PAYLOAD" | "$HOOK"'
+}
+
+@test "with jq missing, an edit in a covered repo is not blocked" {
+  run_hook_without_jq check-worktree.sh "$(edit_payload "$REPO/tracked.txt")"
   [ "$status" -ne 2 ]
 }
 
 @test "with jq missing, an edit in an unrelated repo is not blocked" {
   # The blast-radius half. A user who installed this at user scope must not find
   # every project on the machine uneditable because one binary is absent.
-  path_without_jq
   echo loose > "$TMP/loose.txt"
-  run -127 env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_OPTION_OWNERS=acme-corp \
-    bash -c "printf '%s' '$(edit_payload "$TMP/loose.txt")' | '$HOOKS/check-worktree.sh'"
+  run_hook_without_jq check-worktree.sh "$(edit_payload "$TMP/loose.txt")"
   [ "$status" -ne 2 ]
 }
 
 @test "with jq missing, gh issue create is not blocked" {
-  path_without_jq
-  run -127 env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_OPTION_OWNERS=acme-corp \
-    bash -c "printf '%s' '$(bash_payload 'gh issue create --title x')' | '$HOOKS/check-issue-create.sh'"
+  run_hook_without_jq check-issue-create.sh "$(bash_payload 'gh issue create --title x')"
   [ "$status" -ne 2 ]
 }
