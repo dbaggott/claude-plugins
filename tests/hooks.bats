@@ -185,6 +185,40 @@ create --title x')"
   [ "$status" -eq 2 ]
 }
 
+# --- the gate matches a COMMAND, not a mention of one -----------------------
+#
+# Every case below is a command that creates no issue. Each was blocked before
+# https://github.com/dbaggott/claude-plugins/issues/59, and the payloads that trip
+# it are the ones written while working on this repo.
+
+@test "a quoted mention in a commit message is not an issue creation" {
+  run_issue_hook "$(bash_payload 'git commit -m "document the gh issue create gate"')"
+  [ "$status" -eq 0 ]
+}
+
+@test "a quoted mention in a review body is not an issue creation" {
+  # The live failure: the reviewer bot blocked posting a review about this hook.
+  run_issue_hook "$(bash_payload 'gh api repos/o/r/pulls/58/reviews -f body="I blocked your gh issue create call"')"
+  [ "$status" -eq 0 ]
+}
+
+@test "a mention inside a heredoc body is not an issue creation" {
+  # ⚠️ THE CASE QUOTE-STRIPPING ALONE DOES NOT COVER, and the most common one here:
+  # a heredoc body is not quoted, and heredocs are how commit messages and PR
+  # bodies get written in this repo. Command-position matching is what catches it.
+  run_issue_hook "$(bash_payload 'git commit -F - <<MSG
+document the gh issue create gate
+MSG')"
+  [ "$status" -eq 0 ]
+}
+
+@test "a real invocation after a separator is still gated" {
+  # The other half: narrowing the match must not open a hole. An invocation is a
+  # command wherever it sits in the line.
+  run_issue_hook "$(bash_payload 'git add -A && gh issue create --title x')"
+  [ "$status" -eq 2 ]
+}
+
 @test "ignores gh issue edit" {
   run_issue_hook "$(bash_payload 'gh issue edit 5 --add-label x')"
   [ "$status" -eq 0 ]

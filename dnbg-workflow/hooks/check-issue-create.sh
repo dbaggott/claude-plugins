@@ -30,7 +30,31 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 # left alone — that one genuinely separates commands.
 CMD=${CMD//\\$'\n'/ }
 
-echo "$CMD" | grep -qE '\bgh +issue +create\b' || exit 0
+# ⚠️ THE PHRASE HAS TO BE A COMMAND, NOT A MENTION OF ONE. Matching it anywhere in
+# the string is content-blind: it fires on any command whose *payload* discusses
+# issue creation, and the payloads most likely to do that are the ones written
+# while working on this repo — review bodies, commit messages, issue text. That
+# blocked the reviewer bot from posting a review about this very hook
+# (https://github.com/dbaggott/claude-plugins/issues/59).
+#
+# Two independent narrowings, because neither covers the other:
+#
+#   MASK QUOTED SPANS — text inside "…" or '…' is an argument, so a mention there
+#   is data. Handles `-m "document the gh issue create gate"`.
+#
+#   REQUIRE COMMAND POSITION — start of a line, or after a separator. This is the
+#   half that matters most here, because A HEREDOC BODY IS NOT QUOTED and masking
+#   alone leaves it matching. Heredocs are how commit messages and PR bodies are
+#   written in this repo, so that is the common case, not the exotic one. Prose
+#   names the command mid-sentence; an invocation starts one.
+#
+# Residual, and deliberately accepted: a heredoc line that *begins* with the
+# phrase still matches. The asymmetry is what settles it — a false negative means
+# a skill went unloaded, which `issue-workflow`'s own claim check largely covers,
+# while a false positive blocks real work and points the author at a skill that
+# has nothing to do with what they were doing. Precision over recall.
+SCAN=$(printf '%s' "$CMD" | sed -E 's/"[^"]*"/ /g; s/'"'"'[^'"'"']*'"'"'/ /g')
+printf '%s\n' "$SCAN" | grep -qE '(^|[;&|(])[[:space:]]*gh +issue +create\b' || exit 0
 
 # Target comes from --repo/-R if present, else the calling directory's origin.
 #
