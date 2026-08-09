@@ -242,7 +242,52 @@ EOF
   [ "$output" = "ghs_stubbed_token" ]
 }
 
+@test "a symlinked config dir is judged by its target, not the link" {
+  # Dotfile managers (stow, chezmoi, dotbot) symlink ~/.config, and a symlink's
+  # own mode is 0777 on Linux unconditionally. Judging the link would refuse every
+  # such setup however locked-down the real directory is — and unfixably, since
+  # `chmod go-w <link>` follows the link and leaves the link itself at 0777.
+  local real="$BATS_TEST_TMPDIR/realconf"
+  mkdir -p "$real"; chmod 700 "$real"
+  cp "$KEYFILE" "$real/private-key.pem"; chmod 600 "$real/private-key.pem"
+  printf '%s\n' '{"app_id":"42"}' > "$real/config.json"; chmod 600 "$real/config.json"
+  # umask 000 so the link is 0777 on macOS too, matching Linux's unconditional case.
+  ( umask 000; ln -s "$real" "$BATS_TEST_TMPDIR/linkconf" )
+
+  run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" \
+    DNBG_REVIEWER_CONFIG_DIR="$BATS_TEST_TMPDIR/linkconf" bash "$MINT" acme
+  [ "$status" -eq 0 ]
+  [ "$output" = "ghs_stubbed_token" ]
+}
+
+@test "a symlink pointing at a world-writable dir is still refused" {
+  # The other direction, and why `-L` is the stronger check rather than merely
+  # the more permissive one: without it, this case slips through.
+  local real="$BATS_TEST_TMPDIR/openconf"
+  mkdir -p "$real"
+  cp "$KEYFILE" "$real/private-key.pem"; chmod 600 "$real/private-key.pem"
+  printf '%s\n' '{"app_id":"42"}' > "$real/config.json"; chmod 600 "$real/config.json"
+  chmod 777 "$real"
+  ln -s "$real" "$BATS_TEST_TMPDIR/openlink"
+
+  run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" \
+    DNBG_REVIEWER_CONFIG_DIR="$BATS_TEST_TMPDIR/openlink" bash "$MINT" acme
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"group- or world-writable"* ]]
+}
+
 # --- failure messages --------------------------------------------------------
+
+@test "a key command that prints nothing says so, not 'no key anywhere'" {
+  # The elif has already committed to this route, so falling through to the
+  # not-set-up message would name the PEM as something that was tried when it
+  # never was. A locked vault or a wrong item name lands here.
+  write_config '{"app_id":"42","private_key_command":"true"}'
+  mint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"produced no output"* ]]
+  [[ "$output" != *"private-key.pem"* ]]
+}
 
 @test "no key from any source reports what was tried" {
   write_config '{"app_id":"42"}'

@@ -236,6 +236,9 @@ the same idea.
 
 Route 1 stands alone: with `DNBG_REVIEWER_APP_ID` set too, no config file or PEM
 needs to exist anywhere, which is what makes running the reviewer in CI possible.
+`DNBG_REVIEWER_INSTALLATION_ID` is optional alongside it — set it to skip the
+`/app/installations` lookup, or leave it and the installation is resolved from
+the owner argument. Both fall back to `config.json` when one exists.
 
 Two things to weigh before switching off the default:
 

@@ -26,6 +26,13 @@
 #      (or `private_key_command` in config.json)
 #   3. $CONFIG_DIR/private-key.pem        the plaintext file bootstrap.py writes
 #
+# Two more variables stand in for config.json fields, so a headless run needs no
+# config file at all. Both fall back to config.json when it exists:
+#
+#   DNBG_REVIEWER_APP_ID           required — without it there is no JWT to sign
+#   DNBG_REVIEWER_INSTALLATION_ID  optional — skips the /app/installations
+#                                  lookup; otherwise it is resolved from <owner>
+#
 # (2) is the single hook that reaches every secret manager without this project
 # knowing any of them exist — `op read`, `pass show`, `security find-generic-
 # password -w`, `secret-tool lookup`, `vault kv get`, `sops -d`. `git`'s
@@ -59,9 +66,19 @@ done
 # `find -perm` rather than `stat`: the format flags differ between BSD and GNU
 # (`stat -f '%Lp'` vs `stat -c '%a'`), and this comparison does not need the
 # number — only whether either write bit is set.
+#
+# ⚠️ `-L`, AND IT IS LOAD-BEARING IN BOTH DIRECTIONS. Without it `find` stats the
+# symlink rather than its target, and a symlink's own mode is `0777` on Linux
+# unconditionally (`symlink()` ignores umask). So every config dir or PEM that a
+# dotfile manager — stow, chezmoi, dotbot — has linked into `~/.config` would be
+# refused however locked-down the real directory is, on all three routes, and the
+# remedy this prints could not clear it: `chmod` follows the link, so `chmod go-w`
+# would re-chmod the already-correct target and leave the link at `0777` forever.
+# It is also the weaker check: without `-L`, a link pointing at a genuinely
+# world-writable directory is let straight through. Both verified by hand.
 refuse_if_writable() {  # <path> <what>
   [ -e "$1" ] || return 0
-  [ -n "$(find "$1" -maxdepth 0 \( -perm -g+w -o -perm -o+w \) 2>/dev/null)" ] || return 0
+  [ -n "$(find -L "$1" -maxdepth 0 \( -perm -g+w -o -perm -o+w \) 2>/dev/null)" ] || return 0
   echo "refusing to use $2: $1 is group- or world-writable." >&2
   echo "A credential anyone can replace is not a credential. Fix with: chmod go-w '$1'" >&2
   exit 1
@@ -99,6 +116,17 @@ elif [ -n "$KEY_COMMAND" ]; then
   # and pipes, which is what every manager's documented invocation looks like.
   KEY=$(sh -c "$KEY_COMMAND") || {
     echo "the configured private key command failed: $KEY_COMMAND" >&2
+    exit 1
+  }
+  # Reported here rather than left to the not-set-up message below. The `elif`
+  # has already committed to this route, so falling through would name the PEM
+  # file as something that was tried when it never was — pointing at the wrong
+  # thing entirely. A manager that exits 0 with no output (wrong item name, a
+  # vault that needs unlocking) is the likely way to land here.
+  [ -n "$KEY" ] || {
+    echo "the private key command produced no output: $KEY_COMMAND" >&2
+    echo "It exited 0 but printed nothing — check the item name, and that any" >&2
+    echo "vault or keychain it reads is unlocked." >&2
     exit 1
   }
   KEY_SOURCE="private key command"

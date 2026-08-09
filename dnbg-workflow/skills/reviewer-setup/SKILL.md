@@ -158,6 +158,8 @@ resolved ahead of the file:
 
 - `DNBG_REVIEWER_PRIVATE_KEY` — the PEM itself. With `DNBG_REVIEWER_APP_ID` it
   needs no config dir at all, which is what makes CI and headless runs possible.
+  `DNBG_REVIEWER_INSTALLATION_ID` is optional there and saves the
+  `/app/installations` round trip.
 - `DNBG_REVIEWER_PRIVATE_KEY_COMMAND`, or `private_key_command` in `config.json`
   — a command whose stdout is the PEM. This is the hook for any secret manager:
 
