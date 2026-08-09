@@ -465,3 +465,21 @@ EOF
   kill "$decoy" 2>/dev/null
   [ "$alive" -eq 0 ]
 }
+
+@test "the reaper does kill a process that is still ours" {
+  # ⚠️ THE POSITIVE HALF, and it exists because the negative one cannot fail safely.
+  # "a stranger survives" passes just as well when the guard matches NOTHING — which
+  # is exactly what a width-truncated `ps` produces on a CI runner with no tty. This
+  # asserts the guard still recognises a real watch, so truncation fails loudly here
+  # rather than quietly disarming the reaper.
+  bash -c "export WATCH_LOG=off; . '$LIB'; poll_init; for _ in 1 2 3; do poll_nap; done" &
+  local pid=$!
+  echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
+  local i=0
+  while ! kill -0 "$pid" 2>/dev/null && [ "$i" -lt 20 ]; do sleep 0.1; i=$((i + 1)); done
+
+  teardown                                  # the reaper, called directly
+  local j=0
+  while kill -0 "$pid" 2>/dev/null && [ "$j" -lt 40 ]; do sleep 0.1; j=$((j + 1)); done
+  ! kill -0 "$pid" 2>/dev/null
+}

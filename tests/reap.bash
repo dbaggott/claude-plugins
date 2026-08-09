@@ -25,7 +25,13 @@ teardown() {
     # another session. Reuse needs a full wrap of the pid space and is not plausible at
     # observed churn (~5/sec against a ~23s worst-case window), but the guard costs one
     # `ps` and removes the failure mode rather than relying on that arithmetic holding.
-    case "$(ps -o command= -p "$p" 2>/dev/null)" in
+    # ⚠️ `-ww`, NOT A BARE `ps`. procps-ng honours COLUMNS and falls back to 80 with
+    # no tty, which is CI — and the substring being matched sits well past column 80
+    # in these children (`bash -c export WATCH_LOG=… . '<repo>/…/lib-poll.sh' …`). A
+    # truncated line matches nothing, the reaper silently stops reaping, and the
+    # spare-a-stranger test below still passes because it asserts an absence. `-ww`
+    # is unlimited-width on both BSD and procps.
+    case "$(ps -ww -o command= -p "$p" 2>/dev/null)" in
       # Deliberately NOT matching a bare `sleep`: the nap child is reaped by the
       # signal handler, and the one test that backgrounds a `sleep` lets it expire on
       # its own — while `sleep` is common enough that matching it would put most of
