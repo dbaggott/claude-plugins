@@ -100,10 +100,17 @@ WAS_DRAFT=0; [ "${6:-}" = "--was-draft" ] && WAS_DRAFT=1
 #
 # Empty is NOT rejected: it self-heals from the first observed HEAD (see the loop), and
 # `--issue` mode passes it on purpose.
+# ⚠️ THE HEX CLASS IS ENUMERATED, NOT A RANGE, AND `a-f` IS THE REASON. Bracket ranges
+# are matched in COLLATION order, which under bash 3.2 — stock macOS, and what
+# `env bash` finds on a machine with no Homebrew bash — interleaves case in a UTF-8
+# locale: `a-f` spans `a A b B … f F`, so `[!0-9a-f]` does not match `A` and the
+# uppercase rejection silently becomes a no-op. Bash 4.3's `globasciiranges` fixes it
+# and 5.x defaults it on, which is why CI (ubuntu, bash 5.x) would never show this.
+# The length test below is unaffected — no locale touches `${#LAST_HEAD}`.
 bad_head=0
 case $LAST_HEAD in
   '') ;;
-  *[!0-9a-f]*) bad_head=1 ;;
+  *[!0123456789abcdef]*) bad_head=1 ;;
   *) [ "${#LAST_HEAD}" = 40 ] || bad_head=1 ;;
 esac
 
@@ -360,6 +367,20 @@ while :; do
   [ "$fails_comments" -gt 0 ] && poll_reset
 
   # Accumulate this tick's deltas, and restart the quiet timer on anything new.
+  #
+  # ⚠️ `obs_*` ARE SAFE AS COUNTS ONLY BECAUSE `settle_until` IS NEVER CLEARED. The
+  # strictly-greater tests below are a ratchet: once `obs_new` has risen, an item
+  # arriving at or below that mark — a delete-and-replace nets to the same total —
+  # does not register. That is harmless today, and the reason is two lines away rather
+  # than local: raising `obs_*` always sets `changed=1`, which arms `settle_until`, and
+  # nothing ever sets it back to 0 — so the idle-out below is disabled and a report is
+  # already guaranteed. `ACTIVITY` carries no payload, so the caller re-reads everything
+  # since `$SINCE` and finds the replacement anyway.
+  #
+  # Clear `settle_until` anywhere and that stops holding: the watch could then return
+  # to a quiet, still-running state carrying a raised high-water mark, and genuinely new
+  # items below it would go unreported for the rest of the window. Track identities
+  # instead of counts if that day comes — `.id` is on both payloads already.
   changed=0
   if [ -n "$HEAD" ] && [ -n "$obs_head" ] && [ "$HEAD" != "$obs_head" ]; then
     saw_commits=1; new_head="$HEAD"; obs_head="$HEAD"; changed=1

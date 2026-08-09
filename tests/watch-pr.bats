@@ -10,7 +10,12 @@
 
 WATCH="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/watch-pr.sh"
 
-# Reaps anything a test backgrounds; see tests/reap.bash for why it is shared.
+# Reaps anything a test backgrounds; see tests/reap.bash for why it is shared. No test
+# here backgrounds anything any more — mid-watch changes are scheduled by tick count
+# now that the clock is stubbed — so this is currently a no-op, kept as the net for the
+# next spawn rather than removed. reap.bash's own note is the reason: a net that exists
+# in only some suites is worse than none, because the next spawn inherits the belief
+# and not the protection.
 load reap
 
 # `<last_head>` must be a full 40-character lowercase SHA, so tests need one that
@@ -332,6 +337,29 @@ EOF
   INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot
   [ "$status" -eq 0 ]
   [[ "$output" == *"reason=bad-args"* ]]
+}
+
+# ⚠️ THE TEST ABOVE PASSES ON A BASH WHERE THE CHECK IS BROKEN, which is why this one
+# exists. Bracket ranges match in COLLATION order, and bash 3.2 — stock macOS, and what
+# `env bash` finds without a Homebrew bash — interleaves case in a UTF-8 locale, so
+# `[!0-9a-f]` spans `a A b B … f F` and never matches `A`. The uppercase rejection is
+# then silently a no-op and the false COMMITS is back. CI's bash 5.x has
+# `globasciiranges` on and would never show it.
+#
+# `BASH_ENV` + `shopt -u globasciiranges` reproduces 3.2's matching on a modern bash,
+# so the guard is checked on every platform rather than only where the bug is native.
+# The locale is load-bearing too: C/POSIX collates by codepoint, under which even the
+# range form rejects `A` and this would pass against the defect.
+@test "the hex class does not depend on locale collation" {
+  locale -a 2>/dev/null | grep -qix 'en_US.utf-*8' \
+    || skip "no case-interleaving locale on this machine"
+  local envf="$BATS_TEST_TMPDIR/asciiranges-off"
+  echo 'shopt -u globasciiranges 2>/dev/null || true' > "$envf"
+  BASH_ENV="$envf" LC_ALL=en_US.UTF-8 INTERVAL=1 WINDOW=5 \
+    run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"reason=bad-args"* ]]
+  [[ "$output" != *"result=COMMITS"* ]]
 }
 
 # The two values callers legitimately pass must be untouched by the check above: a full
