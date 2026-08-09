@@ -123,11 +123,15 @@ When the operator picks "Send to review" in the picker above, or otherwise signa
 ```bash
 HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
 ME=$(gh api user --jq .login)
-# Both are load-bearing arguments and the script fails *quietly* on either being
-# blank: an empty head means its commit check can never fire for the whole
-# window, and an empty login makes its exclude-filter match nobody — so your own
-# thread replies would register as activity, which is the exact failure the
-# fifth argument exists to prevent. Bail loudly instead.
+# Both are load-bearing, and a blank one means the `gh` call above failed — that
+# is what this catches. The watcher's two responses differ, and neither reads
+# clearly off its result line:
+#   - A blank login is REFUSED (`result=ERROR reason=bad-args`), because the
+#     exclude filter would match nobody and your own thread replies would
+#     register as activity — the exact failure the fifth argument prevents.
+#   - A blank head is ACCEPTED: the watcher adopts the first HEAD it observes.
+#     That self-heal costs only the push it could never have seen, but here that
+#     window is real, since `gh pr ready` ran moments ago.
 [ -n "$HEAD" ] && [ -n "$ME" ] || { echo "could not resolve head SHA / login — re-run the watch"; exit 1; }
 # WINDOW=1800 overrides the script's 6h default. That default is right for
 # `reviewer`, where IDLE is routine; here IDLE means something is wrong, and a
@@ -156,6 +160,7 @@ The script prints one result line. Treat the returns differently:
 - **`result=COMMITS`** — someone pushed to the branch. If it wasn't you, read the change before responding to anything. **If `activity=1`, comments or replies landed in the same burst — handle them in this same pass**, per "When a review comes in". This is reachable from your side: a reviewer clicking "Update branch", or applying a suggestion while filing comments, produces exactly `COMMITS activity=1`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good. Same failure the third bullet above gives as a reason not to hand-roll this.
 - **`result=CLOSED`** — merged or closed. Stop watching; if `state=MERGED`, run the post-merge cleanup.
 - **`result=ERROR reason=<source>`** — the watch itself is broken: that source failed repeatedly, so it cannot see. **Do not re-arm** — you would poll straight back into the same failure. Check `gh auth status` and the `<num>`/`<repo>` pair, then tell the operator. Unlike `IDLE` this means nothing about the PR; the watch never got a look at it.
+- **`result=ERROR reason=bad-args`** — the same code, the opposite remedy. Nothing failed: the watch refused to start because an argument could not do its job. Fix the argument and re-spawn; don't go near `gh auth status`. The guard on the spawn above catches the blank-`$ME` case before it gets here, so the one that actually reaches you is an abbreviated `<last_head>` on a re-arm — see the note below.
 - **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (`reviewer` treats `IDLE` as routine and re-arms, because a quiet PR is expected on that side. Same script, opposite caller.)
 
   **Check whether HEAD is already approved before reporting that no review landed** — run the `last_verdict` check from "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it: it was armed with a `since` past the review, or the verdict landed in the gap between the last poll and the spawn. Reporting "no review has landed" there is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands and the reviewer really is the thing to check.
@@ -163,6 +168,8 @@ The script prints one result line. Treat the returns differently:
 - **No `result=` line at all** — the task was killed or failed rather than returning. This is the dangerous one, because it looks exactly like a quiet watch while being its opposite: the watcher stopped observing, and anything pushed or posted since is unreported. **Never treat a missing result as "nothing happened."** Re-read `headRefOid` with `gh pr view` and compare against the SHA you last handled, then re-arm from what GitHub says rather than from what the watcher last told you. Traces make this diagnosable after the fact — see the trace note after the spawn block.
 
 The same spawn works after pushing a fix in response to feedback — record the new head and a fresh timestamp, and re-arm.
+
+⚠️ **The new head is the full 40-character SHA**, from `gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid` — never an abbreviated one you happened to print for a human. The watcher compares it as a string against what GitHub returns, so a short SHA can never match; it refuses one outright (`result=ERROR reason=bad-args`). This is the re-arm's exposure and the spawn's guard does not cover it: that guard tests `$HEAD` for *blankness*, and an abbreviated SHA is not blank.
 
 
 ## When a review comes in

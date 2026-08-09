@@ -308,9 +308,11 @@ while :; do
   # commit branch below and is assigned only inside it, so an empty `<last_head>` used
   # to be a closed loop: the gate could never open, a push went undetected for the
   # whole window, and the watch reported IDLE on a PR that had moved. Self-healing
-  # here costs one missed detection at most — the push that happened before we ever
-  # looked, which no baseline could have caught — instead of failing for the life of
-  # the watch. Deliberately after the shape gate, so a `null` HEAD never becomes one.
+  # here costs one missed detection at most — a push landing between the caller's last
+  # look and our first — instead of failing for the life of the watch. That cost is
+  # real rather than free: a caller holding a baseline WOULD have caught that push, so
+  # an empty `<last_head>` is a fallback, not a convenient default.
+  # Deliberately after the shape gate, so a `null` HEAD never becomes one.
   [ -z "$obs_head" ] && [ -n "$HEAD" ] && obs_head="$HEAD"
 
   # New formal reviews / top-level comments after SINCE, not authored by the bot.
