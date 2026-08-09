@@ -10,6 +10,10 @@
 
 WATCH="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/watch-pr.sh"
 
+# Keeps this suite's watch traces out of the developer's real trace directory; see
+# tests/trace-dir.bash for what happens without it.
+load trace-dir
+
 # Reaps anything a test backgrounds; see tests/reap.bash for why it is shared. No test
 # here backgrounds anything any more — mid-watch changes are scheduled by tick count
 # now that the clock is stubbed — so this is currently a no-op, kept as the net for the
@@ -51,6 +55,7 @@ EOF
 }
 
 setup() {
+  contain_traces
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
   setup_clock

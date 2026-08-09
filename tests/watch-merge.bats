@@ -13,7 +13,12 @@ WATCH="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/watch-merge.sh"
 # Reaps anything a test backgrounds; see tests/reap.bash for why it is shared.
 load reap
 
+# Keeps this suite's watch traces out of the developer's real trace directory; see
+# tests/trace-dir.bash for what happens without it.
+load trace-dir
+
 setup() {
+  contain_traces
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   export STATEFILE="$BATS_TEST_TMPDIR/state"
   export FAIL_GH="$BATS_TEST_TMPDIR/fail_gh"

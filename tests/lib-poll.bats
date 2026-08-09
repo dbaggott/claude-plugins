@@ -14,6 +14,15 @@ LIB="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/lib-poll.sh"
 # Reaps anything a test backgrounds; see tests/reap.bash for why it is shared.
 load reap
 
+# Keeps this suite's watch traces out of the developer's real trace directory; see
+# tests/trace-dir.bash for what happens without it. This suite has no other reason for
+# a `setup()` — the clock is opt-in per test — so the whole of it is this.
+load trace-dir
+
+setup() {
+  contain_traces
+}
+
 # A clock we control. `sleep N` advances it by N instead of sleeping; if a
 # SUSPEND file holds a number, the next sleep also jumps by that much and clears
 # it — which is exactly what a laptop lid does to a poll loop.

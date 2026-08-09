@@ -64,3 +64,33 @@ ROOT="${BATS_TEST_DIRNAME}/.."
       echo "$skill/SKILL.md checks the last approval, not the last verdict"; false; }
   done
 }
+
+# Two conventions that a suite opts into by `load`ing a file, and whose absence is
+# invisible from inside the suite that forgot: a watch spawned without `trace-dir`
+# files its trace in the DEVELOPER'S real directory, and one spawned without `reap`
+# is stopped by nothing if an assertion fails before its kill. Both failures are
+# silent and land outside the run, which is exactly the shape tests/reap.bash argues
+# cannot be left to convention — "the next spawn in the suite without it inherits the
+# belief and not the protection".
+@test "every suite that spawns a watch loads the reaper and contains its traces" {
+  local f missing=0
+  # The watcher scripts and the library are the only things that start a watch, so
+  # naming one is what makes a suite a watch-spawning suite.
+  for f in $(grep -rl 'watch-pr\.sh\|watch-merge\.sh\|lib-poll\.sh' "$ROOT"/tests/*.bats); do
+    # ⚠️ SKIP SELF. This file has to name the watcher scripts to select on them, so the
+    # selection is one prose mention away from including this file — which spawns no
+    # watch and loads neither helper, so it would fail with "coupling.bats spawns a
+    # watch but never loads reap": true of the text, useless as a diagnosis. Today the
+    # only mention is the pattern above, which happens not to match itself; that is a
+    # coincidence of spelling, not a property worth relying on.
+    if [ "$(basename "$f")" = "$(basename "$BATS_TEST_FILENAME")" ]; then continue; fi
+    grep -q '^load reap$' "$f" || {
+      echo "$(basename "$f") spawns a watch but never loads reap"; missing=1; }
+    grep -q '^load trace-dir$' "$f" || {
+      echo "$(basename "$f") spawns a watch but never loads trace-dir"; missing=1; }
+    # `load`ing it is not the same as calling it, and only the call sets TMPDIR.
+    grep -q 'contain_traces' "$f" || {
+      echo "$(basename "$f") loads trace-dir but never calls contain_traces"; missing=1; }
+  done
+  [ "$missing" -eq 0 ]
+}
