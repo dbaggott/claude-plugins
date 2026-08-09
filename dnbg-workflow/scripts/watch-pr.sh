@@ -37,6 +37,11 @@
 #
 # Reads with the dev's own gh auth (not the short-lived bot token) so a long watch —
 # including across laptop sleep — doesn't expire its credential mid-poll.
+#
+# WATCH_LOG=<path> traces this watch's life to a file — a line per tick, per
+# signal, and at exit — for diagnosing a watch that stops without printing a
+# result. Off unless set. See "Tracing a watch that vanishes" in lib-poll.sh for
+# how to read one, and why a *missing* line is the most informative outcome.
 set -euo pipefail
 unset GH_TOKEN   # use the dev's own (non-expiring) gh auth for the long poll
 

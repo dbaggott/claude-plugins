@@ -85,6 +85,85 @@ POLL_SUSPEND_SLACK=${POLL_SUSPEND_SLACK:-30}
 
 _poll_die() { echo "watch: $*" >&2; exit 1; }
 
+# ## Tracing a watch that vanishes (opt-in)
+#
+# Set WATCH_LOG=<path> and a watch records its own life there: one line per tick,
+# one per signal, one at exit. Unset — the normal case — every function below is
+# an immediate return and nothing is spent.
+#
+# ⚠️ IT EXISTS BECAUSE A VANISHED WATCH LEAVES NO EVIDENCE ANYWHERE ELSE, which is
+# not obvious until you go looking for it. A background task reported as killed
+# has an EMPTY output file, because a watch writes its one result line at exit and
+# a watch that was killed never reached it. macOS keeps nothing either: the
+# unified log does not record ordinary process signals or exits, and dtrace's
+# `proc:::signal-send` — the only probe that names WHO signalled WHOM — needs SIP
+# disabled. So a watch that stopped could not be diagnosed after the fact at all.
+#
+# Three records partition the causes, and the third is an absence:
+#
+#   SIGNAL=<name>   something asked it to stop, and the name says what kind
+#   EXIT code=<n>   it stopped itself — a `set -e` death, or a normal result
+#   neither         SIGKILL, or the process group went down underneath it
+#
+# The absence only means anything against a heartbeat, which is why the tick line
+# earns its place: without one, "the watch died silently" and "the watch was never
+# running" produce identical logs.
+WATCH_LOG=${WATCH_LOG:-}
+
+# ⚠️ THE LIVE PARENT, NOT `$PPID`. Bash captures `$PPID` once at startup and never
+# refreshes it, so after the parent dies it still names the dead one — exactly the
+# case worth detecting. A watch reparented to 1 was ORPHANED, which is a different
+# failure from being killed and is otherwise indistinguishable in the log.
+_poll_parent() {
+  local p
+  p=$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')
+  printf '%s(%s)' "$(ps -o comm= -p "${p:-0}" 2>/dev/null | tr -d ' ')" "${p:-?}"
+}
+
+# Never fails the watch: a trace that cannot be written is worth less than the
+# watch, so an unwritable path is swallowed rather than killing the run under
+# `set -e`.
+poll_log() {
+  [ -n "$WATCH_LOG" ] || return 0
+  printf '%s pid=%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$$" "$*" >> "$WATCH_LOG" 2>/dev/null || true
+}
+
+# Log, then re-raise with the default disposition so the exit status still encodes
+# the signal. Clearing the trap first is what keeps the re-raise from re-entering
+# this handler.
+_poll_on_signal() {
+  poll_log "SIGNAL=$1 parent=$(_poll_parent)"
+  trap - "$1"
+  kill -s "$1" $$
+}
+
+# Guarded INSIDE rather than at the call site: the arguments to `poll_log` are
+# expanded before it runs, so an unguarded tick line would fork `ps` twice per
+# poll for a log nobody asked for.
+_poll_log_tick() {
+  [ -n "$WATCH_LOG" ] || return 0
+  poll_log "tick interval=${1}s awake=$(poll_awake)s quiet=$(poll_quiet)s parent=$(_poll_parent)"
+}
+
+# Installed only while tracing: these traps change the exit path, which is not
+# something to carry on the default path in exchange for nothing.
+poll_trace_init() {
+  [ -n "$WATCH_LOG" ] || return 0
+  local s
+  for s in TERM INT HUP QUIT PIPE USR1 USR2; do
+    # SC2064 expands $s at install time deliberately — the handler has to know
+    # which signal it is standing in for, and a deferred expansion would read the
+    # loop variable's final value in every trap.
+    # shellcheck disable=SC2064
+    trap "_poll_on_signal $s" "$s"
+  done
+  # `$?` here is the pending exit status, so a `set -e` death is recorded with the
+  # status that caused it rather than as a clean finish.
+  # shellcheck disable=SC2064
+  trap 'poll_log "EXIT code=$?"' EXIT
+  poll_log "START script=$(basename "$0") parent=$(_poll_parent) window=${WINDOW}s curve=${POLL_CURVE}"
+}
+
 # Breakpoints, split into parallel arrays at source time so a malformed knob
 # fails before the watch prints anything — a bad curve is a caller bug, and
 # silently falling back to the default would hide it for the life of the watch.
@@ -137,7 +216,7 @@ poll_interval_at() {
 _poll_start=0; _poll_suspended=0; _poll_baseline=0
 
 # Call once, after the knobs are set and before the loop.
-poll_init() { _poll_start=$(date +%s); _poll_suspended=0; _poll_baseline=0; }
+poll_init() { _poll_start=$(date +%s); _poll_suspended=0; _poll_baseline=0; poll_trace_init; }
 
 # Awake seconds since poll_init.
 poll_awake() { echo $(( $(date +%s) - _poll_start - _poll_suspended )); }
@@ -163,11 +242,28 @@ poll_now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 poll_nap() {
   local iv before after over
   iv=$(poll_interval)
-  before=$(date +%s); sleep "$iv"; after=$(date +%s)
+  # Before the sleep, not after: a watch is killed mid-sleep far more often than
+  # mid-poll, and a line written afterwards is the one line that would be missing.
+  _poll_log_tick "$iv"
+  # ⚠️ BACKGROUND `sleep` + `wait`, NOT A FOREGROUND `sleep`, and the trace is the
+  # reason. Bash defers a trap until the running foreground command finishes, so a
+  # foreground nap swallows a SIGTERM for up to a full interval — five minutes at
+  # the cap. Worse, where a SIGKILL follows the TERM, the handler never runs at
+  # all and the log shows exactly the silent death the trace was added to rule
+  # out, which is a false answer rather than a missing one. `wait` is
+  # interruptible, so the handler runs while the signal still means something.
+  #
+  # Only trapped signals cut `wait` short, and the traps are installed only while
+  # tracing — so with WATCH_LOG unset this sleeps precisely as it did before.
+  before=$(date +%s)
+  sleep "$iv" &
+  wait $! 2>/dev/null || true
+  after=$(date +%s)
   over=$(( after - before - iv ))
   if [ "$over" -gt "$POLL_SUSPEND_SLACK" ]; then
     _poll_suspended=$(( _poll_suspended + over ))
     poll_reset
+    poll_log "suspend over=${over}s banked=${_poll_suspended}s"
   fi
   return 0
 }

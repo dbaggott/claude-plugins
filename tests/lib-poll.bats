@@ -250,3 +250,63 @@ EOF
   # The window runs from poll_init, and a reset must not give any of it back.
   [ "$awake" -ge 500 ]
 }
+
+# ---------------------------------------------------------------------------
+# Tracing (WATCH_LOG). The point of these is the SHAPE of the evidence a dead
+# watch leaves, so they assert on what is present AND on what is absent.
+
+@test "tracing off installs no traps, so the default path is unchanged" {
+  setup_clock
+  # The traps are the only thing tracing adds that alters the exit path, so
+  # "none installed" is the real claim — stronger than "no file was written",
+  # which would pass simply because nothing named one.
+  run bash -c "unset WATCH_LOG; export WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; trap -p TERM EXIT | wc -l"
+  [ "$status" -eq 0 ]
+  [ "$(tr -d '[:space:]' <<<"$output")" = 0 ]
+}
+
+@test "WATCH_LOG records a start, one line per tick, and the exit" {
+  setup_clock
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  run bash -c "export WATCH_LOG='$log' WINDOW=50 POLL_CURVE='0:10'; . '$LIB'
+    poll_init; poll_nap; poll_nap"
+  [ "$status" -eq 0 ]
+  grep -q ' START script=' "$log"
+  [ "$(grep -c ' tick interval=' "$log")" = 2 ]
+  grep -q ' EXIT code=0' "$log"
+}
+
+@test "the exit line carries the status that killed the watch" {
+  setup_clock
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  # A `set -e` death is the case worth pinning: it is indistinguishable from a
+  # clean finish in the task output, because both leave the same empty file.
+  run bash -c "export WATCH_LOG='$log' WINDOW=50 POLL_CURVE='0:10'; set -e; . '$LIB'
+    poll_init; false; echo unreachable"
+  [ "$status" -ne 0 ]
+  [[ "$output" != *unreachable* ]]
+  grep -q 'EXIT code=1' "$log"
+}
+
+@test "a signal is logged mid-nap and re-raised with its own status" {
+  # Deliberately NOT setup_clock: this one needs a real nap to be interrupted.
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  bash -c "export WATCH_LOG='$log' WINDOW=600 POLL_CURVE='0:30'; . '$LIB'
+    poll_init; while :; do poll_nap; done" &
+  local pid=$! i=0
+  while [ ! -s "$log" ] && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+  kill -TERM "$pid"
+
+  # ⚠️ THE DEADLINE IS THE ASSERTION. The nap is 30s; a foreground `sleep` defers
+  # the trap until it finishes, so if poll_nap ever goes back to one, nothing is
+  # in the log within three seconds and this fails. That regression is otherwise
+  # invisible — the line still appears eventually, just far too late to be true.
+  local j=0
+  while ! grep -q 'SIGNAL=TERM' "$log" 2>/dev/null && [ "$j" -lt 30 ]; do sleep 0.1; j=$((j + 1)); done
+  grep -q 'SIGNAL=TERM' "$log"
+
+  local st=0; wait "$pid" || st=$?
+  [ "$st" -eq 143 ]                 # re-raised, so the status still names the signal
+  ! grep -q 'EXIT code=' "$log"     # ...and the EXIT trap did not also claim it
+}
