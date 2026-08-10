@@ -11,6 +11,20 @@ An issue is a handoff: the session that creates it has rich context (the convers
 - **Wrong implementation path.** An issue that was perfectly clear *in the context of its creation* reads as open-ended to a cold resolver, who then picks a different approach than the one everyone had in mind. The resolution should not depend on which agent happens to pick the issue up.
 - **Rotted handoff.** The body was accurate at creation, then the world changed — part of the work shipped, a referenced PR closed, new evidence landed in a comment — and a cold resolver faithfully implements stale truth.
 
+## This flow is GitHub-only
+
+Everything below is `gh issue` and GitHub's own labels, assignees, and linked-PR fields, so on another forge it cannot run rather than merely running worse. Before creating or picking up anything, read the host of the repo the issue belongs to:
+
+```bash
+git remote get-url origin
+```
+
+**If the host is not `github.com`, stop and decline.** Say that this flow is GitHub-only, name the host you actually found, and fall back to whatever issue tracker the project already uses. Don't attempt a `gh` call against it — a clear statement is the entire benefit, and one failing command replaces it with the confusing errors this rule exists to prevent. Don't translate the flow to `glab` or another tracker's CLI either.
+
+Two cases that are **not** a decline: a repo with **no `origin`** makes no forge claim either way, so proceed and let the operator direct rather than assuming a host; and where **several remotes** exist, `origin` decides, matching the enforcement hooks.
+
+The repo in question is the one the *issue* lives in, which is usually but not always where you're standing — an issue named by full URL carries its own owner and repo, and that is the one to judge.
+
 ## Creating issues
 
 Issues must be **self-documenting** — a cold reader should understand the problem, the intended direction, and what "done" looks like without clicking through to other issues, PRs, or docs.

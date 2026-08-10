@@ -9,6 +9,35 @@ This is the standard flow for any code change in a covered repo — one whose
 `origin` belongs to an account in this plugin's `owners` setting. Never modify
 the main checkout directly; always work in a worktree.
 
+## This flow is GitHub-only
+
+Every step below drives `gh` — `gh pr`, `gh api`, GraphQL `reviewThreads` — so
+on another forge it is not merely degraded, it cannot run at all. Before step 1,
+read the host of the repo you are about to change:
+
+```bash
+git remote get-url origin
+```
+
+**If the host is not `github.com`, stop and decline.** Say that this flow is
+GitHub-only, name the host you actually found, and fall back to whatever flow
+the project already uses. Do not run a `gh` command against it to "see what
+happens" — the value here is a clear statement instead of a cascade of confusing
+command errors, and one attempted call forfeits it. Do not translate the flow to
+`glab` or another forge's CLI either: a half-working translation is worse than a
+clean decline.
+
+Two cases that are **not** a decline:
+
+- **No `origin`.** A local-only repo, or one whose remotes are named something
+  else, makes no forge claim either way. Don't degrade and don't assume GitHub —
+  proceed and let the operator direct.
+- **Several remotes.** `origin` decides, matching what the enforcement hooks do.
+
+`velocity-tradeoff` ships in this same plugin and is **not** GitHub-only — it
+mentions no forge and applies wherever you are. Declining is per skill, never
+per plugin.
+
 ## Starting a change
 
 **If this work originates from an existing issue** (the task named an issue number or URL), load `issue-workflow` and claim the issue *before* the steps below — claiming and the freshness probe come before the worktree, not after. Don't let "the work ends in file edits" pull you straight here; issue pickup is the entry action, this flow is just the destination.

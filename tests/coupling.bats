@@ -201,3 +201,107 @@ EOF
   done
   [ "$missing" -eq 0 ]
 }
+
+# The README's forge support matrix is a *promise per skill*, and its second and
+# third columns are only true if every skill the repo ships has actually been
+# classified. A skill added without a row inherits neither claim, and the matrix
+# keeps asserting complete coverage it no longer has — the rot this pins against.
+#
+# The "What's in it" table is the single classification (plugin + forge); the
+# matrix section points at it rather than repeating the lists, so there is one
+# place to update and this check has one place to read.
+readme_skill_rows() {  # <README.md> -> "<skill> <plugin> <forge>"
+  # Rows of the four-column table, keyed on the leading `| \`skill\` |`. The
+  # forge cell is normalised to coupled/neutral: it is prose ("GitHub only",
+  # "**Any**") so that a reader gets a sentence, and matching on "any" rather
+  # than the exact spelling keeps the emphasis markup free to change.
+  sed -n 's/^| `\([a-z-]*\)` | `\([a-z-]*\)` | \(.*\) | .* |$/\1 \2 \3/p' "$1" \
+    | while read -r skill plugin forge; do
+        case "$(printf '%s' "$forge" | tr -d '*' | tr '[:upper:]' '[:lower:]')" in
+          any) printf '%s %s neutral\n' "$skill" "$plugin" ;;
+          *)   printf '%s %s coupled\n' "$skill" "$plugin" ;;
+        esac
+      done
+}
+
+tree_skills() {  # -> "<skill> <plugin>"
+  local d
+  for d in "$ROOT"/dnbg-*/skills/*/; do
+    [ -f "$d/SKILL.md" ] || continue
+    printf '%s %s\n' "$(basename "$d")" "$(basename "$(dirname "$(dirname "$d")")")"
+  done | sort
+}
+
+@test "every skill in the tree is classified in the README, under the plugin that ships it" {
+  # Both directions. A missing row is the rot above; a stale row is a matrix
+  # promising a skill that no longer exists, or naming the wrong plugin — which
+  # is the specific claim `velocity-tradeoff` exists to keep honest, since its
+  # value is precisely that a neutral skill sits in the coupled plugin.
+  run diff <(tree_skills) <(readme_skill_rows "$ROOT/README.md" | cut -d' ' -f1,2 | sort)
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "the README classifies velocity-tradeoff as neutral inside the coupled plugin" {
+  # Pinned by name rather than left to the table check above, because this exact
+  # pairing is the trap: it is the only neutral skill in `dnbg-workflow`, and a
+  # future edit that "tidies" the table by making the plugin's rows uniform would
+  # satisfy every other check here while inverting the promise.
+  run readme_skill_rows "$ROOT/README.md"
+  echo "$output"
+  [[ "$output" == *"velocity-tradeoff dnbg-workflow neutral"* ]]
+}
+
+# Degradation is decided per skill, and for three of the coupled skills the
+# working directory is the wrong input entirely: `reviewer` judges the repo
+# holding the PR it was given, and `reviewer-setup` and `work-summary` touch no
+# repo at all. A cwd check in any of them refuses a flow that works — a recap of
+# your GitHub week asked from a GitLab checkout. The forge-neutral pair must not
+# read a remote for the same reason, one step further out.
+#
+# This is the shape a later consistency pass reintroduces ("all the GitHub skills
+# should check the host"), so the rule is pinned rather than merely written down.
+#
+# Match the *call*, not the words — the same distinction the protection-endpoint
+# check above draws, and for the same reason. Three of these skills name the
+# command in prose precisely to say they do not run it, and a bare substring
+# match reads that disclaimer as the violation it warns against. A call is the
+# command at the start of a line (a fenced code block) or inside a substitution;
+# an inline mention is backtick-wrapped mid-sentence. That leaves an unusual
+# spelling — a call piped into on one line, say — invisible here, which is the
+# accepted cost of not failing on the disclaimers.
+remote_read_calls() {  # <SKILL.md>
+  grep -nE '^[[:space:]]*git remote get-url|\$\([[:space:]]*git remote get-url' "$1"
+}
+
+@test "only the repo-scoped skills read the remote to decide whether to run" {
+  local f skill plugin bad=0
+  while read -r skill plugin; do
+    case "$skill" in git-workflow|issue-workflow) continue ;; esac
+    f="$ROOT/$plugin/skills/$skill/SKILL.md"
+    if remote_read_calls "$f"; then
+      echo "$skill is not repo-scoped but reads the origin remote — see README 'What happens on an unsupported forge'"
+      bad=1
+    fi
+  done < <(tree_skills)
+  [ "$bad" -eq 0 ]
+}
+
+@test "the two repo-scoped skills do read the remote, and say what a non-GitHub host means" {
+  # The other direction: deleting the check would pass the test above trivially.
+  local skill f
+  for skill in git-workflow issue-workflow; do
+    f="$ROOT/dnbg-workflow/skills/$skill/SKILL.md"
+    # The same call-not-words matcher, so "it reads the remote" means an actual
+    # runnable line and not a sentence mentioning one.
+    remote_read_calls "$f" >/dev/null || {
+      echo "$skill/SKILL.md never reads the origin remote, so it cannot detect the host"; false; }
+    grep -qi 'github-only' "$f" || {
+      echo "$skill/SKILL.md reads the host but never states the flow is GitHub-only"; false; }
+    # No `origin` is explicitly not a decline. Without this the safest-looking
+    # reading of "not github.com" — treat unknown as unsupported — silently
+    # breaks every local-only repo, which has no forge claim either way.
+    grep -q 'No `origin`\|no `origin`' "$f" || {
+      echo "$skill/SKILL.md does not say what to do in a repo with no origin"; false; }
+  done
+}

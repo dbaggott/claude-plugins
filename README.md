@@ -1,7 +1,9 @@
 # claude-plugins
 
-A Claude Code plugin marketplace, published as `dnbg`. It hosts four plugins:
-one GitHub workflow, two that work anywhere, and a bundle of all three.
+A Claude Code plugin marketplace, published as `dnbg`. It hosts four plugins: a
+GitHub workflow, a GitHub work recap, coding practices that work anywhere, and a
+bundle of all three. Which forges are supported, and what happens on one that
+isn't, is [below](#supported-forges).
 
 ## `dnbg-workflow`
 
@@ -13,7 +15,7 @@ It is a set of **skills** (loaded on demand when they match the task), a short
 **always-on rules** file, and two **enforcement hooks** that make the worktree
 and issue flows non-optional in the repos you choose.
 
-### It is GitHub-specific
+### Supported forges
 
 Worth knowing before you install. The workflow skills drive the `gh` CLI
 throughout — `gh pr`, `gh issue`, `gh api`, `gh search` — and this isn't
@@ -27,13 +29,67 @@ incidental coupling that a shim could paper over:
 - `check-issue-create.sh` matches `gh issue create`, and `owners` resolves
   against `github.com` remotes.
 
-**`dnbg-practices` is a separate plugin and mentions no forge**, so it installs
-and works anywhere: `/plugin install dnbg-practices@dnbg`. `velocity-tradeoff`
-also mentions no forge, but ships inside `dnbg-workflow` because it governs how
-to size a change and whether to split a PR — a workflow question.
+So support is stated per forge. **Status** describes the forge-coupled skills —
+the forge-neutral ones already work everywhere, which is what the third column
+says:
 
-Only `github.com` remotes are ever covered, so listing an owner cannot gate a
-same-named org on another host.
+| Forge | Forge-coupled skills | Forge-neutral skills | Status |
+| --- | --- | --- | --- |
+| GitHub | yes | yes | **Supported** |
+| GitLab | no | yes | [Planned](https://github.com/dbaggott/claude-plugins/issues/21) |
+| Bitbucket | no | yes | [Planned](https://github.com/dbaggott/claude-plugins/issues/21) |
+| Azure Repos | no | yes | Not planned |
+| Anything else, including self-hosted and GitHub Enterprise | no | yes | Unsupported |
+
+Which skills are which is the **Forge** column of [What's in
+it](#whats-in-it) — and read the **Plugin** column beside it, because
+*forge-neutral is a property of the skill, not of the plugin shipping it*. The
+two neutral skills are obtained differently: `coding-practices` ships in
+`dnbg-practices`, which mentions no forge anywhere and installs on its own
+(`/plugin install dnbg-practices@dnbg`), while `velocity-tradeoff` ships inside
+`dnbg-workflow` because it governs how to size a change and whether to split a
+PR — a workflow question. A non-GitHub user therefore gets `velocity-tradeoff`
+only by installing the GitHub-coupled plugin, where it then works normally: the
+"yes" in the third column above is a per-skill promise, and a `dnbg-workflow`
+install on GitLab keeps it.
+
+### What happens on an unsupported forge
+
+**It declines; it does not adapt.** A forge-coupled skill says plainly that the
+flow is GitHub-only, names the host it actually found, and hands back to
+whatever flow your project already uses. It will not run a `gh` command that
+cannot succeed, and it will not translate itself to `glab` or the Bitbucket API
+— a half-translated flow is worse than either extreme, and translating properly
+is [the multi-forge
+roadmap's](https://github.com/dbaggott/claude-plugins/issues/21) job rather than
+something to do by halves here.
+
+*What* it checks differs by skill, because the five coupled skills don't all act
+on the repo you're standing in:
+
+| Skill | Acts on | Declines when |
+| --- | --- | --- |
+| `git-workflow` | the repo whose tracked file you're changing | that repo's `origin` host isn't `github.com` |
+| `issue-workflow` | the repo the issue lives in | same |
+| `reviewer` | a pull request you name explicitly | the *named* repo isn't on GitHub |
+| `reviewer-setup` | a GitHub App on your machine | never — no repo is involved |
+| `work-summary` | your GitHub account, via `gh search` | never — no repo is involved |
+
+The last three deliberately ignore your working directory. Asking for a recap of
+your GitHub week while sitting in a GitLab checkout is a coherent request, and
+gating it on `git remote get-url origin` would refuse a flow that works fine.
+
+Two cases the repo-scoped pair treat as *not* a decline: a repo with **no
+`origin`** carries no forge claim either way, so they proceed and let you direct
+rather than assuming either host; and where **several remotes** exist, `origin`
+decides — matching what the enforcement hooks do.
+
+The forge-neutral skills are never gated, on any host. That includes
+`velocity-tradeoff` despite its plugin: declining is decided per skill, never
+per plugin, so a plugin-level gate would be a bug rather than a shortcut.
+
+Only `github.com` remotes are ever covered by the enforcement hooks, so listing
+an owner cannot gate a same-named org on another host.
 
 ## Requirements
 
@@ -98,9 +154,9 @@ instead — they are independent, and none requires another:
 
 | Plugin | What you get |
 | --- | --- |
-| `dnbg-workflow@dnbg` | The GitHub workflow, its two enforcement hooks, and the reviewer bot |
+| `dnbg-workflow@dnbg` | The GitHub workflow, its two enforcement hooks, and the reviewer bot. GitHub, except `velocity-tradeoff` |
 | `dnbg-practices@dnbg` | Coding practices. No hooks, no forge, works anywhere |
-| `dnbg-work-summary@dnbg` | PR recaps. No hooks |
+| `dnbg-work-summary@dnbg` | PR recaps. No hooks. GitHub |
 
 > Three names, deliberately different. The **repo** is `claude-plugins`, a
 > **plugin** is e.g. `dnbg-workflow`, and the **marketplace** is `dnbg` — hence
@@ -194,15 +250,20 @@ plugin replaced them on a timer.
 
 ## What's in it
 
-| Skill | For |
-| --- | --- |
-| `git-workflow` | Worktree → draft PR → review → merge → cleanup, end to end |
-| `issue-workflow` | Writing issues that survive a cold handoff; claiming and resolving one |
-| `reviewer` | Reviewing a pushed PR under an independent GitHub App identity |
-| `reviewer-setup` | One-time creation of that App (no cloud service, no shared secret) |
-| `velocity-tradeoff` | Opt-in: how to size work where the risk/benefit trade favors speed |
-| `coding-practices` | Design, security, naming, logging, and the smells to stop on — in `dnbg-practices` |
-| `work-summary` | Turning your merged/open PRs into an audience-shaped recap — in `dnbg-work-summary` |
+| Skill | Plugin | Forge | For |
+| --- | --- | --- | --- |
+| `git-workflow` | `dnbg-workflow` | GitHub only | Worktree → draft PR → review → merge → cleanup, end to end |
+| `issue-workflow` | `dnbg-workflow` | GitHub only | Writing issues that survive a cold handoff; claiming and resolving one |
+| `reviewer` | `dnbg-workflow` | GitHub only | Reviewing a pushed PR under an independent GitHub App identity |
+| `reviewer-setup` | `dnbg-workflow` | GitHub only | One-time creation of that App (no cloud service, no shared secret) |
+| `velocity-tradeoff` | `dnbg-workflow` | **Any** | Opt-in: how to size work where the risk/benefit trade favors speed |
+| `coding-practices` | `dnbg-practices` | **Any** | Design, security, naming, logging, and the smells to stop on |
+| `work-summary` | `dnbg-work-summary` | GitHub only | Turning your merged/open PRs into an audience-shaped recap |
+
+`velocity-tradeoff` is the row to notice: the only **Any** inside the
+GitHub-coupled plugin, and the case a plugin-level degradation gate would
+silently break. See [What happens on an unsupported
+forge](#what-happens-on-an-unsupported-forge).
 
 The `reviewer` pair is the piece with the least in common with the rest — it
 exists because GitHub won't let you approve your own PR, and a separate App

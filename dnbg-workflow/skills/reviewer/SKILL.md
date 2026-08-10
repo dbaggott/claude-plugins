@@ -17,6 +17,15 @@ the whole point, and it buys two things nothing else does:
 - **A review that reads as independent.** A verdict from a separate identity is
   what a human merger and branch protection actually weigh.
 
+**This skill is GitHub-only, and the repo that decides is the one holding the
+PR** — not your working directory. GitHub Apps have no equivalent on GitLab or
+Bitbucket, so there is nothing to degrade to. Judge the target you were given:
+if the PR named for review lives somewhere other than `github.com`, say that
+reviewing is GitHub-only, name the host, and stop — don't attempt `gh` against
+it. Reviewing a GitHub PR *from* a checkout of some other forge's repo is fine
+and needs no check; nothing here reads `git remote get-url origin` to decide
+whether to run.
+
 Invoking this skill is your authorization to post directly: verdict and inline
 comments go to GitHub in one pass.
 
