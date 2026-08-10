@@ -61,8 +61,9 @@ payload and greps that file for a single pattern, to find out whether the
 is not parsed further, and nothing from it is kept, written, or sent.
 
 **The hooks make no network calls, write no files, and hold no credentials.**
-They shell out to `jq`, `git`, `grep`, `sed` and `tr`. Nothing in this project
-updates itself — what you installed is what runs until you update
+Every binary they invoke is local text-processing or `git` — `jq`, `grep`,
+`sed` and `tr` among them — and none of it reaches the network. Nothing in this
+project updates itself — what you installed is what runs until you update
 deliberately, so reviewing
 [`dnbg-workflow/hooks/`](dnbg-workflow/hooks/) once is a review that stays
 valid. They are short, and reading code that will run in your terminal before
