@@ -100,3 +100,114 @@ remote_is_covered() {
   [ "$(host_from_remote "${1:-}")" = "github.com" ] || return 1
   owner_is_covered "$(owner_from_remote "${1:-}")"
 }
+
+# --- the mechanical opinions --------------------------------------------------
+#
+# Two userConfig knobs move where worktrees live and what the claim label is
+# called. Both resolve here, so the gate that prints a path and the session-start
+# note that announces one can never disagree about what this session is using.
+#
+# ⚠️ THE MANIFEST'S `default` FIELD DOES NOT SUPPLY THESE, and the reference's
+# one-line gloss for it ("Value used when the user provides nothing") reads as if
+# it does. It applies when the user clears a field in the configuration dialog —
+# not when the option was never configured at all. An option nobody has touched
+# substitutes nothing into skill content and exports no
+# CLAUDE_PLUGIN_OPTION_<KEY> to a hook, both verified against v2.1.226. That is
+# the state of every existing install the moment a key is added to the manifest,
+# and of every fresh install whose owner never opens the dialog, so it is the
+# common case rather than the edge one. The defaults therefore have to live
+# somewhere that runs; they live here. tests/coupling.bats pins them against the
+# manifest so the value the dialog offers and the value an unconfigured session
+# actually gets cannot drift apart.
+DEFAULT_WORKTREE_PATH='.worktrees'
+DEFAULT_CLAIM_LABEL='assigned:agent-session'
+
+# The namespace every claim label has to sit in. `issue-workflow`'s in-progress
+# check matches this prefix rather than an enumerated list, deliberately, so that
+# any claimant — another agent, a bot, a teammate's tooling — is seen without
+# this plugin knowing about it. A label outside the namespace breaks that in both
+# directions at once: this plugin's claims stop being visible to other tools, and
+# theirs stop being visible here. Both failures are silent, and what they produce
+# is two workers on one issue — the exact collision the label exists to prevent.
+CLAIM_LABEL_NAMESPACE='assigned:'
+
+# Why a configured worktree path cannot be used, as a sentence fragment that
+# completes "…is unusable: %s." Empty output means it is usable.
+#
+# Two failure modes, one rule. The first three arms are about *where* the path
+# points: repo-relative only, because an absolute path — or a `~` one, which is
+# absolute in the only sense that matters here — puts worktrees where
+# `.gitignore` cannot cover them and where `git-workflow`'s cleanup steps stop
+# resolving, and a `..` segment escapes the same way while looking relative.
+#
+# The last two are about what the path *renders into*. The value is interpolated
+# into `check-worktree.sh`'s block message and into the session-start note, both
+# of which an agent reads and retypes as a shell command, so a value that renders
+# an instruction nobody can run fails in exactly the way the arms above do. A
+# leading `-` makes git read the path as an option; anything outside the
+# character set turns one argument into two (`my wt`) or, with a `;` or a `$(`,
+# into a different command entirely. Quoting the heredoc would repair the block
+# message alone and leave the note and the skills' prose still broken, so the
+# rejection belongs here at the source rather than at one of the render sites.
+worktree_path_rejection() {  # <configured-value>
+  # SC2088 reads a quoted `~` as a tilde that failed to expand. Here it is a
+  # `case` pattern matching the literal character the operator typed, which is
+  # the only thing git would see either — so not expanding it is the point.
+  # shellcheck disable=SC2088
+  case "${1:-}" in
+    /*) printf 'it is an absolute path' ;;
+    '~' | '~/'*) printf 'it is a home-relative path' ;;
+    '..' | '../'* | *'/..' | *'/../'*) printf "it contains a \`..\` segment that escapes the repo" ;;
+    -*) printf 'it starts with a dash, which git reads as an option rather than a path' ;;
+    # POSIX classes rather than `A-Za-z0-9` ranges: range endpoints are
+    # collation-dependent, which tests/watch-pr.bats already has a case for
+    # elsewhere in this repo.
+    *[![:alnum:]._/-]*)
+      printf "it contains a character outside letters, digits and \`.\` \`_\` \`-\` \`/\`" ;;
+  esac
+}
+
+# Why a configured claim label cannot be used, same contract as above.
+#
+# The bare-namespace case is checked first because `case` takes the first match
+# and `assigned:` matches the prefix pattern below it. A label of exactly
+# `assigned:` passes a naive prefix test while naming no claimant at all.
+claim_label_rejection() {  # <configured-value>
+  case "${1:-}" in
+    "$CLAIM_LABEL_NAMESPACE")
+      printf "it is the bare \`%s\` namespace with nothing after the colon" "$CLAIM_LABEL_NAMESPACE" ;;
+    "$CLAIM_LABEL_NAMESPACE"*) ;;
+    *) printf "it is outside the \`%s\` namespace" "$CLAIM_LABEL_NAMESPACE" ;;
+  esac
+}
+
+# The worktree root this session uses: the configured value when it is set and
+# usable, the default otherwise. A rejected value falls back rather than failing
+# the hook — `inject-rules.sh` is where the operator is told why, once per
+# session, and a gate that blocked every edit over a bad config would punish the
+# wrong thing.
+#
+# Trailing slashes are stripped so every caller can join with a single `/`, and
+# so that `.worktrees` and `.worktrees/` are not two different configurations.
+# Stripping before the emptiness test is what keeps a value of `/` (which strips
+# to nothing) from resolving to an empty root that would silently mean the repo
+# itself.
+resolve_worktree_path() {
+  local value="${CLAUDE_PLUGIN_OPTION_WORKTREE_PATH:-}"
+  while [ "${value%/}" != "$value" ]; do value="${value%/}"; done
+  if [ -n "$value" ] && [ -z "$(worktree_path_rejection "$value")" ]; then
+    printf '%s' "$value"
+  else
+    printf '%s' "$DEFAULT_WORKTREE_PATH"
+  fi
+}
+
+# The claim label this session uses. Same fallback contract as above.
+resolve_claim_label() {
+  local value="${CLAUDE_PLUGIN_OPTION_CLAIM_LABEL:-}"
+  if [ -n "$value" ] && [ -z "$(claim_label_rejection "$value")" ]; then
+    printf '%s' "$value"
+  else
+    printf '%s' "$DEFAULT_CLAIM_LABEL"
+  fi
+}

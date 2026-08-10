@@ -26,14 +26,18 @@ teardown() { rm -rf "$TMP"; }
 # asks `command -v`, which searches PATH for an executable, so the only way to
 # make a binary absent is to build a PATH that genuinely lacks it.
 #
-# `bash` and `cat` are always included — the shebang's `env` resolves `bash`
-# through PATH, and the hook emits its text with `cat`. A missing one of those
-# would fail the test for a reason unrelated to what it is checking.
+# `bash`, `cat` and `dirname` are always included — the shebang's `env` resolves
+# `bash` through PATH, the hook emits its text with `cat`, and it locates the
+# shared `lib.sh` with `dirname`. A missing one of those would fail the test for
+# a reason unrelated to what it is checking. They are also not what the preflight
+# is about: it reports on the binaries the *gates* need, and a machine without
+# `dirname` has no working shell scripts at all, so there is nothing useful for a
+# hook to say about it.
 stub_path() {  # <bin>...
   STUB="$TMP/bin"
   rm -rf "$STUB"; mkdir -p "$STUB"
   local bin src
-  for bin in bash cat "$@"; do
+  for bin in bash cat dirname "$@"; do
     src="$(command -v "$bin")" || { echo "test setup: $bin not on PATH" >&2; return 1; }
     ln -sf "$src" "$STUB/$bin"
   done
@@ -41,6 +45,15 @@ stub_path() {  # <bin>...
 
 run_hook() {  # PATH comes from the preceding stub_path call
   run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="${1-$ROOT}" "$HOOK"
+}
+
+# The same, with the two mechanical knobs set. `env -i` is what makes this a
+# separate helper rather than an exported variable: the stripped environment is
+# the point of run_hook, so an option has to be handed in explicitly or it does
+# not reach the hook at all.
+run_hook_configured() {  # <worktree-path> <claim-label>
+  run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="$ROOT" \
+    CLAUDE_PLUGIN_OPTION_WORKTREE_PATH="$1" CLAUDE_PLUGIN_OPTION_CLAIM_LABEL="$2" "$HOOK"
 }
 
 # --- rule injection ----------------------------------------------------------
@@ -146,5 +159,116 @@ run_hook() {  # PATH comes from the preceding stub_path call
   # reports a broken environment; it must not become part of the breakage.
   stub_path
   run_hook
+  [ "$status" -eq 0 ]
+}
+
+# --- configuration overrides -------------------------------------------------
+#
+# The note is the *only* channel telling a session that a mechanical default has
+# moved. The skills state the defaults literally — which is what keeps an
+# unconfigured session identical to one from before the knobs existed — so a note
+# that fails to print is a session silently using the wrong directory or the
+# wrong label.
+
+@test "says nothing about configuration when neither knob is set" {
+  # The default install must pay no tokens for a note with nothing to report.
+  stub_path jq git gh
+  run_hook
+  [ "$status" -eq 0 ]
+  [ "$output" = "$RULES_TEXT" ]
+}
+
+@test "says nothing when a knob is set to the value it already had" {
+  # Configuring `.worktrees` is not an override, and announcing it as one would
+  # be noise the reader has to work out is a no-op.
+  stub_path jq git gh
+  run_hook_configured '.worktrees' 'assigned:agent-session'
+  [ "$status" -eq 0 ]
+  [ "$output" = "$RULES_TEXT" ]
+}
+
+@test "announces a configured worktree root and names it" {
+  stub_path jq git gh
+  run_hook_configured 'wt' ''
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"configuration overrides"* ]]
+  [[ "$output" == *'`wt/`'* ]]
+}
+
+@test "announces a configured claim label and names it" {
+  stub_path jq git gh
+  run_hook_configured '' 'assigned:my-bot'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"configuration overrides"* ]]
+  [[ "$output" == *'`assigned:my-bot`'* ]]
+}
+
+@test "announces only the knob that moved" {
+  # Both are reported from the same block, so a bug that prints both whenever
+  # either is set would be invisible to the two tests above.
+  stub_path jq git gh
+  run_hook_configured 'wt' ''
+  [[ "$output" == *'`wt/`'* ]]
+  [[ "$output" != *"claim label is"* ]]
+}
+
+@test "the override note tells the reader it wins over the skills" {
+  # Without this the agent has two sources — the skill's literal default and the
+  # note — and no stated precedence between them.
+  stub_path jq git gh
+  run_hook_configured 'wt' ''
+  [[ "$output" == *"win over the skills"* ]]
+}
+
+@test "a rejected worktree path is reported with its value, reason and fallback" {
+  stub_path jq git gh
+  run_hook_configured '/tmp/wt' ''
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"INVALID configuration"* ]]
+  [[ "$output" == *'`/tmp/wt`'* ]]
+  [[ "$output" == *"absolute path"* ]]
+  [[ "$output" == *'`.worktrees`'* ]]
+}
+
+@test "a rejected claim label is reported with its value, reason and fallback" {
+  stub_path jq git gh
+  run_hook_configured '' 'in-progress'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"INVALID configuration"* ]]
+  [[ "$output" == *'`in-progress`'* ]]
+  [[ "$output" == *"outside the"* ]]
+  [[ "$output" == *'`assigned:agent-session`'* ]]
+}
+
+@test "a rejected value produces no override note claiming it took effect" {
+  # The failure mode this rules out: reporting the rejection and then announcing
+  # an override anyway, which contradicts itself inside one message.
+  stub_path jq git gh
+  run_hook_configured '/tmp/wt' ''
+  [[ "$output" == *"INVALID configuration"* ]]
+  [[ "$output" != *"configuration overrides"* ]]
+}
+
+@test "the rejection is printed before any override it sits alongside" {
+  # A reader who meets the override note first takes their configuration as
+  # working, and the correction arrives after they have already believed it.
+  stub_path jq git gh
+  run_hook_configured '/tmp/wt' 'assigned:my-bot'
+  [[ "$output" == *"INVALID configuration"*"configuration overrides"* ]]
+}
+
+@test "still emits the rules when a knob is configured" {
+  # Same additive property the dependency preflight has: a configured session
+  # must not trade its always-on rules for a note about a directory name.
+  stub_path jq git gh
+  run_hook_configured 'wt' 'assigned:my-bot'
+  [[ "$output" == *"Always do the thing."* ]]
+}
+
+@test "exits 0 on a rejected configuration" {
+  # A bad directory name is not worth failing a session start over, and a
+  # non-zero exit here is itself a hook error notice.
+  stub_path jq git gh
+  run_hook_configured '../escape' 'nope'
   [ "$status" -eq 0 ]
 }

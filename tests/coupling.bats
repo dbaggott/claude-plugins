@@ -172,6 +172,50 @@ EOF
   done
 }
 
+# The manifest and lib.sh both state a default for each mechanical knob, and they
+# are read by different audiences at different times: the manifest's is what the
+# configuration dialog pre-fills, lib.sh's is what an unconfigured session
+# actually uses. Two statements of one value is a drift risk taken deliberately —
+# the manifest cannot supply the running default (an option nobody configured
+# exports nothing to a hook), and dropping it from the manifest would leave the
+# dialog offering an empty box for a knob that has a documented default. So they
+# are pinned together instead.
+@test "the manifest's declared defaults match the ones lib.sh falls back to" {
+  local manifest="$ROOT/dnbg-workflow/.claude-plugin/plugin.json"
+  # shellcheck source=../dnbg-workflow/hooks/lib.sh
+  . "$ROOT/dnbg-workflow/hooks/lib.sh"
+
+  local from_manifest
+  from_manifest=$(jq -r '.userConfig.worktree_path.default' "$manifest")
+  [ "$from_manifest" = "$DEFAULT_WORKTREE_PATH" ] || {
+    echo "worktree_path default disagrees: manifest '$from_manifest', lib.sh '$DEFAULT_WORKTREE_PATH'"
+    false
+  }
+
+  from_manifest=$(jq -r '.userConfig.claim_label.default' "$manifest")
+  [ "$from_manifest" = "$DEFAULT_CLAIM_LABEL" ] || {
+    echo "claim_label default disagrees: manifest '$from_manifest', lib.sh '$DEFAULT_CLAIM_LABEL'"
+    false
+  }
+}
+
+# The exclusion decision in reverse. "Configurable opinions with opinionated
+# defaults" draws its line at mechanical-vs-behavioral, and the behavioral side —
+# drafts always, the send-to-review picker and its fixed option order, the
+# `[<branch-name>]` sibling title tag, "only a human merges" — is meant to have no
+# key at all. Nothing else notices a fourth key appearing, so the surface is
+# pinned by equality: a new knob is a decision to make deliberately, and this is
+# the test that makes someone make it.
+@test "the plugin exposes exactly the three intended configuration keys" {
+  local keys
+  keys=$(jq -r '.userConfig | keys_unsorted[]' "$ROOT/dnbg-workflow/.claude-plugin/plugin.json" | sort | tr '\n' ' ')
+  [ "$keys" = "claim_label owners worktree_path " ] || {
+    echo "userConfig keys are: $keys"
+    echo "adding one means deciding it is mechanical rather than behavioral — see the README"
+    false
+  }
+}
+
 # Two conventions that a suite opts into by `load`ing a file, and whose absence is
 # invisible from inside the suite that forgot: a watch spawned without `trace-dir`
 # files its trace in the DEVELOPER'S real directory, and one spawned without `reap`

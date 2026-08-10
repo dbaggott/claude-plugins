@@ -57,7 +57,8 @@ edit_payload() {
 # when the cheap version of this is worth taking.
 run_hook() {  # <hook-script> <payload>
   local CLAUDE_PLUGIN_OPTION_OWNERS="${OWNERS-acme-corp}"
-  export CLAUDE_PLUGIN_OPTION_OWNERS
+  local CLAUDE_PLUGIN_OPTION_WORKTREE_PATH="${WORKTREE_PATH-}"
+  export CLAUDE_PLUGIN_OPTION_OWNERS CLAUDE_PLUGIN_OPTION_WORKTREE_PATH
   printf '%s' "$2" > "$TMP/payload.json"
   run "$HOOKS/$1" < "$TMP/payload.json"
 }
@@ -81,6 +82,44 @@ run_issue_hook() {  # <payload>
   run_worktree_hook "$(edit_payload "$REPO/tracked.txt")"
   [ "$status" -eq 2 ]
   [[ "$output" == *"BLOCKED by dnbg-workflow:check-worktree"* ]]
+}
+
+# The block message names the worktree root twice — in the `git worktree add`
+# that creates it, and in the path the edit is told to retry against. Both are
+# asserted, because an agent that is blocked acts on this text and nothing else.
+#
+# The retry path is matched by its root segment rather than end-to-end. The
+# message builds it from `git rev-parse --show-toplevel`, which resolves
+# symlinks, while the payload carries the path as handed in — and on macOS
+# `mktemp -d` returns `/var/...` for a directory that really lives at
+# `/private/var/...`. The prefix strip that produces the relative half of that
+# line therefore does not fire here, which is a property of the temp directory,
+# not of the root being resolved.
+
+@test "the block message names the default worktree root" {
+  run_worktree_hook "$(edit_payload "$REPO/tracked.txt")"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"git worktree add .worktrees/<branch-name>"* ]]
+  [[ "$output" == *"/.worktrees/<branch-name>/"* ]]
+}
+
+@test "the block message names a configured worktree root instead" {
+  # A message naming a directory the rest of the session is told not to use is
+  # worse than no message at all.
+  WORKTREE_PATH=wt run_worktree_hook "$(edit_payload "$REPO/tracked.txt")"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"git worktree add wt/<branch-name>"* ]]
+  [[ "$output" == *"/wt/<branch-name>/"* ]]
+  [[ "$output" != *".worktrees"* ]]
+}
+
+@test "the block message falls back to the default on a rejected worktree root" {
+  # The gate resolves through the same helper as the session-start note, so a
+  # value that note rejected cannot reappear here as a runnable instruction.
+  WORKTREE_PATH=/tmp/wt run_worktree_hook "$(edit_payload "$REPO/tracked.txt")"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"git worktree add .worktrees/<branch-name>"* ]]
+  [[ "$output" != *"/tmp/wt"* ]]
 }
 
 @test "allows the same file inside a worktree" {
