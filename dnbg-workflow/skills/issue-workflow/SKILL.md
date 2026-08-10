@@ -82,6 +82,18 @@ Labels sort along independent axes; an issue carries one from each that applies,
 
 The `assigned:*` claim labels are a third axis, applied by the claiming flow under "Picking up an issue" below rather than here.
 
+### Reporting a gap upstream
+
+An issue filed against someone else's project — reporting that tooling you
+installed doesn't fit your case — is governed by the always-on rule "When
+shipped tooling doesn't fit, tell the user", not by the operator's own
+conventions. Two constraints that don't apply to an issue in your own repo:
+it is published under the user's identity to a project they don't control, so
+it is filed only if they ask for it and only after they have approved the exact
+text; and the body is written from the **generic** case, so the session that
+exposed the gap contributes the shape of the problem and none of its content.
+Everything above about being self-documenting still applies to what remains.
+
 ## Maintaining issues
 
 The cheapest sweep is the one never owed — write state-independent references (above) and most of this section never triggers. For the drift that remains:
