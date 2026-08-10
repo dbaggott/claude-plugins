@@ -18,6 +18,13 @@ during creation, saved on this machine (mode 600), and never leaves it; the
 `reviewer` skill signs a short-lived token from it at review time. No cloud
 service, no shared secret store.
 
+GitHub Apps are a GitHub construct with no GitLab or Bitbucket equivalent, so
+this setup is **GitHub-only** with nothing to degrade to. It is also **not
+scoped to any repository** — it creates one App on your machine and installs it
+on the accounts you name. Never gate it on the working directory: running it
+from a checkout of some other forge's repo, or from no repo at all, is normal
+and must work.
+
 ## Before you start
 
 - Run from a machine where `gh` is authenticated (`gh auth status`), plus

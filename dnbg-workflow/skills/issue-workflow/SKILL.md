@@ -11,6 +11,25 @@ An issue is a handoff: the session that creates it has rich context (the convers
 - **Wrong implementation path.** An issue that was perfectly clear *in the context of its creation* reads as open-ended to a cold resolver, who then picks a different approach than the one everyone had in mind. The resolution should not depend on which agent happens to pick the issue up.
 - **Rotted handoff.** The body was accurate at creation, then the world changed — part of the work shipped, a referenced PR closed, new evidence landed in a comment — and a cold resolver faithfully implements stale truth.
 
+## This flow is GitHub-only
+
+Everything below is `gh issue` and GitHub's own labels, assignees, and linked-PR fields, so on another forge it cannot run rather than merely running worse.
+
+**The host to judge belongs to the repo the issue lives in, which is not always where you are standing.** Resolve it from the most specific input you have:
+
+1. **An issue named by full URL** — the host is in the URL, so read it there and stop. `https://github.com/dbaggott/claude-plugins/issues/23` is GitHub even from a GitLab checkout, and `https://gitlab.com/acme/api/-/issues/7` is GitLab even from a GitHub one. **Do not consult the working directory in this case**; it has no bearing on where the issue lives.
+2. **A bare issue number, or creating an issue in place** — the input carries no host, so the issue belongs to the repo you are in. Only here, fall back to reading it:
+
+   ```bash
+   git remote get-url origin
+   ```
+
+The URL case is the common one, not the exception: the always-on rule requires issues be referenced by full URL, so a bare number is the unusual input. Getting the precedence backwards breaks the normal path in both directions — a cwd gate would refuse `work on <GitHub issue URL>` from a GitLab checkout, which is a coherent request that works fine, and would equally wave a GitLab issue URL through from a GitHub checkout straight into the `gh issue view` error cascade this section exists to prevent.
+
+**If the host you resolved is not `github.com`, stop and decline.** Say that this flow is GitHub-only, name the host you actually found, and fall back to whatever issue tracker that project already uses. Don't attempt a `gh` call against it — a clear statement is the entire benefit, and one failing command replaces it with the confusing errors this rule exists to prevent. Don't translate the flow to `glab` or another tracker's CLI either.
+
+Two cases that are **not** a decline, both reachable only on route 2: a repo with **no `origin`** makes no forge claim either way, so proceed and let the operator direct rather than assuming a host; and where **several remotes** exist, `origin` decides, matching the enforcement hooks.
+
 ## Creating issues
 
 Issues must be **self-documenting** — a cold reader should understand the problem, the intended direction, and what "done" looks like without clicking through to other issues, PRs, or docs.

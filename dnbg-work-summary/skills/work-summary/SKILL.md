@@ -17,6 +17,14 @@ descriptions → settle audience/format/detail → write.** Don't write before s
 them — the same work becomes a different artifact for a Slack channel than for a
 leadership email.
 
+**GitHub-only, and account-scoped rather than repo-scoped.** Gathering is
+`gh search prs --owner ... --author $ME` across your whole account, so this skill
+recaps GitHub work and cannot recap a GitLab or Bitbucket one. What it must
+*not* do is judge that from your working directory: asking for a recap of your
+GitHub week while sitting in a GitLab checkout — or in no repo at all — is a
+coherent request that works fine, and `git remote get-url origin` has no bearing
+on it. Never gate this skill on a remote.
+
 ## 1. Pick the mode
 
 Two modes, because completed and in-flight work need different gathering and a

@@ -385,3 +385,176 @@ gh api repos/x/issues/<n>/timeline --paginate
   done
   [ "$missing" -eq 0 ]
 }
+
+# The README's forge support matrix is a *promise per skill*, and its second and
+# third columns are only true if every skill the repo ships has actually been
+# classified. A skill added without a row inherits neither claim, and the matrix
+# keeps asserting complete coverage it no longer has — the rot this pins against.
+#
+# The "What's in it" table is the single classification (plugin + forge); the
+# matrix section points at it rather than repeating the lists, so there is one
+# place to update and this check has one place to read.
+readme_skill_rows() {  # <README.md> -> "<skill> <plugin> <forge>"
+  # Rows of the four-column table, keyed on the leading `| \`skill\` |`. The
+  # forge cell is normalised to coupled/neutral: it is prose ("GitHub only",
+  # "**Any**") so that a reader gets a sentence, and matching on "any" rather
+  # than the exact spelling keeps the emphasis markup free to change.
+  #
+  # Scoped to the table, and every cell capture excludes `|`. The second is the
+  # subtle one: with a greedy `\(.*\)` for the forge cell, a row whose
+  # description contained a pipe would fold the Forge cell into the description
+  # and read as `coupled`. The table-diff check below compares only the skill
+  # and plugin columns, so a neutral skill would be misclassified in silence —
+  # the exact drift these checks exist to catch.
+  #
+  # `What.s` rather than the apostrophe: the heading is matched inside a
+  # single-quoted awk program, where a literal `'` cannot appear.
+  awk '/^## What.s in it$/{inside=1; next} inside && /^## /{exit} inside' "$1" \
+    | sed -n 's/^| `\([a-z-]*\)` | `\([a-z-]*\)` | \([^|]*\) | [^|]* |$/\1 \2 \3/p' \
+    | while read -r skill plugin forge; do
+        case "$(printf '%s' "$forge" | tr -d '*' | tr '[:upper:]' '[:lower:]')" in
+          any) printf '%s %s neutral\n' "$skill" "$plugin" ;;
+          *)   printf '%s %s coupled\n' "$skill" "$plugin" ;;
+        esac
+      done
+}
+
+tree_skills() {  # -> "<skill> <plugin>"
+  local d
+  for d in "$ROOT"/dnbg-*/skills/*/; do
+    [ -f "$d/SKILL.md" ] || continue
+    printf '%s %s\n' "$(basename "$d")" "$(basename "$(dirname "$(dirname "$d")")")"
+  done | sort
+}
+
+@test "every skill in the tree is classified in the README, under the plugin that ships it" {
+  # Both directions. A missing row is the rot above; a stale row is a matrix
+  # promising a skill that no longer exists, or naming the wrong plugin — which
+  # is the specific claim `velocity-tradeoff` exists to keep honest, since its
+  # value is precisely that a neutral skill sits in the coupled plugin.
+  run diff <(tree_skills) <(readme_skill_rows "$ROOT/README.md" | cut -d' ' -f1,2 | sort)
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "the README classifies velocity-tradeoff as neutral inside the coupled plugin" {
+  # Pinned by name rather than left to the table check above, because this exact
+  # pairing is the trap: it is the only neutral skill in `dnbg-workflow`, and a
+  # future edit that "tidies" the table by making the plugin's rows uniform would
+  # satisfy every other check here while inverting the promise.
+  run readme_skill_rows "$ROOT/README.md"
+  echo "$output"
+  [[ "$output" == *"velocity-tradeoff dnbg-workflow neutral"* ]]
+}
+
+# Degradation is decided per skill, and for three of the coupled skills the
+# working directory is the wrong input entirely: `reviewer` judges the repo
+# holding the PR it was given, and `reviewer-setup` and `work-summary` touch no
+# repo at all. A cwd check in any of them refuses a flow that works — a recap of
+# your GitHub week asked from a GitLab checkout. The forge-neutral pair must not
+# read a remote for the same reason, one step further out.
+#
+# This is the shape a later consistency pass reintroduces ("all the GitHub skills
+# should check the host"), so the rule is pinned rather than merely written down.
+#
+# Match the *call*, not the words — the same distinction the protection-endpoint
+# check above draws, and for the same reason. Three of these skills name the
+# command in prose precisely to say they do not run it, and a bare substring
+# match reads that disclaimer as the violation it warns against. A call is the
+# command at the start of a line (a fenced code block) or inside a substitution;
+# an inline mention is backtick-wrapped mid-sentence. That leaves an unusual
+# spelling — a call piped into on one line, say — invisible here, which is the
+# accepted cost of not failing on the disclaimers.
+remote_read_calls() {  # <SKILL.md>
+  grep -nE '^[[:space:]]*git remote get-url|\$\([[:space:]]*git remote get-url' "$1"
+}
+
+@test "only the repo-scoped skills read the remote to decide whether to run" {
+  local f skill plugin bad=0
+  while read -r skill plugin; do
+    case "$skill" in git-workflow|issue-workflow) continue ;; esac
+    f="$ROOT/$plugin/skills/$skill/SKILL.md"
+    if remote_read_calls "$f"; then
+      echo "$skill is not repo-scoped but reads the origin remote — see README 'What happens on an unsupported forge'"
+      bad=1
+    fi
+  done < <(tree_skills)
+  [ "$bad" -eq 0 ]
+}
+
+@test "the two repo-scoped skills do read the remote, and say what a non-GitHub host means" {
+  # The other direction: deleting the check would pass the test above trivially.
+  local skill f
+  for skill in git-workflow issue-workflow; do
+    f="$ROOT/dnbg-workflow/skills/$skill/SKILL.md"
+    # The same call-not-words matcher, so "it reads the remote" means an actual
+    # runnable line and not a sentence mentioning one.
+    remote_read_calls "$f" >/dev/null || {
+      echo "$skill/SKILL.md never reads the origin remote, so it cannot detect the host"; false; }
+    grep -qi 'github-only' "$f" || {
+      echo "$skill/SKILL.md reads the host but never states the flow is GitHub-only"; false; }
+    # No `origin` is explicitly not a decline. Without this the safest-looking
+    # reading of "not github.com" — treat unknown as unsupported — silently
+    # breaks every local-only repo, which has no forge claim either way.
+    grep -q 'No `origin`\|no `origin`' "$f" || {
+      echo "$skill/SKILL.md does not say what to do in a repo with no origin"; false; }
+  done
+}
+
+# `issue-workflow` is repo-scoped, but the repo is the one the ISSUE lives in —
+# which the working directory only reveals when the issue is named by a bare
+# number. The always-on rule requires full URLs, so the URL case is the common
+# path, and resolving it from cwd breaks it in both directions: a GitHub issue
+# URL declines from a GitLab checkout, and a GitLab issue URL proceeds from a
+# GitHub one into the `gh issue view` cascade the section exists to prevent.
+#
+# Structural rather than keyword-matched, because "reads the remote" is true of
+# the fixed file too — the fallback is still there. What must hold is the
+# precedence: the URL rule is stated BEFORE the command, so the command reads as
+# the fallback rather than as the rule.
+@test "issue-workflow resolves the host from the issue URL, and the remote only as a fallback" {
+  local f url_rule remote_line
+  f="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md"
+
+  url_rule=$(grep -niE 'the host is in the URL' "$f" | head -1 | cut -d: -f1)
+  [ -n "$url_rule" ] || {
+    echo "issue-workflow never says the host comes from the issue URL"; false; }
+
+  remote_line=$(remote_read_calls "$f" | head -1 | cut -d: -f1)
+  [ -n "$remote_line" ] || {
+    echo "issue-workflow has no remote read at all, so a bare issue number cannot be resolved"; false; }
+
+  [ "$url_rule" -lt "$remote_line" ] || {
+    echo "issue-workflow reads the remote before establishing that the URL decides the host"; false; }
+
+  # And the command is framed as the fallback, not merely placed after the rule.
+  grep -qi 'fall back' "$f" || {
+    echo "issue-workflow's remote read is not framed as a fallback"; false; }
+}
+
+# The README's decline table drifted from the skill it describes, one round after
+# the skill was corrected — `issue-workflow`'s rule cell read `same`, inheriting
+# `git-workflow`'s origin rule, so when issue-workflow stopped deciding that way
+# the cell could not go visibly stale: it still pointed at a neighbour whose rule
+# was still right *for the neighbour*.
+#
+# This bans the inheriting placeholder, nothing more. It cannot tell whether a
+# spelled-out rule is correct — checking prose against behavior would mean
+# parsing one into the other, which is a worse trade than the drift it prevents.
+# What it does buy is that a rule change has to touch the cell that states it,
+# which is the step that was skipped. Keeping the artifacts honest past that
+# stays a manual step, deliberately.
+@test "every row of the decline table states its own rule instead of inheriting one" {
+  local offenders
+  # `|| true` because finding nothing is the passing case, and bats runs with
+  # errexit — without it a clean table fails the assignment rather than the test.
+  offenders=$(awk '/^### What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
+      "$ROOT/README.md" \
+    | grep -E '^\| `[a-z-]+` \|' \
+    | grep -iE '\|[[:space:]]*(same|as above|ditto|likewise)[[:space:]]*\|' || true)
+  if [ -n "$offenders" ]; then
+    echo "$offenders"
+    echo "a decline-table row inherits its rule from a neighbour — spell it out, or it cannot go visibly stale"
+    false
+  fi
+}
