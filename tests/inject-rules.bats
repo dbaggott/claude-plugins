@@ -11,50 +11,12 @@
 
 HOOK="${BATS_TEST_DIRNAME}/../dnbg-workflow/hooks/inject-rules.sh"
 
-setup() {
-  TMP="$(mktemp -d)"
-  ROOT="$TMP/plugin"
-  mkdir -p "$ROOT"
-  RULES_TEXT='## Test rule
-Always do the thing.'
-  printf '%s\n' "$RULES_TEXT" > "$ROOT/always-on-rules.md"
-}
+load hook-env
 
-teardown() { rm -rf "$TMP"; }
+setup() { hook_env_setup; }
 
-# A PATH carrying only the named binaries. Shadowing is not an option: the hook
-# asks `command -v`, which searches PATH for an executable, so the only way to
-# make a binary absent is to build a PATH that genuinely lacks it.
-#
-# `bash`, `cat` and `dirname` are always included — the shebang's `env` resolves
-# `bash` through PATH, the hook emits its text with `cat`, and it locates the
-# shared `lib.sh` with `dirname`. A missing one of those would fail the test for
-# a reason unrelated to what it is checking. They are also not what the preflight
-# is about: it reports on the binaries the *gates* need, and a machine without
-# `dirname` has no working shell scripts at all, so there is nothing useful for a
-# hook to say about it.
-stub_path() {  # <bin>...
-  STUB="$TMP/bin"
-  rm -rf "$STUB"; mkdir -p "$STUB"
-  local bin src
-  for bin in bash cat dirname "$@"; do
-    src="$(command -v "$bin")" || { echo "test setup: $bin not on PATH" >&2; return 1; }
-    ln -sf "$src" "$STUB/$bin"
-  done
-}
-
-run_hook() {  # PATH comes from the preceding stub_path call
-  run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="${1-$ROOT}" "$HOOK"
-}
-
-# The same, with the two mechanical knobs set. `env -i` is what makes this a
-# separate helper rather than an exported variable: the stripped environment is
-# the point of run_hook, so an option has to be handed in explicitly or it does
-# not reach the hook at all.
-run_hook_configured() {  # <worktree-path> <claim-label>
-  run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="$ROOT" \
-    CLAUDE_PLUGIN_OPTION_WORKTREE_PATH="$1" CLAUDE_PLUGIN_OPTION_CLAIM_LABEL="$2" "$HOOK"
-}
+run_hook() { run_hook_at "$HOOK" "$@"; }
+run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
 
 # --- rule injection ----------------------------------------------------------
 
@@ -89,6 +51,16 @@ run_hook_configured() {  # <worktree-path> <claim-label>
   run_hook
   [ "$status" -eq 0 ]
   [[ "$output" == *'enforcement is INACTIVE (`jq` is not installed)'* ]]
+}
+
+@test "the jq notice says subagents lose the rules, which nothing else reports" {
+  # `inject-rules-subagent.sh` exits quietly without jq. That is only acceptable
+  # because this notice exists — a hook emitting nothing is indistinguishable
+  # from one with nothing to say, so this sentence is the operator's sole signal
+  # that delegated work is running unbound.
+  stub_path git gh
+  run_hook
+  [[ "$output" == *"Subagents spawned this session do not receive the rules"* ]]
 }
 
 @test "names git and states enforcement is degraded when git is missing" {

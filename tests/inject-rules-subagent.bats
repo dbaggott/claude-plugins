@@ -1,0 +1,157 @@
+#!/usr/bin/env bats
+#
+# Tests for the SubagentStart hook, which re-emits the always-on rules into each
+# subagent because SessionStart output reaches the main loop and nothing else.
+#
+# Two properties carry the weight here, and neither is visible by reading the
+# script:
+#
+#   - **The payload is the same one the session got.** A subagent working to a
+#     different set of rules than its parent is the failure the whole change
+#     exists to prevent, and it would be silent.
+#   - **The delivery is well-formed.** This event reads
+#     `hookSpecificOutput.additionalContext`; malformed JSON is not a partial
+#     delivery, it is *no* delivery, and nothing on either side reports it.
+
+bats_require_minimum_version 1.5.0
+
+HOOK="${BATS_TEST_DIRNAME}/../dnbg-workflow/hooks/inject-rules-subagent.sh"
+PAYLOAD_SCRIPT="${BATS_TEST_DIRNAME}/../dnbg-workflow/hooks/rules-payload.sh"
+
+load hook-env
+
+setup() { hook_env_setup; }
+
+run_hook() { run_hook_at "$HOOK" "$@"; }
+run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
+
+# The injected text, decoded back out of the envelope. Every content assertion
+# goes through this rather than grepping the raw JSON: a grep for `Test rule`
+# passes just as happily on a payload no subagent can read, which is the one
+# failure these tests exist to catch.
+context_of() {  # <hook stdout>
+  printf '%s' "$1" | jq -r '.hookSpecificOutput.additionalContext'
+}
+
+# --- the envelope ------------------------------------------------------------
+
+@test "emits a single line of well-formed JSON" {
+  stub_path jq
+  run_hook
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s' "$output" | wc -l | tr -d ' ')" -eq 0 ]
+  printf '%s' "$output" | jq -e . >/dev/null
+}
+
+@test "names the event Claude Code dispatches it for" {
+  stub_path jq
+  run_hook
+  [ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.hookEventName')" = "SubagentStart" ]
+}
+
+@test "carries the payload under additionalContext, the only field this event reads" {
+  stub_path jq
+  run_hook
+  [ "$(context_of "$output")" = "$RULES_TEXT" ]
+}
+
+# --- the shared payload ------------------------------------------------------
+
+@test "injects exactly what the session-start payload script emits" {
+  stub_path jq
+  run_hook
+  local direct
+  direct="$(env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="$ROOT" "$PAYLOAD_SCRIPT")"
+  [ "$(context_of "$output")" = "$direct" ]
+}
+
+@test "a configured worktree root reaches subagents, not just the main loop" {
+  stub_path jq
+  run_hook_configured "wt" "assigned:bot"
+  local ctx; ctx="$(context_of "$output")"
+  [[ "$ctx" == *"Worktrees live in \`wt/\`"* ]]
+  [[ "$ctx" == *"The claim label is \`assigned:bot\`"* ]]
+}
+
+@test "a rejected configuration reaches subagents with its fallback" {
+  stub_path jq
+  run_hook_configured "/etc/outside" "assigned:bot"
+  local ctx; ctx="$(context_of "$output")"
+  [[ "$ctx" == *"INVALID configuration"* ]]
+  # The fallback sentence wraps mid-phrase in the heredoc, so the assertion is on
+  # the part that names the value — the substitution being tested — rather than
+  # on prose whose line breaks are incidental.
+  [[ "$ctx" == *"\`.worktrees\` instead"* ]]
+}
+
+# --- what it deliberately leaves out -----------------------------------------
+
+@test "omits the dependency preflight, which a subagent cannot act on" {
+  stub_path jq   # git and gh absent: the preflight would report both
+  run_hook
+  [ "$status" -eq 0 ]
+  local ctx; ctx="$(context_of "$output")"
+  [[ "$ctx" != *"enforcement is DEGRADED"* ]]
+  [[ "$ctx" != *"gh\` is not installed"* ]]
+  [[ "$ctx" == *"Test rule"* ]]
+}
+
+# --- escaping ----------------------------------------------------------------
+#
+# The envelope is built by `jq`, so these pin the wiring rather than an escaper
+# of our own: that the payload is handed to it raw, and comes back out byte for
+# byte. Content that would break a naive `printf` assembly is what makes that
+# observable.
+
+@test "round-trips quotes, backslashes and tabs" {
+  printf '%s\n' 'He said "hi" and C:\path\to\thing' > "$ROOT/always-on-rules.md"
+  printf '%s\n' 'a	tab and a trailing backslash \' >> "$ROOT/always-on-rules.md"
+  stub_path jq
+  run_hook
+  [ "$status" -eq 0 ]
+  diff <(context_of "$output") "$ROOT/always-on-rules.md"
+}
+
+@test "round-trips the real rules file" {
+  stub_path jq
+  run_hook "${BATS_TEST_DIRNAME}/../dnbg-workflow"
+  [ "$status" -eq 0 ]
+  diff <(context_of "$output") "${BATS_TEST_DIRNAME}/../dnbg-workflow/always-on-rules.md"
+}
+
+@test "escapes control characters rather than emitting them raw" {
+  printf 'before\001after\n' > "$ROOT/always-on-rules.md"
+  stub_path jq
+  run_hook
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | jq -e . >/dev/null    # raw would be invalid JSON
+  [ "$(context_of "$output")" = "$(printf 'before\001after')" ]
+}
+
+# --- degraded and broken installs --------------------------------------------
+
+@test "stays silent without jq, the state the session-start preflight announces" {
+  # Not a silent loss: inject-rules.sh's INACTIVE block says subagents lose the
+  # rules, and `tests/inject-rules.bats` pins that it says so. A machine without
+  # jq has no gates and no watchers either, so there is nothing for a
+  # hand-rolled escaper here to preserve.
+  stub_path   # no jq
+  run_hook
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "stays silent and exits 0 when the rules file is missing" {
+  stub_path jq
+  rm "$ROOT/always-on-rules.md"
+  run_hook
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "stays silent when CLAUDE_PLUGIN_ROOT is unset rather than emitting an empty envelope" {
+  stub_path jq
+  run env -i PATH="$STUB" HOME="$TMP" "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}

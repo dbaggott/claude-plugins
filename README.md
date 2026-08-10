@@ -283,13 +283,23 @@ hooks execute automatically once a marketplace is trusted. Specifically:
 | Hook | When | What it does |
 | --- | --- | --- |
 | `inject-rules.sh` | session start | Prints `always-on-rules.md` into the session's context. |
+| `inject-rules-subagent.sh` | subagent start | Prints the same rules into each subagent's context. |
 | `check-worktree.sh` | before every Edit/Write | **Blocks** edits to tracked files in the main checkout of a covered repo. |
 | `check-issue-create.sh` | before every Bash | **Blocks** `gh issue create` against a covered repo unless the `issue-workflow` skill is loaded. |
+
+The rules are injected twice because **`SessionStart` output reaches the main
+loop and nothing else** — a subagent spawned from that session receives none of
+it. Measured on Claude Code 2.1.226, for the `general-purpose` and `Explore`
+agent types. That is why the two hooks exist rather than one, and why they share
+`rules-payload.sh`: a subagent working to a different set of rules than its
+parent is the failure the split prevents. The rules cost tokens on each subagent
+spawn as well as at session start, which is the price of a subagent that has
+actually been told to work in a worktree.
 
 Nothing here sends your code anywhere, and **nothing here updates itself**.
 These hooks make no network access at all: what you install is what runs until
 you update it deliberately. (The skills do drive `gh` — but only when you ask
-them to, which is the difference this section is about.) Read the four shell
+them to, which is the difference this section is about.) Read the shell
 scripts in
 [`dnbg-workflow/hooks/`](dnbg-workflow/hooks/) before you trust them — they are
 short, and reviewing code that will run in your own terminal is a reasonable
