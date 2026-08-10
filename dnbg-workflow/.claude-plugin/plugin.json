@@ -20,7 +20,7 @@
     "worktree_path": {
       "type": "string",
       "title": "Where worktrees live",
-      "description": "Repo-relative directory the workflow creates worktrees in, e.g. 'wt' or '.git/wt'. Absolute paths, '~' paths, and any '..' segment are rejected and the default is used instead — worktrees have to stay inside the repo for .gitignore and the cleanup steps to work. Leave empty for '.worktrees'.",
+      "description": "Repo-relative directory the workflow creates worktrees in, e.g. 'wt' or '.git/wt'. Must stay inside the repo and be a plain path: absolute paths, '~' paths, any '..' segment, a leading '-', and characters outside letters, digits and '. _ - /' are rejected and the default used instead. Leave empty for '.worktrees'.",
       "default": ".worktrees"
     },
     "claim_label": {

@@ -180,16 +180,26 @@ leaving them alone is the same as not having them:
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `worktree_path` | `.worktrees` | Repo-relative directory worktrees are created in. Must stay inside the repo — an absolute path, a `~` path, or any `..` segment is rejected and the default used instead |
+| `worktree_path` | `.worktrees` | Repo-relative directory worktrees are created in. Must stay inside the repo and must be a plain path — an absolute path, a `~` path, any `..` segment, a leading `-`, or a character outside letters, digits and `. _ - /` is rejected and the default used instead |
 | `claim_label` | `assigned:agent-session` | Label an agent session applies when it claims an issue. Must start with `assigned:` |
 
 Set one and the session-start hook prints a short note saying so; the skills read
 that note as overriding the defaults they spell out. Set nothing and the hook
 prints nothing at all.
 
+**These are user-scope too**, for the same reason `owners` is: plugin config is
+read from your **user** `settings.json` and deliberately not from a project's
+`.claude/settings.json`. So in Mode B a repository cannot set a worktree
+directory for everyone who clones it — each collaborator sets their own, or
+leaves the default. That is the same asymmetry that stops a cloned repo widening
+what gets enforced on your machine, and it costs the same thing here.
+
 **Both rejections are enforced rather than advisory, and for the same kind of
 reason.** Worktrees outside the repo are not covered by `.gitignore` and the
-skills' cleanup steps stop resolving against them. A claim label outside
+skills' cleanup steps stop resolving against them; a path carrying a space, a
+leading dash, or a shell metacharacter renders a `git worktree add` that cannot
+run as printed, and the printed command is the whole point of the block message.
+A claim label outside
 `assigned:` is worse, because it fails silently in *both* directions: the check
 for an existing claim matches the whole `assigned:` namespace deliberately, so
 that any claimant — another agent, a bot, a teammate's tooling — is visible

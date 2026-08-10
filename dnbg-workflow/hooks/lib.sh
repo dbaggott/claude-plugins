@@ -134,11 +134,21 @@ CLAIM_LABEL_NAMESPACE='assigned:'
 # Why a configured worktree path cannot be used, as a sentence fragment that
 # completes "…is unusable: %s." Empty output means it is usable.
 #
-# Repo-relative only. An absolute path — or a `~` one, which is absolute in the
-# only sense that matters here — puts worktrees where `.gitignore` cannot cover
-# them and where `git-workflow`'s cleanup steps stop resolving. A `..` segment
-# escapes the same way while looking relative, so it is rejected on the same
-# grounds rather than left as the one hole in the rule.
+# Two failure modes, one rule. The first three arms are about *where* the path
+# points: repo-relative only, because an absolute path — or a `~` one, which is
+# absolute in the only sense that matters here — puts worktrees where
+# `.gitignore` cannot cover them and where `git-workflow`'s cleanup steps stop
+# resolving, and a `..` segment escapes the same way while looking relative.
+#
+# The last two are about what the path *renders into*. The value is interpolated
+# into `check-worktree.sh`'s block message and into the session-start note, both
+# of which an agent reads and retypes as a shell command, so a value that renders
+# an instruction nobody can run fails in exactly the way the arms above do. A
+# leading `-` makes git read the path as an option; anything outside the
+# character set turns one argument into two (`my wt`) or, with a `;` or a `$(`,
+# into a different command entirely. Quoting the heredoc would repair the block
+# message alone and leave the note and the skills' prose still broken, so the
+# rejection belongs here at the source rather than at one of the render sites.
 worktree_path_rejection() {  # <configured-value>
   # SC2088 reads a quoted `~` as a tilde that failed to expand. Here it is a
   # `case` pattern matching the literal character the operator typed, which is
@@ -148,6 +158,12 @@ worktree_path_rejection() {  # <configured-value>
     /*) printf 'it is an absolute path' ;;
     '~' | '~/'*) printf 'it is a home-relative path' ;;
     '..' | '../'* | *'/..' | *'/../'*) printf "it contains a \`..\` segment that escapes the repo" ;;
+    -*) printf 'it starts with a dash, which git reads as an option rather than a path' ;;
+    # POSIX classes rather than `A-Za-z0-9` ranges: range endpoints are
+    # collation-dependent, which tests/watch-pr.bats already has a case for
+    # elsewhere in this repo.
+    *[![:alnum:]._/-]*)
+      printf "it contains a character outside letters, digits and \`.\` \`_\` \`-\` \`/\`" ;;
   esac
 }
 

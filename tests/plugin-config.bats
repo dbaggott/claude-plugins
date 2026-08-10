@@ -101,6 +101,38 @@ with_claim_label() {  # <value>
   [ "$(with_worktree_path 'a..b')" = "a..b" ]
 }
 
+@test "a worktree path that would render an unrunnable command is rejected" {
+  # The value is interpolated into the block message and the session-start note,
+  # both of which an agent retypes as a shell command. `my wt` splits into two
+  # arguments, so git reads `wt/<branch-name>` as a commit-ish and creates
+  # nothing; `-x` is read as an option. Same failure shape as an escaping path —
+  # a configured value producing an instruction that cannot work.
+  [ -n "$(worktree_path_rejection 'my wt')" ]
+  [ -n "$(worktree_path_rejection '-x')" ]
+  [ "$(with_worktree_path 'my wt')" = ".worktrees" ]
+  [ "$(with_worktree_path '-x')" = ".worktrees" ]
+}
+
+@test "a worktree path carrying shell metacharacters is rejected" {
+  # Worse than unrunnable: the block message is read as an instruction, so a `;`
+  # or a `$(` turns it into a *different* command rather than a broken one.
+  [ -n "$(worktree_path_rejection ';rm -rf x')" ]
+  [ -n "$(worktree_path_rejection 'wt$(id)')" ]
+  [ -n "$(worktree_path_rejection 'wt*')" ]
+  [ -n "$(worktree_path_rejection "$(printf 'a\nb')")" ]
+  [ "$(with_worktree_path ';rm -rf x')" = ".worktrees" ]
+}
+
+@test "the character rule does not reject the paths people actually use" {
+  # The rule has to stay a guard rather than becoming a second source of false
+  # rejections — the default itself has to pass it.
+  [ -z "$(worktree_path_rejection '.worktrees')" ]
+  [ -z "$(worktree_path_rejection 'wt')" ]
+  [ -z "$(worktree_path_rejection 'build/wt')" ]
+  [ -z "$(worktree_path_rejection '.git/wt')" ]
+  [ -z "$(worktree_path_rejection 'my-wt_2')" ]
+}
+
 @test "a path of only slashes falls back rather than resolving to the repo root" {
   # Stripping runs before the emptiness test for exactly this: `/` strips to
   # nothing, and an empty root would silently mean the repo itself — every
