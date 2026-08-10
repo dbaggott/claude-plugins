@@ -36,6 +36,21 @@ the entry action (issue pickup), not the destination (the file edits
 the resolution will need) — reaching for `git-workflow` first because
 the work ends in edits skips the claim and the freshness probe.
 
+## When shipped tooling doesn't fit, tell the user
+
+If a script, hook, or procedure this plugin ships doesn't cover your
+case, do the narrow thing that finishes the task, then tell the user
+what didn't fit and offer to file an issue upstream — the maintainer
+asks for these reports, and the destination is the `repository` field
+of this plugin's own `.claude-plugin/plugin.json`. Never file it under
+the user's identity without their consent: it is theirs to decide, and
+if they accept, write it from the generic case with nothing personal,
+proprietary, or session-specific in it, and show them the full text to
+approve first. No user present, no filing. A hook that *blocks* you is
+working as intended — satisfy it, don't route around it. Never edit the
+installed copy under `~/.claude/plugins/`: unreviewed, invisible to
+everyone else, and gone at the next update.
+
 ## Reference issues and PRs by full URL
 
 On any user-facing surface (chat, issue bodies, PR descriptions,
