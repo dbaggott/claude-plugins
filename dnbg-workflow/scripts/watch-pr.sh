@@ -6,6 +6,7 @@
 # reviews/comments/replies, a draft being marked ready, and the PR closing.
 #
 #   watch-pr.sh <owner/repo> <pr> <last_head_sha> <since_iso> <bot_slug> [--was-draft]
+#   watch-pr.sh --issue [--exclude=<url,url,...>] <owner/repo> <issue> "" <since_iso> <slug>
 #
 # last_head_sha is a FULL 40-character lowercase SHA, or empty. Anything else is
 # rejected as bad-args rather than compared — see the check below for why an
@@ -58,15 +59,42 @@
 set -euo pipefail
 unset GH_TOKEN   # use the dev's own (non-expiring) gh auth for the long poll
 
+# ⚠️ CAPTURED BEFORE THE FLAG SHIFTS BELOW, and read by lib-poll.sh's START trace.
+# lib-poll captures `$*` at source time, which is *after* those shifts, so without
+# this an issue watch traces as a bare `o/r 56` — indistinguishable from a PR watch
+# on PR 56, and with no record of which PRs were excluded. The trace is the only
+# evidence a killed watch leaves, so the arguments most likely to be wrong on a
+# re-arm are exactly the ones it must not drop.
+_poll_argv="$*"
+
 # --issue switches what is watched, not how: the curve, the awake clock and the
 # failure counting are the same code either way (lib-poll.sh), which is why this
 # is a mode rather than a sibling script. What separates a mode from a sibling is
 # whether the *result* means something different — watch-merge.sh is a sibling
 # because MERGED/DIRTY/BLOCKED are not COMMITS/ACTIVITY with a different label.
-ISSUE_MODE=0; [ "${1:-}" = "--issue" ] && { ISSUE_MODE=1; shift; }
+#
+# --exclude=<csv> lists PR URLs already triaged as not-resolving, which issue mode
+# subtracts from its wake set. Only the `=` form is accepted: a two-token
+# `--exclude <csv>` would need `shift 2`, which dies under `set -e` when the value
+# is missing — no result line at all, imitating the killed watch the tracing exists
+# to keep legible. The bare form is rejected as bad-args below instead.
+ISSUE_MODE=0; EXCLUDE=""; bad_flag=0
+while :; do
+  case "${1:-}" in
+    --issue)     ISSUE_MODE=1; shift ;;
+    --exclude=*) EXCLUDE="${1#--exclude=}"; shift ;;
+    --exclude)   bad_flag=1; break ;;
+    *)           break ;;
+  esac
+done
 REPO="${1:?owner/repo}"; PR="${2:?pr or issue number}"
 LAST_HEAD="${3:-}"; SINCE="${4:-1970-01-01T00:00:00Z}"; SLUG="${5:-}"
 WAS_DRAFT=0; [ "${6:-}" = "--was-draft" ] && WAS_DRAFT=1
+
+# One pattern per line, which is what `grep -vxF` consumes. Built once: the set is
+# fixed for the life of the watch, and re-splitting it every tick would spend the
+# work on every poll of a six-hour window.
+EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' | grep -v '^[[:space:]]*$' || true)
 
 # The poll curve, the awake clock, FAIL_MAX and WINDOW all come from here. This
 # script's own default window is the shared 6h: unlike git-workflow's watchers
@@ -114,7 +142,7 @@ case $LAST_HEAD in
   *) [ "${#LAST_HEAD}" = 40 ] || bad_head=1 ;;
 esac
 
-if [ "$ISSUE_MODE" = 0 ] && { [ -z "$SLUG" ] || [ "$bad_head" = 1 ]; }; then
+if [ "$bad_flag" = 1 ] || { [ "$ISSUE_MODE" = 0 ] && { [ -z "$SLUG" ] || [ "$bad_head" = 1 ]; }; }; then
   # ⚠️ A RESULT LINE, NOT `_poll_die`, AND THE DIFFERENCE MATTERS HERE MORE THAN
   # ANYWHERE. Callers branch on `result=`, and `reviewer`'s only handler for a
   # MISSING one reads it as "the task was killed — do not assume quiet, re-read
@@ -146,7 +174,8 @@ fi
 SETTLE=${SETTLE:-45}
 SETTLE_MAX=${SETTLE_MAX:-300}
 
-fails_primary=0; fails_comments=0; fails_shape=0
+fails_primary=0; fails_comments=0; fails_shape=0; fails_timeline=0
+fails_timeline_since=0
 # When each transient streak began, in awake seconds — poll_broken needs both a
 # tick count and a duration, so a fast blind streak at the floor (a wifi hiccup,
 # or the reconnect right after a lid opens) can't end a long watch.
@@ -274,6 +303,29 @@ while :; do
   # curve, failure counting and idle-out as the PR path.
   if [ "$ISSUE_MODE" = 1 ]; then
     if [ "$STATE" = CLOSED ]; then echo "result=CLOSED state=CLOSED"; exit 0; fi
+
+    # ⚠️ TWO SOURCES, BECAUSE `closedByPullRequestsReferences` LISTS ONLY PRs CARRYING A
+    # CLOSING KEYWORD. It is the narrower half by construction, and the `reviewer` skill
+    # requires the *mention* rather than the keyword — `git-workflow`'s multi-repo rule
+    # has exactly one sibling close the issue and the rest merely reference it. Polling
+    # the keyword source alone therefore makes the wake condition strictly narrower than
+    # the discovery it exists to trigger: a real resolving PR that links the issue in
+    # prose never wakes the watch, and the deadline path then presents it as "the issue
+    # number is probably wrong" — a diagnosis that cannot be confirmed, because the issue
+    # resolves fine. `tests/coupling.bats` pins these against the skill's discovery set.
+    #
+    # A discovery source this wait deliberately does NOT poll declares itself here, in
+    # the form the coupling test reads. Adding a fourth source to the skill's discovery
+    # block without either polling it or writing a line like this fails that test — the
+    # divergence has to be a decision someone made, not one that accumulated.
+    #
+    # WAKE-SOURCE-EXEMPT: gh search prs — the search API is rate-limited an order of
+    # magnitude below core REST, and this loop polls at a 10s floor; a search per tick
+    # would throttle the watch into its own ERROR path. It is also the only discovery
+    # source with index lag, so the timeline above already sees everything it would,
+    # sooner. Discovery keeps it for the one thing a poll does not need: finding a
+    # sibling in a *different* repo, which the reviewer re-runs on wake anyway.
+    #
     # Lowercase deliberately. An assignment to a name the caller already exported
     # updates the *exported* value, so a generic uppercase internal here would
     # clobber a caller's environment variable — and this script's children are
@@ -287,8 +339,62 @@ while :; do
     # Left unguarded deliberately — reaching it needs well-formed JSON carrying a
     # schema-valid field of the wrong type, while every realistic corruption
     # (an HTML error page, a truncated body, empty output) is caught by the gate.
-    linked_n=$(echo "$J" | jq '(.closedByPullRequestsReferences // []) | length')
-    if [ "${linked_n:-0}" -gt 0 ]; then
+    closing_urls=$(echo "$J" | jq -r '(.closedByPullRequestsReferences // [])[] | .url // empty')
+
+    # ⚠️ `--slurp` IS LOAD-BEARING, NOT TIDINESS. `--paginate` alone emits each page as a
+    # SEPARATE top-level JSON array, so the concatenation is not valid JSON and `jq`
+    # rejects the whole thing the moment an issue exceeds one page — the failure would
+    # arrive only on a busy issue, which is precisely where a cross-reference is most
+    # likely to be waiting. `--slurp` wraps the pages into one array, hence `.[][]`.
+    #
+    # ⚠️ AND PAGINATION ITSELF IS LOAD-BEARING. The timeline is ordered OLDEST FIRST with
+    # no sort parameter to invert it, so on an issue past 100 events every new
+    # cross-reference lands on the LAST page. Fetching page one only would poll nothing
+    # but history: the wake condition could never fire and the watch would idle out
+    # looking perfectly healthy — the same fail-closed-and-silent shape the inline
+    # comments fetch below documents, reached from the other end of the ordering.
+    #
+    # The cost this accepts is one request per 100 timeline events per tick. Unlike the
+    # comments endpoint there is no `direction=desc` escape, so it scales with the
+    # issue's total history rather than with what is new. Tolerable because the curve
+    # leaves the 10s floor within half an hour, and because a wait that cannot see is
+    # worth more requests than one that can't be trusted.
+    #
+    # Split fetch from parse for the reason the comments block gives: folded together, a
+    # parse failure reads as "no cross-references" and the watch goes blind silently.
+    if RAWT=$(gh api "repos/$REPO/issues/$PR/timeline" --paginate --slurp 2>/dev/null); then
+      if xref_urls=$(echo "$RAWT" | jq -r '.[][]
+            | select(.event == "cross-referenced")
+            | select(.source.issue.pull_request != null)
+            | .source.issue.html_url' 2>/dev/null)
+      then fails_timeline=0
+      else
+        # A shape break, never transient — same judgement as the comments parse.
+        fails_timeline=$(( fails_timeline + 1 )); xref_urls=""
+      fi
+    else
+      fails_timeline=$(( fails_timeline + 1 )); xref_urls=""
+    fi
+    [ "$fails_timeline" = 1 ] && fails_timeline_since=$(poll_awake)
+    poll_broken "$fails_timeline" "$fails_timeline_since" && report_error issue-timeline
+    [ "$fails_timeline" -gt 0 ] && poll_reset
+
+    # Union the two sources, then subtract what the caller has already triaged.
+    #
+    # ⚠️ THE EXCLUSION LIST IS WHAT KEEPS THE BROADENED CONDITION USABLE. A mention-only
+    # PR that stays open satisfies the timeline source on EVERY tick, so without it the
+    # first triaged-as-irrelevant PR turns the wait into a hot loop that re-wakes the
+    # reviewer forever. Keyed by URL rather than number because the whole point of the
+    # timeline source is that it spans repos, where numbers collide.
+    #
+    # `|| true` on both filters: grep exits 1 on no match, which under `set -e` would
+    # kill the watch on the ordinary empty case.
+    wake=$(printf '%s\n%s\n' "$closing_urls" "$xref_urls" \
+             | grep -v '^[[:space:]]*$' | sort -u || true)
+    if [ -n "$wake" ] && [ -n "$EXCLUDE_LINES" ]; then
+      wake=$(printf '%s\n' "$wake" | grep -vxF "$EXCLUDE_LINES" || true)
+    fi
+    if [ -n "$wake" ]; then
       echo "result=ACTIVITY activity=1 now=$(poll_now_iso)"; exit 0
     fi
     poll_timed_out && { echo "result=IDLE now=$(poll_now_iso)"; exit 0; }

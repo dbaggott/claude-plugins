@@ -138,7 +138,13 @@ _poll_trace_default() {
 # it a stray trace identifies only a script name and a pid — enough to know a watch
 # was killed, useless for correlating a cohort of kills against the PRs they were
 # watching, which is exactly what a post-mortem needs.
-_poll_argv="$*"
+#
+# A caller that parses leading flags of its own must capture argv BEFORE shifting them
+# away and pre-set this, or the trace records only what survived the shift — see
+# watch-pr.sh, where an unset capture reads as a bare `o/r 56`, indistinguishable from
+# a PR watch on PR 56. `-` not `:-`: a caller that pre-set it to empty said something,
+# and re-deriving from the post-shift `$*` would silently contradict it.
+_poll_argv="${_poll_argv-$*}"
 
 _poll_trace_defaulted=0
 if [ "${WATCH_LOG:-}" = off ]; then
