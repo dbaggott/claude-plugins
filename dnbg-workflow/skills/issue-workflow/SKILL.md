@@ -91,8 +91,8 @@ gh issue view <n> --repo <repo> --json assignees,labels,closedByPullRequestsRefe
 
 # PRs that merely MENTION the issue, any repo, keyword or not.
 # PR-SOURCE-EXEMPT: gh search prs — the timeline is authoritative and has no index
-# lag, so search adds only latency here; `reviewer`'s discovery keeps it for the
-# cross-repo sweep this check does not need.
+# lag, so search can only be slower to show the same PR; `reviewer`'s discovery
+# keeps it for the cross-repo sweep this check does not need.
 gh api "repos/<repo>/issues/<n>/timeline" --paginate \
   --jq '.[] | select(.event=="cross-referenced")
             | select(.source.issue.pull_request != null)

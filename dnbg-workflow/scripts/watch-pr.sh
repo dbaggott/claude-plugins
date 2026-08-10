@@ -94,7 +94,17 @@ WAS_DRAFT=0; [ "${6:-}" = "--was-draft" ] && WAS_DRAFT=1
 # One pattern per line, which is what `grep -vxF` consumes. Built once: the set is
 # fixed for the life of the watch, and re-splitting it every tick would spend the
 # work on every poll of a six-hour window.
-EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' | grep -v '^[[:space:]]*$' || true)
+#
+# ⚠️ EACH ENTRY IS TRIMMED, AND WITHOUT THAT THE WHOLE FLAG FAILS OPEN. `grep -vxF`
+# matches whole lines literally, so ` https://…/pull/200` — the shape a human or an
+# agent writes after a comma — can never equal the URL the poll produces, and the entry
+# is silently ignored. The result is exactly the hot loop `--exclude` exists to prevent,
+# with no diagnostic: the caller passed the PR, the watch wakes on it anyway. Every
+# other malformed argument on this path is refused loudly (`bad-args` for a valueless
+# --exclude, a short SHA, an empty slug); a quiet failure of the wake path is the class
+# of bug this mode was broadened to remove, so it must not be reintroduced by the fix.
+EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' \
+  | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^$' || true)
 
 # The poll curve, the awake clock, FAIL_MAX and WINDOW all come from here. This
 # script's own default window is the shared 6h: unlike git-workflow's watchers
@@ -142,6 +152,13 @@ case $LAST_HEAD in
   *) [ "${#LAST_HEAD}" = 40 ] || bad_head=1 ;;
 esac
 
+# `--exclude` outside `--issue` is refused rather than ignored. Nothing on the PR path
+# reads it, so accepting it would take an argument whose entire purpose is suppressing
+# wakes and silently not suppress anything — and the caller has no way to tell, since a
+# quiet PR and a disregarded exclusion produce the same IDLE. Same reasoning as the
+# valueless form above: on this path an argument that cannot do its job is bad-args.
+[ "$ISSUE_MODE" = 0 ] && [ -n "$EXCLUDE" ] && bad_flag=1
+
 if [ "$bad_flag" = 1 ] || { [ "$ISSUE_MODE" = 0 ] && { [ -z "$SLUG" ] || [ "$bad_head" = 1 ]; }; }; then
   # ⚠️ A RESULT LINE, NOT `_poll_die`, AND THE DIFFERENCE MATTERS HERE MORE THAN
   # ANYWHERE. Callers branch on `result=`, and `reviewer`'s only handler for a
@@ -174,8 +191,8 @@ fi
 SETTLE=${SETTLE:-45}
 SETTLE_MAX=${SETTLE_MAX:-300}
 
-fails_primary=0; fails_comments=0; fails_shape=0; fails_timeline=0
-fails_timeline_since=0
+fails_primary=0; fails_comments=0; fails_shape=0
+fails_timeline=0; fails_timeline_shape=0; fails_timeline_since=0
 # When each transient streak began, in awake seconds — poll_broken needs both a
 # tick count and a duration, so a fast blind streak at the floor (a wifi hiccup,
 # or the reconnect right after a lid opens) can't end a long watch.
@@ -319,12 +336,17 @@ while :; do
     # block without either polling it or writing a line like this fails that test — the
     # divergence has to be a decision someone made, not one that accumulated.
     #
-    # PR-SOURCE-EXEMPT: gh search prs — the search API is rate-limited an order of
-    # magnitude below core REST, and this loop polls at a 10s floor; a search per tick
-    # would throttle the watch into its own ERROR path. It is also the only discovery
-    # source with index lag, so the timeline above already sees everything it would,
-    # sooner. Discovery keeps it for the one thing a poll does not need: finding a
-    # sibling in a *different* repo, which the reviewer re-runs on wake anyway.
+    # PR-SOURCE-EXEMPT: gh search prs — it is the only discovery source with index lag,
+    # so the timeline above already sees everything it would, sooner: a poll gains
+    # nothing from it. Discovery keeps it for the one thing a poll does not need,
+    # finding a sibling in a *different* repo, which the reviewer re-runs on wake anyway.
+    #
+    # The search API's tighter budget is a secondary reason, and smaller than it first
+    # looks: 30/min sustains 1800/hr against core's 5000/hr — roughly 3x tighter, not an
+    # order of magnitude. One watch at the 10s floor issues 6 polls/min, well inside
+    # 30/min; it would take about five concurrent issue waits to threaten the ceiling.
+    # Stated precisely because a margin quoted too grimly gets discounted wholesale the
+    # first time someone measures it, taking the sound reason above down with it.
     #
     # Lowercase deliberately. An assignment to a name the caller already exported
     # updates the *exported* value, so a generic uppercase internal here would
@@ -362,22 +384,31 @@ while :; do
     #
     # Split fetch from parse for the reason the comments block gives: folded together, a
     # parse failure reads as "no cross-references" and the watch goes blind silently.
+    # ⚠️ FETCH AND PARSE ARE COUNTED SEPARATELY, because lib-poll.sh:66-69 says they are
+    # different kinds of failure: a network call is transient by nature and earns the
+    # FAIL_MIN_SECONDS grace, while a payload that stopped parsing "will not start
+    # parsing on its own, so waiting three minutes to say so only delays the report".
+    # The primary payload already honours that split via `fails_shape`. The inline
+    # comments block below still folds the two into one counter — a pre-existing
+    # divergence this change does not widen, and the reason the split is spelled out
+    # here rather than assumed.
     if RAWT=$(gh api "repos/$REPO/issues/$PR/timeline" --paginate --slurp 2>/dev/null); then
+      fails_timeline=0
       if xref_urls=$(echo "$RAWT" | jq -r '.[][]
             | select(.event == "cross-referenced")
             | select(.source.issue.pull_request != null)
             | .source.issue.html_url' 2>/dev/null)
-      then fails_timeline=0
+      then fails_timeline_shape=0
       else
-        # A shape break, never transient — same judgement as the comments parse.
-        fails_timeline=$(( fails_timeline + 1 )); xref_urls=""
+        fails_timeline_shape=$(( fails_timeline_shape + 1 )); xref_urls=""
+        [ "$fails_timeline_shape" -ge "$FAIL_MAX" ] && report_error issue-timeline-shape
       fi
     else
       fails_timeline=$(( fails_timeline + 1 )); xref_urls=""
+      [ "$fails_timeline" = 1 ] && fails_timeline_since=$(poll_awake)
+      poll_broken "$fails_timeline" "$fails_timeline_since" && report_error issue-timeline
     fi
-    [ "$fails_timeline" = 1 ] && fails_timeline_since=$(poll_awake)
-    poll_broken "$fails_timeline" "$fails_timeline_since" && report_error issue-timeline
-    [ "$fails_timeline" -gt 0 ] && poll_reset
+    { [ "$fails_timeline" -gt 0 ] || [ "$fails_timeline_shape" -gt 0 ]; } && poll_reset
 
     # Union the two sources, then subtract what the caller has already triaged.
     #

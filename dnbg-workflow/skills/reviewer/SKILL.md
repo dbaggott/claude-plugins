@@ -190,9 +190,11 @@ issue number: a diagnosis that cannot be confirmed, because the issue resolves
 fine. `tests/coupling.bats` pins the wait's sources against this section's, so
 neither can be broadened alone.
 
-Source 3 is deliberately not polled — the search API's rate limit is an order of
-magnitude below core REST and this loop polls at a 10s floor, and it is the one
-source with index lag, so the timeline already sees everything it would, sooner.
+Source 3 is deliberately not polled — it is the one source with index lag, so the
+timeline already sees everything it would, sooner, and a poll gains nothing by
+adding it. (The search API's budget is tighter than core REST — 30/min sustains
+1800/hr against 5000/hr — but only about 3x, which one watch at a 10s floor does
+not come near; that is a secondary reason, not the one carrying the decision.)
 `watch-pr.sh` carries that exemption in the form the coupling test reads; a fourth
 discovery source must either be polled or be exempted there.
 
@@ -226,11 +228,13 @@ the catch-all**:
   re-arm**, and do **not** report that nothing has landed: you do not know that.
   Expired auth or a wrong issue number produce exactly this. Check `gh auth
   status` and that the issue number resolves, then tell the operator.
-- **`ERROR reason=issue-timeline`** — same remedy, narrower cause: the issue was
-  visible but its timeline was not, so the watch was blind to precisely the
-  mention-only PRs source 2 exists to catch. **Do not re-arm** and do not report a
-  quiet issue — a partial blindness reported as quiet is the failure the two-source
-  wait was built to remove.
+- **`ERROR reason=issue-timeline`** / **`issue-timeline-shape`** — same remedy,
+  narrower cause: the issue was visible but its timeline was not, so the watch was
+  blind to precisely the mention-only PRs source 2 exists to catch. **Do not
+  re-arm** and do not report a quiet issue — a partial blindness reported as quiet
+  is the failure the two-source wait was built to remove. The `-shape` variant means
+  the endpoint answered but the payload stopped parsing, which is a schema change
+  rather than an outage: `gh auth status` will look fine, so check the payload.
 - **`IDLE`** — the deadline elapsed with nothing. Re-arm (carrying the exclusion
   list forward), and after the second empty window tell the operator nothing has
   landed rather than waiting silently. Both sources ran, so this genuinely means no

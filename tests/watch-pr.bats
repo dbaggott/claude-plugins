@@ -345,6 +345,41 @@ EOF
   [[ "$output" != *"result=IDLE"* ]]
 }
 
+# An agent hand-assembles this CSV across re-arms, so a space after a comma is the
+# likeliest malformation there is. `grep -vxF` is whole-line and literal, so an untrimmed
+# entry can never match and is silently dropped — producing precisely the hot loop the
+# flag exists to prevent, with no diagnostic at all.
+@test "--issue exclusion entries survive whitespace after the comma" {
+  printf '%s' "$(xref_pages 1 https://github.com/o/r/pull/200)" > "$XREF"
+  INTERVAL=1 WINDOW=5 run "$WATCH" \
+    --exclude='https://github.com/o/r/pull/114, https://github.com/o/r/pull/200' \
+    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [[ "$output" == *"result=IDLE"* ]]
+  [[ "$output" != *"result=ACTIVITY"* ]]
+}
+
+# Nothing on the PR path reads --exclude, so accepting it would take an argument whose
+# whole purpose is suppressing wakes and suppress nothing — and a disregarded exclusion
+# is indistinguishable from a quiet PR at the result line.
+@test "--exclude outside --issue mode is refused rather than ignored" {
+  INTERVAL=1 WINDOW=2 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
+    o/r 77 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
+}
+
+# lib-poll.sh:66-69 carves shape breaks out of poll_broken: a payload that stopped
+# parsing will not start on its own, so charging it FAIL_MIN_SECONDS only delays the
+# report. FAIL_MIN_SECONDS is left at its 180s default here on purpose — a folded
+# counter would still be inside the grace window and would idle out instead.
+@test "a timeline payload that stops parsing reports ERROR without the transient grace" {
+  printf '%s' '<html>not json</html>' > "$XREF"
+  INTERVAL=1 FAIL_MAX=3 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [[ "$output" == *"result=ERROR"* ]]
+  [[ "$output" == *"reason=issue-timeline-shape"* ]]
+  [[ "$output" != *"result=IDLE"* ]]
+}
+
 # `--exclude <csv>` (two tokens) would need `shift 2`, which dies under `set -e` with
 # no result line when the value is missing — imitating the killed watch the tracing
 # exists to make legible. Only the `=` form is accepted; the bare one is refused
