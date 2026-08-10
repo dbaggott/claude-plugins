@@ -83,8 +83,20 @@ case "$1 $2" in
     [ -f "$FAIL_PRVIEW" ] && exit 1
     printf '{"state":"OPEN","closedByPullRequestsReferences":%s}' "$(cat "$LINKED" 2>/dev/null || echo '[]')" ;;
   "api "*|"api")
-    [ -f "$FAIL_COMMENTS" ] && exit 1
-    echo '[]' ;;
+    # The two endpoints issue mode and PR mode reach for are told apart by path, so a
+    # test can fail one while the other stays healthy — which is the only way to
+    # exercise a source going blind underneath a primary poll that still succeeds.
+    case "$*" in
+      *timeline*)
+        [ -f "$FAIL_TIMELINE" ] && exit 1
+        # `--slurp` shape: an array OF PAGES, each itself an array of events. The
+        # stub emits it because that is what the watcher parses (`.[][]`); a flat
+        # array here would let a `.[]` regression pass.
+        cat "$XREF" 2>/dev/null || echo '[[]]' ;;
+      *)
+        [ -f "$FAIL_COMMENTS" ] && exit 1
+        echo '[]' ;;
+    esac ;;
   *) exit 1 ;;
 esac
 EOF
@@ -92,9 +104,21 @@ EOF
   export PATH="$STUB:$PATH" CALLS
   export FAIL_PRVIEW="$BATS_TEST_TMPDIR/fail_prview"
   export FAIL_COMMENTS="$BATS_TEST_TMPDIR/fail_comments"
+  export FAIL_TIMELINE="$BATS_TEST_TMPDIR/fail_timeline"
   export HEADCOUNT="$BATS_TEST_TMPDIR/headcount"
   export LINKED="$BATS_TEST_TMPDIR/linked"
+  export XREF="$BATS_TEST_TMPDIR/xref"
   export TICKS="$BATS_TEST_TMPDIR/ticks"
+}
+
+# One cross-referenced PR, on the page given, in the shape `gh api --paginate --slurp`
+# returns. `pages 2` puts it on the second page — where a real timeline puts anything
+# new, since the endpoint is oldest-first with no way to invert it.
+xref_pages() {  # <page-count> <pr-url>
+  local n="$1" url="$2" i out=""
+  for (( i = 1; i < n; i++ )); do out="$out[],"; done
+  printf '[%s[{"event":"cross-referenced","source":{"issue":{"pull_request":{},"html_url":"%s"}}}]]' \
+    "$out" "$url"
 }
 
 # (a) every poll fails -> exactly one ERROR, and never IDLE.
@@ -243,16 +267,92 @@ EOF
 
 # issue mode shares the loop; only what it polls differs.
 @test "--issue wakes when a linked PR appears" {
-  AT_TICK=3 AT_TICK_FILE="$LINKED" AT_TICK_VALUE='[{"number":9}]' \
+  AT_TICK=3 AT_TICK_FILE="$LINKED" \
+  AT_TICK_VALUE='[{"number":9,"url":"https://github.com/o/r/pull/9"}]' \
   INTERVAL=1 WINDOW=20 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
   [[ "$output" == *"result=ACTIVITY"* ]]
   grep -q 'issue view' "$CALLS"
+}
+
+# THE REGRESSION THIS MODE WAS BROKEN ON. `closedByPullRequestsReferences` stays empty
+# for the whole watch — the PR references the issue in prose, with no closing keyword,
+# which is the shape git-workflow's multi-repo rule *mandates* for every sibling but
+# the one closer. Polling the keyword source alone, this watch runs its full window and
+# reports IDLE, and the deadline path then blames the issue number.
+@test "--issue wakes on a PR that only cross-references the issue" {
+  AT_TICK=3 AT_TICK_FILE="$XREF" \
+  AT_TICK_VALUE="$(xref_pages 1 https://github.com/o/r/pull/114)" \
+  INTERVAL=1 WINDOW=20 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [ "$(cat "$LINKED" 2>/dev/null || echo '[]')" = '[]' ]
+  [[ "$output" == *"result=ACTIVITY"* ]]
+}
+
+# The timeline is oldest-first, so a new cross-reference lands on the LAST page. This
+# pins `.[][]` over the pages `--slurp` returns; a `.[]` that reads only the outer
+# array finds nothing here and idles out looking healthy.
+@test "--issue wakes on a cross-reference beyond the first page" {
+  printf '%s' "$(xref_pages 3 https://github.com/o/r/pull/114)" > "$XREF"
+  INTERVAL=1 WINDOW=20 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [[ "$output" == *"result=ACTIVITY"* ]]
+}
+
+# Without the exclusion list the broadened condition is unusable: a mention-only PR
+# triaged as not-resolving stays open and satisfies the timeline source on every tick,
+# so the reviewer is re-woken in a hot loop for the life of the issue.
+@test "--issue does not re-wake on an already-triaged PR" {
+  printf '%s' "$(xref_pages 1 https://github.com/o/r/pull/114)" > "$XREF"
+  INTERVAL=1 WINDOW=5 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
+    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [[ "$output" == *"result=IDLE"* ]]
+  [[ "$output" != *"result=ACTIVITY"* ]]
+}
+
+# ...and the exclusion must not swallow the next PR. Same excluded PR still in the
+# timeline, a second one joins, and the watch has to wake for it.
+@test "--issue still wakes on a fresh PR alongside an excluded one" {
+  printf '%s' "$(xref_pages 1 https://github.com/o/r/pull/114)" > "$XREF"
+  AT_TICK=3 AT_TICK_FILE="$XREF" \
+  AT_TICK_VALUE="$(xref_pages 2 https://github.com/o/r/pull/200)" \
+  INTERVAL=1 WINDOW=20 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
+    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [[ "$output" == *"result=ACTIVITY"* ]]
+}
+
+# Exclusions are URLs, not numbers, because the timeline source spans repos — where PR
+# numbers collide. Excluding `o/r#114` must not silence `other/repo#114`.
+@test "--issue exclusions are scoped by repo, not by bare number" {
+  printf '%s' "$(xref_pages 1 https://github.com/other/repo/pull/114)" > "$XREF"
+  INTERVAL=1 WINDOW=20 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
+    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [[ "$output" == *"result=ACTIVITY"* ]]
 }
 
 @test "--issue reports ERROR when it cannot poll at all" {
   touch "$FAIL_PRVIEW"
   INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
   [[ "$output" == *"reason=issue-view"* ]]
+}
+
+# The issue-mode twin of the comments case above, and insidious for the same reason:
+# `gh issue view` keeps succeeding, so the watch looks healthy while the source that
+# catches mention-only PRs sees nothing. Silent partial blindness is what the whole
+# broadening is meant to remove, so it must not be reintroduced as a failure mode.
+@test "a failing timeline query reports ERROR naming that source" {
+  touch "$FAIL_TIMELINE"
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [[ "$output" == *"result=ERROR"* ]]
+  [[ "$output" == *"reason=issue-timeline"* ]]
+  [[ "$output" != *"result=IDLE"* ]]
+}
+
+# `--exclude <csv>` (two tokens) would need `shift 2`, which dies under `set -e` with
+# no result line when the value is missing — imitating the killed watch the tracing
+# exists to make legible. Only the `=` form is accepted; the bare one is refused
+# loudly, and bad-args already routes the caller to fix the argument and re-spawn.
+@test "a valueless --exclude is refused as bad-args, not left to die silently" {
+  INTERVAL=1 WINDOW=2 run "$WATCH" --exclude --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
 
 # A reply behind a page of older comments. The endpoint defaults to OLDEST FIRST, so
@@ -396,4 +496,19 @@ EOF
   local f; f=$(find "$home/dnbg-watch" -name 'watch-pr-*.log' | head -1)
   [ -n "$f" ]
   grep -q "args=\[o/r 77 $(sha40 0) 1970-01-01T00:00:00Z bot\]" "$f"
+}
+
+# ...INCLUDING the leading flags, which are shifted away before lib-poll.sh captures
+# `$*`. Left to that capture, an issue watch traces as a bare `o/r 56` — the same line
+# a PR watch on PR 56 writes, so a post-mortem cannot tell which of the two died, and
+# the exclusion list (the argument most likely to be wrong on a re-arm) is absent
+# entirely. The trace is the only evidence a killed watch leaves.
+@test "START records the leading flags, not just what survived the shift" {
+  local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home"
+  TMPDIR="$home" INTERVAL=1 WINDOW=2 run "$WATCH" --issue \
+    --exclude=https://github.com/o/r/pull/114 o/r 56 "" 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  local f; f=$(find "$home/dnbg-watch" -name 'watch-pr-*.log' | head -1)
+  [ -n "$f" ]
+  grep -q -- "args=\[--issue --exclude=https://github.com/o/r/pull/114 o/r 56 " "$f"
 }

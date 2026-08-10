@@ -319,7 +319,7 @@ while :; do
     # block without either polling it or writing a line like this fails that test — the
     # divergence has to be a decision someone made, not one that accumulated.
     #
-    # WAKE-SOURCE-EXEMPT: gh search prs — the search API is rate-limited an order of
+    # PR-SOURCE-EXEMPT: gh search prs — the search API is rate-limited an order of
     # magnitude below core REST, and this loop polls at a 10s floor; a search per tick
     # would throttle the watch into its own ERROR path. It is also the only discovery
     # source with index lag, so the timeline above already sees everything it would,

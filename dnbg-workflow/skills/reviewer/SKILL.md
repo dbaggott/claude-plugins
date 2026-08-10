@@ -169,14 +169,44 @@ branch name, so a later follow-up PR on its own branch is invisible to it.
 idle polling never enters the conversation:
 
 ```bash
-"<skill-dir>/../../scripts/watch-pr.sh" --issue <owner>/<repo> <n> "" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+"<skill-dir>/../../scripts/watch-pr.sh" --issue [--exclude=<url,url,...>] \
+  <owner>/<repo> <n> "" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")"
 ```
 
 The same script the PR watch uses, in `--issue` mode — so this wait gets the same
 backoff curve and the same failure counting rather than its own. It returns
 `ACTIVITY` when a linked PR appears, `CLOSED` if the issue closes, `IDLE` on
-timeout, and `ERROR reason=issue-view` when the poll itself keeps failing.
+timeout, and `ERROR reason=issue-view` / `ERROR reason=issue-timeline` when one of
+its two sources keeps failing.
+
+⚠️ **The wait polls sources 1 and 2 above, not source 1 alone.** It has to: source
+1 lists only PRs carrying a closing keyword, so a wait built on it is strictly
+narrower than the discovery it exists to trigger, and the shape it misses is the
+one "Multi-repo changes" *mandates* — exactly one sibling closes the issue, the
+rest merely reference it. A real resolving PR that links the issue in prose then
+never wakes the watch, and the deadline path below reports it as a probably-wrong
+issue number: a diagnosis that cannot be confirmed, because the issue resolves
+fine. `tests/coupling.bats` pins the wait's sources against this section's, so
+neither can be broadened alone.
+
+Source 3 is deliberately not polled — the search API's rate limit is an order of
+magnitude below core REST and this loop polls at a 10s floor, and it is the one
+source with index lag, so the timeline already sees everything it would, sooner.
+`watch-pr.sh` carries that exemption in the form the coupling test reads; a fourth
+discovery source must either be polled or be exempted there.
+
+⚠️ **`--exclude` is what keeps re-arming from spinning, and it must be carried
+forward.** A mention-only PR triaged as not-resolving stays open and keeps
+satisfying source 2 on every tick, so a wait re-armed without it wakes instantly,
+forever. Pass every PR URL already triaged — including ones triaged in earlier
+rounds — and add to that list each time you re-arm. Exclusions are full PR URLs,
+never bare numbers: source 2 spans repos, where numbers collide.
+
+Excluding a PR is not dismissing it. It means "already looked at, verdict
+recorded" — a PR held back as a draft is watched by its own `watch-pr.sh` and
+belongs in the exclusion list too, or the issue wait re-wakes for it on every tick
+while that watcher is doing the real work.
 
 This replaced an inline `sleep 120` loop rather than tuning it. A second
 hand-written wait is a second place for the curve and the failure counter to be
@@ -196,8 +226,18 @@ the catch-all**:
   re-arm**, and do **not** report that nothing has landed: you do not know that.
   Expired auth or a wrong issue number produce exactly this. Check `gh auth
   status` and that the issue number resolves, then tell the operator.
-- **`IDLE`** — the deadline elapsed with nothing. Re-arm, and after the second
-  empty window tell the operator nothing has landed rather than waiting silently.
+- **`ERROR reason=issue-timeline`** — same remedy, narrower cause: the issue was
+  visible but its timeline was not, so the watch was blind to precisely the
+  mention-only PRs source 2 exists to catch. **Do not re-arm** and do not report a
+  quiet issue — a partial blindness reported as quiet is the failure the two-source
+  wait was built to remove.
+- **`IDLE`** — the deadline elapsed with nothing. Re-arm (carrying the exclusion
+  list forward), and after the second empty window tell the operator nothing has
+  landed rather than waiting silently. Both sources ran, so this genuinely means no
+  PR references the issue — **don't reach for "the issue number is probably wrong"
+  as the explanation**. That reading came from the single-source wait, where a real
+  PR could sit unlinked-by-keyword and invisible; it sent the reviewer chasing a
+  diagnosis that could not be confirmed while an unreviewed PR merged.
 
 The `ERROR` branch is the whole point of using the shared script here. Routing it
 into the `IDLE` catch-all would re-arm into the same failure and then state

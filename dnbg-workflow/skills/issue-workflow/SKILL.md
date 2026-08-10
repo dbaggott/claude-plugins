@@ -83,13 +83,25 @@ When resolving an issue, the body is the contract — once the freshness probe b
 
 An issue being worked must look in-progress from the outside, or the next session (or agent, or human) picks it up in parallel. Both halves apply at pickup time, before any implementation:
 
-**1. Check for an existing claim.** One call returns all three in-progress signals:
+**1. Check for an existing claim.** Two calls, because the PR signal has two sources:
 
 ```bash
+# Assignee, labels, and PRs carrying a CLOSING KEYWORD.
 gh issue view <n> --repo <repo> --json assignees,labels,closedByPullRequestsReferences
+
+# PRs that merely MENTION the issue, any repo, keyword or not.
+# PR-SOURCE-EXEMPT: gh search prs — the timeline is authoritative and has no index
+# lag, so search adds only latency here; `reviewer`'s discovery keeps it for the
+# cross-repo sweep this check does not need.
+gh api "repos/<repo>/issues/<n>/timeline" --paginate \
+  --jq '.[] | select(.event=="cross-referenced")
+            | select(.source.issue.pull_request != null)
+            | .source.issue.html_url' | sort -u
 ```
 
-The issue is already in progress if any of: an assignee is set, **any** `assigned:*` label is present, or `closedByPullRequestsReferences` lists a PR that is still open (the field omits PR state — check with `gh pr view <number> --json state`). If so, don't start — surface what you found (which signal, which PR, how old the claim comment is — its timestamp comes from a follow-up `gh issue view <n> --json comments`, needed only on a hit) and ask the operator; in an unattended run, ask via a comment on the issue and stop. An open issue with an `assigned:*` label but **no** open linked PR and an old claim comment is the stale-claim signature — the claiming session probably died without finishing. Say so when asking, but proceeding past someone's claim is the operator's call, never yours.
+⚠️ **The second call is not belt-and-braces.** `closedByPullRequestsReferences` lists only PRs carrying a closing keyword, and `git-workflow`'s "Multi-repo changes" has **exactly one** sibling close the issue while the rest merely reference it. Check the keyword source alone and an in-flight multi-repo change reads as unclaimed the moment its closer merges — so a second session starts work already half-shipped. Same defect, same shape, as the one `reviewer`'s issue-scoped wait carried; `tests/coupling.bats` now pins both against `reviewer`'s discovery set so no site can narrow alone.
+
+The issue is already in progress if any of: an assignee is set, **any** `assigned:*` label is present, or either PR source lists a PR that is still open (neither source carries PR state — check with `gh pr view <number> --json state`, and note the timeline URL may be in a different repo than `<repo>`). If so, don't start — surface what you found (which signal, which PR, how old the claim comment is — its timestamp comes from a follow-up `gh issue view <n> --json comments`, needed only on a hit) and ask the operator; in an unattended run, ask via a comment on the issue and stop. An open issue with an `assigned:*` label but **no** open linked PR and an old claim comment is the stale-claim signature — the claiming session probably died without finishing. Say so when asking, but proceeding past someone's claim is the operator's call, never yours.
 
 The `assigned:*` namespace is deliberately open: whatever else works these repos — another agent, a bot, a teammate's tooling — claims with its own label in that namespace, and the check above matches the prefix rather than an enumerated list, so a new claimant needs no change here.
 

@@ -216,6 +216,146 @@ EOF
   }
 }
 
+# "Which PRs belong to this issue?" is asked in three places, and each answer gates
+# something different: whether the reviewer wakes, whether it discovers, and whether a
+# coder believes the issue is unclaimed. They drifted — discovery grew the timeline
+# source and the other two kept only `closedByPullRequestsReferences`, which lists PRs
+# carrying a CLOSING KEYWORD and nothing else. Since `git-workflow` has exactly one
+# sibling close an issue and the rest merely mention it, the narrow sources miss the
+# shape that skill mandates: the reviewer's wait sat out its whole window on a real PR,
+# and the claim check reads an in-flight multi-repo change as unclaimed.
+#
+# The failure is silent at every site — a wait that never fires and a claim check that
+# finds nothing look exactly like a quiet issue — so prose could not hold it. This is
+# the check.
+
+# Each extractor returns the API surfaces its site queries, one per line, under names
+# shared across the three files so they can be compared as sets. Taking the file as an
+# argument is what lets the induced-failure tests below run the real code against
+# fixtures rather than only against the passing case.
+
+# ⚠️ ONLY THE LINES A SITE ACTUALLY RUNS — fenced-block contents for a skill, the whole
+# file for a script, minus comments in both. A plain grep over the file counts a source
+# NAMED in prose as a source QUERIED, and worse, counts the exemption marker's own text
+# (which has to name the source it exempts) as coverage of it. Either way the check
+# passes while the site stays blind, which is the single failure it exists to prevent.
+pr_command_lines() {  # <file>
+  case "$1" in
+    *.md) awk '/^```/ { inside = !inside; next } inside' "$1" ;;
+    *)    cat "$1" ;;
+  esac | grep -v '^[[:space:]]*#'
+}
+
+pr_sources() {  # <file>
+  # `<n>` in the skills, `$PR` in the script: the same endpoint spelled for two
+  # audiences, so both normalise to `timeline`.
+  pr_command_lines "$1" \
+    | grep -oE 'closedByPullRequestsReferences|issues/(<n>|\$PR)/timeline|gh search prs' \
+    | sed 's|issues/.*/timeline|timeline|' | sort -u
+}
+
+# A site may decline a source, but only out loud. The marker carries the reason inline,
+# so the exemption is a decision on the record rather than a gap that accumulated.
+pr_exemptions() {  # <file>
+  # `[a-z]+( [a-z]+)*` rather than `[a-z ]+`: the latter is greedy over the space too,
+  # so it captures the one before the em-dash and every exemption arrives with trailing
+  # whitespace that no exact-match comparison can ever satisfy.
+  grep -oE 'PR-SOURCE-EXEMPT: [a-z]+( [a-z]+)*' "$1" | sed 's/PR-SOURCE-EXEMPT: //' | sort -u
+}
+
+# Every source discovery uses must be either polled by the site or exempted by it.
+# Deliberately one-directional: a site querying something discovery does not is not a
+# drift this test can judge, while a site quietly seeing LESS than discovery is exactly
+# the bug above.
+covers_discovery() {  # <site-file> <discovery-file>
+  local want have exempt missing=""
+  want=$(pr_sources "$2")
+  have=$(pr_sources "$1")
+  exempt=$(pr_exemptions "$1")
+
+  [ -n "$want" ] || { echo "no PR sources found in the discovery file"; return 1; }
+
+  local s
+  while IFS= read -r s; do
+    [ -n "$s" ] || continue
+    printf '%s\n' "$have"   | grep -qxF "$s" && continue
+    printf '%s\n' "$exempt" | grep -qxF "$s" && continue
+    missing="$missing $s"
+  done <<EOF
+$want
+EOF
+
+  [ -z "$missing" ] || {
+    echo "$(basename "$1") is narrower than discovery — unhandled source(s):$missing"
+    echo "  discovery: $(echo "$want" | tr '\n' ' ')"
+    echo "  this site: $(echo "$have" | tr '\n' ' ')"
+    echo "  exempted:  $(echo "$exempt" | tr '\n' ' ')"
+    echo "poll the source, or declare 'PR-SOURCE-EXEMPT: <source> — <reason>' at the site"
+    return 1
+  }
+}
+
+REVIEWER_SKILL="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
+
+@test "the issue-scoped wait sees every PR source discovery does" {
+  run covers_discovery "$ROOT/dnbg-workflow/scripts/watch-pr.sh" "$REVIEWER_SKILL"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "the claim check sees every PR source discovery does" {
+  run covers_discovery "$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" "$REVIEWER_SKILL"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+# A site file in the shape the extractor expects: commands inside a fence, everything
+# else prose. Shaped as `.md` because that is the harder case — a script has no prose
+# for a mention to hide in.
+fixture_site() {  # <fenced-body>
+  cat > "$BATS_TEST_TMPDIR/site.md" <<EOF
+Prose above the block, mentioning gh search prs and closedByPullRequestsReferences
+in passing — neither is a query, and neither may count as one.
+
+\`\`\`bash
+$1
+\`\`\`
+
+Prose below, same rule.
+EOF
+  echo "$BATS_TEST_TMPDIR/site.md"
+}
+
+@test "a site polling only the closing-keyword source is caught" {
+  # The exact regression, induced: the shape both sites had before, which no test
+  # could distinguish from a quiet issue.
+  run covers_discovery \
+    "$(fixture_site 'gh issue view <n> --json closedByPullRequestsReferences')" \
+    "$REVIEWER_SKILL"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"narrower than discovery"* ]]
+  [[ "$output" == *"timeline"* ]]
+}
+
+@test "a source only NAMED in prose does not count as one queried" {
+  # The fixture's prose names every source; the block queries two. Were mentions
+  # counted, this would pass while the site never runs the third — and the same
+  # accident would let the exemption marker vouch for the source it exempts.
+  run covers_discovery "$(fixture_site 'gh issue view <n> --json closedByPullRequestsReferences
+gh api repos/x/issues/<n>/timeline --paginate')" "$REVIEWER_SKILL"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"gh search prs"* ]]
+}
+
+@test "a marked exemption does count, so a fourth source is a decision not a silence" {
+  run covers_discovery "$(fixture_site 'gh issue view <n> --json closedByPullRequestsReferences
+gh api repos/x/issues/<n>/timeline --paginate
+# PR-SOURCE-EXEMPT: gh search prs — rate-limited well below core REST.')" \
+    "$REVIEWER_SKILL"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
 # Two conventions that a suite opts into by `load`ing a file, and whose absence is
 # invisible from inside the suite that forgot: a watch spawned without `trace-dir`
 # files its trace in the DEVELOPER'S real directory, and one spawned without `reap`
