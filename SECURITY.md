@@ -30,9 +30,14 @@ Nothing is backported. If you have pinned an old version, updating is the fix.
 
 ## What installing this grants
 
-Installing a plugin from this marketplace means **it runs shell on your machine
-without asking each time** — that is what a Claude Code hook is. Four of them
-fire automatically once the marketplace is trusted:
+**Hooks ship with `dnbg-workflow` only** — and so with `dnbg-all`, which depends
+on it. `dnbg-practices` and `dnbg-work-summary` install skills and nothing else;
+neither runs any shell, which is why the first of them describes itself as "No
+hooks, no forge."
+
+Installing `dnbg-workflow` means **it runs shell on your machine without asking
+each time** — that is what a Claude Code hook is. Four hooks fire automatically
+once the marketplace is trusted:
 
 | Hook | Fires | What it does |
 | --- | --- | --- |
@@ -42,13 +47,23 @@ fire automatically once the marketplace is trusted:
 | `check-issue-create.sh` | before every `Bash` | Reads the command string; **blocks** `gh issue create` against a covered repo unless the `issue-workflow` skill is loaded. |
 
 The two `PreToolUse` hooks see the tool payload for **every** call of those
-types, including in repos this project has nothing to do with. They read a file
-path or a command string out of it and exit; they do not log it, store it, or
-send it anywhere.
+types, including in repos this project has nothing to do with.
+`check-worktree.sh` takes a file path out of it; `check-issue-create.sh` takes
+the command string. Neither logs, stores, or forwards what it sees.
+
+**`check-issue-create.sh` also reads your session transcript**, which is the
+most sensitive thing either hook touches and so the one most worth stating
+outright. It happens only *after* a command has already matched `gh issue
+create` against a covered repo: the hook takes `transcript_path` from the
+payload and greps that file for a single pattern, to find out whether the
+`issue-workflow` skill was loaded this session
+(`check-issue-create.sh:98-100`). What it learns is one yes/no. The transcript
+is not parsed further, and nothing from it is kept, written, or sent.
 
 **The hooks make no network calls, write no files, and hold no credentials.**
-They shell out to `jq` and `git` only. Nothing in this project updates itself —
-what you installed is what runs until you update deliberately, so reviewing
+They shell out to `jq`, `git`, `grep`, `sed` and `tr`. Nothing in this project
+updates itself — what you installed is what runs until you update
+deliberately, so reviewing
 [`dnbg-workflow/hooks/`](dnbg-workflow/hooks/) once is a review that stays
 valid. They are short, and reading code that will run in your terminal before
 you trust it is a reasonable thing to want.
@@ -80,10 +95,12 @@ config and environment only, never the working directory.
 read them as a control. They are not, and treating them as one is the mistake
 this section exists to prevent:
 
-- **They fail open.** Without `jq` (both) or `git` (`check-worktree`) they
-  cannot parse or resolve, and Claude Code classes a hook exiting non-zero and
-  non-2 as a non-blocking error — the action proceeds. `inject-rules.sh` warns
-  at session start for exactly this reason, but the gate is inert either way.
+- **They fail open.** Without `jq` (both) or `git` (`check-worktree.sh`) they
+  cannot parse or resolve, and the action proceeds either way — by two different
+  routes. A missing `jq` kills the hook under `set -e`, and Claude Code classes a
+  hook exiting non-zero and non-2 as a non-blocking error. A missing `git` is an
+  explicit allow: `check-worktree.sh:32` exits **0**. `inject-rules.sh` warns at
+  session start for exactly this reason, but the gate is inert either way.
 - **They gate an agent, not an attacker.** They stop a well-behaved session
   from editing the wrong checkout. Anything that can run `Bash` can also run
   `git`, and nothing here tries to prevent that.
@@ -110,7 +127,8 @@ bot — it cannot push code, merge, or alter issues.
 
 **Where it lives.** Three sources, first hit wins: the
 `DNBG_REVIEWER_PRIVATE_KEY` environment variable, a command you configure via
-`DNBG_REVIEWER_PRIVATE_KEY_COMMAND` (any secret manager), or a plaintext PEM at
+`DNBG_REVIEWER_PRIVATE_KEY_COMMAND` or `private_key_command` in `config.json`
+(any secret manager), or a plaintext PEM at
 `~/.config/dnbg/reviewer/private-key.pem`, mode `0600` in a `0700` directory —
 the default `bootstrap.py` writes. The
 [README](README.md#the-reviewer-bots-private-key) covers configuring these and
