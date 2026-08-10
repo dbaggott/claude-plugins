@@ -347,3 +347,30 @@ remote_read_calls() {  # <SKILL.md>
   grep -qi 'fall back' "$f" || {
     echo "issue-workflow's remote read is not framed as a fallback"; false; }
 }
+
+# The README's decline table drifted from the skill it describes, one round after
+# the skill was corrected — `issue-workflow`'s rule cell read `same`, inheriting
+# `git-workflow`'s origin rule, so when issue-workflow stopped deciding that way
+# the cell could not go visibly stale: it still pointed at a neighbour whose rule
+# was still right *for the neighbour*.
+#
+# This bans the inheriting placeholder, nothing more. It cannot tell whether a
+# spelled-out rule is correct — checking prose against behavior would mean
+# parsing one into the other, which is a worse trade than the drift it prevents.
+# What it does buy is that a rule change has to touch the cell that states it,
+# which is the step that was skipped. Keeping the artifacts honest past that
+# stays a manual step, deliberately.
+@test "every row of the decline table states its own rule instead of inheriting one" {
+  local offenders
+  # `|| true` because finding nothing is the passing case, and bats runs with
+  # errexit — without it a clean table fails the assignment rather than the test.
+  offenders=$(awk '/^### What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
+      "$ROOT/README.md" \
+    | grep -E '^\| `[a-z-]+` \|' \
+    | grep -iE '\|[[:space:]]*(same|as above|ditto|likewise)[[:space:]]*\|' || true)
+  if [ -n "$offenders" ]; then
+    echo "$offenders"
+    echo "a decline-table row inherits its rule from a neighbour — spell it out, or it cannot go visibly stale"
+    false
+  fi
+}

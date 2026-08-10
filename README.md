@@ -70,19 +70,23 @@ on the repo you're standing in:
 | Skill | Acts on | Declines when |
 | --- | --- | --- |
 | `git-workflow` | the repo whose tracked file you're changing | that repo's `origin` host isn't `github.com` |
-| `issue-workflow` | the repo the issue lives in | same |
+| `issue-workflow` | the repo the issue lives in | the host **in the issue URL** isn't `github.com` — or, for a bare issue number, that repo's `origin` |
 | `reviewer` | a pull request you name explicitly | the *named* repo isn't on GitHub |
 | `reviewer-setup` | a GitHub App on your machine | never — no repo is involved |
 | `work-summary` | your GitHub account, via `gh search` | never — no repo is involved |
 
-The last three deliberately ignore your working directory. Asking for a recap of
-your GitHub week while sitting in a GitLab checkout is a coherent request, and
-gating it on `git remote get-url origin` would refuse a flow that works fine.
+The last three deliberately ignore your working directory, and so does
+`issue-workflow` whenever the issue is named by full URL — which the always-on
+rule requires, so it is the normal case. Asking for a recap of your GitHub week,
+or picking up a GitHub issue, while sitting in a GitLab checkout is a coherent
+request, and gating it on `git remote get-url origin` would refuse a flow that
+works fine. Only `git-workflow` reads that remote unconditionally, because the
+file you are editing really is in the repo you are standing in.
 
-Two cases the repo-scoped pair treat as *not* a decline: a repo with **no
-`origin`** carries no forge claim either way, so they proceed and let you direct
-rather than assuming either host; and where **several remotes** exist, `origin`
-decides — matching what the enforcement hooks do.
+Two cases that are *not* a decline, wherever `origin` **is** the input: a repo
+with **no `origin`** carries no forge claim either way, so the flow proceeds and
+lets you direct rather than assuming either host; and where **several remotes**
+exist, `origin` decides — matching what the enforcement hooks do.
 
 The forge-neutral skills are never gated, on any host. That includes
 `velocity-tradeoff` despite its plugin: declining is decided per skill, never
