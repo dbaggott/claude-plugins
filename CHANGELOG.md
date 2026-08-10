@@ -9,6 +9,20 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.22 — 2026-08-10
+
+The always-on rules now reach subagents, not just the main conversation.
+
+`SessionStart` output — which is how this plugin injected its rules — reaches the
+main loop and nothing else, so any subagent you spawned had never been told to
+work in a worktree, to reference issues by full URL, or about any configuration
+override you had set. A new `SubagentStart` hook injects the same rules into each
+subagent.
+
+This is a behavior change on an installed machine: subagents now see the rules
+and act on them, and each spawn costs the tokens the rules occupy.
+
+
 ## dnbg-workflow 2026.8.21 — 2026-08-10
 
 The workflow skills now state that they are GitHub-only and decline cleanly on
