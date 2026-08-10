@@ -148,8 +148,9 @@ trying the plugin in a repo without committing anything.)
 
 ## Configure which repos it enforces on
 
-**This is what turns the hooks on, and it only matters in Mode A.** At enable
-time Claude Code prompts for one value:
+**This is what turns the hooks on, and it only matters in Mode A.** It is the
+first of the three values Claude Code prompts for at enable time — the other two
+are below, and neither of them turns anything on or off:
 
 | Setting | Meaning |
 | --- | --- |
@@ -170,6 +171,39 @@ config is deliberately *not* read from a project's `.claude/settings.json`, so a
 repository you clone can never widen or narrow what gets enforced on your
 machine. That asymmetry is also why the opt-in for `velocity-tradeoff` below
 goes through a repo's `CLAUDE.md` rather than through config.
+
+## Configure the mechanical opinions
+
+Two of this plugin's choices are mechanical — a directory name and a label name —
+and you can change them without forking. Both default to what the skills say, so
+leaving them alone is the same as not having them:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `worktree_path` | `.worktrees` | Repo-relative directory worktrees are created in. Must stay inside the repo — an absolute path, a `~` path, or any `..` segment is rejected and the default used instead |
+| `claim_label` | `assigned:agent-session` | Label an agent session applies when it claims an issue. Must start with `assigned:` |
+
+Set one and the session-start hook prints a short note saying so; the skills read
+that note as overriding the defaults they spell out. Set nothing and the hook
+prints nothing at all.
+
+**Both rejections are enforced rather than advisory, and for the same kind of
+reason.** Worktrees outside the repo are not covered by `.gitignore` and the
+skills' cleanup steps stop resolving against them. A claim label outside
+`assigned:` is worse, because it fails silently in *both* directions: the check
+for an existing claim matches the whole `assigned:` namespace deliberately, so
+that any claimant — another agent, a bot, a teammate's tooling — is visible
+without this plugin knowing their name. Step outside it and your claims stop
+being seen by them while theirs stop being seen by you, which puts two workers on
+one issue. Where a value is rejected, the session-start note names the value, the
+reason, and the default it fell back to.
+
+What is deliberately **not** configurable: PRs always open as drafts, the
+send-to-review picker and its fixed option order, the `[<branch-name>]` sibling
+PR title tag, and "only a human merges". Those are what the workflow *does*
+rather than parameters of it — the tag in particular is a join key, so a
+per-adopter format would destroy the signal exactly when someone is reading a PR
+list across repos.
 
 ## What it does to your session
 
@@ -357,7 +391,7 @@ To keep plugin updates while disabling Claude Code's own, set
 CHANGELOG.md                      # assembled at release time
 changelog.d/<plugin>/             # pending fragments, one per PR
 dnbg-workflow/                    # the plugin
-  .claude-plugin/plugin.json      # manifest, incl. the `owners` userConfig
+  .claude-plugin/plugin.json      # manifest, incl. the three userConfig knobs
   always-on-rules.md              # injected into every session
   hooks/                          # rule injection, two gates
   skills/                         # loaded on demand when the description matches

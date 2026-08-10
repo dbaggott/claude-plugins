@@ -304,6 +304,12 @@ review.
    headRefOid`), not `FETCH_HEAD`: `FETCH_HEAD` is per-worktree, so it resolves
    only where the fetch ran and is absent in the review worktree you just made.
 
+   **`.worktrees/` is the default, not a constant.** It is configurable, so if a
+   `dnbg-workflow` note at session start names a different worktree root, that
+   note wins and every `.worktrees/` in this skill means the root it names —
+   here, and in the cleanup at the end. With no such note, the literal above is
+   what this session uses.
+
    **This branch is the only part of the skill that needs a local
    clone of the target repo** — everything else runs from any directory via
    `--repo`, and the remote read above is what keeps that true. Working with no

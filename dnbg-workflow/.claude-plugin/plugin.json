@@ -16,6 +16,18 @@
       "title": "GitHub owners this workflow applies to",
       "description": "Comma-separated list of GitHub orgs and/or personal logins, e.g. 'acme-corp,yourname'. A repo is covered when its origin remote points at one of them. Leave empty and the enforcement hooks never block anything — the skills still load as guidance.",
       "default": ""
+    },
+    "worktree_path": {
+      "type": "string",
+      "title": "Where worktrees live",
+      "description": "Repo-relative directory the workflow creates worktrees in, e.g. 'wt' or '.git/wt'. Absolute paths, '~' paths, and any '..' segment are rejected and the default is used instead — worktrees have to stay inside the repo for .gitignore and the cleanup steps to work. Leave empty for '.worktrees'.",
+      "default": ".worktrees"
+    },
+    "claim_label": {
+      "type": "string",
+      "title": "Issue claim label",
+      "description": "Label applied when an agent session claims a GitHub issue. Must start with 'assigned:' — the check for someone else's claim matches that whole namespace, so a label outside it makes your claims invisible to other tools and theirs invisible to you. Leave empty for 'assigned:agent-session'.",
+      "default": "assigned:agent-session"
     }
   }
 }

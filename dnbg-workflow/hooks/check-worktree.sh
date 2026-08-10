@@ -42,6 +42,12 @@ remote_is_covered "$ORIGIN" || exit 0
 REL_PATH="${FILE_PATH#"$REPO_ROOT"/}"
 git -C "$REPO_ROOT" ls-files --error-unmatch -- "$REL_PATH" >/dev/null 2>&1 || exit 0
 
+# Resolved rather than hard-coded: an operator who moved the worktree root would
+# otherwise be handed a `git worktree add` naming a directory the rest of the
+# session is told not to use, and told to retry the edit at a path that will
+# never exist. A block message is only worth printing if it is runnable.
+WORKTREE_PATH=$(resolve_worktree_path)
+
 cat >&2 <<EOF
 BLOCKED by dnbg-workflow:check-worktree — Edit/Write on a tracked file in the
 main checkout of a covered repo.
@@ -53,10 +59,10 @@ Per the git-workflow skill, code changes must go through a worktree + draft PR.
 Create one (from inside the main checkout):
 
   git fetch origin
-  git worktree add .worktrees/<branch-name> -b <branch-name> origin/<default-branch>
+  git worktree add $WORKTREE_PATH/<branch-name> -b <branch-name> origin/<default-branch>
 
 Then retry the edit against:
 
-  $REPO_ROOT/.worktrees/<branch-name>/$REL_PATH
+  $REPO_ROOT/$WORKTREE_PATH/<branch-name>/$REL_PATH
 EOF
 exit 2
