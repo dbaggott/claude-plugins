@@ -42,7 +42,7 @@ If a script, hook, or procedure this plugin ships doesn't cover your
 case, do the narrow thing that finishes the task, then tell the user
 what didn't fit and offer to file an issue upstream — the maintainer
 asks for these reports, and the destination is the `repository` field
-of `<skill-dir>/../../.claude-plugin/plugin.json`. Never file it under
+of this plugin's own `.claude-plugin/plugin.json`. Never file it under
 the user's identity without their consent: it is theirs to decide, and
 if they accept, write it from the generic case with nothing personal,
 proprietary, or session-specific in it, and show them the full text to
