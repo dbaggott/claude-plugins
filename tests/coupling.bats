@@ -215,7 +215,18 @@ readme_skill_rows() {  # <README.md> -> "<skill> <plugin> <forge>"
   # forge cell is normalised to coupled/neutral: it is prose ("GitHub only",
   # "**Any**") so that a reader gets a sentence, and matching on "any" rather
   # than the exact spelling keeps the emphasis markup free to change.
-  sed -n 's/^| `\([a-z-]*\)` | `\([a-z-]*\)` | \(.*\) | .* |$/\1 \2 \3/p' "$1" \
+  #
+  # Scoped to the table, and every cell capture excludes `|`. The second is the
+  # subtle one: with a greedy `\(.*\)` for the forge cell, a row whose
+  # description contained a pipe would fold the Forge cell into the description
+  # and read as `coupled`. The table-diff check below compares only the skill
+  # and plugin columns, so a neutral skill would be misclassified in silence —
+  # the exact drift these checks exist to catch.
+  #
+  # `What.s` rather than the apostrophe: the heading is matched inside a
+  # single-quoted awk program, where a literal `'` cannot appear.
+  awk '/^## What.s in it$/{inside=1; next} inside && /^## /{exit} inside' "$1" \
+    | sed -n 's/^| `\([a-z-]*\)` | `\([a-z-]*\)` | \([^|]*\) | [^|]* |$/\1 \2 \3/p' \
     | while read -r skill plugin forge; do
         case "$(printf '%s' "$forge" | tr -d '*' | tr '[:upper:]' '[:lower:]')" in
           any) printf '%s %s neutral\n' "$skill" "$plugin" ;;
@@ -304,4 +315,35 @@ remote_read_calls() {  # <SKILL.md>
     grep -q 'No `origin`\|no `origin`' "$f" || {
       echo "$skill/SKILL.md does not say what to do in a repo with no origin"; false; }
   done
+}
+
+# `issue-workflow` is repo-scoped, but the repo is the one the ISSUE lives in —
+# which the working directory only reveals when the issue is named by a bare
+# number. The always-on rule requires full URLs, so the URL case is the common
+# path, and resolving it from cwd breaks it in both directions: a GitHub issue
+# URL declines from a GitLab checkout, and a GitLab issue URL proceeds from a
+# GitHub one into the `gh issue view` cascade the section exists to prevent.
+#
+# Structural rather than keyword-matched, because "reads the remote" is true of
+# the fixed file too — the fallback is still there. What must hold is the
+# precedence: the URL rule is stated BEFORE the command, so the command reads as
+# the fallback rather than as the rule.
+@test "issue-workflow resolves the host from the issue URL, and the remote only as a fallback" {
+  local f url_rule remote_line
+  f="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md"
+
+  url_rule=$(grep -niE 'the host is in the URL' "$f" | head -1 | cut -d: -f1)
+  [ -n "$url_rule" ] || {
+    echo "issue-workflow never says the host comes from the issue URL"; false; }
+
+  remote_line=$(remote_read_calls "$f" | head -1 | cut -d: -f1)
+  [ -n "$remote_line" ] || {
+    echo "issue-workflow has no remote read at all, so a bare issue number cannot be resolved"; false; }
+
+  [ "$url_rule" -lt "$remote_line" ] || {
+    echo "issue-workflow reads the remote before establishing that the URL decides the host"; false; }
+
+  # And the command is framed as the fallback, not merely placed after the rule.
+  grep -qi 'fall back' "$f" || {
+    echo "issue-workflow's remote read is not framed as a fallback"; false; }
 }
