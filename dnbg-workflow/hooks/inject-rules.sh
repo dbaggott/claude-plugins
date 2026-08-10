@@ -49,9 +49,12 @@ for bin in jq git; do
 
 Both blocking hooks parse their stdin payload with `jq`, so neither can run.
 Edits to tracked files in the main checkout of a covered repo are **not** being
-blocked, and `gh issue create` is **not** being gated. Treat the worktree and
-issue flows as advisory this session and follow them from the skills directly.
-Install `jq` to restore enforcement.
+blocked, and `gh issue create` is **not** being gated. The PR and merge watchers
+cannot run either. **Subagents spawned this session do not receive the rules
+above** — `inject-rules-subagent.sh` builds its payload with `jq` too — so state
+the worktree and full-URL rules in the prompt of any subagent you delegate to.
+Treat the worktree and issue flows as advisory this session and follow them from
+the skills directly. Install `jq` to restore all of it.
 EOF
       ;;
     git)
