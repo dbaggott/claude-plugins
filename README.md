@@ -63,9 +63,11 @@ once and the caveat the recap carries into both.
 
 ![A session gathering merged PRs and filed issues, reading their descriptions rather than their diffs, asking who the recap is for, and writing the same week up twice: once for teammates and once for leadership.](docs/media/demo-work-summary.gif)
 
-*Those four are reenactments — Claude Code's pickers and dialogue never reach a
-recorder. The commands and their output are real, and the scripts that produce
-them are in [`docs/media/`](docs/media/).*
+*Those four are reenactments: Claude Code's pickers and dialogue never reach a
+recorder, so the sessions are scripted to match what the skills specify. The
+`BLOCKED` message in the issue-filing one is the exception — the real hook
+produces it at record time. [`docs/media/`](docs/media/) holds the scripts, and
+what each one is drawn from.*
 
 ## Why it compounds
 
