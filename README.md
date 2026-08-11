@@ -5,13 +5,13 @@ work using sensible best practices: every change goes through a worktree and
 a draft PR, issues are written to survive a cold handoff, and an independent bot
 identity reviews the result before a human merges it.
 
-The workflow and prompts were developed and continuously improved over the course 
-of **more than 1,200 pull requests in 25 repositories** and was used
+The workflow and prompts were developed and continuously improved over the course
+of **more than 1,200 pull requests in 25 repositories** and were used
 exclusively by a small team of developers for many months. In our experience, an
 agent on its own is incapable of producing well-designed production-quality code.
 This plugin was built to support an AI-native startup.
 
-This plugin consists of **skills** (loaded on demand when they match the task), a 
+This plugin consists of **skills** (loaded on demand when they match the task), a
 short **always-on rules** file, and two **enforcement hooks** that make the worktree
 and issue flows non-optional in the repos you choose. Two of those are things a
 `CLAUDE.md` structurally cannot do: hooks that *enforce* the flow rather than
@@ -22,8 +22,6 @@ on a PR you wrote.
 where.
 
 ## How you use it
-
-Below is a list of the most common work patterns.
 
 **Two sessions on one issue — one resolving it, one reviewing it.** The reviewer
 is assigned before any PR exists, so it waits; it sees the draft appear and
@@ -46,9 +44,9 @@ review round to a clean verdict, and reports back when you return. The one thing
 it will not do is merge: only a human merges.
 
 **Two sessions on one task -- one for interactive development, one reviewing
-the work.** Here the operator works something out conversationally and it goes 
+the work.** Here the operator works something out conversationally and it goes
 straight to a draft PR. Once you're satisfied, you send it to another session
-for review. It ends the way the flow always ends: the coding agent hands over the 
+for review. It ends the way the flow always ends: the coding agent hands over the
 merge command, you merge it yourself (here with `!` in the session), and the worktree
 and branch are cleaned up without being asked.
 
@@ -59,9 +57,9 @@ without the skill is a body the next session can't work from.
 
 ![A session's gh issue create being blocked by the check-issue-create hook, then loading the issue-workflow skill, verifying anchors against the tree, and filing an issue whose body carries the defect, a reproduction, a proposed fix, and acceptance criteria.](docs/media/demo-file-issue.gif)
 
-**Summarizing work accomplished in a specified time period**, with the 
-level of detail included shaped by the intended audience. As velocity 
-increased, it became challenging to summarize completed work -- there 
+**Summarizing work accomplished in a specified time period**, with the
+level of detail included shaped by the intended audience. As velocity
+increased, it became challenging to summarize completed work -- there
 was simply too much of it! This makes it easy:
 
 ![A session gathering merged PRs and filed issues, reading their descriptions rather than their diffs, asking who the recap is for, and writing the same week up twice: once for teammates and once for leadership.](docs/media/demo-work-summary.gif)
