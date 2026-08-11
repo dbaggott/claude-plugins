@@ -1,4 +1,34 @@
 <!--
+Writing this description
+------------------------
+Describe the AS-BUILT state — what the change is now, not the path you took to
+it. Every claim has to be true and earned; a reviewer who catches one inflated
+claim discounts the whole description, so under-claiming costs nothing and
+over-claiming costs trust.
+
+- Name what you verified, and HOW. "shellcheck and `bats tests/` pass" has a
+  source; "tested" does not. If you did not run a check, do not phrase the body
+  so it reads as if you did.
+- Do not assert coverage you do not have, and never describe an intended test as
+  an existing one.
+- Do not state impact without evidence — back a performance or "fixes it for all
+  inputs" claim with the measurement or the reasoning, or hedge it.
+- Claim only the scope you checked. That a fix generalizes, that it addresses the
+  root cause rather than the symptom you reproduced, that nothing else is
+  affected — each is an assumption until verified. Verify it, or state the scope
+  you actually covered.
+- Surface gaps, not just wins. Known limitations, branches you could not
+  exercise, deferred follow-ups. Omitting them reads as "all handled," and the
+  next reader inherits the surprise.
+
+Reference issues and PRs by FULL URL (https://github.com/owner/repo/issues/19),
+never bare #19 — it is the only form clickable on every surface and unambiguous
+when copied between repos. Put the issue URL in the body; use a closing keyword
+(`Closes <url>`) only on the PR that actually completes the work.
+
+New to the repo? CONTRIBUTING.md covers scope, the fork flow, and how to run
+every CI check locally.
+
 Changelog fragment
 ------------------
 If this PR changes anything a user of a plugin would notice, add a fragment:
