@@ -12,6 +12,9 @@ and issue flows non-optional in the repos you choose. Two of those are things a
 advising it, and an identity separate from yours that can post a binding verdict
 on a PR you wrote.
 
+**[Install it](#install)** — two commands, and nothing is enforced until you say
+where.
+
 ## What it looks like
 
 **Two sessions on one issue — one resolving it, one reviewing it.** The reviewer
