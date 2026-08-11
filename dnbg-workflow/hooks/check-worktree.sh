@@ -39,8 +39,22 @@ remote_is_covered "$ORIGIN" || exit 0
 [ -f "$REPO_ROOT/.git" ] && exit 0
 
 # Main checkout. Allow brand-new untracked files; block edits to tracked ones.
-REL_PATH="${FILE_PATH#"$REPO_ROOT"/}"
-git -C "$REPO_ROOT" ls-files --error-unmatch -- "$REL_PATH" >/dev/null 2>&1 || exit 0
+#
+# git answers both halves at once: `--error-unmatch` fails on an untracked path,
+# and `--full-name` names a tracked one relative to the repo root however the
+# argument was spelled. Ask rather than strip `$REPO_ROOT` off the front: the
+# payload carries the path as the caller spelled it while `--show-toplevel`
+# resolves symlinks, so the two disagree whenever the repo is reached through
+# one — and every path in the message below is built from this value.
+#
+# `-z` is what keeps a name with a quote, a tab or a non-ASCII byte in it from
+# arriving C-quoted; `core.quotePath` would cover only the last of those. It
+# costs the exit status, so emptiness is the untracked test — `--error-unmatch`
+# prints nothing when it fails — and `tr` drops the trailing NUL that bash 5
+# otherwise warns about on stderr, which is where the block message goes.
+REL_PATH=$(git -C "$REPO_ROOT" \
+  ls-files -z --full-name --error-unmatch -- "$FILE_PATH" 2>/dev/null | tr -d '\000')
+[ -n "$REL_PATH" ] || exit 0
 
 # Resolved rather than hard-coded: an operator who moved the worktree root would
 # otherwise be handed a `git worktree add` naming a directory the rest of the
