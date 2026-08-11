@@ -142,16 +142,26 @@ run_issue_hook() {  # <payload>
   [ "$status" -eq 0 ]
 }
 
-@test "the block message names a non-ASCII file unescaped" {
-  # git C-quotes such a path by default, which is the same defect as the
-  # symlinked one — a name in the message that no command will accept.
-  echo tracked > "$REPO/tracked-æ.txt"
-  git -C "$REPO" add tracked-æ.txt
-  git -C "$REPO" commit -qm nonascii
-  run_worktree_hook "$(edit_payload "$REPO/tracked-æ.txt")"
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"File: tracked-æ.txt"* ]]
-  [[ "$output" != *'\303'* ]]
+# git C-quotes an awkward name by default, which is the same defect as the
+# symlinked one — a name in the message that no command will accept. The three
+# cases span the classes git quotes separately: `core.quotePath` governs the
+# non-ASCII one alone, so a fix resting on it leaves the other two escaped.
+@test "the block message names an awkwardly-named file unescaped" {
+  local name
+  # jq rather than `edit_payload`, whose printf cannot carry a quote or a tab
+  # through a JSON string.
+  for name in 'tracked-æ.txt' 'tracked-"q.txt' "$(printf 'tracked-\tt.txt')"; do
+    echo tracked > "$REPO/$name"
+    git -C "$REPO" add -- "$name"
+    git -C "$REPO" commit -qm awkward
+    run_worktree_hook "$(jq -cn --arg p "$REPO/$name" \
+      '{tool_name:"Edit",tool_input:{file_path:$p}}')"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"File: $name"* ]]
+    # The C-quoted forms of the three: \303 for the byte, \" for the quote, \t
+    # for the tab. A backslash reaching the message at all is the defect.
+    [[ "$output" != *'\'* ]]
+  done
 }
 
 @test "allows the same file inside a worktree" {
