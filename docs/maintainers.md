@@ -28,6 +28,18 @@ to a different set of rules than its parent is the failure the split prevents.
 The rules cost tokens on each subagent spawn as well as at session start, which
 is the price of a subagent that has actually been told to work in a worktree.
 
+## Where the version floor comes from
+
+`docs/requirements.md` states v2.1.207 without deriving it. It is a floor taken
+from the dated behaviors the plugin relies on, not a tested boundary: plugin
+config reaches the hooks as `CLAUDE_PLUGIN_OPTION_*` environment variables,
+which is the arrangement that settled at v2.1.207 when `${user_config.*}`
+stopped substituting into shell-form fields, and `dnbg-all` resolves its
+`dependencies`, which arrived at v2.1.143.
+
+Both need re-deriving whenever the client moves under us, which is why they live
+here rather than in front of a reader deciding whether to install.
+
 ## Where new content goes: skill vs always-on vs project CLAUDE.md
 
 Three places content can live; default to the cheapest that fits. The same table

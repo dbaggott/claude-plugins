@@ -2,13 +2,9 @@
 
 **Claude Code v2.1.207 or newer.** The manifest format has no field for a
 minimum version, so this is documented rather than enforced — nothing stops an
-older client installing the plugin and misbehaving quietly. It is a floor
-derived from the dated behaviors the plugin relies on, not a tested boundary:
-plugin config reaches the hooks as `CLAUDE_PLUGIN_OPTION_*` environment
-variables, which is the arrangement that settled at v2.1.207 when
-`${user_config.*}` stopped substituting into shell-form fields, and `dnbg-all`
-resolves its `dependencies`, which arrived at v2.1.143. Verified working on
-v2.1.226.
+older client installing the plugin and misbehaving quietly. Verified working on
+v2.1.226. ([Where the floor comes
+from](maintainers.md#where-the-version-floor-comes-from), if you need it.)
 
 **Command-line tools.** Not all of them are needed for all of it — the first two
 are what the enforcement hooks run on, and the last three only matter if you use
