@@ -475,7 +475,7 @@ remote_read_calls() {  # <SKILL.md>
     case "$skill" in git-workflow|issue-workflow) continue ;; esac
     f="$ROOT/$plugin/skills/$skill/SKILL.md"
     if remote_read_calls "$f"; then
-      echo "$skill is not repo-scoped but reads the origin remote — see README 'What happens on an unsupported forge'"
+      echo "$skill is not repo-scoped but reads the origin remote — see docs/forge-support.md 'What happens on an unsupported forge'"
       bad=1
     fi
   done < <(tree_skills)
@@ -548,8 +548,8 @@ remote_read_calls() {  # <SKILL.md>
   local offenders
   # `|| true` because finding nothing is the passing case, and bats runs with
   # errexit — without it a clean table fails the assignment rather than the test.
-  offenders=$(awk '/^### What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
-      "$ROOT/README.md" \
+  offenders=$(awk '/^## What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
+      "$ROOT/docs/forge-support.md" \
     | grep -E '^\| `[a-z-]+` \|' \
     | grep -iE '\|[[:space:]]*(same|as above|ditto|likewise)[[:space:]]*\|' || true)
   if [ -n "$offenders" ]; then
