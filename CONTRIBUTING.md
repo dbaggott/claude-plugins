@@ -26,14 +26,29 @@ should save you writing a PR that gets declined after the work is done.
 findings (Windows/Git Bash is expected to work and has never been tested), and
 documentation corrections.
 
-**Likely declined:** changes to the opinions themselves — worktree-then-draft-PR,
-never merging your own work, CalVer, fragments-drive-releases — since those are
-the product rather than incidental choices. Also: softening a gate rather than
-reporting where it misfires, new always-on rules (that file is charged to every
-session of every user; a skill is almost always the right home), and restating
-an opinion in a second place.
+**Likely declined:** softening a gate rather than reporting where it misfires,
+new always-on rules (that file is charged to every session of every user; a
+skill is almost always the right home), and restating an opinion in a second
+place.
 
-Those are discussions worth having in an issue. A short issue costs you minutes;
+**The opinions themselves are open, if you make them configurable.** Swapping one
+default for another is declined — worktree-then-draft-PR, never merging your own
+work, CalVer, fragments-drive-releases are the product rather than incidental
+choices, and someone installed this *for* them. But adding a knob that leaves the
+current behavior as the default is a different proposal, and a welcome one.
+`worktree_path` and `claim_label` are exactly that: opinions that turned out to
+be someone else's to make, so they became `userConfig` keys with the original
+value as the default.
+
+Two things such a change has to carry. The default has to live somewhere that
+*runs* — an unset option substitutes nothing and exports no environment variable,
+so the manifest's `default` field is not a fallback; `dnbg-workflow/hooks/lib.sh`
+is where the existing ones resolve, and `tests/coupling.bats` pins them against
+the manifest. And the skill text has to name the configured value as the default
+rather than a constant, the way `.worktrees/` and `assigned:agent-session`
+already do, so a session reading it knows the literal may not be what applies.
+
+Either way, an issue first is cheaper than a PR. A short issue costs you minutes;
 a declined PR costs you the whole change.
 
 ## Filing an issue
