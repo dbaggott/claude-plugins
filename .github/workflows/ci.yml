@@ -12,18 +12,19 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
     # `labeled`/`unlabeled` are on top of the defaults so that applying
     # `no-changelog` re-runs `changelog-fragment` with a payload that contains
     # it. Without them the label is unusable as an escape hatch: the payload is
     # a snapshot from PR creation, and re-running a check replays that same
     # payload, so a label added after the gate failed would never be seen.
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    # `ready_for_review` runs CI when a draft is marked ready; the jobs below skip while it is one.
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
   push:
     branches: [main]
 
 jobs:
   shellcheck:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
@@ -42,6 +43,7 @@ jobs:
           scandir: '.'
 
   validate-manifests:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: validate-manifests
     runs-on: ubuntu-latest
     steps:
@@ -111,6 +113,7 @@ jobs:
           exit "$fail"
 
   actionlint:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: actionlint
     runs-on: ubuntu-latest
     steps:
@@ -147,6 +150,7 @@ jobs:
           args: -verbose
 
   hook-tests:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: hook-tests
     runs-on: ubuntu-latest
     steps:
@@ -173,6 +177,7 @@ jobs:
         run: npx --yes bats@1.13.0 tests/
 
   plugin-validate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: plugin-validate
     runs-on: ubuntu-latest
     steps:
@@ -212,7 +217,7 @@ jobs:
     runs-on: ubuntu-latest
     # PR-only. `ci-required` below accepts `skipped`, so this not running on a
     # push to main doesn't hold the gate open.
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     steps:
       - uses: actions/checkout@v4
         with:
