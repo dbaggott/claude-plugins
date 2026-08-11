@@ -90,19 +90,25 @@ is silent and can sit for months. Add
 no user-visible effect, say so in the PR and the `no-changelog` label can be
 applied — you cannot set labels from a fork.
 
-**Everything CI checks, you can run locally.** From the repo root:
+**You can run CI's checks locally.** From the repo root:
 
 ```bash
-shellcheck $(find . -name '*.sh' -not -path './.git/*')
+shellcheck $(find . \( -name '*.sh' -o -name '*.bash' \) -not -path './.git/*')
 npx --yes bats@1.13.0 tests/
 jq empty .claude-plugin/marketplace.json
+jq -r '.plugins[].source' .claude-plugin/marketplace.json \
+  | xargs -I{} find {} -name '*.json' | xargs -n1 jq empty
 claude plugin validate . --strict
 actionlint                                  # brew install actionlint
 ```
 
-CI additionally checks that marketplace and manifest descriptions match, that
-versions are semver-parseable, and the fragment rule above. Those are short
-shell blocks in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Two of those are narrower than the job they stand for, so a green run here is
+good evidence rather than a guarantee. `plugin-validate` also runs
+`claude plugin validate` over each plugin source individually, and CI separately
+checks that marketplace and manifest descriptions match, that versions are
+semver-parseable, and the fragment rule above. All of it is short shell blocks in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) if you want to run the
+rest by hand.
 
 ## More
 
