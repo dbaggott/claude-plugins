@@ -9,6 +9,13 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.24 — 2026-08-11
+
+`reviewer-setup` now points at `docs/configuration.md` for the reviewer key's
+sources, rather than at a README section that no longer exists. The skill relays
+that pointer to you when it sets the bot up, so the stale one was reaching users.
+
+
 ## dnbg-workflow 2026.8.23 — 2026-08-10
 
 New always-on rule: when a script, hook, or procedure the plugin ships doesn't
