@@ -159,7 +159,7 @@ can write the directory, and the next mint would sign with theirs.
 
 ## Keeping the key somewhere other than a file
 
-The plaintext PEM is the default, not the only option — see the README's
+The plaintext PEM is the default, not the only option — see `docs/configuration.md`'s
 "The reviewer bot's private key" for the full posture. Two alternatives, both
 resolved ahead of the file:
 

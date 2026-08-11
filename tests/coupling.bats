@@ -211,7 +211,7 @@ EOF
   keys=$(jq -r '.userConfig | keys_unsorted[]' "$ROOT/dnbg-workflow/.claude-plugin/plugin.json" | sort | tr '\n' ' ')
   [ "$keys" = "claim_label owners worktree_path " ] || {
     echo "userConfig keys are: $keys"
-    echo "adding one means deciding it is mechanical rather than behavioral — see the README"
+    echo "adding one means deciding it is mechanical rather than behavioral — see docs/configuration.md"
     false
   }
 }
@@ -386,7 +386,7 @@ gh api repos/x/issues/<n>/timeline --paginate
   [ "$missing" -eq 0 ]
 }
 
-# The README's forge support matrix is a *promise per skill*, and its second and
+# The README's skill table is a *promise per skill*, and its second and
 # third columns are only true if every skill the repo ships has actually been
 # classified. A skill added without a row inherits neither claim, and the matrix
 # keeps asserting complete coverage it no longer has — the rot this pins against.
@@ -475,7 +475,7 @@ remote_read_calls() {  # <SKILL.md>
     case "$skill" in git-workflow|issue-workflow) continue ;; esac
     f="$ROOT/$plugin/skills/$skill/SKILL.md"
     if remote_read_calls "$f"; then
-      echo "$skill is not repo-scoped but reads the origin remote — see README 'What happens on an unsupported forge'"
+      echo "$skill is not repo-scoped but reads the origin remote — see docs/forge-support.md 'What happens on an unsupported forge'"
       bad=1
     fi
   done < <(tree_skills)
@@ -532,7 +532,7 @@ remote_read_calls() {  # <SKILL.md>
     echo "issue-workflow's remote read is not framed as a fallback"; false; }
 }
 
-# The README's decline table drifted from the skill it describes, one round after
+# The decline table drifted from the skill it describes, one round after
 # the skill was corrected — `issue-workflow`'s rule cell read `same`, inheriting
 # `git-workflow`'s origin rule, so when issue-workflow stopped deciding that way
 # the cell could not go visibly stale: it still pointed at a neighbour whose rule
@@ -548,8 +548,8 @@ remote_read_calls() {  # <SKILL.md>
   local offenders
   # `|| true` because finding nothing is the passing case, and bats runs with
   # errexit — without it a clean table fails the assignment rather than the test.
-  offenders=$(awk '/^### What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
-      "$ROOT/README.md" \
+  offenders=$(awk '/^## What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
+      "$ROOT/docs/forge-support.md" \
     | grep -E '^\| `[a-z-]+` \|' \
     | grep -iE '\|[[:space:]]*(same|as above|ditto|likewise)[[:space:]]*\|' || true)
   if [ -n "$offenders" ]; then
