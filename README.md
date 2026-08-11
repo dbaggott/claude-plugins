@@ -24,6 +24,18 @@ anyone's attention yet; it starts the moment the PR is marked ready.
 
 ![Two terminal panes side by side. The left session claims the issue, creates a worktree, opens a draft PR, flags a departure from the issue, and asks whether to send it to review. The right session mints a bot token, waits for a PR to appear, holds back while it is a draft, then reviews it and requests changes before approving.](docs/media/demo-resolve-review.gif)
 
+**It can work autonomously.** Those pickers exist so *you* decide when work goes
+to review and how feedback is handled — not so you have to be at the keyboard.
+Answer them in advance and the same loop runs unattended:
+
+> I'll be afk — resolve `<issue URL>`, send it to review when you're done, and
+> auto-handle any reviewer feedback, then summarize everything that happened.
+
+That pre-answers the send-to-review picker and opts into auto-handling every
+round, so the session claims the issue, opens the PR, marks it ready, works each
+review round to a clean verdict, and reports back when you return. The one thing
+it will not do is merge: only a human merges.
+
 **No issue? Same workflow.** Here the operator works something out
 conversationally and it goes straight to a PR. The draft is what makes that
 comfortable — every iteration lands on a PR nobody is reviewing yet, so the
@@ -53,18 +65,6 @@ once and the caveat the recap carries into both.
 > the issue-filing one is produced live by the real hook at record time. The scripts
 > are in [`docs/media/`](docs/media/) and the gate demo further down is a
 > genuine capture.
-
-**You can answer those pickers in advance.** They exist so you decide when work
-goes to review and how feedback gets handled — not so you have to be at the
-keyboard. Pre-authorizing them in the prompt works:
-
-> I'll be afk — resolve `<issue URL>`, send it to review when you're done, and
-> auto-handle any reviewer feedback, then summarize everything that happened.
-
-That pre-answers the send-to-review picker and opts into auto-handling every
-round, so the session claims the issue, opens the PR, marks it ready, and works
-each review round to a clean verdict while you're away. The one thing it will
-not do is merge: only a human merges.
 
 ## Why it compounds
 
