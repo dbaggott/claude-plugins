@@ -114,8 +114,9 @@ want to run the rest by hand.
 ## More
 
 [`README.md`](README.md) covers what the plugins are and what they do to a
-session; its [For maintainers](README.md#for-maintainers) section covers repo
-layout, versioning, and what a fork inherits from CI.
+session; [`docs/maintainers.md`](docs/maintainers.md) covers repo layout, where
+new content goes, and what a fork inherits from CI, and
+[`docs/releases.md`](docs/releases.md) covers versioning.
 [`SECURITY.md`](SECURITY.md) covers reporting a vulnerability. The skills under
 `dnbg-workflow/skills/` are the philosophy in full — they are the product, so
 this file points at them rather than summarizing them.

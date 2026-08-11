@@ -131,9 +131,10 @@ bot — it cannot push code, merge, or alter issues.
 `DNBG_REVIEWER_PRIVATE_KEY_COMMAND` or `private_key_command` in `config.json`
 (any secret manager), or a plaintext PEM at
 `~/.config/dnbg/reviewer/private-key.pem`, mode `0600` in a `0700` directory —
-the default `bootstrap.py` writes. The
-[README](README.md#the-reviewer-bots-private-key) covers configuring these and
-why the plaintext default is a considered choice rather than an oversight.
+the default `bootstrap.py` writes.
+[`docs/configuration.md`](docs/configuration.md#the-reviewer-bots-private-key)
+covers configuring these and why the plaintext default is a considered choice
+rather than an oversight.
 
 The key never leaves your machine: `mint-token.sh` signs a ~9-minute JWT
 locally and exchanges it for a short-lived installation token, and only that
