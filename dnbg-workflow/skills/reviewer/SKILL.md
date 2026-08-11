@@ -447,19 +447,22 @@ you meant "no blocking objections." Always pick `--approve` or
 `--request-changes`. (Because the review posts as the *bot*, not the PR author,
 GitHub's self-approval block doesn't apply even on your own PR.)
 
-**Inline comments must request action.** An inline comment on a line creates a
-review thread GitHub surfaces as unresolved until someone resolves it — the human
-merging reads that as an outstanding ask. Use one only when it asks the author to
-do, verify, or change something on that line. Purely informational observations
-(FYI, "worth noting", "not blocking, just noting") go in the review **body**, not
-on a line — an informational inline comment has nowhere to be resolved to and
-stalls the merge.
+**Inline comments are merge blockers — file one only if you would hold the merge
+for it.** An inline comment creates a review thread GitHub surfaces as unresolved
+until someone resolves it: the human merging reads that as an outstanding ask,
+and where `required_conversation_resolution` is on it blocks the merge outright.
+Assume it may be on — the setting is not readable without admin.
 
-On a repo with `required_conversation_resolution` enabled that is mechanical
-rather than a matter of the merger's reading: *every* unresolved thread blocks the
-merge outright, so an FYI filed on a line is a merge blocker with no action
-attached to clear it. Assume it may be on — the setting is not readable without
-admin, and the body is the right home for an informational note either way.
+"Does it request action" is the wrong test, because a nit passes it — "switch
+`--` to an em dash" asks for a change on a line, and still shouldn't stop a
+merge. Anything you would be content to see merged over goes in the review
+**body**: FYIs, "worth noting", wording preferences, alternatives you don't need
+taken.
+
+⚠️ **And never call an open thread non-blocking.** "Merge over it if you'd rather
+not spend the round", written in the body while a thread you filed is open, is a
+contradiction the merge box settles against you. If it really is fine to merge
+over, it belongs in the body and the thread should not exist.
 
 **Post one atomic review.** When you have inline findings, use the reviews
 endpoint so the verdict *and* all inline comments land as a single review (one
@@ -789,6 +792,11 @@ Resolve **only** threads where the finding was actually answered. Don't
 blanket-resolve — a thread where the author pushed or replied but didn't address
 your point stays open so they know to come back to it.
 
+The exception is a thread that should never have been filed: if a nit of yours is
+the last thing blocking the merge, resolve it and restate the point in-thread as
+a suggestion. A genuine finding does not qualify — it stays open as the last
+blocker, which is a blocked merge working correctly.
+
 ## Avoid noise
 
 Don't post comments that are neither actionable nor informative — no "Reviewed,
@@ -802,8 +810,9 @@ commentary, not a verdict whose content is the verdict.
 
 ## When to ask, when to skip
 
-- **Don't `--request-changes` for style nits.** Use `--approve` and put the nit
-  in the body (or inline it if it's action-requesting on a specific line).
+- **Don't `--request-changes` for style nits, and don't file them on a line
+  either** — a thread blocks the merge just as surely. Use `--approve` and put
+  the nit in the body.
 - **One back-and-forth max on disagreements.** If you and the author disagree on
   a design point after one exchange, state your position briefly, defer to the
   human(s) on the PR, and stop.
