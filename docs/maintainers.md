@@ -105,8 +105,8 @@ docs/media/render.sh /private/tmp/demo/claude-plugins gate      # or one
 agent's own dialogue are Claude Code's interface and never reach stdout — not
 because staging was more convenient. So each one must keep matching what the
 skills specify: if a skill's flow changes, the demo depicting it is wrong and
-needs re-scripting, not just re-rendering. The README says outright which are
-reenacted and which is captured; that claim has to stay true.
+needs re-scripting, not just re-rendering. The table above is the record of which
+is which; keep it accurate as demos are added or reworked.
 
 The clone matters only to `demo-gate`, which drives the real hook against it and
 creates a worktree inside it. Its `origin` owner has to be in your `owners`

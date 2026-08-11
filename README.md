@@ -61,12 +61,6 @@ once and the caveat the recap carries into both.
 
 ![A session gathering merged PRs and filed issues, reading their descriptions rather than their diffs, asking who the recap is for, and writing the same week up twice: once for teammates and once for leadership.](docs/media/demo-work-summary.gif)
 
-*Those four are reenactments: Claude Code's pickers and dialogue never reach a
-recorder, so the sessions are scripted to match what the skills specify. The
-`BLOCKED` message in the issue-filing one is the exception — the real hook
-produces it at record time. [`docs/media/`](docs/media/) holds the scripts, and
-what each one is drawn from.*
-
 ## Why it compounds
 
 Each of these practices is worth something alone. What makes them worth more
@@ -205,8 +199,8 @@ two are the gates that block edits outside a worktree and unguarded
 
 ![A session being blocked from editing a tracked file in the main checkout, running the git worktree add the block message prints, retrying the edit successfully, then reading the reviewer bot's verdicts on a real pull request](docs/media/demo-gate.gif)
 
-Unlike the four above, that one is a genuine capture: real output from
-`check-worktree.sh`, from `git`, and from the GitHub API.
+That one is real output from `check-worktree.sh`, from `git`, and from the
+GitHub API.
 
 They make **no network calls**, write no files, and hold no credentials, and
 **nothing here updates itself** — what you install is what runs until you update
