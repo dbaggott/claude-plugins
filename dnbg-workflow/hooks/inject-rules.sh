@@ -6,7 +6,7 @@
 #
 # It reaches the main loop and nothing else: a subagent spawned from this session
 # never sees this hook's output. `inject-rules-subagent.sh` covers that gap on
-# the `SubagentStart` event; the README records the measurement.
+# the `SubagentStart` event; `docs/maintainers.md` records the measurement.
 #
 # The rules themselves live in rules-payload.sh, shared with that hook. What is
 # left here is the dependency preflight, which is deliberately *not* shared: it
@@ -35,7 +35,7 @@ set -u
 # repo an edit targets by parsing its payload, so with no parser it cannot tell
 # a covered repo from any other — "fail closed" could then only mean blocking
 # every edit on the machine, in projects the operator never listed. See the
-# README's Requirements section.
+# `docs/requirements.md`.
 
 # Reported per binary rather than as one list: what each absence disables
 # differs, and a message that conflates them is not actionable.

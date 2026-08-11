@@ -33,9 +33,11 @@ without the skill is a body the next session can't work from.
 
 ![A session's gh issue create being blocked by the check-issue-create hook, then loading the issue-workflow skill, verifying anchors against the tree, and filing an issue whose body carries the defect, a reproduction, a proposed fix, and acceptance criteria.](docs/media/demo-file-issue.gif)
 
-**Turning a week of merged PRs into a recap**, shaped by who's going to read it.
+**Turning a week of merged PRs into a recap**, shaped by who's going to read it —
+condensed from a real session, down to the operator asking for two registers at
+once and the caveat the recap carries into both.
 
-![A session gathering merged PRs and filed issues, reading their descriptions rather than their diffs, asking who the recap is for, and writing a Slack-shaped summary.](docs/media/demo-work-summary.gif)
+![A session gathering merged PRs and filed issues, reading their descriptions rather than their diffs, asking who the recap is for, and writing the same week up twice: once for teammates and once for leadership.](docs/media/demo-work-summary.gif)
 
 > These four are **reenactments**. The parts worth showing — a skill deciding
 > something, a picker, an agent explaining why it diverged from an issue — are
@@ -83,11 +85,6 @@ surfaced in chat *before* the PR leaves draft. The expensive failure was never a
 wrong PR; it's a wrong PR discovered after the review and the rework are already
 paid for.
 
-**Drafts make iteration free.** PRs open as drafts and you decide when they go to
-review; on the other side the reviewer explicitly holds back a draft rather than
-verdicting it. Push twenty times polishing something — no review fires, no
-attention is spent, until you say so.
-
 **The PR description is the as-built record, so everything downstream reads it
 instead of the code.** It's written for what the change *is*, not how it was
 developed, with the gaps and unverified branches stated rather than omitted. That
@@ -95,26 +92,17 @@ makes a work recap a matter of reading descriptions rather than diffs — and
 re-asking for a different audience re-shapes what was already gathered instead of
 re-fetching it.
 
-**Two roles that never meet coordinate through conventions.** Claiming an issue
-leaves three marks — assignee, an `assigned:*` label, and a session-stamped
-comment — and the check for someone else's claim matches the whole namespace by
-prefix, so an agent, a bot, or a teammate's tooling nobody has heard of still
-becomes visible. The reviewer *deliberately withholds* that signal — "a reviewer
-must not produce that signal" — because an assignee means *being implemented*,
-and producing it would stop a coder from starting. The branch name picked at
-`git worktree add` time is the join key the reviewer later queries siblings by.
-And the reviewer re-verdicts on every HEAD move, which re-attaches the approval
-to the current commit so "is HEAD approved?" stays answerable from the API — by
-the author's skill, a human merger, or a later session, without asking anyone.
+**Parallel sessions don't collide.** Claiming an issue leaves marks another
+worker can see — including agents, bots, and teammates' tooling this project has
+never heard of — and a reviewer deliberately withholds the same marks so they
+keep meaning *someone is implementing this*. You can run several sessions at once
+without them stepping on each other.
 
 **The system learns instead of relearning.** A reviewer's finding is answered
 with the most durable artifact available — a test beats the code, which beats
-prose. The watchers live in `scripts/` rather than in fenced blocks precisely so
-`shellcheck` and `bats` cover them, which turns each debugging session into
-permanent coverage. When prose failed to hold a line, it became a test that pins
-two documents together: *"Prose alone did not hold the line, so this pins it."*
-Bugs recurring round after round are themselves treated as a finding — a signal
-to name the structural problem rather than patch symptoms. And when the shipped
+prose — so each round leaves a guard behind rather than a thread nobody re-reads.
+Bugs recurring round after round are themselves treated as a finding, a signal to
+name the structural problem instead of patching symptoms. And when the shipped
 tooling doesn't fit your case, the agent is told to finish your task and then
 *tell you*, offering to file it upstream, rather than silently working around it.
 
@@ -131,11 +119,10 @@ primarily because a local run reproduces the *author's* environment rather than
 CI's, so every green run argues "flaky, ignore it"; being cheaper is the second
 effect, not the reason.
 
-**None of this is theory.** The workflow has been exercised across **1,278 pull
-requests in 25 repositories** and refined continuously against what actually
-broke — the sharper rules in these skills are mostly there because something went
-wrong once and the fix got written down instead of forgotten. The maintainer puts
-the effort behind it at roughly a thousand hours.
+**None of this is theory.** The workflow has been exercised across **more than
+1,200 pull requests in 25 repositories** and refined continuously against what
+actually broke — the sharper rules in these skills are mostly there because
+something went wrong once and the fix got written down instead of forgotten.
 
 ## What's in it
 
@@ -176,12 +163,10 @@ instead — they are independent, and none requires another:
 | `dnbg-practices@dnbg` | Coding practices. No hooks, no forge, works anywhere |
 | `dnbg-work-summary@dnbg` | PR recaps. No hooks. GitHub |
 
-**The plugin is the unit you can enable or disable.** Claude Code has no
-per-skill switch — the only related setting, `disableBundledSkills`, is
-all-or-nothing and applies to Claude Code's own bundled skills rather than to
-plugin ones. So what you can adopt on its own is decided by how this project
-packages itself, and the table above is that split: each row installs
-independently, and anything sharing a row arrives together.
+**The plugin is the unit you can enable or disable** — there is no per-skill
+switch. So what you can adopt on its own is decided by how this project packages
+itself, and the table above is that split: each row installs independently, and
+anything sharing a row arrives together.
 
 > Three names, deliberately different. The **repo** is `claude-plugins`, a
 > **plugin** is e.g. `dnbg-workflow`, and the **marketplace** is `dnbg` — hence
@@ -238,7 +223,7 @@ two are the gates that block edits outside a worktree and unguarded
 
 ![A session being blocked from editing a tracked file in the main checkout, running the git worktree add the block message prints, retrying the edit successfully, then reading the reviewer bot's verdicts on a real pull request](docs/media/demo-gate.gif)
 
-Unlike the three above, that one is a genuine capture: real output from
+Unlike the four above, that one is a genuine capture: real output from
 `check-worktree.sh`, from `git`, and from the GitHub API.
 
 They make **no network calls**, write no files, and hold no credentials, and

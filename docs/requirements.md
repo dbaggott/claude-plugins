@@ -29,16 +29,13 @@ and non-2 as a non-blocking error: the edit proceeds, you get a `hook error`
 notice naming the missing binary, and *Claude does not see that notice at all*,
 so the agent goes on believing the gates are live. `inject-rules.sh` therefore
 checks at session start and says so once, in output both you and Claude can see.
-Making the gates fail closed instead was considered and rejected: a gate learns
-which repo an edit targets by parsing its payload, so with no parser it cannot
-tell a covered repo from any other, and the only available "closed" is blocking
-every edit on the machine.
 
 `mint-token.sh` checks for its own three and exits with a clear message, so
 those fail loudly at the point of use rather than needing a session-start
 warning.
 
-**Platform: macOS and Linux.** Both are exercised. The hooks are `bash` scripts
-using `date`, `mkdir`, `$HOME/.cache`, and `#!/usr/bin/env bash`; they are
-expected to work under Git Bash on Windows, but that has never been tested and
-is not claimed.
+**Platform: macOS and Linux.** Both are exercised. The hooks are `#!/usr/bin/env
+bash` scripts invoking only `cat`, `dirname`, `git`, `grep`, `head`, `jq`,
+`printf`, `sed` and `tr` — all local text or path processing. They are expected
+to work under Git Bash on Windows, but that has never been tested and is not
+claimed.

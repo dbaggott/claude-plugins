@@ -83,7 +83,7 @@ docs/media/render.sh /private/tmp/demo/claude-plugins gate      # or one
 | `demo-resolve-review` | Reenacted. Two panes, resolver and reviewer, driven by an issue |
 | `demo-vibe-review` | Reenacted. Two panes, no issue — conversation to PR to merge and cleanup |
 | `demo-file-issue` | Reenacted, except the `BLOCKED` message, which the real hook produces at record time |
-| `demo-work-summary` | Reenacted |
+| `demo-work-summary` | Reenacted, condensed from a real 2026-08-11 session |
 
 **Keep the reenactments honest.** They are scripted because the pickers and the
 agent's own dialogue are Claude Code's interface and never reach stdout — not

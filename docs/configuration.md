@@ -176,7 +176,7 @@ Two things to weigh before switching off the default:
   arguably worse than the `0600` file it replaces. It is meant for CI, where the
   runner is ephemeral and the secret store injects it for one job.
 
-Three properties worth knowing, each of which has a test:
+Three properties worth knowing:
 
 - **The command is read only from your user config or environment — never from a
   repository.** Nothing reads config from the working directory. This is the
