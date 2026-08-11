@@ -7,7 +7,10 @@ identity reviews the result before a human merges it.
 
 It is **skills** (loaded on demand when they match the task), a short
 **always-on rules** file, and two **enforcement hooks** that make the worktree
-and issue flows non-optional in the repos you choose.
+and issue flows non-optional in the repos you choose. Two of those are things a
+`CLAUDE.md` structurally cannot do: hooks that *enforce* the flow rather than
+advising it, and an identity separate from yours that can post a binding verdict
+on a PR you wrote.
 
 ## What it looks like
 
@@ -179,26 +182,6 @@ owner you list in `owners`, and with it empty they never fire. That setting, the
 install scopes, and two configurable names are in
 [configuration](docs/configuration.md). Requirements — a Claude Code floor and
 six command-line tools — are in [requirements](docs/requirements.md).
-
-## Why this rather than rules in a CLAUDE.md
-
-Because a `CLAUDE.md` charges every session for guidance most sessions don't
-need, and the plugin's three homes let content sit where it costs least:
-
-| | Triggers | Cost |
-| --- | --- | --- |
-| **Skill** (`skills/<name>/SKILL.md`) | when the skill's `description:` matches the task | tokens only when loaded |
-| **Always-on rule** (`always-on-rules.md`) | unconditionally, every session, every user | tokens on every session × every user |
-| **Project `CLAUDE.md`** (in the consuming repo) | unconditionally, but scoped to that repo | tokens when working in that repo |
-
-Most of what a workflow needs is procedural — how to open a PR, how to write an
-issue someone else can pick up — and fires on a description match, so it costs
-nothing until the moment it applies. The always-on file is kept short on purpose,
-and repo-specific facts stay in that repo's own `CLAUDE.md`.
-
-The other half is the part a `CLAUDE.md` cannot do at all: two hooks that
-*enforce* the flow rather than advising it, and a reviewer identity that can post
-a binding verdict on your own PR.
 
 ## Which forges
 

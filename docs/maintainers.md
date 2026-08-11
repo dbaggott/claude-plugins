@@ -42,9 +42,13 @@ here rather than in front of a reader deciding whether to install.
 
 ## Where new content goes: skill vs always-on vs project CLAUDE.md
 
-Three places content can live; default to the cheapest that fits. The same table
-is on the [front page](../README.md#why-this-rather-than-rules-in-a-claudemd),
-where it answers the reader's question rather than the author's.
+Three places content can live; default to the cheapest that fits.
+
+| | Triggers | Cost |
+| --- | --- | --- |
+| **Skill** (`skills/<name>/SKILL.md`) | when the skill's `description:` matches the task | tokens only when loaded |
+| **Always-on rule** (`always-on-rules.md`) | unconditionally, every session, every user | tokens on every session × every user |
+| **Project `CLAUDE.md`** (in the consuming repo) | unconditionally, but scoped to that repo | tokens when working in that repo |
 
 - Most guidance is procedural ("how to open a PR", "how we think about
   comments") and can be triggered by a description match — make it a skill.
