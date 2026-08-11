@@ -65,7 +65,11 @@ row "${C_TOOL}● Bash${C_OFF}   gh pr ready 98" ""
 beat 0.8
 row "${C_TOOL}● Task${C_OFF}   watch-pr.sh 98 ${C_DIM}(background)${C_OFF}" \
     "${C_DIM}         ← READY${C_OFF}"
-beat 1.4
+beat 0.9
+row "${C_SAY}  When the review lands I'll fetch the verdict, the${C_OFF}" ""
+row "${C_SAY}  inline comments and the unresolved threads, summarize${C_OFF}" ""
+row "${C_SAY}  them, and ask how you want the round handled.${C_OFF}" ""
+beat 2.0
 
 row "" "${C_TOOL}● Bash${C_OFF}   gh pr diff 98 · statusCheckRollup"
 beat 0.9
