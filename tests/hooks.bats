@@ -87,14 +87,8 @@ run_issue_hook() {  # <payload>
 # The block message names the worktree root twice — in the `git worktree add`
 # that creates it, and in the path the edit is told to retry against. Both are
 # asserted, because an agent that is blocked acts on this text and nothing else.
-#
-# The retry path is matched by its root segment rather than end-to-end. The
-# message builds it from `git rev-parse --show-toplevel`, which resolves
-# symlinks, while the payload carries the path as handed in — and on macOS
-# `mktemp -d` returns `/var/...` for a directory that really lives at
-# `/private/var/...`. The prefix strip that produces the relative half of that
-# line therefore does not fire here, which is a property of the temp directory,
-# not of the root being resolved.
+# These two match the retry path by its root segment, since the repo root under
+# `mktemp -d` differs per run; the symlink test below asserts it end-to-end.
 
 @test "the block message names the default worktree root" {
   run_worktree_hook "$(edit_payload "$REPO/tracked.txt")"
@@ -120,6 +114,44 @@ run_issue_hook() {  # <payload>
   [ "$status" -eq 2 ]
   [[ "$output" == *"git worktree add .worktrees/<branch-name>"* ]]
   [[ "$output" != *"/tmp/wt"* ]]
+}
+
+# A symlinked route to the repo is the ordinary case, not a contrived one: on
+# macOS `/tmp` is a link to `/private/tmp`, so any session working out of a temp
+# checkout arrives this way, as do symlinked home and project directories.
+@test "the block message stays repo-relative through a symlinked path" {
+  # The repo root the message is built from is resolved; the payload's path is
+  # not. Every command the blocked agent is handed is assembled from the file's
+  # path, so an absolute one here sends it to a location that cannot exist.
+  ln -s "$REPO" "$TMP/link"
+  run_worktree_hook "$(edit_payload "$TMP/link/tracked.txt")"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"File: tracked.txt"* ]]
+  [[ "$output" == *"/.worktrees/<branch-name>/tracked.txt"* ]]
+  # The two shapes a re-introduced prefix strip produces: the payload's spelling
+  # surviving into the message, and a retry path that is two absolute paths
+  # joined at a `//`.
+  [[ "$output" != *"$TMP/link"* ]]
+  [[ "$output" != *"//"* ]]
+}
+
+@test "allows an untracked file reached through a symlinked path" {
+  ln -s "$REPO" "$TMP/link"
+  echo new > "$REPO/untracked.txt"
+  run_worktree_hook "$(edit_payload "$TMP/link/untracked.txt")"
+  [ "$status" -eq 0 ]
+}
+
+@test "the block message names a non-ASCII file unescaped" {
+  # git C-quotes such a path by default, which is the same defect as the
+  # symlinked one — a name in the message that no command will accept.
+  echo tracked > "$REPO/tracked-æ.txt"
+  git -C "$REPO" add tracked-æ.txt
+  git -C "$REPO" commit -qm nonascii
+  run_worktree_hook "$(edit_payload "$REPO/tracked-æ.txt")"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"File: tracked-æ.txt"* ]]
+  [[ "$output" != *'\303'* ]]
 }
 
 @test "allows the same file inside a worktree" {
