@@ -6,17 +6,11 @@ incidental coupling that a shim could paper over:
 
 - `reviewer` and `reviewer-setup` are built on **GitHub Apps**. The entire point
   is an App identity that can post a binding verdict on a PR you authored, which
-  GitHub otherwise forbids from your own account. The specific mechanism
-  `reviewer-setup` automates — the GitHub App **Manifest flow** that
-  `bootstrap.py` drives — has no counterpart on GitLab or Bitbucket. Whether
-  those forges can supply the *identity* is a separate and more hopeful
-  question: [initial
-  research](https://github.com/dbaggott/claude-plugins/issues/21) says GitLab
-  project/group access tokens and Bitbucket Cloud repository access tokens are
-  each a distinct identity that can drive the approval endpoints. **That is
-  unverified** — three things are still open, including whether GitLab's
-  *enforced* approval rules need a paid tier and whether a plain token identity
-  satisfies such a rule or merely records an approval.
+  GitHub otherwise forbids from your own account. The mechanism `reviewer-setup`
+  automates — the GitHub App **Manifest flow** that `bootstrap.py` drives — has
+  no counterpart on GitLab or Bitbucket, so the reviewer is GitHub-only.
+  Multi-forge support is tracked at
+  https://github.com/dbaggott/claude-plugins/issues/21.
 - `git-workflow`'s review, merge-state, and auto-merge handling reads
   GitHub-shaped fields (`mergeStateStatus`, `statusCheckRollup`, review threads).
 - `check-issue-create.sh` matches `gh issue create`, and `owners` resolves

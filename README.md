@@ -237,9 +237,7 @@ the gates are workflow guardrails rather than a security boundary.
 
 ## Who maintains it
 
-One person, opinionated on purpose. This is a personal artifact published because
-it might be useful to someone else — not a project seeking governance, and not
-one with a roadmap it owes anyone.
+This repo is maintained by Dan Baggott.
 
 Bug reports, portability findings, tests for untested branches, and
 documentation corrections are all welcome. So are new **knobs** that leave the
@@ -247,9 +245,6 @@ current behavior as the default. Swapping one default for another is not:
 worktree-then-draft-PR, never merging your own work, and fragments-drive-releases
 are the product rather than incidental choices. [`CONTRIBUTING.md`](CONTRIBUTING.md)
 has the detail, and an issue first is always cheaper than a declined PR.
-
-`dnbg` is the maintainer's initials — deliberate personal branding rather than an
-acronym you are failing to decode.
 
 ## Documentation
 
