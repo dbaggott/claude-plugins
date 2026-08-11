@@ -68,19 +68,20 @@ If you don't want automated versioning at all, delete that workflow.
 
 ## Regenerating the README demos
 
-Four GIFs, one script each, all driven by `render.sh`:
+Five GIFs, one script each, all driven by `render.sh`:
 
 ```bash
 brew install asciinema agg
 git clone https://github.com/dbaggott/claude-plugins /private/tmp/demo/claude-plugins
-docs/media/render.sh /private/tmp/demo/claude-plugins           # all four
+docs/media/render.sh /private/tmp/demo/claude-plugins           # all five
 docs/media/render.sh /private/tmp/demo/claude-plugins gate      # or one
 ```
 
 | Demo | What it is |
 | --- | --- |
 | `demo-gate` | A genuine capture — the real `check-worktree.sh`, real `git`, real reviews off the API |
-| `demo-resolve-review` | Reenacted. Two panes, resolver and reviewer |
+| `demo-resolve-review` | Reenacted. Two panes, resolver and reviewer, driven by an issue |
+| `demo-vibe-review` | Reenacted. Two panes, no issue — conversation to PR to merge and cleanup |
 | `demo-file-issue` | Reenacted, except the `BLOCKED` message, which the real hook produces at record time |
 | `demo-work-summary` | Reenacted |
 

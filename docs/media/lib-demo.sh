@@ -25,7 +25,7 @@ C_BAD=$'\033[31m'
 C_DIM=$'\033[2m'
 C_OFF=$'\033[0m'
 
-PANE_W="${PANE_W:-56}"
+PANE_W="${PANE_W:-62}"
 
 beat() { sleep "${1:-0.9}"; }
 

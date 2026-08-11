@@ -18,6 +18,16 @@ anyone's attention yet; it starts the moment the PR is marked ready.
 
 ![Two terminal panes side by side. The left session claims the issue, creates a worktree, opens a draft PR, flags a departure from the issue, and asks whether to send it to review. The right session mints a bot token, waits for a PR to appear, holds back while it is a draft, then reviews it and requests changes before approving.](docs/media/demo-resolve-review.gif)
 
+**No issue? Same workflow.** Here the operator works something out
+conversationally and it goes straight to a PR. The draft is what makes that
+comfortable — every iteration lands on a PR nobody is reviewing yet, so the
+reviewer session stays quiet until it's asked for. It ends the way the flow
+always ends: the author hands over the merge command, you merge it yourself
+(here with `!` in the session), and the worktree and branch are cleaned up
+without being asked.
+
+![Two terminal panes. The left session iterates on a change conversationally across three pushes to a draft PR while the right session waits; the operator sends it to review, the reviewer requests a test and then approves, and after the operator merges with a bang command the left session removes the worktree and deletes the branch.](docs/media/demo-vibe-review.gif)
+
 **Filing an issue**, which the gate makes non-optional — an issue written
 without the skill is a body the next session can't work from.
 
@@ -27,14 +37,26 @@ without the skill is a body the next session can't work from.
 
 ![A session gathering merged PRs and filed issues, reading their descriptions rather than their diffs, asking who the recap is for, and writing a Slack-shaped summary.](docs/media/demo-work-summary.gif)
 
-> These three are **reenactments**. The parts worth showing — a skill deciding
+> These four are **reenactments**. The parts worth showing — a skill deciding
 > something, a picker, an agent explaining why it diverged from an issue — are
 > Claude Code's own interface and never reach stdout, so no recorder can capture
 > them. The dialogue is scripted to match what the skills actually specify; where
 > a demo shows command output it is the real thing, and the `BLOCKED` message in
-> the second one is produced live by the real hook at record time. The scripts
+> the issue-filing one is produced live by the real hook at record time. The scripts
 > are in [`docs/media/`](docs/media/) and the gate demo further down is a
 > genuine capture.
+
+**You can answer those pickers in advance.** They exist so you decide when work
+goes to review and how feedback gets handled — not so you have to be at the
+keyboard. Pre-authorizing them in the prompt works:
+
+> I'll be afk — resolve `<issue URL>`, send it to review when you're done, and
+> auto-handle any reviewer feedback, then summarize everything that happened.
+
+That pre-answers the send-to-review picker and opts into auto-handling every
+round, so the session claims the issue, opens the PR, marks it ready, and works
+each review round to a clean verdict while you're away. The one thing it will
+not do is merge: only a human merges.
 
 ## What's in it
 

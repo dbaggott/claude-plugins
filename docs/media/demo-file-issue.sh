@@ -42,7 +42,7 @@ beat 1.4
 printf '\n'
 say "${C_TOOL}● Bash${C_OFF}   gh issue create --label bug --label area:hooks"
 beat 1.0
-say "${C_DIM}         → issues/97${C_OFF}"
+say "${C_DIM}         created${C_OFF}"
 beat 1.2
 
 printf '\n'
@@ -60,4 +60,7 @@ say "${C_DIM}    · cross-references labelled required vs optional${C_OFF}"
 beat 1.2
 printf '\n'
 say "${C_SAY}  So resolving it costs one read, not a link crawl.${C_OFF}"
+beat 1.4
+printf '\n'
+say "${C_SAY}  Filed:${C_OFF} ${C_USER}https://github.com/dbaggott/claude-plugins/issues/97${C_OFF}"
 beat 5.0

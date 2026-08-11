@@ -24,9 +24,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # nothing scrolls off. A GIF loops, so a scrolled-away opening is gone for good.
 DEMOS=(
   "gate:96:26"
-  "resolve-review:115:38"
-  "file-issue:82:30"
+  "resolve-review:127:47"
+  "file-issue:82:32"
   "work-summary:78:29"
+  "vibe-review:127:48"
 )
 
 render() {
