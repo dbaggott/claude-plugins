@@ -12,6 +12,11 @@ and issue flows non-optional in the repos you choose. Two of those are things a
 advising it, and an identity separate from yours that can post a binding verdict
 on a PR you wrote.
 
+**None of this is theory.** The workflow has been exercised across **more than
+1,200 pull requests in 25 repositories** and refined continuously against what
+actually broke — the sharper rules in these skills are mostly there because
+something went wrong once and the fix got written down instead of forgotten.
+
 **[Install it](#install)** — two commands, and nothing is enforced until you say
 where.
 
@@ -24,9 +29,10 @@ anyone's attention yet; it starts the moment the PR is marked ready.
 
 ![Two terminal panes side by side. The left session claims the issue, creates a worktree, opens a draft PR, flags a departure from the issue, and asks whether to send it to review. The right session mints a bot token, waits for a PR to appear, holds back while it is a draft, then reviews it and requests changes before approving.](docs/media/demo-resolve-review.gif)
 
-**It can work autonomously.** Those pickers exist so *you* decide when work goes
-to review and how feedback is handled — not so you have to be at the keyboard.
-Answer them in advance and the same loop runs unattended:
+**It can work autonomously.** The session above stops twice to ask you something
+— once before the PR goes to review, once on how to handle the reviewer's
+findings. Those two questions exist so *you* decide, not so you have to be at the
+keyboard: answer them in advance and the same loop runs unattended.
 
 > I'll be afk — resolve `<issue URL>`, send it to review when you're done, and
 > auto-handle any reviewer feedback, then summarize everything that happened.
@@ -57,14 +63,9 @@ once and the caveat the recap carries into both.
 
 ![A session gathering merged PRs and filed issues, reading their descriptions rather than their diffs, asking who the recap is for, and writing the same week up twice: once for teammates and once for leadership.](docs/media/demo-work-summary.gif)
 
-> These four are **reenactments**. The parts worth showing — a skill deciding
-> something, a picker, an agent explaining why it diverged from an issue — are
-> Claude Code's own interface and never reach stdout, so no recorder can capture
-> them. The dialogue is scripted to match what the skills actually specify; where
-> a demo shows command output it is the real thing, and the `BLOCKED` message in
-> the issue-filing one is produced live by the real hook at record time. The scripts
-> are in [`docs/media/`](docs/media/) and the gate demo further down is a
-> genuine capture.
+*Those four are reenactments — Claude Code's pickers and dialogue never reach a
+recorder. The commands and their output are real, and the scripts that produce
+them are in [`docs/media/`](docs/media/).*
 
 ## Why it compounds
 
@@ -124,11 +125,6 @@ change. And the reviewer reads CI's results instead of re-running the suite —
 primarily because a local run reproduces the *author's* environment rather than
 CI's, so every green run argues "flaky, ignore it"; being cheaper is the second
 effect, not the reason.
-
-**None of this is theory.** The workflow has been exercised across **more than
-1,200 pull requests in 25 repositories** and refined continuously against what
-actually broke — the sharper rules in these skills are mostly there because
-something went wrong once and the fix got written down instead of forgotten.
 
 ## What's in it
 
