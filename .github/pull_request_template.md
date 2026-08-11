@@ -1,4 +1,12 @@
 <!--
+Describe the change as it now stands, say what you verified and how, and mention
+what you could not check. Under-claiming costs nothing.
+
+Reference issues and PRs by full URL rather than #19.
+
+New here? CONTRIBUTING.md covers scope, the fork flow, and how to run every CI
+check locally.
+
 Changelog fragment
 ------------------
 If this PR changes anything a user of a plugin would notice, add a fragment:
