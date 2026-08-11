@@ -103,12 +103,13 @@ actionlint                                  # brew install actionlint
 ```
 
 Two of those are narrower than the job they stand for, so a green run here is
-good evidence rather than a guarantee. `plugin-validate` also runs
-`claude plugin validate` over each plugin source individually, and CI separately
-checks that marketplace and manifest descriptions match, that versions are
-semver-parseable, and the fragment rule above. All of it is short shell blocks in
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) if you want to run the
-rest by hand.
+good evidence rather than a guarantee. The `jq` lines are only the JSON-parse
+part of `validate-manifests`, which also checks that marketplace and manifest
+descriptions match and that every version is semver-parseable; and
+`claude plugin validate .` is the root call, where `plugin-validate` additionally
+runs it over each plugin source. Those, and the fragment rule above, are short
+shell blocks in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) if you
+want to run the rest by hand.
 
 ## More
 
