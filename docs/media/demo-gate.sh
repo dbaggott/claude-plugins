@@ -3,8 +3,8 @@
 # from dnbg-workflow/hooks/check-worktree.sh, from git, and from the GitHub API
 # — so re-running this reproduces the recording rather than approximating it.
 #
-# Run it through `render.sh`, which records and renders; running it directly
-# just replays the session in your terminal.
+# Run it through `render.sh`, which records and renders every demo; running it
+# directly just replays this one in your terminal.
 #
 # The argument is a throwaway clone of a repo whose owner is in `owners`; this
 # script creates a worktree inside it and removes it again on the next run.

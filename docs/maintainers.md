@@ -66,23 +66,42 @@ than assuming them. The **CI** is a different matter, since a fork inherits
 
 If you don't want automated versioning at all, delete that workflow.
 
-## Regenerating the README demo
+## Regenerating the README demos
 
-`docs/media/demo.gif` is recorded from real output, not staged, so it can be
-reproduced rather than trusted:
+Four GIFs, one script each, all driven by `render.sh`:
 
 ```bash
 brew install asciinema agg
 git clone https://github.com/dbaggott/claude-plugins /private/tmp/demo/claude-plugins
-docs/media/render.sh /private/tmp/demo/claude-plugins
+docs/media/render.sh /private/tmp/demo/claude-plugins           # all four
+docs/media/render.sh /private/tmp/demo/claude-plugins gate      # or one
 ```
 
-The clone's `origin` owner has to be in your `owners` config or the gate has
-nothing to fire on, and `gh` has to be authenticated for the second act, which
-reads real reviews off a real PR. Re-record when the block message changes —
-the demo shows that text verbatim, so a reworded gate silently dates it.
+| Demo | What it is |
+| --- | --- |
+| `demo-gate` | A genuine capture — the real `check-worktree.sh`, real `git`, real reviews off the API |
+| `demo-resolve-review` | Reenacted. Two panes, resolver and reviewer |
+| `demo-file-issue` | Reenacted, except the `BLOCKED` message, which the real hook produces at record time |
+| `demo-work-summary` | Reenacted |
+
+**Keep the reenactments honest.** They are scripted because the pickers and the
+agent's own dialogue are Claude Code's interface and never reach stdout — not
+because staging was more convenient. So each one must keep matching what the
+skills specify: if a skill's flow changes, the demo depicting it is wrong and
+needs re-scripting, not just re-rendering. The README says outright which are
+reenacted and which is captured; that claim has to stay true.
+
+The clone matters only to `demo-gate`, which drives the real hook against it and
+creates a worktree inside it. Its `origin` owner has to be in your `owners`
+config or the gate has nothing to fire on, and `gh` has to be authenticated for
+the act that reads real reviews. Re-record it whenever the block message
+changes — it shows that text verbatim, so a reworded gate silently dates it.
 
 Pass a directory whose path git will not resolve through a symlink. On macOS
 `/tmp` is a symlink to `/private/tmp`, and
 [`check-worktree.sh` mishandles that](https://github.com/dbaggott/claude-plugins/issues/97):
 the block message it prints names a path that does not exist.
+
+`lib-demo.sh` holds the shared renderer. The split-pane one is append-only
+rather than repainting, because a full-screen repaint per step makes every GIF
+frame a whole-screen change and the file several times larger.
