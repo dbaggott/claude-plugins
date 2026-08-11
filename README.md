@@ -58,6 +58,85 @@ round, so the session claims the issue, opens the PR, marks it ready, and works
 each review round to a clean verdict while you're away. The one thing it will
 not do is merge: only a human merges.
 
+## Why it compounds
+
+Each of these practices is worth something alone. What makes them worth more
+together is that the output of one step is the reliable *input* of the next — so
+the workflow gets cheaper and safer the longer it runs, instead of accruing
+process debt.
+
+**A well-written issue is the cheapest thing you can do for your future self.**
+Anchors are verified against the tree when the issue is written, not recalled —
+so at pickup the freshness probe is existence-checking rather than re-research.
+Cross-references are split into *required reading* and *do not read unless
+blocked*, with a hard depth-1 crawl cap, so resolving an issue costs a read
+instead of a link crawl. References are phrased to hold in every future state
+("while X exists", not "until X lands"), so no maintenance sweep is ever owed.
+And acceptance criteria go in whichever issue can actually *run* them — which is
+what later lets the reviewer grade the work against the issue, not just the diff.
+
+**You find out early when it's going the wrong way.** The issue gets a critical
+review before any code is written — misdiagnosis, symptom-versus-cause, false
+premise — and a resolver who has to design the approach itself gets your sign-off
+before implementing. Anything that departs from the agreed design mid-flight is
+surfaced in chat *before* the PR leaves draft. The expensive failure was never a
+wrong PR; it's a wrong PR discovered after the review and the rework are already
+paid for.
+
+**Drafts make iteration free.** PRs open as drafts and you decide when they go to
+review; on the other side the reviewer explicitly holds back a draft rather than
+verdicting it. Push twenty times polishing something — no review fires, no
+attention is spent, until you say so.
+
+**The PR description is the as-built record, so everything downstream reads it
+instead of the code.** It's written for what the change *is*, not how it was
+developed, with the gaps and unverified branches stated rather than omitted. That
+makes a work recap a matter of reading descriptions rather than diffs — and
+re-asking for a different audience re-shapes what was already gathered instead of
+re-fetching it.
+
+**Two roles that never meet coordinate through conventions.** Claiming an issue
+leaves three marks — assignee, an `assigned:*` label, and a session-stamped
+comment — and the check for someone else's claim matches the whole namespace by
+prefix, so an agent, a bot, or a teammate's tooling nobody has heard of still
+becomes visible. The reviewer *deliberately withholds* that signal — "a reviewer
+must not produce that signal" — because an assignee means *being implemented*,
+and producing it would stop a coder from starting. The branch name picked at
+`git worktree add` time is the join key the reviewer later queries siblings by.
+And the reviewer re-verdicts on every HEAD move, which re-attaches the approval
+to the current commit so "is HEAD approved?" stays answerable from the API — by
+the author's skill, a human merger, or a later session, without asking anyone.
+
+**The system learns instead of relearning.** A reviewer's finding is answered
+with the most durable artifact available — a test beats the code, which beats
+prose. The watchers live in `scripts/` rather than in fenced blocks precisely so
+`shellcheck` and `bats` cover them, which turns each debugging session into
+permanent coverage. When prose failed to hold a line, it became a test that pins
+two documents together: *"Prose alone did not hold the line, so this pins it."*
+Bugs recurring round after round are themselves treated as a finding — a signal
+to name the structural problem rather than patch symptoms. And when the shipped
+tooling doesn't fit your case, the agent is told to finish your task and then
+*tell you*, offering to file it upstream, rather than silently working around it.
+
+**Token cost falls out of the same design** rather than being optimised in
+afterwards. Skills load only when their description matches the task, and the
+always-on file — the one thing charged to every session of every user — is kept
+short on purpose. Waiting is done by blocking shell watchers running as
+background tasks, so idle polling never enters the conversation and a PR that
+takes an hour to review costs one wake-up, not sixty; the poll curve backs off
+and counts laptop-open time, so a closed lid doesn't burn the window. A
+re-review diffs against the last-reviewed SHA rather than re-reading the whole
+change. And the reviewer reads CI's results instead of re-running the suite —
+primarily because a local run reproduces the *author's* environment rather than
+CI's, so every green run argues "flaky, ignore it"; being cheaper is the second
+effect, not the reason.
+
+**None of this is theory.** The workflow has been exercised across **1,278 pull
+requests in 25 repositories** and refined continuously against what actually
+broke — the sharper rules in these skills are mostly there because something went
+wrong once and the fix got written down instead of forgotten. The maintainer puts
+the effort behind it at roughly a thousand hours.
+
 ## What's in it
 
 | Skill | Plugin | Forge | For |
@@ -135,50 +214,6 @@ and repo-specific facts stay in that repo's own `CLAUDE.md`.
 The other half is the part a `CLAUDE.md` cannot do at all: two hooks that
 *enforce* the flow rather than advising it, and a reviewer identity that can post
 a binding verdict on your own PR.
-
-## What it costs you in tokens
-
-Deliberately little, and that shaped the design rather than being tidied up
-afterwards. Five mechanisms, each of which you can check in the skills:
-
-**Issues are written so resolving one costs a read, not a crawl.** The expensive
-failure isn't a long issue body — it's a short one that forces the resolver to
-open three linked PRs and a design doc before touching code. So `issue-workflow`
-pushes the opposite way: paste the schema or the reviewer's concern *inline*
-rather than linking it, split cross-references into **Required reading** and
-**Related (optional — do not read unless blocked)** so an optional link isn't
-paid for by every future reader, cap link-following at **depth 1**, and prefer
-one targeted `gh api` fetch over reading a whole PR. Writing that costs the
-author minutes once; the alternative charges every resolver the same crawl.
-
-**Waiting is done by shell scripts, not by the model.** A PR that takes an hour
-to get reviewed shouldn't cost an hour of wake-ups. `watch-pr.sh` and
-`watch-merge.sh` run as background tasks and *block* until something actually
-happens, so idle polling never enters the conversation — the model is woken once,
-with a result. The poll interval backs off on a shared curve (10s at the start,
-30s by the half-hour, a minute by 90 minutes, 5 minutes after), and it counts
-laptop-open time, so a closed lid doesn't burn the window.
-
-**Draft status is respected, so you can iterate without spending anyone's
-attention.** PRs open as drafts and *you* decide when they go to review. On the
-other side, `reviewer` explicitly holds back a discovered draft rather than
-verdicting it — a draft is the author's signal to wait, and a review posted over
-it spends exactly the attention that signal asked to withhold. Push twenty times
-polishing a UI; no review fires until you say so.
-
-**The reviewer reads CI's results instead of re-running them.** It never waits
-for CI and never polls it, and it doesn't re-run the project's test suite —
-whole, per-file, or sweeping for flakes. The first reason is correctness, not
-cost: a local run reproduces the *author's* environment rather than CI's, so on a
-load-sensitive defect your machine wins the race a loaded runner loses and every
-green run argues "flaky, ignore it" — the wrong verdict, reached expensively.
-Being cheaper is the second effect, not the justification.
-
-**Content lives where it costs least.** That's the table
-[above](#why-this-rather-than-rules-in-a-claudemd): skills load only when their
-description matches the task, and `always-on-rules.md` — the one file charged to
-every session of every user — is kept short on purpose. New guidance has to argue
-its way in, and a skill is almost always the right home.
 
 ## Which forges
 
