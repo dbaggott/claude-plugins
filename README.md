@@ -220,7 +220,7 @@ the gates are workflow guardrails rather than a security boundary.
 
 ## Who maintains it
 
-This repo is maintained by Dan Baggott.
+This repo is maintained by [Dan Baggott](https://www.linkedin.com/in/dan-baggott/).
 
 Bug reports, portability findings, tests for untested branches, and
 documentation corrections are all welcome. So are new **knobs** that leave the
