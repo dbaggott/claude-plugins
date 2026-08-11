@@ -13,9 +13,7 @@ advising it, and an identity separate from yours that can post a binding verdict
 on a PR you wrote.
 
 **None of this is theory.** The workflow has been exercised across **more than
-1,200 pull requests in 25 repositories** and refined continuously against what
-actually broke — the sharper rules in these skills are mostly there because
-something went wrong once and the fix got written down instead of forgotten.
+1,200 pull requests in 25 repositories**, and refined continuously.
 
 **[Install it](#install)** — two commands, and nothing is enforced until you say
 where.
