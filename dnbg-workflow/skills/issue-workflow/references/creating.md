@@ -1,8 +1,9 @@
-# Issue workflow: creating and maintaining
+# Issue workflow: creating an issue
 
 Part of the `issue-workflow` skill. Read this when filing or updating an issue;
-`SKILL.md` carries the host check and the reference conventions that apply either
-way, and `references/resolving.md` covers picking one up.
+`SKILL.md` carries the host check, the reference conventions, and the
+maintenance sweep — all of which apply either way; `references/resolving.md`
+covers picking an issue up.
 
 ## Creating issues
 
@@ -33,15 +34,15 @@ The asymmetry: writing a self-documenting issue costs the creator a few extra mi
 Cross-references go in one of two explicitly-titled groups:
 
 - **Required reading** — the resolver must read these before starting. Keep this list ruthlessly short; every entry is a context-budget tax on the resolver.
-- **Related (optional)** — background only. Add the literal instruction "do not read unless blocked" so a resolver under the link-following discipline below knows these are skippable.
+- **Related (optional)** — background only. Add the literal instruction "do not read unless blocked" so a resolver under the link-following discipline (`references/resolving.md`) knows these are skippable.
 
 An unlabeled reference defaults to looking load-bearing, so the resolver pays for it either way — label or omit.
 
-All references use full GitHub URLs (see "Referencing issues and PRs" below).
+All references use full GitHub URLs (see "Referencing issues and PRs" in `SKILL.md`).
 
 ### Write state-independent references
 
-When the body's truth depends on another issue/PR's future state, phrase it as a conditional that holds in **every** state — "while X exists", "any run without a registration row" — rather than a snapshot of the current state — "until X lands", "once X merges". A snapshot owes a maintenance sweep when the world changes (and the sweep is owed even if the issue is never touched again, which the touch-triggered maintenance model below can't cover); a conditional never does.
+When the body's truth depends on another issue/PR's future state, phrase it as a conditional that holds in **every** state — "while X exists", "any run without a registration row" — rather than a snapshot of the current state — "until X lands", "once X merges". A snapshot owes a maintenance sweep when the world changes (and the sweep is owed even if the issue is never touched again, which the touch-triggered model in "Maintaining issues" (`SKILL.md`) can't cover); a conditional never does.
 
 Same discipline for case lists: state the **contract** ("the fallback covers any request with no session row") and mark any enumeration as illustrative ("the cases below are illustrations, not an enumeration to maintain") — so membership changes elsewhere can't stale the body.
 
@@ -54,7 +55,7 @@ Labels sort along independent axes; an issue carries one from each that applies,
 - **Type** — what kind of work it is: `bug`, `enhancement`, `documentation`, etc. Apply exactly one. This is the axis a triager filters on first, so an unlabeled issue is effectively invisible to that pass.
 - **Area** (`area:*`) — which subsystem it touches. The component axis that keeps a growing backlog scannable. Apply at least one; an issue genuinely spanning two subsystems gets both. The valid set is **per-repo and self-describing**: run `gh label list --repo <repo> --search area` and read each label's description — that listing is the catalog, not anything enumerated here, so it never goes stale against this skill. When none fits and the issue clearly belongs to a *recurring* subsystem, **propose** a new `area:<kebab>` label with a one-line description and get the operator's confirmation before creating it (`gh label create --repo <repo> --color <hex> --description "..."`). Don't mint area labels unilaterally — the per-repo set stays human-curated, and ad-hoc creation fragments the namespace (`area:db` vs `area:database`).
 
-The `assigned:*` claim labels are a third axis, applied by the claiming flow under "Picking up an issue" below rather than here.
+The `assigned:*` claim labels are a third axis, applied by the claiming flow in `references/resolving.md` rather than here.
 
 ### Reporting a gap upstream
 

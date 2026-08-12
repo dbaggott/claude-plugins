@@ -30,14 +30,14 @@ The URL case is the common one, not the exception: the always-on rule requires i
 
 Two cases that are **not** a decline, both reachable only on route 2: a repo with **no `origin`** makes no forge claim either way, so proceed and let the operator direct rather than assuming a host; and where **several remotes** exist, `origin` decides, matching the enforcement hooks.
 
-
 ## Two paths, and they need different things
 
 Filing an issue and resolving one are separate tasks with almost no overlap, so
 each lives in its own file. Read the one you are on:
 
 - **Creating or updating an issue** → `references/creating.md`. Self-documenting
-  bodies, verified anchors, labels, and keeping a body current as work ships.
+  bodies, verified anchors, and labels. Keeping a body current as work ships is
+  "Maintaining issues" below, since it fires on both paths.
 - **Picking up an issue to resolve it** → `references/resolving.md`. Claiming it
   (and checking it is not already claimed), the freshness probe, the critical
   review of the issue itself, and the link-following discipline.
@@ -52,9 +52,9 @@ Everything below applies to both.
 
 The cheapest sweep is the one never owed — write state-independent references (`references/creating.md`) and most of this section never triggers. For the drift that remains:
 
-**The body is the current truth; comments are history.** A cold resolver reads the body as "this is the work," so a body that has drifted from reality actively misleads — and no comment thread repairs that, because resolvers under the link-following discipline below won't reconstruct truth from a comment archaeology dig.
+**The body is the current truth; comments are history.** A cold resolver reads the body as "this is the work," so a body that has drifted from reality actively misleads — and no comment thread repairs that, because resolvers under the link-following discipline in `references/resolving.md` won't reconstruct truth from a comment archaeology dig.
 
-This isn't a standing patrol duty. The trigger is touching the issue for any reason — commenting on it, shipping part of it, closing or merging a PR it references. For the merge case, find the issues to sweep via `gh pr view <n> --json closingIssuesReferences` (the keyword-linked set) plus any issue URLs in the PR description — this sweep is maintenance, not context exploration, so the depth-1 reading cap in "Picking up an issue" below doesn't apply to it. When triggered, bring the body back to current truth before moving on:
+This isn't a standing patrol duty. The trigger is touching the issue for any reason — commenting on it, shipping part of it, closing or merging a PR it references. For the merge case, find the issues to sweep via `gh pr view <n> --json closingIssuesReferences` (the keyword-linked set) plus any issue URLs in the PR description — this sweep is maintenance, not context exploration, so the depth-1 reading cap in `references/resolving.md` doesn't apply to it (it is stated there; you do not need to load that file to take this exemption). When triggered, bring the body back to current truth before moving on:
 
 - **Status-mark shipped work.** If part of the issue has landed, mark that section shipped (with the PR URL) instead of leaving it presented as open work — otherwise a cold resolver re-implements it.
 - **Promote comment-borne facts into the body.** New evidence or decisions that arrived as comments get folded into the body. A fact that lives only in a comment is invisible to the handoff.
