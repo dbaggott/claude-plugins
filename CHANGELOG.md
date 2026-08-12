@@ -9,6 +9,50 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-practices 2026.8.4 — 2026-08-12
+
+`coding-practices` now names four failures specific to prose that instructs an
+agent — a `SKILL.md`, an always-on rules file, a `CLAUDE.md`. It already held
+that prose to the comment bar; the failures it listed under that bar were all
+comment-shaped. The new ones are an argument made twice, the inverse of a
+condition the section is already scoped by, a read an earlier step could have
+carried, and a branch the deployment never reaches.
+
+The file also now meets those rules itself:
+
+- Its guidance stands on its own rather than on claims about what the Claude
+  Code system prompt says — five of those are gone, including the framing of
+  "Two abstraction vices", which read as a corrective to a caution attributed to
+  a document that changes between model releases.
+- "Don't write API code from memory" is stated once, with pointers, instead of
+  three times over three sections.
+- No warning marker: the only one sat on a Markdown-editing hazard, which is
+  none of the categories its own rule reserves the glyph for. The rule under it
+  survives as one sentence.
+
+
+## dnbg-workflow 2026.8.39 — 2026-08-12
+
+Standards now reach the author and the reviewer without either having to think
+to go looking. A new always-on rule, **Coding standards stack**, says to load
+every standard that applies before writing or reviewing code — the repo's (its
+`CLAUDE.md`, any standards doc it names), yours, and
+`dnbg-practices:coding-practices` when that plugin is installed — and to hold the
+work to all of them, with the project's own winning any disagreement. Authoring
+prose that instructs an agent counts as writing code for this.
+
+Nothing loaded `coding-practices` before: it ships no hook, and `git-workflow`
+and `issue-workflow` mentioned it only as an optional install. `reviewer` never
+mentioned standards at all, so a verdict was judged against whatever the model
+brought. Its "Review for" step now names them.
+
+## Migration
+This takes effect on an installed machine as soon as the plugin updates —
+`always-on-rules.md` applies to every session. If your repo has standards you did
+*not* want applied to agent-facing prose (`SKILL.md`, `CLAUDE.md`), say so in the
+document itself; the rule reads them as code.
+
+
 ## dnbg-workflow 2026.8.38 — 2026-08-12
 
 Asking `reviewer` to review a draft PR now stops and asks, instead of noting the
