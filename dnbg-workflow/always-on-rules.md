@@ -17,9 +17,9 @@ and hold the work to all of them: the repo's (its `CLAUDE.md`, any
 standards doc it names), any the operator points you at, and
 `dnbg-practices:coding-practices` when it is installed. Having it
 installed doesn't replace the repo's own — where two disagree the
-project's own wins, and the rest still applies. Authoring prose that instructs an agent
-(a `SKILL.md`, a rules file, a `CLAUDE.md`) counts as writing code
-here.
+project's own wins, and the rest still applies. Authoring prose
+that instructs an agent (a `SKILL.md`, a rules file, a `CLAUDE.md`)
+counts as writing code here.
 
 ## All file changes in a covered repo go through a PR
 
