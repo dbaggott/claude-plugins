@@ -295,7 +295,7 @@ EOF
   }
 }
 
-REVIEWER_SKILL="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
+REVIEWER_SKILL="$ROOT/dnbg-workflow/skills/reviewer/issue-mode.md"
 
 @test "the issue-scoped wait sees every PR source discovery does" {
   run covers_discovery "$ROOT/dnbg-workflow/scripts/watch-pr.sh" "$REVIEWER_SKILL"
