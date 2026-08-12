@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Act as an independent code reviewer on a GitHub PR. Mint a short-lived token for your reviewer GitHub App, fetch the PR diff and CI status, review for bugs → security → test coverage → clarity (in that priority order), then post a real GitHub review under the bot identity via `gh pr review` with exactly one verdict (`--approve` or `--request-changes`, never `--comment`), action-requesting inline comments, and review-thread resolution for findings already addressed. Then keep watching the PR in-session and automatically re-review new commits, respond to replies, and resolve threads until it merges. Also covers being assigned as the reviewer for an **issue** rather than a PR — before any PR exists (wait for the work to arrive) or after (pick up what's open) — reviewing the whole set of PRs that resolve it against the issue's acceptance criteria, and cleaning up any checkout the review created. Load when asked to review a PR, act as the reviewer, "review <owner>/<repo>#<n>", be the reviewer on an issue ("you review issue 74", "review <issue URL>"), watch/keep-reviewing a PR, review a teammate's PR or your own before merge, or re-review after new commits. Requires a one-time `reviewer-setup`. Skip for reviewing your own uncommitted/working diff — use `/code-review` for that; this skill reviews a pushed PR.
+description: Act as an independent code reviewer on a GitHub PR. Mint a short-lived token for your reviewer GitHub App, fetch the PR diff and CI status, review for bugs → security → test coverage → clarity (in that priority order), then post a real GitHub review under the bot identity via `gh pr review` with exactly one verdict (`--approve` or `--request-changes`, never `--comment`), merge-blocking inline comments, and review-thread resolution for findings already addressed. Then keep watching the PR in-session and automatically re-review new commits, respond to replies, and resolve threads until it merges. Also covers being assigned as the reviewer for an **issue** rather than a PR — before any PR exists (wait for the work to arrive) or after (pick up what's open) — reviewing the whole set of PRs that resolve it against the issue's acceptance criteria, and cleaning up any checkout the review created. Load when asked to review a PR, act as the reviewer, "review <owner>/<repo>#<n>", be the reviewer on an issue ("you review issue 74", "review <issue URL>"), watch/keep-reviewing a PR, review a teammate's PR or your own before merge, or re-review after new commits. Requires a one-time `reviewer-setup`. Skip for reviewing your own uncommitted/working diff — use `/code-review` for that; this skill reviews a pushed PR.
 ---
 
 # Reviewer
@@ -447,19 +447,27 @@ you meant "no blocking objections." Always pick `--approve` or
 `--request-changes`. (Because the review posts as the *bot*, not the PR author,
 GitHub's self-approval block doesn't apply even on your own PR.)
 
-**Inline comments must request action.** An inline comment on a line creates a
-review thread GitHub surfaces as unresolved until someone resolves it — the human
-merging reads that as an outstanding ask. Use one only when it asks the author to
-do, verify, or change something on that line. Purely informational observations
-(FYI, "worth noting", "not blocking, just noting") go in the review **body**, not
-on a line — an informational inline comment has nowhere to be resolved to and
-stalls the merge.
+**Inline comments are merge blockers — file one only if you would hold the merge
+for it, which makes filing one a `--request-changes`.** The verdict and the
+threads have to agree: `--approve` plus an open thread tells the merger "go
+ahead" and then stops them, which is the contradiction this section exists to
+prevent, one level up.
 
-On a repo with `required_conversation_resolution` enabled that is mechanical
-rather than a matter of the merger's reading: *every* unresolved thread blocks the
-merge outright, so an FYI filed on a line is a merge blocker with no action
-attached to clear it. Assume it may be on — the setting is not readable without
-admin, and the body is the right home for an informational note either way.
+An inline comment creates a review thread GitHub surfaces as unresolved until
+someone resolves it: the human merging reads that as an outstanding ask, and
+where `required_conversation_resolution` is on it blocks the merge outright.
+Assume it may be on — the setting is not readable without admin.
+
+"Does it request action" is the wrong test, because a nit passes it — "switch
+`--` to an em dash" asks for a change on a line, and still shouldn't stop a
+merge. Anything you would be content to see merged over goes in the review
+**body**: FYIs, "worth noting", wording preferences, alternatives you don't need
+taken.
+
+⚠️ **And never call an open thread non-blocking.** "Merge over it if you'd rather
+not spend the round", written in the body while a thread you filed is open, is a
+contradiction the merge box settles against you. If it really is fine to merge
+over, it belongs in the body and the thread should not exist.
 
 **Post one atomic review.** When you have inline findings, use the reviews
 endpoint so the verdict *and* all inline comments land as a single review (one
@@ -472,8 +480,8 @@ handles the quoting for you:
 jq -n --arg body "<summary / non-inline findings as markdown>" \
   '{event: "REQUEST_CHANGES", body: $body,
     comments: [
-      {path: "api/server.go", line: 42, body: "<action-requesting comment>"},
-      {path: "db/users.py",  line: 88, body: "<action-requesting comment>"}
+      {path: "api/server.go", line: 42, body: "<merge-blocking finding>"},
+      {path: "db/users.py",  line: 88, body: "<merge-blocking finding>"}
     ]}' \
   | gh api repos/<repo>/pulls/<n>/reviews --input -
 ```
@@ -789,6 +797,11 @@ Resolve **only** threads where the finding was actually answered. Don't
 blanket-resolve — a thread where the author pushed or replied but didn't address
 your point stays open so they know to come back to it.
 
+The exception is a thread that should never have been filed: if a nit of yours is
+the last thing blocking the merge, resolve it and restate the point in-thread as
+a suggestion. A genuine finding does not qualify — it stays open as the last
+blocker, which is a blocked merge working correctly.
+
 ## Avoid noise
 
 Don't post comments that are neither actionable nor informative — no "Reviewed,
@@ -802,8 +815,9 @@ commentary, not a verdict whose content is the verdict.
 
 ## When to ask, when to skip
 
-- **Don't `--request-changes` for style nits.** Use `--approve` and put the nit
-  in the body (or inline it if it's action-requesting on a specific line).
+- **Don't `--request-changes` for style nits, and don't file them on a line
+  either** — a thread blocks the merge just as surely. Use `--approve` and put
+  the nit in the body.
 - **One back-and-forth max on disagreements.** If you and the author disagree on
   a design point after one exchange, state your position briefly, defer to the
   human(s) on the PR, and stop.
