@@ -157,14 +157,24 @@ completes, and pasting both at once only registers the first as a slash command:
 
 Finally, turn on auto-update — **this plugin does not update itself.** Claude
 Code leaves auto-update off by default for a third-party marketplace, so what
-you install here stays exactly as it is until you say otherwise. Skipping this
-step is how you end up reading a README that describes behavior your copy
-doesn't have:
+you install here stays exactly as it is until you say otherwise, and reading a
+README that describes behavior your copy doesn't have is how that surfaces:
 
 `/plugin` → **Marketplaces** → **dnbg** → **Enable auto-update**
 
-[Releases](docs/releases.md) has the `settings.json` equivalent, the cadence, and
-how to pin a version instead if you would rather update deliberately.
+**Don't rely on it alone yet.** With auto-update on, a *known* new version does
+install unaided — but we have seen the marketplace itself go 11+ hours without
+noticing a release existed, and `/plugin` reports the version the *marketplace*
+knows about, so a stale copy still reads as current. Until that is understood,
+refresh by hand when you want to be sure:
+
+```
+/plugin marketplace update dnbg
+```
+
+[Releases](docs/releases.md) has the `settings.json` equivalent, how to check
+what is actually on disk, and how to pin a version instead if you would rather
+update deliberately.
 
 `dnbg-all` installs all three. To take only part of it, install what you want
 instead — they are independent, and none requires another:

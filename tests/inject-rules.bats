@@ -110,10 +110,10 @@ run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
   # one wrong-attribution shape the stamp exists to rule out — and a wrong stamp
   # is worse than no stamp, because nothing downstream can tell them apart.
   stub_path jq git gh
-  write_manifest 2026.44 qhcorp-workflow
+  write_manifest 2026.44 acme-corp-workflow
   run_hook_stamped
   [ "$status" -eq 0 ]
-  [[ "$output" == *"## qhcorp-workflow 2026.44"* ]]
+  [[ "$output" == *"## acme-corp-workflow 2026.44"* ]]
   [[ "$output" != *"dnbg-workflow 2026.44"* ]]
 }
 

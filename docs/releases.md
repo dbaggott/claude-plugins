@@ -35,6 +35,19 @@ up to ten minutes, then refreshes the marketplace and updates installed plugins
 on disk. Your running session keeps the version it launched with; you'll be
 prompted to `/reload-plugins`, or the new version loads next launch.
 
+> **Known gap — don't treat auto-update as sufficient yet.** That describes the
+> intended behavior, and the *install* half is confirmed: given a marketplace
+> that knows about a new version, a fresh session picked it up unaided in about
+> two and a half minutes. The *refresh* half we have seen fail — the marketplace
+> clone sat on one commit for 11½ hours across several fresh sessions and moved
+> only under a manual update. The cause is not established. Until it is, run the
+> by-hand update below when it matters, and check the disk rather than
+> `/plugin`, which reports what the marketplace knows rather than what you have:
+>
+> ```
+> ls -1 ~/.claude/plugins/cache/dnbg/dnbg-workflow/ | sort -V | tail -1
+> ```
+
 The config form also works in managed settings, so an administrator can enable
 it for an organisation without asking each person to toggle it.
 
