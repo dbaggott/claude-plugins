@@ -48,9 +48,11 @@ the work.** Here the operator works something out conversationally and it goes
 straight to a draft PR. Once you're satisfied, you send it to another session
 for review. It ends the way the flow always ends: the coding agent hands over the
 merge command, you merge it yourself (here with `!` in the session), and the worktree
-and branch are cleaned up without being asked.
+and branch are cleaned up without being asked — then the cycle is reported back
+under Summary, Observations, and Actionable, so what you may want to act on is
+in its own section rather than buried in prose.
 
-![Two terminal panes. The left session iterates on a change conversationally across three pushes to a draft PR; the right session asks whether to review the draft now or wait for it to be marked ready, and waits. The operator sends it to review, the reviewer requests a test and then approves, and after the operator merges with a bang command the left session removes the worktree and deletes the branch.](docs/media/demo-vibe-review.gif)
+![Two terminal panes. The left session iterates on a change conversationally across three pushes to a draft PR; the right session asks whether to review the draft now or wait for it to be marked ready, recommends waiting, and waits. The operator sends it to review, the reviewer requests a test and then approves, and after the operator merges with a bang command the left session removes the worktree, deletes the branch, and reports the cycle under Summary, Observations, and Actionable headings.](docs/media/demo-vibe-review.gif)
 
 **Filing an issue**, which the gate makes non-optional — an issue written
 without the skill is a body the next session can't work from.
