@@ -41,8 +41,9 @@ prompted to `/reload-plugins`, or the new version loads next launch.
 > two and a half minutes. The *refresh* half we have seen fail — the marketplace
 > clone sat on one commit for 11½ hours across several fresh sessions and moved
 > only under a manual update. The cause is not established. Until it is, run the
-> by-hand update below when it matters, and check the disk rather than
-> `/plugin`, which reports what the marketplace knows rather than what you have:
+> by-hand update below when it matters, and settle it against the disk —
+> `claude plugin list` reports what the marketplace knows rather than what you
+> have, so it reads as current either way:
 >
 > ```
 > ls -1 ~/.claude/plugins/cache/dnbg/dnbg-workflow/ | sort -V | tail -1

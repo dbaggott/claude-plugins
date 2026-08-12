@@ -32,7 +32,7 @@ say "${C_SAY}● Reading the descriptions, not the diffs. A PR body here is the$
 say "${C_SAY}  as-built record, so the recap is mostly already written down.${C_OFF}"
 beat 1.6
 say "${C_TOOL}● Bash${C_OFF}   gh pr view --json body,closingIssuesReferences ${C_DIM}×28${C_OFF}"
-say "${C_DIM}  ⎿ 15 issues closed · 10 filed${C_OFF}"
+say "${C_DIM}  ⎿ 5 issues closed · 5 filed${C_OFF}"
 beat 1.6
 
 printf '\n'

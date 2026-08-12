@@ -164,9 +164,9 @@ README that describes behavior your copy doesn't have is how that surfaces:
 
 **Don't rely on it alone yet.** With auto-update on, a *known* new version does
 install unaided — but we have seen the marketplace itself go 11+ hours without
-noticing a release existed, and `/plugin` reports the version the *marketplace*
-knows about, so a stale copy still reads as current. Until that is understood,
-refresh by hand when you want to be sure:
+noticing a release existed, and `claude plugin list` reports the version the
+*marketplace* knows about, so a stale copy still reads as current. Until that is
+understood, refresh by hand when you want to be sure:
 
 ```
 /plugin marketplace update dnbg
