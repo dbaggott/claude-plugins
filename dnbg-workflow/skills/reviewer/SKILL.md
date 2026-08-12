@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Act as an independent code reviewer on a GitHub PR. Mint a short-lived token for your reviewer GitHub App, fetch the PR diff and CI status, review for bugs → security → test coverage → clarity (in that priority order), then post a real GitHub review under the bot identity via `gh pr review` with exactly one verdict (`--approve` or `--request-changes`, never `--comment`), action-requesting inline comments, and review-thread resolution for findings already addressed. Then keep watching the PR in-session and automatically re-review new commits, respond to replies, and resolve threads until it merges. Also covers being assigned as the reviewer for an **issue** rather than a PR — before any PR exists (wait for the work to arrive) or after (pick up what's open) — reviewing the whole set of PRs that resolve it against the issue's acceptance criteria, and cleaning up any checkout the review created. Load when asked to review a PR, act as the reviewer, "review <owner>/<repo>#<n>", be the reviewer on an issue ("you review issue 74", "review <issue URL>"), watch/keep-reviewing a PR, review a teammate's PR or your own before merge, or re-review after new commits. Requires a one-time `reviewer-setup`. Skip for reviewing your own uncommitted/working diff — use `/code-review` for that; this skill reviews a pushed PR.
+description: Act as an independent code reviewer on a GitHub PR. Mint a short-lived token for your reviewer GitHub App, fetch the PR diff and CI status, review for bugs → security → test coverage → clarity (in that priority order), then post a real GitHub review under the bot identity via `gh pr review` with exactly one verdict (`--approve` or `--request-changes`, never `--comment`), merge-blocking inline comments, and review-thread resolution for findings already addressed. Then keep watching the PR in-session and automatically re-review new commits, respond to replies, and resolve threads until it merges. Also covers being assigned as the reviewer for an **issue** rather than a PR — before any PR exists (wait for the work to arrive) or after (pick up what's open) — reviewing the whole set of PRs that resolve it against the issue's acceptance criteria, and cleaning up any checkout the review created. Load when asked to review a PR, act as the reviewer, "review <owner>/<repo>#<n>", be the reviewer on an issue ("you review issue 74", "review <issue URL>"), watch/keep-reviewing a PR, review a teammate's PR or your own before merge, or re-review after new commits. Requires a one-time `reviewer-setup`. Skip for reviewing your own uncommitted/working diff — use `/code-review` for that; this skill reviews a pushed PR.
 ---
 
 # Reviewer
@@ -448,9 +448,14 @@ you meant "no blocking objections." Always pick `--approve` or
 GitHub's self-approval block doesn't apply even on your own PR.)
 
 **Inline comments are merge blockers — file one only if you would hold the merge
-for it.** An inline comment creates a review thread GitHub surfaces as unresolved
-until someone resolves it: the human merging reads that as an outstanding ask,
-and where `required_conversation_resolution` is on it blocks the merge outright.
+for it, which makes filing one a `--request-changes`.** The verdict and the
+threads have to agree: `--approve` plus an open thread tells the merger "go
+ahead" and then stops them, which is the contradiction this section exists to
+prevent, one level up.
+
+An inline comment creates a review thread GitHub surfaces as unresolved until
+someone resolves it: the human merging reads that as an outstanding ask, and
+where `required_conversation_resolution` is on it blocks the merge outright.
 Assume it may be on — the setting is not readable without admin.
 
 "Does it request action" is the wrong test, because a nit passes it — "switch
@@ -475,8 +480,8 @@ handles the quoting for you:
 jq -n --arg body "<summary / non-inline findings as markdown>" \
   '{event: "REQUEST_CHANGES", body: $body,
     comments: [
-      {path: "api/server.go", line: 42, body: "<action-requesting comment>"},
-      {path: "db/users.py",  line: 88, body: "<action-requesting comment>"}
+      {path: "api/server.go", line: 42, body: "<merge-blocking finding>"},
+      {path: "db/users.py",  line: 88, body: "<merge-blocking finding>"}
     ]}' \
   | gh api repos/<repo>/pulls/<n>/reviews --input -
 ```
