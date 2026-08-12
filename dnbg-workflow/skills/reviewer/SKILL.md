@@ -335,14 +335,16 @@ The watch runs as long as your Claude session is alive. If the laptop just sleep
 whatever changed meanwhile. If you quit the session, re-invoke the skill on the
 PR to resume (it re-assesses current state and picks the watch back up).
 
-1. **Record state** after each action: the HEAD SHA you last reviewed and a
-   timestamp marking "handled up to here" (`date -u +%Y-%m-%dT%H:%M:%SZ`).
+1. **Record state** after each action: the HEAD SHA you last reviewed, a
+   timestamp marking "handled up to here" (`date -u +%Y-%m-%dT%H:%M:%SZ`), and the
+   SHA of the verdict you last handled — nothing yet, on a first arm.
 
    ⚠️ **`<last_head>` is the full 40-character SHA** — take it from
    `gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid`, never an
    abbreviated one you happened to print for a human. The watcher compares it as a
    string against what GitHub returns, so a short SHA can never match; it is
-   refused (`result=ERROR reason=bad-args`).
+   refused (`result=ERROR reason=bad-args`). `<last_verdict_sha>` is compared
+   against `commit.oid` the same way and is refused the same way.
 2. **Spawn `watch-pr.sh`** as a **background**
    task — it blocks until something happens, so its idle polling never enters the
    conversation; the harness wakes you when it returns:

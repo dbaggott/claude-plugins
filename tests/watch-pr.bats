@@ -650,16 +650,38 @@ EOF
 # `--was-draft` used to be read as `${6:-}` alone, so a second trailing flag would have
 # silenced whichever one came last — two wake paths, failing quietly, decided by typing
 # order. Both orders must work, and anything else must be refused.
+#
+# One tick proves both flags parsed, because the PR is already out of draft: the READY
+# line exists only if `--was-draft` was seen, and carries `verdict_sha` only if
+# `--last-verdict` was. The draft transition itself is the test below.
 @test "trailing flags work in either order" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=5 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=READY"* ]]
+  [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
+
+  INTERVAL=1 SETTLE=1 WINDOW=5 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --was-draft --last-verdict=
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=READY"* ]]
+  [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
+}
+
+# Marking a PR ready is neither a push nor a review nor a comment, so it is invisible
+# without `--was-draft` and the PR is picked up on its next push, or never. A burst
+# accumulating behind the held-back draft has no release short of this transition.
+@test "--was-draft reports a draft being marked ready" {
   printf true > "$DRAFT"
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   AT_TICK=3 AT_TICK_FILE="$DRAFT" AT_TICK_VALUE=false \
   INTERVAL=1 SETTLE=1 WINDOW=20 \
     run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft
   [ "$status" -eq 0 ]
-  # --was-draft parsed: the draft going ready is reported at all.
   [[ "$output" == *"result=READY"* ]]
-  # --last-verdict parsed: the standing verdict rode along in the same burst.
+  # The verdict fired on tick 1, was held back with the draft, and rode out on READY
+  # rather than being dropped — the caller re-arms from `verdict_sha` either way.
   [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
 }
 
