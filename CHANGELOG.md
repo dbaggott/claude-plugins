@@ -9,6 +9,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-practices 2026.8.2 — 2026-08-12
+
+`coding-practices` now applies "what a comment must not carry" to prose that
+instructs an agent — skill files, always-on rules, `CLAUDE.md` — and loads when
+you are authoring that prose. The bar was already right; it just read as
+code-only, and the skill's own trigger skipped "non-code questions", so neither
+reached the sessions where skill prose gets written.
+
+
 ## dnbg-workflow 2026.8.27 — 2026-08-12
 
 `reviewer`'s issue-scoped mode moves to `references/issue-mode.md`, leaving a
