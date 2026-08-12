@@ -234,11 +234,12 @@ EOF
 # the test that makes someone make it.
 #
 # `version_stamp` is the one key that is neither a mechanical name nor a
-# workflow step, and it earns its place on a third ground: it is the only setting
-# that changes what this plugin writes onto artifacts *other people* read. A
-# switch over what gets published under the operator's name is theirs to hold
-# whichever way it defaults, so it is a key rather than an opinion. Read that as
-# the narrow exception it is — "the operator might prefer otherwise" is not one,
+# workflow step, and it earns its place on a third ground: what it publishes is a
+# marker addressed to *tooling*, meaningless to the humans it lands in front of.
+# Nobody reading the PR can act on it, so it is theirs to decline. Content
+# addressed to those readers is not covered — the `[<branch-name>]` title tag
+# above writes onto a PR title people read, and stays an opinion because it is
+# there to be read. "The operator might prefer otherwise" is not a ground either,
 # or every behavioral choice above qualifies.
 @test "the plugin exposes exactly the four intended configuration keys" {
   local keys
