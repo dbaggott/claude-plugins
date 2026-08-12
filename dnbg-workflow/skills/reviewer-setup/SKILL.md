@@ -198,14 +198,7 @@ it wherever you want and set the command.
   org install needs an org owner. Check what is actually granted — this is the
   authoritative answer, and it is what the App *declares* that misleads:
 
-  ```bash
-  # Needs an App JWT; the same signing block mint-token.sh uses.
-  curl -fsS -H "Authorization: Bearer $JWT" -H "Accept: application/vnd.github+json" \
-    https://api.github.com/app/installations \
-    | jq -r '.[] | "\(.account.login): \(.permissions | to_entries
-        | map("\(.key)=\(.value)") | sort | join(" "))"'
-  ```
-
-  Compare each line against `default_permissions` in bootstrap.py. `GET /app`
-  shows what the App asks for, which flips the moment you save the edit —
-  `/app/installations` shows what it actually has.
+  Re-run the `/app/installations` check from **Verify** above and compare each
+  line against `default_permissions` in `bootstrap.py`. `GET /app` shows what the
+  App *asks* for, which flips the moment you save the edit — `/app/installations`
+  shows what it actually has.

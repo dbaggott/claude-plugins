@@ -273,11 +273,10 @@ Constant rules, both modes:
   the one case where rendering inline is right. The literal markup the block exposes
   (`*bold*`, `:emoji:` shortcodes, `#` headers) is the point: that's the raw form the
   paste target — Slack mrkdwn, a markdown doc — will interpret, so it's exactly what you
-  want on the clipboard. Two notes worth passing to the user with a Slack recap:
-  `:emoji:` shortcodes only render if they exist in the workspace, and older Slack
-  composers read `*single asterisks*` as bold while the newer WYSIWYG one may need a
-  plain-text paste (Cmd-Shift-V); Slack is trending toward standard markdown, so
-  re-check this if the asterisks don't take.
+  want on the clipboard. One note worth passing to the user with a Slack
+  recap: `:emoji:` shortcodes only render if they exist in the workspace. If the
+  formatting doesn't survive the paste, a plain-text paste (Cmd-Shift-V) is the
+  usual fix.
 
 Mode-specific shaping:
 
