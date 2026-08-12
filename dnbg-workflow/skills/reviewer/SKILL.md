@@ -520,31 +520,26 @@ case and the reason to prefer it.
 ## Report the review, in three sections
 
 At `CLOSED`, once the cleanup above is done, report the review to the operator
-under exactly these three headings, in this order:
+under exactly these three headings, in this order. **All three every time,
+"None" under an empty one, and anything that could go under either of the last
+two goes under Actionable** — an omitted section reads as "nothing there" and
+"never considered" alike, and Observations is the one the operator is invited to
+skim.
 
 - **Summary** — what happened. The PR by full URL, how it ended (merged, or
   closed unmerged), the verdicts you posted and the SHAs they sat on, and how
   many rounds it took. Self-contained: the operator may have sent this PR to you
   hours ago and read nothing since.
-- **Observations** — informational, and nothing for them to do. What the diff
-  told you that they didn't ask about: a pattern worth knowing, a risk you
-  checked and found handled, an area the change leaves untouched but adjacent.
-- **Actionable** — anything they may want to act on: a non-blocking finding the
-  author didn't take, a thread you resolved on the author's reasoning that you
-  still think deserves a follow-up, a coverage gap the merged diff carries. One
-  line each, naming the concrete next step and where — file an issue, open a
-  follow-up PR.
+- **Observations** — informational, and nothing for them to do. A pattern worth
+  knowing, a risk you checked and found handled, an area the change leaves
+  untouched but adjacent.
+- **Actionable** — a non-blocking finding the author didn't take, a thread you
+  resolved on the author's reasoning that you still think deserves a follow-up,
+  a coverage gap the merged diff carries. One line each, naming the concrete
+  next step and where.
 
-Two rules make the split worth having. **Emit all three headings every time,
-with "None" under an empty one** — an omitted section reads as "nothing there"
-and "never considered" alike, and only one of those is safe to act on. **When an
-item could go in either, it's Actionable**: Observations is the section the
-operator is invited to skim, so anything filed there is something they may never
-decide on.
-
-Surfacing is the whole job here — don't act on the Actionable list. You are the
-reviewer; filing or fixing is somebody else's side of the flow, and which of
-those items is worth doing is the operator's call.
+Don't act on that list — you are the reviewer, and filing or fixing is somebody
+else's side of the flow.
 
 In the issue-scoped mode this report fires **per PR**, as each one closes, and
 says nothing about the assignment being over — re-discovery decides that. Report

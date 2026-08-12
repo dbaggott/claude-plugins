@@ -438,15 +438,13 @@ When told a PR has been merged (or when the merge watcher above reports `result=
 
 ### Then close the loop, in three sections
 
-Cleanup done, report the cycle to the operator under exactly these three headings, in this order:
+Cleanup done, report the cycle to the operator under exactly these three headings, in this order. **All three every time, "None" under an empty one, and anything that could go under either of the last two goes under Actionable** — an omitted section reads as "nothing there" and "never considered" alike, and Observations is the one the operator is invited to skim.
 
-- **Summary** — what happened. The PR by full URL, what shipped as-built, and how the cycle went (rounds, verdicts, anything the review changed about the work). Past tense and self-contained: the operator may have been away since the handoff.
-- **Observations** — informational, and nothing for them to do. What you noticed in passing that they didn't ask about: something surprising in the code you touched, an assumption the change now rests on, a check that passed for a reason worth knowing.
-- **Actionable** — anything they may want to act on: findings deferred with "Merge as-is", a follow-up the reviewer raised that you didn't take, setup or config the merged change now needs, a defect you saw and left alone. One line each, naming the concrete next step and where — file an issue, open a follow-up PR, flip a setting.
+- **Summary** — what happened. The PR by full URL, what shipped as-built, and how the cycle went (rounds, verdicts, anything the review changed about the work). Self-contained: the operator may have been away since the handoff.
+- **Observations** — informational, and nothing for them to do. Something surprising in the code you touched, an assumption the change now rests on, a check that passed for a reason worth knowing.
+- **Actionable** — findings deferred with "Merge as-is", a follow-up the reviewer raised that you didn't take, setup or config the merged change now needs, a defect you saw and left alone. One line each, naming the concrete next step and where.
 
-Two rules make the split worth having. **Emit all three headings every time, with "None" under an empty one** — an omitted section reads as "nothing there" and "never considered" alike, and only one of those is safe to act on. **When an item could go in either, it's Actionable**: Observations is the section the operator is invited to skim, so anything filed there is something they may never decide on.
-
-Surfacing is the whole job here — don't act on the Actionable list. Filing the issues or opening the follow-up PR is the operator's call, and `issue-workflow` covers filing once they make it.
+Don't act on that list — filing and fixing are the operator's call, and `issue-workflow` covers the filing once they make it.
 
 ## After rebase or merge
 
