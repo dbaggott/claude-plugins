@@ -304,7 +304,7 @@ REVIEWER_SKILL="$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md"
 }
 
 @test "the claim check sees every PR source discovery does" {
-  run covers_discovery "$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" "$REVIEWER_SKILL"
+  run covers_discovery "$ROOT/dnbg-workflow/skills/issue-workflow/references/resolving.md" "$REVIEWER_SKILL"
   echo "$output"
   [ "$status" -eq 0 ]
 }
@@ -605,4 +605,19 @@ remote_read_calls() {  # <SKILL.md>
     esac
   done < <(tree_skills)
   [ "$bad" -eq 0 ]
+}
+
+# `issue-workflow`'s two halves are reachable only through the pointers SKILL.md
+# carries — nothing else in the plugin names either file, and the claim check above
+# reads resolving.md directly, so dropping a pointer would strand a whole path with
+# the suite green. Same silent direction the reviewer pointer test covers.
+@test "issue-workflow SKILL.md still points at both halves" {
+  local skill="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" f
+  for f in creating resolving; do
+    [ -f "$ROOT/dnbg-workflow/skills/issue-workflow/references/$f.md" ] || {
+      echo "references/$f.md is missing"; false; }
+    grep -q "references/$f\.md" "$skill" || {
+      echo "issue-workflow/SKILL.md no longer names references/$f.md — that path is unreachable"
+      false; }
+  done
 }
