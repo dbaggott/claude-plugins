@@ -5,11 +5,11 @@ work using sensible best practices: every change goes through a worktree and
 a draft PR, issues are written to survive a cold handoff, and an independent bot
 identity reviews the result before a human merges it.
 
-The workflow and prompts were developed and continuously improved over the course
-of **more than 1,200 pull requests in 25 repositories** and were used
-exclusively by a small team of developers for many months. In our experience, an
-agent on its own is incapable of producing well-designed production-quality code.
-This plugin was built to support an AI-native startup.
+The workflow and prompts were developed and continuously improved over the
+course of **more than 1,200 pull requests (and counting) in 25 repositories**
+and were used exclusively by a small team of developers for several months. In
+our experience, an agent on its own is incapable of producing well-designed
+production-quality code. This plugin was built to close that gap.
 
 This plugin consists of **skills** (loaded on demand when they match the task), a
 short **always-on rules** file, and two **enforcement hooks** that make the worktree
