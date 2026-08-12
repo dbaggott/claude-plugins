@@ -38,13 +38,19 @@ teardown() { rm -rf "$TMP"; }
 # written by `hook_env_setup`: absent is the broken-install shape, so every suite
 # that says nothing about the stamp exercises the silent-no-op path for free.
 #
-# ⚠️ Moving this into `hook_env_setup` would loosen three assertions at once with
-# nothing left to catch it. `inject-rules.bats`'s "emits the rules file" and
-# `inject-rules-subagent.bats`'s "carries the payload under additionalContext"
-# both compare the payload to `$RULES_TEXT` for *equality*, and they are now the
-# only tests pinning that a default install emits nothing beyond the rules —
-# "round-trips the real rules file" used to pin it too and no longer can, since
-# the stamp fires against the real manifest and it compares a prefix instead.
+# ⚠️ Moving this into `hook_env_setup` would loosen four assertions at once with
+# nothing left to catch it. Every `= "$RULES_TEXT"` equality depends on the
+# manifest being absent — three in `inject-rules.bats` (the two "says nothing
+# about ..." tests and "says nothing when a knob is set to the value it already
+# had") and one in `inject-rules-subagent.bats` ("carries the payload under
+# additionalContext"). They are now the only tests pinning that a default
+# install emits nothing beyond the rules: "round-trips the real rules file" used
+# to pin it too and no longer can, since the stamp fires against the real
+# manifest and it compares a prefix instead.
+#
+# Named by what they assert rather than by line number, which drifts, and rather
+# than by title alone — `grep '= "\$RULES_TEXT"' tests/` is the check, and it is
+# what to re-run before concluding this warning is overcautious.
 write_manifest() {  # <version> [name]
   mkdir -p "$ROOT/.claude-plugin"
   printf '{"name":"%s","version":"%s"}\n' "${2-dnbg-workflow}" "$1" \
