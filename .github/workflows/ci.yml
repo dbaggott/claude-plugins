@@ -51,14 +51,11 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    env:
-      # The release PR's diff is version fields, the CHANGELOG insert, and the
-      # fragments it consumed. Nothing in it can move a shell script, a
-      # workflow file, or a hook, so the steps that read those are gated on
-      # this. The manifest steps below are ungated: they are the only checks
-      # that diff *can* move, and the version they validate is computed fresh
-      # by `release.yml` rather than reviewed by anyone.
-      RELEASE_PR: ${{ startsWith(github.head_ref, 'auto-release/') }}
+    # Every step runs on every PR, including the release PR. Gating the cheap
+    # steps on "is this the release PR" was measured and does not pay: shellcheck
+    # and actionlint are ~4s of a ~27s job that bills a whole minute either way,
+    # and the actionlint image pull happens during job setup regardless of any
+    # step condition. `hook-tests` below is where the skip earns its minutes.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -120,8 +117,8 @@ jobs:
         # exists and is never selected — the plugin silently drops out of any
         # other plugin's version constraint. Catching it pre-merge is the only
         # place a failure can still block; by release time the bad version is
-        # already on main. That includes the release PR, which is why this step
-        # is not gated on RELEASE_PR.
+        # already on main — including the version `release.yml` computes for its
+        # own PR, which no human reviews.
         #
         # Leading zeros are rejected by semver, which is why the release
         # workflow emits an unpadded month (`2026.8.1`, never `2026.08.1`).
@@ -204,7 +201,7 @@ jobs:
           exit "$fail"
 
       - name: Run shellcheck on all .sh files
-        if: ${{ !cancelled() && env.RELEASE_PR != 'true' }}
+        if: ${{ !cancelled() }}
         # Bring our own shellcheck (the pre-installed one on ubuntu-latest
         # tracks the runner image's release cadence, which lags upstream by
         # months). Pin an exact version so the CI signal is stable across
@@ -218,7 +215,7 @@ jobs:
           scandir: '.'
 
       - name: Lint the workflow files
-        if: ${{ !cancelled() && env.RELEASE_PR != 'true' }}
+        if: ${{ !cancelled() }}
         # This exists because a workflow shipped that could not start. A
         # continuation line at column 0 inside a `run: |` block ended the block
         # scalar and made the file invalid YAML; four checks went green and the
@@ -261,8 +258,7 @@ jobs:
         # `jq empty` proves the JSON parses; this proves it is a *valid manifest*
         # — unrecognized fields, missing metadata, marketplace and plugin
         # versions disagreeing. Today CI delegates that to Claude Code at install
-        # time, which means to strangers' machines. Ungated on RELEASE_PR for
-        # the same reason as the semver step: it reads the bumped manifest.
+        # time, which means to strangers' machines.
         #
         # --strict treats warnings as errors, which the tool's own help
         # recommends for CI.
@@ -287,12 +283,30 @@ jobs:
     name: hook-tests
     runs-on: ubuntu-latest
     # Its own job, not a step in `lint`: it runs long enough to be worth the
-    # parallelism, and skipping it wholesale on a release PR is clearer at the
-    # job level than as a condition on a step. `ci-required` accepts `skipped`,
-    # so opting out here does not hold the gate open.
+    # parallelism, and it is the only check a release PR skips. `ci-required`
+    # accepts `skipped`, so opting out does not hold the gate open — which is
+    # exactly why the exemption has to be narrow. This is the repo's only
+    # behavioural coverage, and a PR that skips it still shows a green umbrella.
+    #
+    # A branch name is not a credential. `github.head_ref` is the *unqualified*
+    # branch name on the head repo, so `auto-release/…` on a fork reads
+    # identically to the real thing, and a human or a future automation naming a
+    # branch that way would drop the suite without anything saying so. All three
+    # clauses must hold: the branch prefix, a same-repo head, and the automation
+    # App as author. `release.yml` runs under that App's token, so its PRs are
+    # authored by `dbaggott-automation[bot]` — read off PRs 115 through 131.
+    #
+    # In a fork the App does not exist, so the author never matches and the suite
+    # simply always runs. That is the right default for someone else's
+    # marketplace, and it is the safe direction for this clause to fail in: a
+    # wrong login here costs two billed minutes per release, never a false green.
+    #
+    # On `push` every operand is empty or null, so main is unaffected.
     if: >-
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-      && !startsWith(github.head_ref, 'auto-release/')
+      && !(startsWith(github.head_ref, 'auto-release/')
+           && github.event.pull_request.head.repo.full_name == github.repository
+           && github.event.pull_request.user.login == 'dbaggott-automation[bot]')
     steps:
       - uses: actions/checkout@v4
       - name: Run the hook test suite
