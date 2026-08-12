@@ -9,6 +9,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.30 — 2026-08-12
+
+`issue-workflow` splits into `references/creating.md` and
+`references/resolving.md`, with `SKILL.md` keeping the host check, the
+maintenance sweep, the reference conventions, and a router. Filing an issue and
+resolving one share almost nothing, so each session now loads roughly half of
+what it used to: a filer drops the 2,600 words on claiming and freshness probes,
+a resolver the 1,200 on writing a good body.
+
+
 ## dnbg-practices 2026.8.3 — 2026-08-12
 
 Skill descriptions are shorter. A description loads into every session whether or
