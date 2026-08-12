@@ -24,10 +24,10 @@ name: Release
 # The corollary is severe enough to need a gate rather than a convention: a
 # plugin's version is Claude Code's update cache key, so a change merged without
 # a fragment never bumps the version, and every existing install keeps running
-# the old copy until some later release carries it along. ci.yml's
-# `changelog-fragment` job fails any PR that touches a plugin directory without
-# adding one; `no-changelog` on the PR is the escape hatch, and this workflow
-# applies that label to its own release PR.
+# the old copy until some later release carries it along. ci.yml's changelog
+# step fails any PR that touches a plugin directory without adding one;
+# `no-changelog` on the PR is the escape hatch for humans, and the
+# `auto-release/` branch prefix is what exempts this workflow's own PR.
 #
 # Tags are created with plain `git tag`, not `claude plugin tag`. The naming is
 # fully determined (`{name}--v{version}`) and the runner does not ship Claude
@@ -252,13 +252,16 @@ jobs:
           git commit -m "$msg"
           git push origin "$branch"
 
-          # The changelog-fragment gate would otherwise fail this PR: it edits
-          # every released plugin's manifest having just deleted the fragments
-          # it consumed. It could never merge, and the wait below would time
-          # out, breaking every release. --force makes the label self-healing in
-          # a fresh clone or a fork.
+          # Create the label but do NOT apply it below. It exists for humans
+          # reaching for the escape hatch on their own PRs, and --force makes it
+          # self-healing in a fresh clone or a fork. Applying it here would cost
+          # a duplicate CI run per release: `gh pr create --label` cannot attach
+          # a label at creation, so gh applies it in a second call, and ci.yml
+          # triggers on `labeled` — a second full run on the identical SHA. The
+          # release PR is exempted by its `auto-release/` branch prefix instead,
+          # which ci.yml reads from the payload that already triggered it.
           gh label create no-changelog \
-            --description "PR has no user-visible effect; skips the changelog-fragment check" \
+            --description "PR has no user-visible effect; skips the changelog check" \
             --color EDEDED --force
 
           # Compose the body with printf rather than a multi-line string
@@ -278,7 +281,6 @@ jobs:
             --base main \
             --head "$branch" \
             --title "$msg" \
-            --label no-changelog \
             --body "$body"
 
           # `--auto` rather than an immediate merge: `ci-required` is a required
