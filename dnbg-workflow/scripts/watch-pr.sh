@@ -464,9 +464,9 @@ while :; do
       (.comments[]? | select(.createdAt  > $s and (.author.login | mine | not))) ] | length')
   # New inline review-comments (thread replies) after SINCE, not by the bot.
   # Split the fetch from the parse so a failure is not read as "no new replies".
-  # It previously ended in `|| echo 0`, which made this path fail *closed and
-  # silent*: `gh pr view` keeps succeeding, so the watch looks healthy while
-  # thread replies never register — partial blindness nothing reported.
+  # Ending it in `|| echo 0` would make this path fail *closed and silent*:
+  # `gh pr view` keeps succeeding, so the watch looks healthy while thread
+  # replies never register — partial blindness nothing reported.
   # ⚠️ PAGINATED, AND THE ORDER IS WHY IT HAS TO BE. This endpoint caps at 30 per
   # page and returns OLDEST FIRST, so on a PR that has accumulated more than 30
   # inline comments every page-one result is old news and each new reply lands on
