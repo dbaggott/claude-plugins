@@ -9,8 +9,7 @@ prose that instructs an agent counts as writing code for this.
 Nothing loaded `coding-practices` before: it ships no hook, and `git-workflow`
 and `issue-workflow` mentioned it only as an optional install. `reviewer` never
 mentioned standards at all, so a verdict was judged against whatever the model
-brought. Its "Review for" step now names them, and adds that a finding only the
-reviewer's own defaults support is a preference rather than a defect.
+brought. Its "Review for" step now names them.
 
 ## Migration
 This takes effect on an installed machine as soon as the plugin updates —

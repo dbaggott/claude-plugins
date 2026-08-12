@@ -240,8 +240,7 @@ posture applied on the author's side.
 
 4. **Review for** (in priority order), against the standards that apply here —
    the repo's, the operator's, and `dnbg-practices:coding-practices` when
-   installed, which stack rather than replace each other. A finding only your own
-   defaults support is a preference, not a defect.
+   installed, which stack rather than replace each other.
    - **Bugs**: logic errors, off-by-one, race conditions, null dereferences,
      error paths that swallow exceptions.
    - **Security**: SQL/command injection, hardcoded secrets, auth bypasses,
