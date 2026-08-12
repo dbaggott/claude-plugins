@@ -26,6 +26,35 @@ RULES="${CLAUDE_PLUGIN_ROOT:-}/always-on-rules.md"
 # the rules than to block the session start.
 [ -f "$RULES" ] && cat "$RULES"
 
+# --- version stamp -----------------------------------------------------------
+#
+# The version the session is running, so the skills can stamp what they publish
+# with it. Nothing else carries it: a transcript records the plugin *name* and
+# the Claude Code version, never the plugin's, so without this a review or PR
+# cannot be attributed to the prompts that produced it.
+#
+# Only the fact goes here — where and how to stamp lives in the three skills
+# that publish, which are read on demand. This file is charged to every session
+# and every subagent spawn, so an instruction nobody is about to act on is the
+# wrong thing to put in it.
+#
+# `jq` rather than a regex over JSON, and silently absent when `jq` is: the rules
+# above still inject without it (that path is exercised by inject-rules.bats),
+# and a stamp is worth less than the rules it would sit beside.
+MANIFEST="${CLAUDE_PLUGIN_ROOT:-}/.claude-plugin/plugin.json"
+PLUGIN_VERSION=""
+if [ -f "$MANIFEST" ] && command -v jq >/dev/null 2>&1; then
+  PLUGIN_VERSION=$(jq -r '.version // empty' "$MANIFEST" 2>/dev/null)
+fi
+
+[ -n "$PLUGIN_VERSION" ] && cat <<EOF
+
+## dnbg-workflow $PLUGIN_VERSION
+
+Stamp what you publish with this version — \`reviewer\`, \`git-workflow\`, and
+\`issue-workflow\` each say where.
+EOF
+
 # --- configuration overrides -------------------------------------------------
 #
 # The skills state the mechanical defaults literally — `.worktrees/`,
