@@ -33,6 +33,10 @@ RULES="${CLAUDE_PLUGIN_ROOT:-}/always-on-rules.md"
 # the Claude Code version, never the plugin's, so without this a review or PR
 # cannot be attributed to the prompts that produced it.
 #
+# Gated on `version_stamp`, and gated here rather than in the three skills
+# because this note is the only thing that puts a version in front of them — no
+# note leaves them nothing to decide with.
+#
 # *Where* to stamp lives in the three skills that publish, which are read on
 # demand; this file is charged to every session and every subagent spawn. The
 # literal format is the exception and stays here: a session that publishes
@@ -52,7 +56,7 @@ RULES="${CLAUDE_PLUGIN_ROOT:-}/always-on-rules.md"
 # and a stamp is worth less than the rules it would sit beside.
 MANIFEST="${CLAUDE_PLUGIN_ROOT:-}/.claude-plugin/plugin.json"
 STAMP=""
-if [ -f "$MANIFEST" ] && command -v jq >/dev/null 2>&1; then
+if version_stamp_enabled && [ -f "$MANIFEST" ] && command -v jq >/dev/null 2>&1; then
   STAMP=$(jq -r 'if .name and .version then "\(.name) \(.version)" else empty end' \
     "$MANIFEST" 2>/dev/null)
 fi

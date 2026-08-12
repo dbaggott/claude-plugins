@@ -28,6 +28,12 @@
       "title": "Issue claim label",
       "description": "Label applied when an agent session claims a GitHub issue. Must start with 'assigned:' — the check for someone else's claim matches that whole namespace, so a label outside it makes your claims invisible to other tools and theirs invisible to you. Leave empty for 'assigned:agent-session'.",
       "default": "assigned:agent-session"
+    },
+    "version_stamp": {
+      "type": "boolean",
+      "title": "Stamp published PRs, reviews and issue claims with the plugin version",
+      "description": "Appends an invisible HTML comment naming this plugin and its version to PR descriptions, review bodies, and issue claim comments, so what a session published can be traced back to the prompts that produced it. Off unless you turn it on — the stamp goes on artifacts other people read.",
+      "default": false
     }
   }
 }

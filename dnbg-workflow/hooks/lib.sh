@@ -208,3 +208,26 @@ resolve_claim_label() {
     printf '%s' "$DEFAULT_CLAIM_LABEL"
   fi
 }
+
+# Has the operator asked for the version stamp?
+#
+# Unlike the two knobs above this is a gate rather than a value, so it matches
+# the *affirmative* and everything else — unset, empty, `false`, a typo — leaves
+# the stamp off. The stamp lands on PR descriptions, review bodies and issue
+# comments that other people read, so a value this hook cannot make sense of has
+# to fail toward publishing nothing rather than toward publishing under
+# someone's name unasked.
+#
+# Only the one word matches: a `boolean` option reaches a hook as `true` or
+# `false`, since Claude Code stringifies the JSON value. Casing is not pinned by
+# anything that would fail visibly, hence the glob.
+#
+# `case` rather than `tr`, because this runs on the session-start path — `tr` is
+# not among the binaries the hooks may assume, and one that went missing here
+# would take the always-on rules down along with the stamp.
+version_stamp_enabled() {
+  case "${CLAUDE_PLUGIN_OPTION_VERSION_STAMP:-}" in
+    [Tt][Rr][Uu][Ee]) return 0 ;;
+  esac
+  return 1
+}

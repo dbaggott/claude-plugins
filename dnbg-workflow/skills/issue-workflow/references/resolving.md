@@ -58,13 +58,19 @@ The same check guards the dispatch direction: before routing an issue to anyone 
 SID="${CLAUDE_CODE_SESSION_ID:0:8}"  # short prefix — enough to tell sessions apart, short enough to read
 gh label create "assigned:agent-session" --repo <repo> --color BFD4F2 --description "Claimed by an agent session" --force  # idempotent; no-op when the label exists
 gh issue edit <n> --repo <repo> --add-assignee "@me" --add-label "assigned:agent-session"
-gh issue comment <n> --repo <repo> --body "Claimed by an agent session (${SID:-id unavailable}).
-<!-- dnbg-workflow <version> -->"
+gh issue comment <n> --repo <repo> --body "Claimed by an agent session (${SID:-id unavailable})."
 ```
 
 - The **assignee** makes the claim visible in issue lists and on the issue page.
 - The **label** disambiguates what the assignee can't: sessions run under the operator's account, so assignee-alone could mean "the operator will get to this someday". `assigned:agent-session` means an agent session took it. The name stays agent-agnostic on purpose — it matches what the mark actually communicates, and keeps the mark this plugin applies inside the open `assigned:*` namespace described above rather than carving out a vendor-specific corner of it. The unconditional `gh label create --force` makes the block work first-try in any repo.
-- The **stamp** records which version of these prompts made the claim, taken from the `## dnbg-workflow <version>` note injected at session start. It renders invisibly, and it sits on its own line so the `^Claimed by` grep above — which is line-anchored — cannot see it. Omit the line entirely when no such note appeared this session; a guessed version is worse than none, since nothing downstream can tell a guess from a reading.
+- The **stamp** is the one addition to that command, and only **if a `## dnbg-workflow <version>` note appeared at session start**. Extend the `--body` with the version it names, on its own line so the `^Claimed by` grep above — which is line-anchored — cannot see it:
+
+  ```
+  Claimed by an agent session (${SID:-id unavailable}).
+  <!-- dnbg-workflow <version> -->
+  ```
+
+  It renders invisibly, and it records which version of these prompts made the claim. With no note the command above is already correct as written — take the version from nowhere else, since nothing downstream can tell a guess from a reading.
 - The **comment** timestamps the claim — GitHub's own comment timestamp, no date in the body needed — and names the claiming session. The timestamp is what makes staleness detectable; the id is what makes the own-claim test above mechanical instead of a judgement call. `${SID:-id unavailable}` keeps the comment honest where no session id is exported, rather than posting an empty pair of parentheses that reads like a match failure.
 
 **`assigned:agent-session` is the default, not a constant.** The label name is configurable, so if a `dnbg-workflow` note at session start names a different one, that note wins and the three commands above apply *that* label. With no such note, the literal above is what this session uses. What does **not** change either way is the check for someone else's claim: it matches the whole `assigned:*` prefix, never a single name, so it keeps seeing claims made under any label in the namespace — including the one this session would apply, the one a differently-configured session applies, and the legacy `assigned:claude-code`.
