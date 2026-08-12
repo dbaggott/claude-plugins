@@ -433,6 +433,10 @@ Two boundaries, and they matter more than the cleanup itself:
 - **Don't delete a shared checkout you merely read from.** Reading files in an
   existing clone creates no cleanup obligation.
 
+A session that quits mid-review leaves its `.worktrees/review-<n>` behind —
+expected, not a leak, since re-invoking resumes the watch and still cleans up at
+`CLOSED`. Remove it by hand only if the review is being abandoned.
+
 Reviewing entirely through `gh` leaves nothing to remove, which is the normal
 case and the reason to prefer it.
 
