@@ -1,6 +1,6 @@
 ---
 name: coding-practices
-description: Core engineering principles — design and clarity over expediency, security as a first-class concern, DRY, clean self-documenting code, logging discipline (use a framework not stdout/stderr, one event per operation, no sensitive data, actionable WARN+), common smells to stop on, verifying what you don't know, using Context7 for library docs, and no human time estimates. Load when writing or reviewing code, naming things, deciding whether to add a comment or reviewing existing ones (what a comment must not carry, and emphasis as a budget), choosing how to emit log or diagnostic output, looking up library APIs, sizing work, or making a recommendation that rests on an unchecked assumption. Skip for pure config edits, non-code questions, and quick lookups where no logic is being authored.
+description: Core engineering principles — design and clarity over expediency, security as a first-class concern, DRY, clean self-documenting code, logging discipline (use a framework not stdout/stderr, one event per operation, no sensitive data, actionable WARN+), common smells to stop on, verifying what you don't know, using Context7 for library docs, and no human time estimates. Load when writing or reviewing code, naming things, deciding whether to add a comment or reviewing existing ones (what a comment must not carry, and emphasis as a budget), choosing how to emit log or diagnostic output, looking up library APIs, sizing work, or making a recommendation that rests on an unchecked assumption, or authoring prose that instructs an agent (a SKILL.md, an always-on rules file, a CLAUDE.md) — the comment bar governs those too. Skip for pure config edits, questions that author nothing, and quick lookups where no logic is being written.
 ---
 
 # Coding practices
@@ -101,7 +101,15 @@ A comment is the only artifact in a repo with nothing enforcing it. No test fail
 when it goes stale, no build breaks, no formatter notices — it rots silently and
 surfaces only if a reader happens to open both files. So the bar is not "is this
 true?" but **"will this still be true after the next change, and does it change
-what someone does?"** These all fail that bar:
+what someone does?"**
+
+**The same bar governs prose that instructs an agent** — a `SKILL.md`, an
+always-on rules file, a `CLAUDE.md`. Nothing enforces those either, and their
+reader can't ask a follow-up, so a stale line gets acted on rather than queried.
+**History** is what they accrete fastest: every incident invites a paragraph
+explaining itself, and none is ever removed.
+
+These all fail that bar:
 
 - **History.** No "this used to claim X", "restored after being deleted", "was
   first written as Y", or narration of the bug that prompted the change. The
