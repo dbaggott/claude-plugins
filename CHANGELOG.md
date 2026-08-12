@@ -9,6 +9,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.28 — 2026-08-12
+
+`reviewer` sheds ~230 words of prose that recorded its own development rather
+than instructing: how the issue wait's predecessor `sleep 120` loop behaved, a
+rate-limit comparison the text itself called "not the one carrying the decision",
+and two notes restating what a test's failure message already says. Every rule
+they surrounded is unchanged.
+
+
 ## dnbg-practices 2026.8.2 — 2026-08-12
 
 `coding-practices` now applies "what a comment must not carry" to prose that
