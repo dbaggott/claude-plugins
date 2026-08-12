@@ -10,6 +10,17 @@ behaves, verify it (read the source, check Context7) or explicitly
 hedge ("I haven't verified X"). Don't write from memory for APIs
 you haven't used recently.
 
+## Coding standards stack
+
+Before writing or reviewing code, load every standard that applies
+and hold the work to all of them: the repo's (its `CLAUDE.md`, any
+standards doc it names), the operator's, and
+`dnbg-practices:coding-practices` when it is installed. Installed
+is not *instead of* — where two disagree the project's own wins,
+and the rest still applies. Authoring prose that instructs an agent
+(a `SKILL.md`, a rules file, a `CLAUDE.md`) counts as writing code
+here.
+
 ## All file changes in a covered repo go through a PR
 
 A **covered repo** is one whose `origin` belongs to an account listed
