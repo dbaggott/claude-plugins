@@ -37,9 +37,18 @@ teardown() { rm -rf "$TMP"; }
 # The manifest `rules-payload.sh` reads the version stamp from. Deliberately NOT
 # written by `hook_env_setup`: absent is the broken-install shape, so every suite
 # that says nothing about the stamp exercises the silent-no-op path for free.
-write_manifest() {  # <version>
+#
+# ⚠️ Moving this into `hook_env_setup` would loosen three assertions at once with
+# nothing left to catch it. `inject-rules.bats`'s "emits the rules file" and
+# `inject-rules-subagent.bats`'s "carries the payload under additionalContext"
+# both compare the payload to `$RULES_TEXT` for *equality*, and they are now the
+# only tests pinning that a default install emits nothing beyond the rules —
+# "round-trips the real rules file" used to pin it too and no longer can, since
+# the stamp fires against the real manifest and it compares a prefix instead.
+write_manifest() {  # <version> [name]
   mkdir -p "$ROOT/.claude-plugin"
-  printf '{"name":"dnbg-workflow","version":"%s"}\n' "$1" > "$ROOT/.claude-plugin/plugin.json"
+  printf '{"name":"%s","version":"%s"}\n' "${2-dnbg-workflow}" "$1" \
+    > "$ROOT/.claude-plugin/plugin.json"
 }
 
 stub_path() {  # <bin>...

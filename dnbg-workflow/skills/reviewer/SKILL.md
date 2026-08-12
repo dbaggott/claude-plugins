@@ -288,6 +288,17 @@ For comment bodies that themselves contain quotes/newlines, pass each via its ow
 `--arg` too (or build the JSON in a scratch file and use `--input <file>`). A
 literal `<<'JSON'` heredoc only works when every body is simple.
 
+`event` is `APPROVE` or `REQUEST_CHANGES` (never `COMMENT`); each `comments`
+entry attaches to a line of the PR's latest commit. The review posts as the bot
+because `GH_TOKEN` is the bot token. (Each inline comment is still its own
+resolvable thread authored by the bot — that's what the resolution step below
+keys on — but it's submitted as part of the one review, not as a stray comment.)
+
+Each comment's `line` must fall **inside the diff hunk** — GitHub returns 422 for
+a line that isn't part of the diff — and refers to the new version of the file by
+default (`side: RIGHT`). To comment on a removed or unchanged context line, add
+`"side": "LEFT"`.
+
 **End the review body with the version stamp** — an HTML comment naming the
 version from the `## dnbg-workflow <version>` note injected at session start:
 
@@ -301,17 +312,6 @@ version, and transcripts expire while the review does not. Stamp the review body
 only — repeating it on each inline comment says nothing the review body doesn't.
 Omit it if no such note appeared this session rather than guessing a version; a
 wrong stamp is worse than an absent one, since analysis cannot tell them apart.
-
-`event` is `APPROVE` or `REQUEST_CHANGES` (never `COMMENT`); each `comments`
-entry attaches to a line of the PR's latest commit. The review posts as the bot
-because `GH_TOKEN` is the bot token. (Each inline comment is still its own
-resolvable thread authored by the bot — that's what the resolution step below
-keys on — but it's submitted as part of the one review, not as a stray comment.)
-
-Each comment's `line` must fall **inside the diff hunk** — GitHub returns 422 for
-a line that isn't part of the diff — and refers to the new version of the file by
-default (`side: RIGHT`). To comment on a removed or unchanged context line, add
-`"side": "LEFT"`.
 
 For a **verdict-only** review (no inline findings), the simpler form is
 equivalent:
