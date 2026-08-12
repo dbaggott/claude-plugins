@@ -82,6 +82,8 @@ gh api repos/<owner>/<repo> --jq \
 
 **Don't read branch protection to find out whether an approval still counts.** Reaching for the repo's `dismiss_stale_reviews` flag is wrong twice over. That flag lives on the branch-protection endpoint, which requires **admin** — so on a repo where you have only write access (common when contributing to an org repo you don't administer) it answers 403 or 404 and tells you nothing. And where it *does* answer, the answer misleads: `dismiss_stale_reviews: true` alongside `required_approving_review_count: 0` means no approval is required, so there is no approval gate to make stale and nothing is ever dismissed. That pairing is the default on a personal repo that gates on CI.
 
+This is one instance of a general posture, and the general form is `reviewer`'s "Repo settings you cannot read": an unreadable setting gets assumed in whichever direction makes the behavior safe, and no instruction here may rest on one being *on*. The `UNSTABLE` arm under "Composing the merge command" is where this skill applies the other half of it.
+
 The question that field gets reached for is always really **"is HEAD approved?"**. Where approvals are *required* — `reviewDecision` is non-null — that field answers it directly and is the primary source: it accounts for supersession and for multiple required reviewers, neither of which the check below models. Where they are not required, `reviewDecision` is `null` and says nothing, and this is what remains:
 
 ```bash
@@ -321,7 +323,7 @@ Full GitHub URLs, always — per the always-on rule "Reference issues and PRs by
 
 ## Composing the merge command
 
-Whenever you hand the operator a merge command, emit exactly one form — the right one for the observed state. (That's the immediately-runnable one in every case but the no-auto-merge-with-pending-checks branch below, where no immediately-runnable form exists and the handoff says so.) A clean review does not mean the PR is mergeable *right now*: a review on a fresh push usually lands while required checks are still re-running, and a plain `gh pr merge` is refused until they pass. Don't present `--auto` as an optional garnish ("add `--auto` if you want it to wait...") — you have the data to decide, so deciding is your job, not the operator's.
+Whenever you hand the operator a merge command, emit exactly one form — the right one for the observed state. (That's the immediately-runnable one in every case but the no-auto-merge-with-pending-checks branch below, where no immediately-runnable form exists and the handoff says so.) A clean review does not mean the PR is mergeable *right now*: a review on a fresh push usually lands while checks are still re-running, and where any of those are *required*, a plain `gh pr merge` is refused until they pass. Don't present `--auto` as an optional garnish ("add `--auto` if you want it to wait...") — you have the data to decide, so deciding is your job, not the operator's.
 
 Two inputs. The **repo settings** — `allow_auto_merge` and which merge methods are enabled — come from "Know the repo's merge settings" above. The **live merge state** has to be read now:
 
@@ -331,7 +333,10 @@ gh pr view <num> --repo <repo> --json mergeStateStatus,statusCheckRollup
 
 Pick the merge-method flag from what the repo actually allows (`--squash`, `--merge`, or `--rebase`); if several are enabled, prefer the repo's own convention, and `--squash` when there's no signal. Then pick the form by state:
 
-- **`mergeStateStatus=CLEAN`** (or `UNSTABLE` — only non-required checks failing) — plain form: `gh pr merge <num> --repo <repo> <method> --delete-branch`.
+- **`mergeStateStatus=CLEAN`** — plain form: `gh pr merge <num> --repo <repo> <method> --delete-branch`.
+- **`UNSTABLE`** — mergeable, with at least one check not passing. Hand over the same plain form, and hand it over now: GitHub will merge this PR on request, and a check the repo actually gates on never lands here (a red *required* check reads as `BLOCKED`), so there is nothing to withhold the command over. What changes is that it doesn't go out *unqualified* — `UNSTABLE` says nothing about whether the failing check was *required*, so on a repo that requires none, a completely red build arrives here looking mergeable. Name the non-passing checks alongside the command, reading the `statusCheckRollup` you already fetched above — the jq under `result=BLOCKED` below is the one place that expression is written, and it covers both rollup shapes and a PR with no checks. Split on what it reports — and where both apply, one check still running and another already failed, the failure decides the framing:
+  - **Still running** — name the checks in flight and say plainly that nothing is holding the merge for them. Whether to let them land first is the operator's call, and it is not a reason to make them wait on the command. Don't reach for `--auto` here: GitHub offers auto-merge only on a PR that *can't* merge yet, and it waits on required gates, none of which are outstanding in this state.
+  - **Finished non-passing** — name each check and its conclusion, and don't call the PR ready to merge. The command is still theirs to run; just be plain that nothing on the repo will stop it.
 - **`BLOCKED`, required checks still running, `allow_auto_merge=true`** — auto form: `gh pr merge <num> --repo <repo> <method> --delete-branch --auto`. The plain form would be refused right now; `--auto` queues the merge to fire when checks pass.
 - **`BLOCKED`, required checks still running, `allow_auto_merge=false`** — both forms are refused right now (`--auto` needs the repo setting). Give the plain form, but say explicitly that required checks are still running and the command will work once they're green — the browser merge button enables at the same moment.
 - **`BLOCKED`, no checks pending** — the PR is not actually mergeable (failed required check, dismissed approval, branch behind base). Don't send a ready-to-merge handoff at all; surface the cause and ask.
@@ -367,7 +372,7 @@ Branch on the response:
 - **`state=CLOSED`** (without merge) — closed unmerged. Acknowledge, stop the workflow, leave the worktree alone in case they reopen.
 - **`state=OPEN`, `mergeStateStatus=DIRTY`** — a conflict already exists at verify time. Don't spawn the poller; surface the URL and the cause and ask how to proceed.
 - **`state=OPEN`, `autoMergeRequest` non-null** — auto-merge is scheduled. If a proactive watcher is already running for this PR (the usual case after a clean review), just say "auto-merge is pending — the watcher will catch it" and let it run; otherwise spawn the background poller below. This applies even if `mergeStateStatus=BLOCKED`: a required check still running shows as BLOCKED until it completes, and the poller disambiguates transient block (some required check still in progress) from terminal block (all checks done with a required one failed).
-- **`state=OPEN`, `autoMergeRequest` null, `mergeStateStatus=BLOCKED`** — auto-merge isn't scheduled and branch protection is blocking the merge. Don't spawn the poller; surface and ask. (Distinct from the previous case: without auto-merge enabled, a BLOCKED state needs a human to either fix the block or enable auto-merge.)
+- **`state=OPEN`, `autoMergeRequest` null, `mergeStateStatus=BLOCKED`** — auto-merge isn't scheduled and something is blocking the merge. Don't spawn the poller; surface and ask. (Distinct from the previous case: without auto-merge enabled, a BLOCKED state needs a human to either fix the block or enable auto-merge.)
 - **`state=OPEN`, `autoMergeRequest` null** — nothing scheduled. Either the operator was being forward-looking ("I'm about to merge") or thought it had merged when it hadn't. Don't spawn a second watcher; if a proactive one is already running, say so ("not merged yet — I'm still watching") and otherwise ask before assuming.
 
 ### Background poller
@@ -404,10 +409,12 @@ When the poller returns, branch on the final state:
 
   ```bash
   # 1. failing check. Both rollup shapes, same as the watcher's pending count:
-  #    CheckRun has .name/.conclusion, StatusContext has .context/.state.
-  #    `// []` for a PR with no checks at all.
+  #    CheckRun has .name/.status/.conclusion, StatusContext has .context/.state.
+  #    An unfinished check carries no conclusion, so the line falls back to its
+  #    status and names the phase — that is what the `UNSTABLE` arm above reads
+  #    to tell a running check from a failed one. `// []` for a PR with no checks.
   gh pr view <num> --repo <repo> --json statusCheckRollup --jq '(.statusCheckRollup // [])[]
-    | {n: (.name // .context), r: (.conclusion // .state)}
+    | {n: (.name // .context), r: (if (.conclusion // "") == "" then (.status // .state) else .conclusion end)}
     | select(.r != "SUCCESS" and .r != "NEUTRAL") | "\(.n) \(.r)"'
   # 2. unresolved review threads — a hard blocker wherever required_conversation_resolution
   #    is on. Read the count off the result line; a non-zero one names the paths above it.
