@@ -90,10 +90,8 @@ Watch a held-back draft rather than dropping it, arming the ready check:
 
 `<last_head>` is the full 40-character SHA from
 `gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid` — the watcher
-refuses anything shorter (`result=ERROR reason=bad-args`). Worth saying here and
-not only at the re-arm site below: this spawn happens during *discovery*, where
-the SHA in hand is as likely to have come from something that printed one for a
-human as from a `headRefOid` read.
+refuses anything shorter (`result=ERROR reason=bad-args`). Read it; don't reuse
+one you printed for a human.
 
 ⚠️ **All three can only find what the author linked.** A sibling PR whose body
 never mentions the issue is invisible to every method here — there is nothing to
@@ -156,16 +154,12 @@ one "Multi-repo changes" *mandates* — exactly one sibling closes the issue, th
 rest merely reference it. A real resolving PR that links the issue in prose then
 never wakes the watch, and the deadline path below reports it as a probably-wrong
 issue number: a diagnosis that cannot be confirmed, because the issue resolves
-fine. `tests/coupling.bats` pins the wait's sources against this file's, so
-neither can be broadened alone.
+fine.
 
 Source 3 is deliberately not polled — it is the one source with index lag, so the
 timeline already sees everything it would, sooner, and a poll gains nothing by
-adding it. (The search API's budget is tighter than core REST — 30/min sustains
-1800/hr against 5000/hr — but only about 3x, which one watch at a 10s floor does
-not come near; that is a secondary reason, not the one carrying the decision.)
-`watch-pr.sh` carries that exemption in the form the coupling test reads; a fourth
-discovery source must either be polled or be exempted there.
+adding it. `tests/coupling.bats` pins these sources against `watch-pr.sh`'s, so a
+fourth one has to be polled or exempted there; its failure message says how.
 
 ⚠️ **`--exclude` is what keeps re-arming from spinning, and it must be carried
 forward.** A mention-only PR triaged as not-resolving stays open and keeps
@@ -178,15 +172,6 @@ Excluding a PR is not dismissing it. It means "already looked at, verdict
 recorded" — a PR held back as a draft is watched by its own `watch-pr.sh` and
 belongs in the exclusion list too, or the issue wait re-wakes for it on every tick
 while that watcher is doing the real work.
-
-This replaced an inline `sleep 120` loop rather than tuning it. A second
-hand-written wait is a second place for the curve and the failure counter to be
-wrong, and only one of the two would have been under test.
-
-The old loop treated a failed `gh` call as "keep waiting", which is right for a
-blip and wrong for a bad issue number or expired auth — those cost a full window
-before anything said so. `ERROR` is that fix: repeated failure of the poll now
-reports itself instead of looking like a quiet issue.
 
 On return, dispatch on the result — **including `ERROR`, which must not fall to
 the catch-all**:
