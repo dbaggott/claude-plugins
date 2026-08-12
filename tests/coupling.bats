@@ -146,30 +146,28 @@ EOF
 # meaningless on a repo with `required_approving_review_count: 0` — which both
 # repos these skills run against are. The wrong answer merged two PRs over
 # unreviewed diffs. Prose alone did not hold the line, so this pins it.
-@test "no skill reaches for branch protection to decide whether an approval counts" {
-  # The endpoint itself. Any reintroduction is a regression regardless of intent:
-  # it needs admin (403/404 on write-only access) and answers the wrong question.
-  # Both skills may still *name* the setting to explain why not to read it, so
-  # match the call, not the words.
-  if grep -rn 'branches/[^ ]*/protection' "$ROOT/dnbg-workflow/skills"; then
-    echo "a skill calls the admin-gated protection endpoint — use the commit-oid comparison instead"
+#
+# This test once also pinned the two skills' fenced copies of the comparison
+# against each other. That half is gone with the copies: both now call
+# `scripts/pr-verdict.sh`, and a single implementation cannot disagree with
+# itself. `tests/pr-verdict.bats` covers what the pin could only approximate —
+# that the check takes the last VERDICT rather than the last approval, which is
+# the bug the pin was written for and which it could only detect as a missing
+# grep hit.
+@test "nothing reaches for branch protection to decide whether an approval counts" {
+  # Any reintroduction is a regression regardless of intent: the endpoint needs
+  # admin (403/404 on write-only access) and answers the wrong question. The
+  # skills may still *name* the setting to explain why not to read it, so match
+  # the call, not the words.
+  #
+  # `scripts/` is in scope alongside `skills/` now that the check lives there —
+  # the wrong approach is reintroducible wherever the right one is implemented,
+  # and scoping this to prose would leave the actual implementation unguarded.
+  if grep -rn 'branches/[^ ]*/protection' \
+       "$ROOT/dnbg-workflow/skills" "$ROOT/dnbg-workflow/scripts"; then
+    echo "the admin-gated protection endpoint is called — use pr-verdict.sh instead"
     false
   fi
-
-  # And the comparison is present in both skills, so removing it can't pass by
-  # simply deleting the rule along with the endpoint.
-  #
-  # CHANGES_REQUESTED is pinned alongside APPROVED because the first cut of this
-  # check took the last *approval* rather than the last *verdict*, so an approval
-  # reversed at the same SHA still read as approved. The verdict set is the fix,
-  # and it is the part a later simplification would quietly drop.
-  for skill in reviewer git-workflow; do
-    f="$ROOT/dnbg-workflow/skills/$skill/SKILL.md"
-    grep -q 'headRefOid' "$f" || { echo "$skill/SKILL.md never mentions headRefOid"; false; }
-    grep -q 'state=="APPROVED"' "$f" || { echo "$skill/SKILL.md has no APPROVED commit-oid check"; false; }
-    grep -q 'state=="CHANGES_REQUESTED"' "$f" || {
-      echo "$skill/SKILL.md checks the last approval, not the last verdict"; false; }
-  done
 }
 
 # The manifest and lib.sh both state a default for each mechanical knob, and they
@@ -228,6 +226,15 @@ EOF
 # The failure is silent at every site — a wait that never fires and a claim check that
 # finds nothing look exactly like a quiet issue — so prose could not hold it. This is
 # the check.
+#
+# Two of the three sites now CALL `scripts/pr-sources.sh` rather than carrying their
+# own copy, so for them the question is only whether they still invoke it. The third,
+# `watch-pr.sh --issue`, keeps inline queries deliberately (see its own comments: it
+# reads `.state` from the same `gh issue view`, and needs the timeline's fetch and
+# parse failures counted separately with poll_broken's awake-time grace, neither of
+# which survives a CLI boundary). So it is the one site that can still narrow alone —
+# and it is now compared against the script rather than against prose, which is what
+# `covers_discovery` could never do before: real code on both sides.
 
 # Each extractor returns the API surfaces its site queries, one per line, under names
 # shared across the three files so they can be compared as sets. Taking the file as an
@@ -247,10 +254,10 @@ pr_command_lines() {  # <file>
 }
 
 pr_sources() {  # <file>
-  # `<n>` in the skills, `$PR` in the script: the same endpoint spelled for two
-  # audiences, so both normalise to `timeline`.
+  # `<n>` in a skill, `$PR` in the watcher, `$ISSUE` in pr-sources.sh: the same
+  # endpoint spelled for three audiences, so all of them normalise to `timeline`.
   pr_command_lines "$1" \
-    | grep -oE 'closedByPullRequestsReferences|issues/(<n>|\$PR)/timeline|gh search prs' \
+    | grep -oE 'closedByPullRequestsReferences|issues/(<n>|\$PR|\$ISSUE)/timeline|gh search prs' \
     | sed 's|issues/.*/timeline|timeline|' | sort -u
 }
 
@@ -295,18 +302,35 @@ EOF
   }
 }
 
-REVIEWER_SKILL="$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md"
+# The canonical union, and now the thing every other site is measured against.
+# Deliberately the script and not `reviewer`'s prose: the old reference could only
+# ever prove a site NAMED the same endpoints, never that it queried them the same
+# way, and `covers_discovery`'s own extractor exists because a prose mention had to
+# be told apart from a query.
+DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
 
 @test "the issue-scoped wait sees every PR source discovery does" {
-  run covers_discovery "$ROOT/dnbg-workflow/scripts/watch-pr.sh" "$REVIEWER_SKILL"
+  run covers_discovery "$ROOT/dnbg-workflow/scripts/watch-pr.sh" "$DISCOVERY"
   echo "$output"
   [ "$status" -eq 0 ]
 }
 
-@test "the claim check sees every PR source discovery does" {
-  run covers_discovery "$ROOT/dnbg-workflow/skills/issue-workflow/references/resolving.md" "$REVIEWER_SKILL"
-  echo "$output"
-  [ "$status" -eq 0 ]
+# The two prose sites can no longer narrow by rewriting a query, because they have
+# no query — so what is left to protect is that they still call the union rather
+# than growing a private one back. A site that reintroduced its own copy would fail
+# this by dropping the invocation, which is the reachable regression; one that kept
+# BOTH would be caught by review, not by a grep.
+@test "the prose discovery sites call the union rather than carrying a copy" {
+  local f
+  for f in "$ROOT/dnbg-workflow/skills/issue-workflow/references/resolving.md" \
+           "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md"; do
+    grep -q 'pr-sources\.sh' "$f" || {
+      echo "$(basename "$f") no longer invokes pr-sources.sh"; false; }
+    # And it must be an invocation, not a mention: the same distinction
+    # `pr_command_lines` draws, applied to the call itself.
+    pr_command_lines "$f" | grep -q 'pr-sources\.sh' || {
+      echo "$(basename "$f") names pr-sources.sh in prose but never runs it"; false; }
+  done
 }
 
 # A site file in the shape the extractor expects: commands inside a fence, everything
@@ -331,7 +355,7 @@ EOF
   # could distinguish from a quiet issue.
   run covers_discovery \
     "$(fixture_site 'gh issue view <n> --json closedByPullRequestsReferences')" \
-    "$REVIEWER_SKILL"
+    "$DISCOVERY"
   [ "$status" -ne 0 ]
   [[ "$output" == *"narrower than discovery"* ]]
   [[ "$output" == *"timeline"* ]]
@@ -342,7 +366,7 @@ EOF
   # counted, this would pass while the site never runs the third — and the same
   # accident would let the exemption marker vouch for the source it exempts.
   run covers_discovery "$(fixture_site 'gh issue view <n> --json closedByPullRequestsReferences
-gh api repos/x/issues/<n>/timeline --paginate')" "$REVIEWER_SKILL"
+gh api repos/x/issues/<n>/timeline --paginate')" "$DISCOVERY"
   [ "$status" -ne 0 ]
   [[ "$output" == *"gh search prs"* ]]
 }
@@ -351,7 +375,7 @@ gh api repos/x/issues/<n>/timeline --paginate')" "$REVIEWER_SKILL"
   run covers_discovery "$(fixture_site 'gh issue view <n> --json closedByPullRequestsReferences
 gh api repos/x/issues/<n>/timeline --paginate
 # PR-SOURCE-EXEMPT: gh search prs — rate-limited well below core REST.')" \
-    "$REVIEWER_SKILL"
+    "$DISCOVERY"
   echo "$output"
   [ "$status" -eq 0 ]
 }
@@ -366,14 +390,22 @@ gh api repos/x/issues/<n>/timeline --paginate
 @test "every suite that spawns a watch loads the reaper and contains its traces" {
   local f missing=0
   # The watcher scripts and the library are the only things that start a watch, so
-  # naming one is what makes a suite a watch-spawning suite.
-  for f in $(grep -rl 'watch-pr\.sh\|watch-merge\.sh\|lib-poll\.sh' "$ROOT"/tests/*.bats); do
-    # ⚠️ SKIP SELF. This file has to name the watcher scripts to select on them, so the
-    # selection is one prose mention away from including this file — which spawns no
-    # watch and loads neither helper, so it would fail with "coupling.bats spawns a
-    # watch but never loads reap": true of the text, useless as a diagnosis. Today the
-    # only mention is the pattern above, which happens not to match itself; that is a
-    # coincidence of spelling, not a property worth relying on.
+  # RUNNING one is what makes a suite a watch-spawning suite.
+  #
+  # ⚠️ COMMENT LINES ARE EXCLUDED, AND THAT IS THE SELECTION, NOT TIDYING. A grep
+  # over whole files reads a suite that merely MENTIONS a watcher — "the gate
+  # watch-pr.sh applies to .state", explaining where a rule came from — as one that
+  # spawns it, and then fails it for not loading two helpers it has no use for. The
+  # diagnosis is true of the text and useless about the suite, and the pressure it
+  # creates is to delete the explanation. Same distinction `pr_command_lines` draws
+  # above, for the same reason.
+  for f in "$ROOT"/tests/*.bats; do
+    grep -v '^[[:space:]]*#' "$f" \
+      | grep -q 'watch-pr\.sh\|watch-merge\.sh\|lib-poll\.sh' || continue
+    # ⚠️ SKIP SELF. This file has to name the watcher scripts to select on them, and
+    # the pattern above sits on a line the exclusion does not reach — so without this
+    # coupling.bats selects itself and fails with "coupling.bats spawns a watch but
+    # never loads reap": true of the text, useless as a diagnosis.
     if [ "$(basename "$f")" = "$(basename "$BATS_TEST_FILENAME")" ]; then continue; fi
     grep -q '^load reap$' "$f" || {
       echo "$(basename "$f") spawns a watch but never loads reap"; missing=1; }

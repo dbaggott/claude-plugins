@@ -503,17 +503,16 @@ the author's side uses to answer "is HEAD approved?", which is the point of
 keeping the record current:
 
 ```bash
-gh pr view <n> --repo <repo> --json headRefOid,reviews --jq \
-  '{head: .headRefOid,
-    last_verdict: ([.reviews[]
-      | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED" or .state=="DISMISSED")]
-      | last)}'
+"<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <n>
 ```
 
-Your verdict is current iff `last_verdict.commit.oid == head`. Take the last
-**verdict**, not the last approval — an `APPROVED` followed by a
+Your verdict is current iff the result line reads `at_head=1`. The script takes
+the last **verdict**, not the last approval — an `APPROVED` followed by a
 `CHANGES_REQUESTED` on the same SHA is not an approval, and `COMMENTED` (what a
-thread reply posts) is not a verdict at all.
+thread reply posts) is not a verdict at all. Both rules were prose here and in
+`git-workflow` before they were code, and the first cut got the first one wrong
+in both copies at once; `tests/pr-verdict.bats` pins them now. `result=ERROR`
+means the check could not see — not that your verdict is stale.
 
 Where approvals are **required**, `reviewDecision` answers "is HEAD approved?"
 directly and is the primary source — it handles supersession and multiple
@@ -552,46 +551,28 @@ HEAD's diff, the author's clarification, or external evidence (a linked PR, a
 test reference, a verified reply) — resolve the corresponding review thread, so
 the human merging sees there are no outstanding asks.
 
-There's no CLI flag; `gh api graphql` is the only path. Two things the live API
-makes non-obvious:
+There's no CLI flag, and three things the live API makes non-obvious are why
+this is a script rather than a block to adapt:
 
-- **Resolve with your own `gh` auth, not the bot token.** Resolution isn't
+- **It runs under your own `gh` auth, not the bot token.** Resolution isn't
   identity-sensitive (anyone with write can resolve), and the bot deliberately
   has only `contents: read` — GitHub requires `contents: write` for an *App*
-  token to call `resolveReviewThread`, which a reviewer shouldn't have. You
-  (running this skill) already have write, so run these with `GH_TOKEN` cleared:
-  `env -u GH_TOKEN gh …`.
-- **Match the bot's threads on the App `slug`, not `bot_login`.** GraphQL reports
-  a Bot author's `login` *without* the `[bot]` suffix (e.g.
-  `agent-reviewer-<you>`), so matching `bot_login` (`…[bot]`) never hits.
+  token to call `resolveReviewThread`, which a reviewer shouldn't have. The
+  script clears `GH_TOKEN` itself, so this holds even once the token is exported.
+- **`--mine` matches on the App `slug`, not `bot_login`.** GraphQL reports a Bot
+  author's `login` *without* the `[bot]` suffix (e.g. `agent-reviewer-<you>`), so
+  matching `bot_login` (`…[bot]`) never hits — and a filter that matches nothing
+  looks exactly like having no outstanding findings.
+- **An empty slug bails rather than defaulting.** Same reason: an empty match
+  string selects no thread at all. `result=ERROR reason=no-slug` means the bot
+  isn't set up, not that there is nothing to resolve.
 
 ```bash
-ME=$(jq -r '.slug' "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")
-# An empty slug is not a harmless default: watch-pr.sh's exclude filter can never
-# match it, so the watch wakes on the bot's own posts and re-reviews itself. Bail
-# rather than watch wrongly.
-[ -n "$ME" ] && [ "$ME" != null ] || { echo "could not read the reviewer slug — is the bot set up?"; exit 1; }
-
-# 1. List unresolved threads on this PR the bot authored (your own auth).
-env -u GH_TOKEN gh api graphql \
-  -f query='query($owner:String!,$repo:String!,$pr:Int!) {
-    repository(owner:$owner, name:$repo) {
-      pullRequest(number:$pr) {
-        reviewThreads(first:100) {
-          nodes { id isResolved comments(first:1){ nodes { author { login } path line } } }
-        }
-      }
-    }
-  }' -F owner=<owner> -F repo=<name> -F pr=<n> \
-  | jq --arg me "$ME" '.data.repository.pullRequest.reviewThreads.nodes
-        | map(select(.isResolved == false
-              and .comments.nodes[0].author.login == $me))'
+# 1. List unresolved threads on this PR the bot authored.
+"<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --mine
 
 # 2. For each thread whose concern has actually been answered, resolve it.
-env -u GH_TOKEN gh api graphql \
-  -f query='mutation($id:ID!) {
-    resolveReviewThread(input:{threadId:$id}) { thread { isResolved } }
-  }' -f id=<thread_id>
+"<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --resolve <thread_id>
 ```
 
 Resolve **only** threads where the finding was actually answered. Don't
