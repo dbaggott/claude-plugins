@@ -154,7 +154,7 @@ Don't offer "or run `gh pr ready` yourself" as an option or alternative. The aut
 When the operator picks "Send to review" in the picker above, or otherwise signals the PR is ready (says "ready", "go", "mark it ready", etc.):
 
 1. Run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft.
-2. **Record state**: the current head SHA, and a timestamp marking "handled up to here".
+2. **Record state**: the current head SHA, a timestamp marking "handled up to here", and the SHA of the verdict you last handled (nothing yet, on a first arm).
 3. **Spawn `watch-pr.sh`** as a **background** task (Bash `run_in_background: true`). It blocks until something happens, so its idle polling never enters the conversation, and the harness wakes you when it returns.
 
 ```bash
@@ -174,8 +174,14 @@ ME=$(gh api user --jq .login)
 # `reviewer`, where IDLE is routine; here IDLE means something is wrong, and a
 # signal the operator waits six hours for is not a signal. A bot reviewer
 # normally replies in 1–3 minutes, so 30 minutes is a generous safety net.
+# --last-verdict makes the verdict check level-triggered, so a review that landed
+# before this watch existed — in the gap after `gh pr ready`, or before the
+# timestamp above — still wakes it instead of being invisible for the whole
+# window. Empty is correct here and only here: it says "I have handled no verdict
+# yet". On every re-arm pass the SHA of the verdict you last handled, or the watch
+# wakes on that same verdict on its first tick, every time.
 WINDOW=1800 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
-  "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ME"
+  "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ME" --last-verdict=
 ```
 
 Both watchers trace themselves to `${TMPDIR:-/tmp}/dnbg-watch/<script>-<pid>.log` by default. When a watch returns no result line, that trace says which of three things happened: a `SIGNAL=` line (something stopped it), an `EXIT code=` line (it stopped itself), or a heartbeat and nothing after (an uncatchable kill). It is the only record — a killed watch writes no result, and the task output is empty either way.
@@ -197,16 +203,18 @@ The script prints one result line. Treat the returns differently:
 - **`result=COMMITS`** — someone pushed to the branch. If it wasn't you, read the change before responding to anything. **If `activity=1`, comments or replies landed in the same burst — handle them in this same pass**, per "When a review comes in". This is reachable from your side: a reviewer clicking "Update branch", or applying a suggestion while filing comments, produces exactly `COMMITS activity=1`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good. Same failure the third bullet above gives as a reason not to hand-roll this.
 - **`result=CLOSED`** — merged or closed. Stop watching; if `state=MERGED`, run the post-merge cleanup.
 - **`result=ERROR reason=<source>`** — the watch itself is broken: that source failed repeatedly, so it cannot see. **Do not re-arm** — you would poll straight back into the same failure. Check `gh auth status` and the `<num>`/`<repo>` pair, then tell the operator. Unlike `IDLE` this means nothing about the PR; the watch never got a look at it.
-- **`result=ERROR reason=bad-args`** — the same code, the opposite remedy. Nothing failed: the watch refused to start because an argument could not do its job. Fix the argument and re-spawn; don't go near `gh auth status`. The guard on the spawn above catches the blank-`$ME` case before it gets here, so the one that actually reaches you is an abbreviated `<last_head>` on a re-arm — see the note below.
+- **`result=ERROR reason=bad-args`** — the same code, the opposite remedy. Nothing failed: the watch refused to start because an argument could not do its job. Fix the argument and re-spawn; don't go near `gh auth status`. The guard on the spawn above catches the blank-`$ME` case before it gets here, so what actually reaches you is a re-arm's argument: an abbreviated `<last_head>` or `--last-verdict` value (see the note below — both take a full 40-character SHA), or a trailing flag that is neither `--was-draft` nor `--last-verdict=<sha>`.
 - **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (`reviewer` treats `IDLE` as routine and re-arms, because a quiet PR is expected on that side. Same script, opposite caller.)
 
-  **Check whether HEAD is already approved before reporting that no review landed** — run `pr-verdict.sh` per "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it: it was armed with a `since` past the review, or the verdict landed in the gap between the last poll and the spawn. Reporting "no review has landed" there is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands and the reviewer really is the thing to check.
+  **Check whether HEAD is already approved before reporting that no review landed** — run `pr-verdict.sh` per "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it. `--last-verdict` above is what stops that happening, so this is the backstop for what it doesn't cover: a watch armed without the flag, and a verdict replaced at the same SHA. Reporting "no review has landed" there is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands and the reviewer really is the thing to check.
 
 - **No `result=` line at all** — the task was killed or failed rather than returning. This is the dangerous one, because it looks exactly like a quiet watch while being its opposite: the watcher stopped observing, and anything pushed or posted since is unreported. **Never treat a missing result as "nothing happened."** Re-read `headRefOid` with `gh pr view` and compare against the SHA you last handled, then re-arm from what GitHub says rather than from what the watcher last told you. Traces make this diagnosable after the fact — see the trace note after the spawn block.
 
-The same spawn works after pushing a fix in response to feedback — record the new head and a fresh timestamp, and re-arm.
+**A result line carrying `verdict_sha=<sha>` is the value to re-arm `--last-verdict` with.** It means the level-triggered check fired — a verdict stands at HEAD that you had not handled. No such field means it didn't fire, so carry the value you already had forward. Re-arming with an empty `--last-verdict=` after handling a verdict that is still at HEAD wakes the next watch instantly and repeatedly, since nothing about that verdict has changed.
 
-⚠️ **The new head is the full 40-character SHA**, from `gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid` — never an abbreviated one you happened to print for a human. The watcher compares it as a string against what GitHub returns, so a short SHA can never match; it refuses one outright (`result=ERROR reason=bad-args`). This is the re-arm's exposure and the spawn's guard does not cover it: that guard tests `$HEAD` for *blankness*, and an abbreviated SHA is not blank.
+The same spawn works after pushing a fix in response to feedback — record the new head and a fresh timestamp, and re-arm. After a push the old verdict is no longer at HEAD, so it can no longer trigger a wake whatever you pass.
+
+⚠️ **The new head is the full 40-character SHA**, from `gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid` — never an abbreviated one you happened to print for a human. The watcher compares it as a string against what GitHub returns, so a short SHA can never match; it refuses one outright (`result=ERROR reason=bad-args`). This is the re-arm's exposure and the spawn's guard does not cover it: that guard tests `$HEAD` for *blankness*, and an abbreviated SHA is not blank. The same holds for `--last-verdict`, which is compared against `commit.oid` the same way — take it from the watcher's `verdict_sha` or from `pr-verdict.sh`, both of which report the full SHA.
 
 
 ## When a review comes in

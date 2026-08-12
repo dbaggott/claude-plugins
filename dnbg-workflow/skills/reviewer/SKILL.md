@@ -348,8 +348,15 @@ PR to resume (it re-assesses current state and picks the watch back up).
    conversation; the harness wakes you when it returns:
 
    ```bash
+   # --last-verdict makes the verdict check level-triggered rather than counted
+   # against <since_iso>, so another reviewer's verdict that landed while no watch
+   # was running still wakes you. Your own verdicts never do — the same slug filter
+   # that keeps you from waking on your own comments applies here. Empty means "I
+   # have handled no verdict yet"; on a re-arm pass the SHA of the one you last
+   # handled, or the watch wakes on it again on its first tick, every time.
    "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> \
-     "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")"
+     "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")" \
+     --last-verdict=<last_verdict_sha>
    ```
 
    It reads with your own `gh` auth (so it doesn't expire mid-watch), tolerates
@@ -382,10 +389,11 @@ PR to resume (it re-assesses current state and picks the watch back up).
    - **`ERROR reason=bad-args`** — the same code, a different cause, and the
      remedy above is the wrong one: nothing failed, the watch refused to start
      because an argument could not do its job. Fix the argument and re-spawn.
-     The two that reach here are an empty `<slug>` (its filter would match no
-     login, so the watch wakes on its own posts) and a `<last_head>` that is
-     neither empty nor a full 40-character lowercase SHA. Don't send the
-     operator to `gh auth status` for either.
+     Three reach here: an empty `<slug>` (its filter would match no login, so the
+     watch wakes on its own posts), a `<last_head>` or `--last-verdict` value that
+     is neither empty nor a full 40-character lowercase SHA, and a trailing
+     argument that is neither `--was-draft` nor `--last-verdict=<sha>`. Don't send
+     the operator to `gh auth status` for any of them.
    - **No `result=` line at all** — the task was killed or failed rather than
      returning (a session ending, a reload, exit 143). This is the dangerous one,
      because it looks exactly like a quiet PR while being the opposite: the
@@ -407,6 +415,12 @@ them.
 4. **Re-arm:** update `last_head`/`since_iso` to the values the watcher reported
    (`new_head`, `now`) and spawn it again. Repeat until `CLOSED` or the operator
    says to stop.
+
+   `verdict_sha` is reported the same way, and is the value to re-arm
+   `--last-verdict` with — it appears only when the level-triggered check fired,
+   so carry the previous value forward when it is absent. Re-arming with an empty
+   `--last-verdict=` while a verdict you have already handled still stands at HEAD
+   wakes every subsequent watch on its first tick.
 
 The same applies after a watch is **paused and resumed** — an operator interrupt,
 a session restart. The gap is invisible from the watcher's side, so re-establish

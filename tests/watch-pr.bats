@@ -78,7 +78,9 @@ case "$1 $2" in
   "pr view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
     n=$(cat "$HEADCOUNT" 2>/dev/null || echo 0)
-    printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[]}' "$n" ;;
+    printf '{"state":"OPEN","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":[]}' \
+      "$(cat "$DRAFT" 2>/dev/null || echo false)" "$n" \
+      "$(cat "$REVIEWS" 2>/dev/null || echo '[]')" ;;
   "issue view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
     printf '{"state":"OPEN","closedByPullRequestsReferences":%s}' "$(cat "$LINKED" 2>/dev/null || echo '[]')" ;;
@@ -108,7 +110,21 @@ EOF
   export HEADCOUNT="$BATS_TEST_TMPDIR/headcount"
   export LINKED="$BATS_TEST_TMPDIR/linked"
   export XREF="$BATS_TEST_TMPDIR/xref"
+  export REVIEWS="$BATS_TEST_TMPDIR/reviews"
+  export DRAFT="$BATS_TEST_TMPDIR/draft"
   export TICKS="$BATS_TEST_TMPDIR/ticks"
+}
+
+# One formal review, in the shape `gh pr view --json reviews` returns.
+#
+# `submittedAt` is deliberately ancient: every test using this arms the watch with a
+# `since` far in the future, so the edge-triggered count cannot see it. That is the
+# situation being tested — a verdict that landed before the watch existed — and a
+# recent timestamp would let the SINCE path pass these tests with the level-triggered
+# check removed entirely.
+reviews() {  # <state> <commit-sha> <login>
+  printf '[{"state":"%s","submittedAt":"1970-01-02T00:00:00Z","author":{"login":"%s"},"commit":{"oid":"%s"}}]' \
+    "$1" "$3" "$2"
 }
 
 # One cross-referenced PR, on the page given, in the shape `gh api --paginate --slurp`
@@ -519,6 +535,138 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
   [[ "$output" != *"bad-args"* ]]
+}
+
+# THE ASYMMETRY THIS FLAG REMOVES. Commits are detected from state, so a push during a
+# gap in watching is still seen; reviews were counted against `since`, so a verdict that
+# landed before the watch was armed was invisible for the life of the watch and the PR
+# reported IDLE — indistinguishable from one nobody had looked at. Observed live on three
+# PRs in one session, two of them already approved at their then-current HEAD.
+@test "a verdict posted before the watch was armed still wakes it" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+  [ "$status" -eq 0 ]
+  # `since` is past the review, so the edge-triggered count sees nothing: without the
+  # level-triggered check this is IDLE.
+  [[ "$output" == *"result=ACTIVITY"* ]]
+  # The field the caller re-arms from. Absent, the next arm has no baseline to pass and
+  # wakes on this same verdict immediately, forever.
+  [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
+}
+
+# The other half of the contract: the caller says it handled that verdict, so the watch
+# must not re-wake on it. Without this the flag trades a missed review for a hot loop.
+@test "a verdict the caller has already handled does not wake the watch" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=5 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot "--last-verdict=$(sha40 0)"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=IDLE"* ]]
+  [[ "$output" != *"result=ACTIVITY"* ]]
+}
+
+# Omitting the flag has to leave the watch exactly as it was, or every caller that has
+# not been updated changes behaviour on upgrade.
+@test "without --last-verdict a standing verdict is invisible, as before" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=IDLE"* ]]
+}
+
+# ⚠️ THE SELF-WAKE THE `<bot_slug>` ARGUMENT EXISTS TO PREVENT, reached through the one
+# check that ignores `since` — so unlike every other path it cannot age out of it. The
+# reviewer's own approval sits at HEAD for the life of the PR, so an unfiltered check
+# wakes it on its own review on the first tick of every arm.
+@test "the watch does not wake on its own verdict" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" bot)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=5 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=IDLE"* ]]
+  [[ "$output" != *"result=ACTIVITY"* ]]
+}
+
+# GraphQL reports a Bot author's login as `<slug>`, REST as `<slug>[bot]`. Both forms
+# have to be excluded here for the same reason they are excluded everywhere else.
+@test "the watch does not wake on its own verdict under the [bot] spelling" {
+  printf '%s' "$(reviews CHANGES_REQUESTED "$(sha40 0)" 'bot[bot]')" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=5 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=IDLE"* ]]
+}
+
+# A verdict the author has pushed past is stale by construction — it needs a fresh
+# review, and waking on it would fire after every push about feedback already handled.
+@test "a verdict left behind by a push does not wake the watch" {
+  printf '%s' "$(reviews CHANGES_REQUESTED "$(sha40 5)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=5 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=IDLE"* ]]
+  [[ "$output" != *"result=ACTIVITY"* ]]
+}
+
+# `COMMENTED` is not a verdict: a reviewer answering a thread posts one, so counting it
+# would wake on every exchange — and here, on every tick, since this check ignores
+# `since`. Same set as pr-verdict.sh, which tests/coupling.bats pins.
+@test "a COMMENTED review is not a verdict for the level-triggered check" {
+  printf '%s' "$(reviews COMMENTED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=5 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=IDLE"* ]]
+}
+
+# Same reasoning as `<last_head>`: the value is compared as a string against the
+# 40-character `commit.oid` GitHub returns, so an abbreviated one can never match and
+# would silently re-wake on a verdict the caller said it handled.
+@test "an abbreviated --last-verdict is refused as bad-args" {
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict=0000000
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
+}
+
+# The valueless form, refused for the reason `--exclude` is: only the `=` spelling can
+# carry a value, and the bare one would otherwise arm the check with no baseline.
+@test "a valueless --last-verdict is refused as bad-args" {
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
+}
+
+# Nothing in issue mode reads a verdict — no reviews, no HEAD — so accepting the flag
+# there would take an argument whose whole purpose is guaranteeing a wake and guarantee
+# nothing, with the same IDLE either way.
+@test "--last-verdict in --issue mode is refused rather than ignored" {
+  INTERVAL=1 WINDOW=2 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot \
+    "--last-verdict=$(sha40 0)"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
+}
+
+# `--was-draft` used to be read as `${6:-}` alone, so a second trailing flag would have
+# silenced whichever one came last — two wake paths, failing quietly, decided by typing
+# order. Both orders must work, and anything else must be refused.
+@test "trailing flags work in either order" {
+  printf true > "$DRAFT"
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  AT_TICK=3 AT_TICK_FILE="$DRAFT" AT_TICK_VALUE=false \
+  INTERVAL=1 SETTLE=1 WINDOW=20 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft
+  [ "$status" -eq 0 ]
+  # --was-draft parsed: the draft going ready is reported at all.
+  [[ "$output" == *"result=READY"* ]]
+  # --last-verdict parsed: the standing verdict rode along in the same burst.
+  [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
+}
+
+@test "an unrecognised trailing argument is refused rather than ignored" {
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --no-such-flag
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
 
 # A stray trace has to say WHICH watch died. Without the arguments it names only a
