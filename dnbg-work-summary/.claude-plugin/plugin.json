@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin.json",
   "name": "dnbg-work-summary",
   "description": "Turn your merged and open GitHub PRs into an audience-shaped recap — shipped work over a window, or what's in flight.",
-  "version": "2026.8.2",
+  "version": "2026.8.3",
   "author": {
     "name": "Dan Baggott",
     "url": "https://github.com/dbaggott"

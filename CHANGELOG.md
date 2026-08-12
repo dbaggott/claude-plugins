@@ -9,6 +9,33 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-practices 2026.8.3 — 2026-08-12
+
+Skill descriptions are shorter. A description loads into every session whether or
+not its skill fires, and these had grown into summaries of their own contents —
+listing mechanisms a reader only needs *after* deciding to load. They now carry
+identity, triggers, and skips only, and nothing about when a skill loads has
+changed.
+
+
+## dnbg-workflow 2026.8.29 — 2026-08-12
+
+Skill descriptions are shorter. A description loads into every session whether or
+not its skill fires, and these had grown into summaries of their own contents —
+listing mechanisms a reader only needs *after* deciding to load. They now carry
+identity, triggers, and skips only, and nothing about when a skill loads has
+changed.
+
+
+## dnbg-work-summary 2026.8.3 — 2026-08-12
+
+Skill descriptions are shorter. A description loads into every session whether or
+not its skill fires, and these had grown into summaries of their own contents —
+listing mechanisms a reader only needs *after* deciding to load. They now carry
+identity, triggers, and skips only, and nothing about when a skill loads has
+changed.
+
+
 ## dnbg-workflow 2026.8.28 — 2026-08-12
 
 `reviewer` sheds ~230 words of prose that recorded its own development rather
