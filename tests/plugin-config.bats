@@ -202,14 +202,13 @@ with_version_stamp() {  # <value>
   ! version_stamp_enabled
 }
 
-@test "the affirmative spellings a config can produce all turn it on" {
-  # `true` is what the manifest's `boolean` type exports; `1` covers a value
-  # written into `pluginConfigs` by hand. Case-insensitive because neither
-  # source guarantees one.
+@test "the affirmative turns it on in any casing" {
+  # `true` is the only value that does, because a `boolean` option can reach a
+  # hook as nothing else. Casing is what no visible failure pins, so it is what
+  # the glob absorbs.
   [ "$(with_version_stamp true)" = on ]
   [ "$(with_version_stamp TRUE)" = on ]
   [ "$(with_version_stamp True)" = on ]
-  [ "$(with_version_stamp 1)" = on ]
 }
 
 @test "everything else is off, including values that look like a yes" {
@@ -219,6 +218,7 @@ with_version_stamp() {  # <value>
   [ "$(with_version_stamp false)" = off ]
   [ "$(with_version_stamp FALSE)" = off ]
   [ "$(with_version_stamp 0)" = off ]
+  [ "$(with_version_stamp 1)" = off ]
   [ "$(with_version_stamp '')" = off ]
   [ "$(with_version_stamp yes)" = off ]
   [ "$(with_version_stamp on)" = off ]

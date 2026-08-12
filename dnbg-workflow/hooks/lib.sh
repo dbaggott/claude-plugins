@@ -209,28 +209,25 @@ resolve_claim_label() {
   fi
 }
 
-# Has the operator asked for the version stamp? Exit status, not output, because
-# every caller is a branch.
+# Has the operator asked for the version stamp?
 #
-# Unlike the two knobs above this one is a gate rather than a value, so it reads
-# the *affirmative* rather than falling back on a rejection: anything that is not
-# a recognised yes — unset, empty, `false`, a typo — leaves the stamp off. That
-# direction is the whole point. The stamp lands on PR descriptions, review
-# bodies and issue comments that other people read, so a config this hook
-# misreads has to fail toward publishing nothing rather than toward publishing
-# under someone's name unasked.
+# Unlike the two knobs above this is a gate rather than a value, so it matches
+# the *affirmative* and everything else — unset, empty, `false`, a typo — leaves
+# the stamp off. The stamp lands on PR descriptions, review bodies and issue
+# comments that other people read, so a value this hook cannot make sense of has
+# to fail toward publishing nothing rather than toward publishing under
+# someone's name unasked.
 #
-# `1` is accepted alongside `true` for a value hand-written into
-# `pluginConfigs`; the `boolean` option type itself only ever exports the two
-# spellings of `true`/`false`, since Claude Code stringifies the JSON value.
+# Only the one word matches: a `boolean` option reaches a hook as `true` or
+# `false`, since Claude Code stringifies the JSON value. Casing is not pinned by
+# anything that would fail visibly, hence the glob.
 #
-# Case-folded with a bracket glob rather than `tr`, because this runs on the
-# session-start path: `tr` is not among the binaries the hooks may assume, and
-# one that went missing would take the *rules* down with the stamp. `case` needs
-# no process at all.
+# `case` rather than `tr`, because this runs on the session-start path — `tr` is
+# not among the binaries the hooks may assume, and one that went missing here
+# would take the always-on rules down along with the stamp.
 version_stamp_enabled() {
   case "${CLAUDE_PLUGIN_OPTION_VERSION_STAMP:-}" in
-    [Tt][Rr][Uu][Ee] | 1) return 0 ;;
+    [Tt][Rr][Uu][Ee]) return 0 ;;
   esac
   return 1
 }

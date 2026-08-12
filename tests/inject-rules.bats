@@ -70,36 +70,36 @@ run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
   [[ "$output" != *"2026.8.32"* ]]
 }
 
-@test "treats anything that is not an affirmative as off" {
-  # The gate reads the affirmative rather than rejecting known-bad values, so a
-  # value it does not understand has to leave the stamp off. `false` is what the
-  # boolean option exports when the operator unticks the box; the rest stand in
-  # for a hand-edited `pluginConfigs` and for a typo.
+@test "treats anything that is not the affirmative as off" {
+  # The gate matches the affirmative rather than rejecting known-bad values, so
+  # anything it cannot make sense of has to leave the stamp off. `false` is what
+  # the option exports when the operator unticks the box; the rest stand in for a
+  # hand-edited `pluginConfigs` and for a typo.
   stub_path jq git gh
   write_manifest 2026.8.32
   local value
-  for value in false FALSE 0 no off '' 'true '; do
+  for value in false FALSE 0 1 no off yes '' 'true '; do
     run_hook_stamped "$value"
     [ "$status" -eq 0 ]
     [[ "$output" != *"2026.8.32"* ]] || {
-      echo "stamped on option value '$value', which is not an affirmative"
+      echo "stamped on option value '$value', which is not the affirmative"
       return 1
     }
   done
 }
 
-@test "accepts the affirmative spellings a config can produce" {
-  # `true` is what the boolean option type exports; `1` covers a value written
-  # into `pluginConfigs` by hand. Case-insensitive because neither source
-  # guarantees one.
+@test "accepts the affirmative in any casing" {
+  # `true` is the only value that turns it on, because a `boolean` option can
+  # reach a hook as nothing else. Casing is what is not pinned by anything that
+  # would fail visibly, so it is what the glob absorbs.
   stub_path jq git gh
   write_manifest 2026.8.32
   local value
-  for value in true TRUE True 1; do
+  for value in true TRUE True; do
     run_hook_stamped "$value"
     [ "$status" -eq 0 ]
     [[ "$output" == *"## dnbg-workflow 2026.8.32"* ]] || {
-      echo "did not stamp on option value '$value', which is an affirmative"
+      echo "did not stamp on option value '$value', which is the affirmative"
       return 1
     }
   done

@@ -353,11 +353,8 @@ It renders invisibly, so it costs the reader nothing, and it is the only record
 of which prompts produced this review: a transcript names the plugin but not its
 version, and transcripts expire while the review does not. Stamp the review body
 only — repeating it on each inline comment says nothing the review body doesn't.
-
-**No note means no stamp**, which is the normal case rather than a fault: the
-stamp is opt-in and off unless the operator turns it on. Never fill the gap from
-another source — a wrong stamp is worse than an absent one, since analysis
-cannot tell them apart.
+With no note, take the version from nowhere else and leave the stamp off; a
+wrong stamp is worse than an absent one, since analysis cannot tell them apart.
 
 For a **verdict-only** review (no inline findings), the simpler form is
 equivalent:

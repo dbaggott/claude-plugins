@@ -33,11 +33,9 @@ RULES="${CLAUDE_PLUGIN_ROOT:-}/always-on-rules.md"
 # the Claude Code version, never the plugin's, so without this a review or PR
 # cannot be attributed to the prompts that produced it.
 #
-# Off unless the operator turns `version_stamp` on, and the gate is here rather
-# than in the skills because this note is the only thing that puts a version in
-# front of them — no note, no stamp, with nothing for a skill to decide. That
-# also means the default install pays no tokens for the note, the same bar the
-# override block below is held to.
+# Gated on `version_stamp`, and gated here rather than in the three skills
+# because this note is the only thing that puts a version in front of them — no
+# note leaves them nothing to decide with.
 #
 # *Where* to stamp lives in the three skills that publish, which are read on
 # demand; this file is charged to every session and every subagent spawn. The

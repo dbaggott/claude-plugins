@@ -119,9 +119,7 @@ The description reflects the **as-built** state (step 7) — and every claim in 
 <!-- dnbg-workflow <version> -->
 ```
 
-It renders invisibly. It records which version of these prompts authored the PR — nothing else does, since a transcript carries the plugin's name but not its version, and transcripts expire on a rolling window while the PR does not. Re-state it when you rewrite the description under step 7; a description rewritten by a later session should carry that session's version, not the original one.
-
-**No note means no stamp**, and that is the normal case rather than a fault: the stamp is opt-in and off unless the operator turns it on. Never supply a version from anywhere else — not the manifest, not a version you saw in the repo you are working in, not one you remember. Nothing downstream can distinguish a guessed version from a read one, so a guess is worse than the gap it fills.
+It renders invisibly. It records which version of these prompts authored the PR — nothing else does, since a transcript carries the plugin's name but not its version, and transcripts expire on a rolling window while the PR does not. Re-state it when you rewrite the description under step 7; a description rewritten by a later session should carry that session's version, not the original one. With no note, take the version from nowhere else — not the manifest, not one you remember — and leave the stamp off: nothing downstream can distinguish a guessed version from a read one.
 
 ## Multi-repo changes
 

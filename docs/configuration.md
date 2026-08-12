@@ -145,18 +145,16 @@ who never installed this plugin and did not agree to carry a marker for it.
 Something with that reach should be something you switched on, and a default of
 off costs only the provenance you didn't ask for. The same reasoning sets the
 failure direction: a value the hook can't make sense of leaves the stamp **off**
-rather than on.
+rather than on, and with it off the session-start note carrying the version is
+not emitted at all — so a skill has no version to stamp with rather than a
+decision to make. None of them will substitute one from the manifest or from
+memory, since a guessed version reads downstream exactly like a genuine one.
 
 Two things it is not. It is **not** a per-repo setting — like every value here it
 is read from your **user** `settings.json`, so it is on for all your repos or
 none. And it does **not** stamp commits, issue bodies, or inline review comments;
 only the three surfaces above, each of which is a single artifact whose author is
 already you.
-
-When it's off, the session-start note that carries the version is not emitted at
-all, and the three skills treat its absence as "don't stamp". They will not
-substitute a version from the manifest or from memory — a guessed version reads
-downstream exactly like a genuine one, so the skills would rather leave the gap.
 
 ## Opting a repo into `velocity-tradeoff`
 
