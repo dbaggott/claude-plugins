@@ -9,6 +9,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.31 — 2026-08-12
+
+`git-workflow` and the always-on rules shed prose that recorded how they got
+here rather than instructing: the loops that preceded the shipped watchers, the
+incidents that motivated two rules, and a consent procedure `issue-workflow`
+already spells out. Every rule is unchanged, including the ones the cut passages
+surrounded.
+
+
 ## dnbg-workflow 2026.8.30 — 2026-08-12
 
 `issue-workflow` splits into `references/creating.md` and
