@@ -30,6 +30,9 @@ picked up, since `GH_TOKEN` is exported from then on and every return to the
 issue would otherwise fail. `gh search prs` is unaffected — it works under
 either identity.
 
+The `scripts/` helpers this file calls clear `GH_TOKEN` themselves, so the
+prefix is only ever needed on the bare `gh issue` commands below.
+
 **Record the assignment, but do not claim the issue.** Setting an assignee or an
 `assigned:*` label marks the issue as *being implemented* — `issue-workflow`'s
 pickup check reads those as "someone is already on it" and stops a coder from
@@ -40,37 +43,38 @@ env -u GH_TOKEN gh issue comment <n> --repo <repo> \
   --body "Claude Code is acting as reviewer on this issue."
 ```
 
-**Find the PRs that resolve it.** Three sources; run all three. Each misses
+**Find the PRs that resolve it.** One script, three sources. Each misses
 something the others catch, and the gaps are not hypothetical — a real pair (a
 PR closing an issue in one repo, its infrastructure sibling in another) is found
 by exactly one of the first two:
 
 ```bash
-# 1. Closing references — only PRs carrying a closing keyword.
-env -u GH_TOKEN gh issue view <n> --repo <repo> --json closedByPullRequestsReferences \
-  --jq '.closedByPullRequestsReferences[] | .url'
-
-# 2. Timeline cross-references — anything that MENTIONS the issue, any repo,
-#    keyword or not. Authoritative, and immediate (no search-index lag).
-#    `sort -u` is OUTSIDE the jq: gh applies --jq per page, so a jq-side
-#    `unique` would only dedupe within a page, not across an issue with
-#    more than 100 timeline events.
-env -u GH_TOKEN gh api "repos/<repo>/issues/<n>/timeline" --paginate \
-  --jq '.[] | select(.event=="cross-referenced")
-            | select(.source.issue.pull_request != null)
-            | .source.issue.html_url' | sort -u
-
-# 3. Text search, scoped to the OWNER — catches a sibling before the timeline
-#    event registers, and PRs that reference the issue in prose.
-gh search prs --owner <owner> "https://github.com/<repo>/issues/<n>" \
-  --json number,state,title,repository
+"<skill-dir>/../../scripts/pr-sources.sh" <owner>/<repo> <n>
 ```
 
-⚠️ **Scope the search to `--owner`, never `--repo`.** The case this whole
-section exists for is a pair spanning two repos, and `--repo` can only ever
-return siblings in the same one — it silently drops the half you most need.
-Over-inclusion (an unrelated repo of the same owner mentioning the issue) is the
-safe direction; judge relevance from the PR, don't narrow the query.
+It prints the deduped union as one URL per line, then
+`result=OK count=<n> closing=… search=… timeline=…`.
+
+⚠️ **Read the per-source fields before reporting an empty set.** The union
+answers with whatever survived, so one dead source still yields a real — but
+narrower — answer. `count=0` with a `fail` among those fields does **not** mean
+nothing links the issue; it means the sources that worked found nothing. Saying
+"no PRs resolve this" off that is the claim the fields exist to prevent.
+`result=ERROR reason=all-sources` is the blind case: nothing was seen at all.
+
+The reasons the three sources are what they are, since the script can carry the
+queries but not the judgement:
+
+- **Closing references** list only PRs carrying a closing keyword — the narrowest
+  source by construction, and `git-workflow`'s multi-repo rule has exactly one
+  sibling close the issue while the rest merely mention it.
+- **Timeline cross-references** catch anything that mentions the issue, in any
+  repo, keyword or not. Authoritative and immediate — no search-index lag.
+- **Text search** is scoped to the **owner, never the repo**: the case this whole
+  section exists for is a pair spanning two repos, and `--repo` could only ever
+  return siblings in the same one. Over-inclusion (an unrelated repo of the same
+  owner mentioning the issue) is the safe direction — judge relevance from the
+  PR, don't narrow the query.
 
 ⚠️ **Don't review a discovered PR that is still a draft.** Check `isDraft` on
 each and hold the drafts back. Draft status is the author's signal that the work
@@ -99,13 +103,14 @@ discover. `git-workflow`'s "Multi-repo changes" requires that mention for this
 reason; if you find a set that looks incomplete, check whether a sibling simply
 failed to link, and say so rather than assuming the set is whole.
 
-`closedByPullRequestsReferences` carries no PR state (check each with
-`gh pr view <num> --json state`) but *does* carry `repository`, as do sources 2
-and 3 — which is what makes the multi-repo case work at all. Once you have one
-member of a set, `gh search prs --owner <owner> head:<branch>` returns the rest,
-since `git-workflow` pairs siblings by branch name. **Review the whole set, not
-the first PR you find** — a change split across an infra PR and an app PR is only
-correct as a pair, and each half read alone looks incomplete or unmotivated.
+The URLs carry no PR state — check each with `gh pr view <url> --json state` —
+but they *are* full URLs rather than numbers, which is what makes the multi-repo
+case work at all: a number collides across repos and a URL does not. Once you
+have one member of a set, `gh search prs --owner <owner> head:<branch>` returns
+the rest, since `git-workflow` pairs siblings by branch name. **Review the whole
+set, not the first PR you find** — a change split across an infra PR and an app
+PR is only correct as a pair, and each half read alone looks incomplete or
+unmotivated.
 
 ⚠️ **Discovery is continuous, not one-shot — the set is never frozen.** The
 warning above guards the *spatial* miss (reviewing one PR of a pair). The
@@ -119,7 +124,7 @@ is reporting success over half a change.
 
 So the assignment is a loop, not a pass:
 
-1. **Discover** — run all three commands above.
+1. **Discover** — re-run `pr-sources.sh` above.
 2. **Review and watch** every open PR found that you haven't already reviewed.
 3. **On every watcher return** — `CLOSED` *or* a re-arm — **discover again** before
    deciding anything. A PR that appeared while you were watching another joins the

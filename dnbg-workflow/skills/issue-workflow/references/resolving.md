@@ -12,25 +12,24 @@ When resolving an issue, the body is the contract — once the freshness probe b
 
 An issue being worked must look in-progress from the outside, or the next session (or agent, or human) picks it up in parallel. Both halves apply at pickup time, before any implementation:
 
-**1. Check for an existing claim.** Two calls, because the PR signal has two sources:
+**1. Check for an existing claim.** Two calls, because the human signal and the PR signal come from different places:
 
 ```bash
-# Assignee, labels, and PRs carrying a CLOSING KEYWORD.
-gh issue view <n> --repo <repo> --json assignees,labels,closedByPullRequestsReferences
+# Assignee and labels.
+gh issue view <n> --repo <repo> --json assignees,labels
 
-# PRs that merely MENTION the issue, any repo, keyword or not.
-# PR-SOURCE-EXEMPT: gh search prs — the timeline is authoritative and has no index
-# lag, so search can only be slower to show the same PR; `reviewer`'s discovery
-# keeps it for the cross-repo sweep this check does not need.
-gh api "repos/<repo>/issues/<n>/timeline" --paginate \
-  --jq '.[] | select(.event=="cross-referenced")
-            | select(.source.issue.pull_request != null)
-            | .source.issue.html_url' | sort -u
+# Every PR that might already be resolving it — closing references, timeline
+# cross-references, and text search, unioned and deduped.
+"<skill-dir>/../../scripts/pr-sources.sh" <owner>/<repo> <n>
 ```
 
-⚠️ **The second call is not belt-and-braces.** `closedByPullRequestsReferences` lists only PRs carrying a closing keyword, and `git-workflow`'s "Multi-repo changes" has **exactly one** sibling close the issue while the rest merely reference it. Check the keyword source alone and an in-flight multi-repo change reads as unclaimed the moment its closer merges — so a second session starts work already half-shipped. Same defect, same shape, as the one `reviewer`'s issue-scoped wait carried; `tests/coupling.bats` now pins both against `reviewer`'s discovery set so no site can narrow alone.
+`<skill-dir>` is this skill's announced Base directory. The path reaches out of it because the script is shared with `git-workflow` and `reviewer`, which ask the same question from the other side; `CLAUDE_PLUGIN_ROOT` is exported to *hook* processes rather than to yours, so a skill can only address a sibling relative to its own base — and skill directories are always `<plugin>/skills/<name>/`, which makes `../../scripts/` deterministic.
 
-The issue is already in progress if any of: an assignee is set, **any** `assigned:*` label is present, or either PR source lists a PR that is still open (neither source carries PR state — check with `gh pr view <number> --json state`, and note the timeline URL may be in a different repo than `<repo>`). If so, don't start — surface what you found (which signal, which PR, how old the claim comment is — its timestamp comes from a follow-up `gh issue view <n> --json comments`, needed only on a hit) and ask the operator; in an unattended run, ask via a comment on the issue and stop. An open issue with an `assigned:*` label but **no** open linked PR and an old claim comment is the stale-claim signature — the claiming session probably died without finishing. Say so when asking, but proceeding past someone's claim is the operator's call, never yours.
+⚠️ **The PR check is not belt-and-braces, and it must not be narrowed to closing references.** Those list only PRs carrying a closing keyword, and `git-workflow`'s "Multi-repo changes" has **exactly one** sibling close the issue while the rest merely reference it. Check the keyword source alone and an in-flight multi-repo change reads as unclaimed the moment its closer merges — so a second session starts work already half-shipped. That was this site's actual bug, and `reviewer`'s issue-scoped wait carried the same one; both now go through the union rather than each maintaining a copy of it.
+
+⚠️ **A `count=0` with a failed source is not "unclaimed".** `pr-sources.sh` answers with whatever survived and names any source that didn't, so read those fields before concluding nothing is in flight — starting work over someone else's in-flight PR is exactly what this check exists to prevent. Treat `result=ERROR reason=all-sources` the same way: it means the check could not see.
+
+The issue is already in progress if any of: an assignee is set, **any** `assigned:*` label is present, or `pr-sources.sh` lists a PR that is still open (its URLs carry no PR state — check with `gh pr view <url> --json state`, and note a URL may be in a different repo than `<repo>`, which is why they are URLs rather than numbers). If so, don't start — surface what you found (which signal, which PR, how old the claim comment is — its timestamp comes from a follow-up `gh issue view <n> --json comments`, needed only on a hit) and ask the operator; in an unattended run, ask via a comment on the issue and stop. An open issue with an `assigned:*` label but **no** open linked PR and an old claim comment is the stale-claim signature — the claiming session probably died without finishing. Say so when asking, but proceeding past someone's claim is the operator's call, never yours.
 
 The `assigned:*` namespace is deliberately open: whatever else works these repos — another agent, a bot, a teammate's tooling — claims with its own label in that namespace, and the check above matches the prefix rather than an enumerated list, so a new claimant needs no change here.
 

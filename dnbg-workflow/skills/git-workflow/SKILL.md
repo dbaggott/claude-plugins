@@ -85,19 +85,17 @@ gh api repos/<owner>/<repo> --jq \
 The question that field gets reached for is always really **"is HEAD approved?"**. Where approvals are *required* — `reviewDecision` is non-null — that field answers it directly and is the primary source: it accounts for supersession and for multiple required reviewers, neither of which the check below models. Where they are not required, `reviewDecision` is `null` and says nothing, and this is what remains:
 
 ```bash
-gh pr view <num> --repo <repo> --json headRefOid,reviews --jq \
-  '{head: .headRefOid,
-    last_verdict: ([.reviews[]
-      | select(.state=="APPROVED" or .state=="CHANGES_REQUESTED" or .state=="DISMISSED")]
-      | last)}'
+"<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
 ```
 
-HEAD is approved **iff** `last_verdict.state == "APPROVED"` and `last_verdict.commit.oid == head`. Both halves are load-bearing:
+HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1`. Both halves are load-bearing, and knowing *why* is what keeps a later simplification from dropping one:
 
 - **The latest verdict, not the latest approval.** Filtering to `APPROVED` and taking the last one reads an `APPROVED` followed by a `CHANGES_REQUESTED` at the *same* SHA as approved. Two routes reach that: a second reviewer objecting over a standing approval, and a reviewer reversing itself after a reply. Where `reviewDecision` is `null` nothing downstream catches it.
 - **`COMMENTED` is not a verdict** and must stay out of the set — a reviewer answering a thread posts one, and counting it would blank the verdict on every exchange.
 
 An approval further down the list is an approval of a diff nobody is merging. Use this wherever the answer matters — before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
+
+**Don't hand-roll the query.** Both rules above were once prose around a fenced block copied into this skill and `reviewer`, and the first cut of that block took the last *approval* rather than the last *verdict* — in both copies at once, since they were copies. `tests/pr-verdict.bats` now pins each case, including the reversed approval and the `COMMENTED` exclusion. A `result=ERROR` line means the check could not see; it is not a verdict of "not approved".
 
 For a multi-repo change, read this **per repo**. Siblings genuinely differ, and a setting borrowed from the wrong one produces a merge command that fails or a cleanup step that silently does nothing.
 
@@ -194,7 +192,7 @@ The script prints one result line. Treat the returns differently:
 - **`result=ERROR reason=bad-args`** — the same code, the opposite remedy. Nothing failed: the watch refused to start because an argument could not do its job. Fix the argument and re-spawn; don't go near `gh auth status`. The guard on the spawn above catches the blank-`$ME` case before it gets here, so the one that actually reaches you is an abbreviated `<last_head>` on a re-arm — see the note below.
 - **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (`reviewer` treats `IDLE` as routine and re-arms, because a quiet PR is expected on that side. Same script, opposite caller.)
 
-  **Check whether HEAD is already approved before reporting that no review landed** — run the `last_verdict` check from "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it: it was armed with a `since` past the review, or the verdict landed in the gap between the last poll and the spawn. Reporting "no review has landed" there is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands and the reviewer really is the thing to check.
+  **Check whether HEAD is already approved before reporting that no review landed** — run `pr-verdict.sh` per "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it: it was armed with a `since` past the review, or the verdict landed in the gap between the last poll and the spawn. Reporting "no review has landed" there is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands and the reviewer really is the thing to check.
 
 - **No `result=` line at all** — the task was killed or failed rather than returning. This is the dangerous one, because it looks exactly like a quiet watch while being its opposite: the watcher stopped observing, and anything pushed or posted since is unreported. **Never treat a missing result as "nothing happened."** Re-read `headRefOid` with `gh pr view` and compare against the SHA you last handled, then re-arm from what GitHub says rather than from what the watcher last told you. Traces make this diagnosable after the fact — see the trace note after the spawn block.
 
@@ -217,16 +215,16 @@ This is not belt-and-braces. A body reading "four things below" with three summa
 **And enumerate the unresolved threads — don't trust your own list of what you fixed.** This one has a command because prose was not enough: it was stated here without one, and was skipped twice in a single PR, with three threads left open while rounds were reported as handled. The reviewer read open threads as outstanding work, which is exactly what they mean.
 
 ```bash
-gh api graphql -f query='{repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){
-  reviewThreads(first:50){nodes{id isResolved path line comments(first:1){nodes{body}}}}}}}' \
-  --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved==false)]'
+"<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n>
 ```
+
+One JSON object per unresolved thread — `id`, `path`, `line`, `author`, `body` — then `result=OK count=<n>`. **No `--mine` here:** that flag narrows to the reviewer bot's own threads, and a human reviewer's thread blocks the merge just as surely.
 
 Run all three — verdict, inline comments, threads — before summarizing anything. A verdict alone is a third of the review.
 
 Read the review payload and pick one of three responses based on content. Track whether the operator has opted in to auto-handling for *this* PR — once they pick "Auto-handle all rounds" in the picker below, the choice is sticky across subsequent rounds until the PR merges or they explicitly stop.
 
-**Clean review (APPROVED, no actionable findings).** First, **confirm the standing verdict is an approval attached to the current HEAD** — run the `last_verdict` check from "Know the repo's merge settings". `APPROVED` in the watcher payload only tells you an approval exists somewhere in the list; it may sit on a commit you have since pushed past, or have been superseded by a later `CHANGES_REQUESTED` from another reviewer. Where the repo doesn't dismiss stale approvals — the common case, since dismissal needs `required_approving_review_count` above 0 — the merge box shows an unqualified green check over exactly that state, so nothing on the PR will correct you. If the last verdict isn't `APPROVED` at HEAD, this isn't the clean-review case: say what the standing verdict is and which SHA it sits on, and wait for the reviewer to re-verdict (which `reviewer` now does unprompted on any HEAD move).
+**Clean review (APPROVED, no actionable findings).** First, **confirm the standing verdict is an approval attached to the current HEAD** — run `pr-verdict.sh` per "Know the repo's merge settings". `APPROVED` in the watcher payload only tells you an approval exists somewhere in the list; it may sit on a commit you have since pushed past, or have been superseded by a later `CHANGES_REQUESTED` from another reviewer. Where the repo doesn't dismiss stale approvals — the common case, since dismissal needs `required_approving_review_count` above 0 — the merge box shows an unqualified green check over exactly that state, so nothing on the PR will correct you. If the last verdict isn't `APPROVED` at HEAD, this isn't the clean-review case: say what the standing verdict is and which SHA it sits on, and wait for the reviewer to re-verdict (which `reviewer` now does unprompted on any HEAD move).
 
 Once they match, tell the operator the PR is ready to merge, then **immediately spawn the merge watcher** (see "Watching for the merge to complete" → start it proactively) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per "Composing the merge command" below — hand over exactly one form, the one that will work:
 
@@ -292,7 +290,7 @@ Address comments to the reviewer using `@username` mentions.
 ```bash
 gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(
   input:{pullRequestReviewThreadId:$t,body:$b}){clientMutationId}}' -f t=<thread-id> -f b='<reply>'
-gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{isResolved}}}' -f t=<thread-id>
+"<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --resolve <thread-id>
 ```
 
 Resolve only what you actually addressed. A thread you are declining to act on stays open with your reasoning in it — that is a disagreement to surface, not a box to tick.
@@ -395,11 +393,9 @@ When the poller returns, branch on the final state:
   gh pr view <num> --repo <repo> --json statusCheckRollup --jq '(.statusCheckRollup // [])[]
     | {n: (.name // .context), r: (.conclusion // .state)}
     | select(.r != "SUCCESS" and .r != "NEUTRAL") | "\(.n) \(.r)"'
-  # 2. unresolved review threads — a hard blocker wherever required_conversation_resolution is on
-  gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){
-    pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved path}}}}}' \
-    -F o=<owner> -F r=<repo> -F n=<num> \
-    --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'
+  # 2. unresolved review threads — a hard blocker wherever required_conversation_resolution
+  #    is on. Read the count off the result line; a non-zero one names the paths above it.
+  "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <num>
   # 3. dismissed/missing approval — reviewDecision is in the JSON the watcher
   #    printed; null means no review is required on this repo at all
   ```
