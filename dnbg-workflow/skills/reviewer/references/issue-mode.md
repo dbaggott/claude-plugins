@@ -83,10 +83,9 @@ A verdict on a draft spends the attention that signal is asking you to withhold,
 and a `--request-changes` leaves threads the author has to resolve on work still
 in progress.
 
-This applies to the **discovered** set only — hold these back without asking.
-A draft the operator *names* is `SKILL.md`'s "If the PR is a draft, ask before
-reviewing", which fires a picker instead, because naming one PR is a request
-about that PR in a way a discovery sweep is not.
+This applies to the **discovered** set only — hold these back without asking. A
+draft the operator *names* gets the picker in `SKILL.md`'s "If the PR is a draft,
+ask before reviewing".
 
 Watch a held-back draft rather than dropping it, arming the ready check:
 
