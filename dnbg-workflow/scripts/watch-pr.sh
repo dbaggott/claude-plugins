@@ -5,12 +5,36 @@
 # re-reviews/responds and re-arms it. Detects new commits, new (non-bot)
 # reviews/comments/replies, a draft being marked ready, and the PR closing.
 #
-#   watch-pr.sh <owner/repo> <pr> <last_head_sha> <since_iso> <bot_slug> [--was-draft]
+#   watch-pr.sh <owner/repo> <pr> <last_head_sha> <since_iso> <bot_slug> \
+#     [--was-draft] [--last-verdict=<sha>]
 #   watch-pr.sh --issue [--exclude=<url,url,...>] <owner/repo> <issue> "" <since_iso> <slug>
 #
 # last_head_sha is a FULL 40-character lowercase SHA, or empty. Anything else is
 # rejected as bad-args rather than compared — see the check below for why an
 # abbreviated one is worse than no baseline at all.
+#
+# --last-verdict=<sha> makes verdict detection LEVEL-triggered, the way the head
+# comparison already is. Commits are detected by comparing state (`last_head_sha`
+# against what GitHub reports), so a push during a gap in watching is still seen
+# on the next poll; reviews are counted against `since_iso`, so a verdict posted
+# while no watch was running — or before the `since_iso` a re-arm was given — is
+# invisible for good, and the watch then reports IDLE, which reads as a quiet PR.
+# A missed push self-heals; a missed verdict does not.
+#
+# The value is the SHA the CALLER last handled a verdict for: empty (`--last-verdict=`)
+# means none, and is the right value on a first arm. Each poll reads the standing
+# verdict; if it is attached to the current HEAD and its SHA is not the one passed
+# in, the watch wakes regardless of `since_iso`. So a verdict can only be lost by
+# the caller saying it already handled that one — which is what the reported
+# `verdict_sha=` field is for. Re-arm with it, or the next watch wakes on the same
+# verdict immediately, forever.
+#
+# Omitting the flag leaves verdict detection edge-triggered, as before.
+#
+# Two things it deliberately does not cover, both of which the edge trigger still
+# catches whenever a watch is actually running: a second verdict at the SAME SHA
+# (an APPROVED reversed to CHANGES_REQUESTED without a push), and a verdict left
+# behind by a push, which is stale by construction and needs a fresh review anyway.
 #
 # bot_slug is the App slug WITHOUT the [bot] suffix. Both forms are excluded:
 # gh pr view (GraphQL) reports a Bot author's login as `<slug>`, while gh api
@@ -28,6 +52,10 @@
 #   result=CLOSED state=MERGED|CLOSED                     # PR finished — stop watching
 #   result=IDLE now=<iso>                                 # nothing within the window — re-arm
 #   result=ERROR reason=<source> now=<iso>                # the watch itself is broken — do NOT re-arm
+#
+# COMMITS, ACTIVITY and READY carry `verdict_sha=<sha>` before `now=` when the
+# level-triggered check above fired. It is the value to re-arm `--last-verdict`
+# with; absent means that check did not fire, so carry the previous value forward.
 #
 # A bad argument reports `result=ERROR reason=bad-args` and still exits 0, rather
 # than dying silently: a caller reads a MISSING result line as "killed", so a typo
@@ -89,7 +117,30 @@ while :; do
 done
 REPO="${1:?owner/repo}"; PR="${2:?pr or issue number}"
 LAST_HEAD="${3:-}"; SINCE="${4:-1970-01-01T00:00:00Z}"; SLUG="${5:-}"
-WAS_DRAFT=0; [ "${6:-}" = "--was-draft" ] && WAS_DRAFT=1
+
+# Trailing flags, in any order, and anything unrecognised is refused.
+#
+# ⚠️ THE REFUSAL IS THE POINT, because the alternative is a flag that silently does
+# nothing. `--was-draft` used to be read as `${6:-}`, so it worked in position six and
+# was ignored everywhere else — with a second trailing flag in play, `--was-draft
+# --last-verdict=<sha>` would have armed the draft check and dropped the verdict
+# baseline, or the reverse, depending only on the order they were typed. Both are wake
+# paths, and a wake path that fails quietly is the class of bug `--exclude`'s valueless
+# form is refused to avoid.
+#
+# `shift` is bounded by `$#` because the two `${n:?}` above only guarantee two
+# arguments: `shift 5` on a three-argument call fails, which under `set -e` kills the
+# watch with no result line at all — the vanished-watch case this script must not fake.
+shift $(( $# < 5 ? $# : 5 ))
+WAS_DRAFT=0; LAST_VERDICT=""; HAVE_LAST_VERDICT=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --was-draft)       WAS_DRAFT=1 ;;
+    --last-verdict=*)  LAST_VERDICT="${1#--last-verdict=}"; HAVE_LAST_VERDICT=1 ;;
+    *)                 bad_flag=1 ;;
+  esac
+  shift
+done
 
 # One pattern per line, which is what `grep -vxF` consumes. Built once: the set is
 # fixed for the life of the watch, and re-splitting it every tick would spend the
@@ -137,20 +188,27 @@ EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' \
 # would pass a case-insensitive check and then mismatch on every single tick.
 #
 # Empty is NOT rejected: it self-heals from the first observed HEAD (see the loop), and
-# `--issue` mode passes it on purpose.
+# `--issue` mode passes it on purpose. `--last-verdict=` is empty for the same kind of
+# reason — the caller has handled no verdict yet — which is why both go through one
+# check rather than each growing its own.
+#
 # ⚠️ THE HEX CLASS IS ENUMERATED, NOT A RANGE, AND `a-f` IS THE REASON. Bracket ranges
 # are matched in COLLATION order, which under bash 3.2 — stock macOS, and what
 # `env bash` finds on a machine with no Homebrew bash — interleaves case in a UTF-8
 # locale: `a-f` spans `a A b B … f F`, so `[!0-9a-f]` does not match `A` and the
 # uppercase rejection silently becomes a no-op. Bash 4.3's `globasciiranges` fixes it
 # and 5.x defaults it on, which is why CI (ubuntu, bash 5.x) would never show this.
-# The length test below is unaffected — no locale touches `${#LAST_HEAD}`.
+# The length test is unaffected — no locale touches `${#1}`.
+sha_ok() {  # a full 40-character lowercase SHA, or empty
+  case $1 in
+    '') return 0 ;;
+    *[!0123456789abcdef]*) return 1 ;;
+    *) [ "${#1}" = 40 ] ;;
+  esac
+}
 bad_head=0
-case $LAST_HEAD in
-  '') ;;
-  *[!0123456789abcdef]*) bad_head=1 ;;
-  *) [ "${#LAST_HEAD}" = 40 ] || bad_head=1 ;;
-esac
+sha_ok "$LAST_HEAD" || bad_head=1
+sha_ok "$LAST_VERDICT" || bad_flag=1
 
 # `--exclude` outside `--issue` is refused rather than ignored. Nothing on the PR path
 # reads it, so accepting it would take an argument whose entire purpose is suppressing
@@ -158,6 +216,12 @@ esac
 # quiet PR and a disregarded exclusion produce the same IDLE. Same reasoning as the
 # valueless form above: on this path an argument that cannot do its job is bad-args.
 [ "$ISSUE_MODE" = 0 ] && [ -n "$EXCLUDE" ] && bad_flag=1
+
+# ...and `--last-verdict` inside it, for the mirror-image reason: an issue has no
+# reviews and no HEAD, so nothing on that path could ever read the baseline. Accepting
+# it would take an argument whose whole purpose is guaranteeing a wake and guarantee
+# nothing, and the caller sees the same IDLE either way.
+[ "$ISSUE_MODE" = 1 ] && [ "$HAVE_LAST_VERDICT" = 1 ] && bad_flag=1
 
 if [ "$bad_flag" = 1 ] || { [ "$ISSUE_MODE" = 0 ] && { [ -z "$SLUG" ] || [ "$bad_head" = 1 ]; }; }; then
   # ⚠️ A RESULT LINE, NOT `_poll_die`, AND THE DIFFERENCE MATTERS HERE MORE THAN
@@ -214,17 +278,23 @@ report_error() {
 # which must not silently drop a burst it can no longer confirm quiet.
 report_burst() {
   if [ "$saw_commits" = 1 ]; then
-    echo "result=COMMITS new_head=$new_head activity=$saw_activity now=$(poll_now_iso)"
+    echo "result=COMMITS new_head=$new_head activity=$saw_activity$(verdict_field) now=$(poll_now_iso)"
   else
-    echo "result=ACTIVITY activity=1 now=$(poll_now_iso)"
+    echo "result=ACTIVITY activity=1$(verdict_field) now=$(poll_now_iso)"
   fi
   exit 0
 }
 
+# The SHA to re-arm `--last-verdict` with, printed only when the level-triggered
+# check fired. Absent rather than empty on every other result: an empty field would
+# be indistinguishable from "no verdict handled", and a caller reading it back would
+# discard the baseline it already holds and wake on that same verdict next arm.
+verdict_field() { [ -n "$verdict_sha" ] && printf ' verdict_sha=%s' "$verdict_sha" || true; }
+
 # What the burst contained. `obs_*` track the last values already accounted for,
 # so a *second* push or reply during the window registers as new and extends it
 # rather than re-reporting the same one forever.
-saw_commits=0; saw_activity=0; new_head=""
+saw_commits=0; saw_activity=0; new_head=""; verdict_sha=""
 obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0
 settle_until=0; settle_cap=0
 # Initialised here, not left to the per-tick assignment: the unreachable-gh path
@@ -527,6 +597,43 @@ while :; do
   if [ "${NEW:-0}" -gt "$obs_new" ];   then saw_activity=1; obs_new="$NEW";   changed=1; fi
   if [ "${NEWC:-0}" -gt "$obs_newc" ]; then saw_activity=1; obs_newc="$NEWC"; changed=1; fi
 
+  # The standing verdict, compared against what the caller says it handled — the
+  # level-triggered half described at the top of this file. `$SINCE` is not consulted,
+  # which is the whole point: this is what survives a window where no watch was running.
+  #
+  # ⚠️ THE BOT'S OWN VERDICTS ARE EXCLUDED, AND WITHOUT THAT THIS WAKES `reviewer` ON ITS
+  # OWN REVIEW — the self-triggering loop the `<bot_slug>` argument exists to prevent,
+  # arriving through the one check that ignores `$SINCE` and so cannot age out of it.
+  # The exclusion is a no-op on the author side, where the slug is the author's own login
+  # and GitHub does not let an author verdict their own PR.
+  #
+  # ⚠️ `COMMENTED` IS NOT A VERDICT and must stay out of the set: a reviewer answering a
+  # thread posts one, so counting it would wake on every exchange. `DISMISSED` is in it
+  # because a dismissal genuinely ends the review it dismissed. Same set, same reasoning,
+  # as pr-verdict.sh — `tests/coupling.bats` pins the two together.
+  #
+  # `last`, not "the last APPROVED": an APPROVED followed by a CHANGES_REQUESTED at the
+  # same SHA is not an approval, and this must wake on the same event pr-verdict.sh
+  # reports. Unguarded jq for the reason the `NEW` query above gives — the shape gate
+  # has already proved the payload parses, and `[]?`/`//` cover a missing field.
+  if [ "$HAVE_LAST_VERDICT" = 1 ]; then
+    VSHA=$(echo "$J" | jq -r --arg slug "$SLUG" '
+      def mine: . == $slug or . == ($slug + "[bot]");
+      [ .reviews[]?
+        | select((.author.login | mine | not)
+                 and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"
+                      or .state == "DISMISSED")) ]
+      | last | .commit.oid // ""')
+    # At HEAD only. A verdict the author has since pushed past is stale by construction
+    # — it needs a fresh review, which arrives as a new verdict at the new HEAD — and
+    # waking on it would fire after every push, on feedback the caller already handled.
+    if [ -n "$VSHA" ] && [ "$VSHA" = "$HEAD" ] && [ "$VSHA" != "$LAST_VERDICT" ]; then
+      # Advancing the baseline is what keeps this from re-firing on every tick for the
+      # life of the watch — the same ratchet `obs_*` are, for the same reason.
+      saw_activity=1; verdict_sha="$VSHA"; LAST_VERDICT="$VSHA"; changed=1
+    fi
+  fi
+
   # Draft -> ready. Marking a PR ready is neither a push nor a review nor a
   # comment, so without this the transition is invisible and a deliberately
   # skipped draft would only be noticed on its next push — or never. Pass
@@ -535,7 +642,7 @@ while :; do
   # Reported immediately rather than settled: a draft going ready is the signal to
   # start a first review, and nothing else in the burst changes that.
   if [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = false ]; then
-    echo "result=READY new_head=$HEAD activity=$saw_activity now=$(poll_now_iso)"; exit 0
+    echo "result=READY new_head=$HEAD activity=$saw_activity$(verdict_field) now=$(poll_now_iso)"; exit 0
   fi
 
   # A draft we are deliberately holding back is not reportable. Without this a

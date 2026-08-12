@@ -380,6 +380,31 @@ gh api repos/x/issues/<n>/timeline --paginate
   [ "$status" -eq 0 ]
 }
 
+# What counts as a verdict is asked in two places that cannot share a query: `pr-verdict.sh`
+# fetches its own payload, while `watch-pr.sh`'s level-triggered check reads the `reviews`
+# already in the poll it just made — a CLI boundary there would double the request rate of
+# every tick. So the SET is what has to stay pinned, and it is exactly the kind that drifts
+# quietly: adding a state to one side leaves the watch waking on something the author's
+# ready-to-merge check does not treat as a verdict, or missing one it does.
+#
+# Same extraction rule as above — run lines only, no comments. Both files have to NAME the
+# excluded states to explain themselves, and a grep over whole files would read those
+# explanations as agreement no matter what the queries did.
+verdict_states() {  # <file>
+  pr_command_lines "$1" \
+    | grep -oE 'APPROVED|CHANGES_REQUESTED|DISMISSED|COMMENTED' | sort -u
+}
+
+@test "the watcher and pr-verdict.sh agree on what a verdict is" {
+  local a b
+  a=$(verdict_states "$ROOT/dnbg-workflow/scripts/pr-verdict.sh")
+  b=$(verdict_states "$ROOT/dnbg-workflow/scripts/watch-pr.sh")
+  echo "pr-verdict.sh: $(echo "$a" | tr '\n' ' ')"
+  echo "watch-pr.sh:   $(echo "$b" | tr '\n' ' ')"
+  [ -n "$a" ]
+  [ "$a" = "$b" ]
+}
+
 # Two conventions that a suite opts into by `load`ing a file, and whose absence is
 # invisible from inside the suite that forgot: a watch spawned without `trace-dir`
 # files its trace in the DEVELOPER'S real directory, and one spawned without `reap`
