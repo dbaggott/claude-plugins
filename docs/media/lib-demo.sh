@@ -73,6 +73,7 @@ picker_lines() {  # [-s <n>] <question> <option>...
   local sel=1
   [ "${1:-}" = "-s" ] && { sel="$2"; shift 2; }
   local q="$1"; shift
+  (( sel >= 1 && sel <= $# )) || { echo "picker_lines: -s $sel with $# options" >&2; exit 1; }
   PICKER=()
   PICKER+=("${C_DIM}╭─${C_OFF} ${C_USER}${q}${C_OFF}")
   local i=1 opt

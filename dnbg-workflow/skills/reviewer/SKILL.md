@@ -82,7 +82,8 @@ draft, then call `AskUserQuestion` (the tool auto-appends "Other"):
    it leaves draft."
 
 On 1, carry on with the flow below. On 2, post nothing now: arm the watch with
-`--was-draft` (see "Watch the PR") and review when it reports `READY`.
+`--was-draft` (see "Watch the PR") and review when it reports `READY`. In an
+unattended run there is nobody to answer: take option 2 and say so.
 
 Skip the picker when they have already answered — "review it even though it's a
 draft", "review it once it's ready" — and don't replace it with a prose question.
