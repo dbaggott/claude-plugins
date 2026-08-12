@@ -38,19 +38,15 @@ teardown() { rm -rf "$TMP"; }
 # written by `hook_env_setup`: absent is the broken-install shape, so every suite
 # that says nothing about the stamp exercises the silent-no-op path for free.
 #
-# ⚠️ Moving this into `hook_env_setup` would loosen four assertions at once with
-# nothing left to catch it. Every `= "$RULES_TEXT"` equality depends on the
-# manifest being absent — three in `inject-rules.bats` (the two "says nothing
-# about ..." tests and "says nothing when a knob is set to the value it already
-# had") and one in `inject-rules-subagent.bats` ("carries the payload under
-# additionalContext"). They are now the only tests pinning that a default
-# install emits nothing beyond the rules: "round-trips the real rules file" used
-# to pin it too and no longer can, since the stamp fires against the real
-# manifest and it compares a prefix instead.
+# ⚠️ Moving this into `hook_env_setup` would silently convert the two "the
+# manifest is missing" tests in `inject-rules.bats` into tests of a manifest that
+# is present, and each would still pass — the stamp is opt-in, so a run that
+# never sets the option emits nothing either way. A test that cannot fail is
+# worse than an absent one, because the coverage still reads as present.
 #
-# Named by what they assert rather than by line number, which drifts, and rather
-# than by title alone — `grep '= "\$RULES_TEXT"' tests/` is the check, and it is
-# what to re-run before concluding this warning is overcautious.
+# The stamp's gate is the option, so pair this with `run_hook_stamped_at` below:
+# a manifest alone produces no stamp, and the option alone has no version to
+# name.
 write_manifest() {  # <version> [name]
   mkdir -p "$ROOT/.claude-plugin"
   printf '{"name":"%s","version":"%s"}\n' "${2-dnbg-workflow}" "$1" \
@@ -80,4 +76,17 @@ run_hook_at() {  # <hook> [plugin-root]
 run_hook_configured_at() {  # <hook> <worktree-path> <claim-label>
   run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="$ROOT" \
     CLAUDE_PLUGIN_OPTION_WORKTREE_PATH="$2" CLAUDE_PLUGIN_OPTION_CLAIM_LABEL="$3" "$1"
+}
+
+# The stamp is opt-in, so every test that expects one has to ask for it — which
+# is the point of a separate helper rather than a value baked into `run_hook_at`.
+# A default-on harness would leave the off-by-default behavior pinned by nothing,
+# and that default is the whole feature: the stamp lands on artifacts other
+# people read.
+#
+# Takes the option's value rather than hardcoding `true`, so the tests that pin
+# what does *not* count as a yes go through the same path a real session does.
+run_hook_stamped_at() {  # <hook> [option-value] [plugin-root]
+  run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="${3-$ROOT}" \
+    CLAUDE_PLUGIN_OPTION_VERSION_STAMP="${2-true}" "$1"
 }

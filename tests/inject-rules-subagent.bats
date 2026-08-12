@@ -24,6 +24,7 @@ setup() { hook_env_setup; }
 
 run_hook() { run_hook_at "$HOOK" "$@"; }
 run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
+run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
 
 # The injected text, decoded back out of the envelope. Every content assertion
 # goes through this rather than grepping the raw JSON: a grep for `Test rule`
@@ -66,18 +67,34 @@ context_of() {  # <hook stdout>
   # the stamp missing from both.
   stub_path jq
   write_manifest 2026.8.32
-  run_hook
+  run_hook_stamped
   [ "$status" -eq 0 ]
   [[ "$(context_of "$output")" == *"## dnbg-workflow 2026.8.32"* ]]
+}
+
+@test "carries the opt-out through the envelope too" {
+  # The option reaches a subagent's hook the same way it reaches the session's,
+  # so a subagent must not stamp what its parent was told not to. Both halves are
+  # env vars on the same process, and nothing else would notice them disagreeing.
+  stub_path jq
+  write_manifest 2026.8.32
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$(context_of "$output")" != *"2026.8.32"* ]]
 }
 
 # --- the shared payload ------------------------------------------------------
 
 @test "injects exactly what the session-start payload script emits" {
+  # Run with the stamp on and a manifest to read, so both sides have every
+  # optional block in play. With neither, the two payloads agree on the rules
+  # file alone and the comparison proves almost nothing.
   stub_path jq
-  run_hook
+  write_manifest 2026.8.32
+  run_hook_stamped
   local direct
-  direct="$(env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="$ROOT" "$PAYLOAD_SCRIPT")"
+  direct="$(env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="$ROOT" \
+    CLAUDE_PLUGIN_OPTION_VERSION_STAMP=true "$PAYLOAD_SCRIPT")"
   [ "$(context_of "$output")" = "$direct" ]
 }
 
@@ -129,15 +146,15 @@ context_of() {  # <hook stdout>
 }
 
 @test "round-trips the real rules file" {
-  # Pointed at the real plugin, so the real manifest is readable and the payload
-  # is the rules file *followed by* the version stamp. Compare the leading
-  # portion: what this test is about is the real file's markdown surviving JSON
-  # encoding, and the stamp is pinned separately above.
+  # Pointed at the real plugin, so the bytes under test are the ones a real
+  # session gets rather than this suite's two-line fixture. Nothing is configured
+  # and the stamp is off, which is a default install — so the payload is the
+  # rules file and nothing else, and the comparison can be exact.
   local rules="${BATS_TEST_DIRNAME}/../dnbg-workflow/always-on-rules.md"
   stub_path jq
   run_hook "${BATS_TEST_DIRNAME}/../dnbg-workflow"
   [ "$status" -eq 0 ]
-  diff <(context_of "$output" | head -n "$(wc -l < "$rules")") "$rules"
+  diff <(context_of "$output") "$rules"
 }
 
 @test "escapes control characters rather than emitting them raw" {

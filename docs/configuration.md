@@ -1,11 +1,13 @@
 # Configuration
 
-Three values, all optional. Leave every one of them alone and the plugin still
-works — it loads its skills and rules, advises, and blocks nothing.
+Four values, all optional. Leave every one of them alone and the plugin still
+works — it loads its skills and rules, advises, blocks nothing, and publishes
+nothing you didn't write.
 
 - [Install scope](#install-scope) — which of two adoption modes you're in
 - [`owners`](#owners--which-repos-it-enforces-on) — **the only setting that turns the hooks on**
 - [`worktree_path` and `claim_label`](#the-mechanical-opinions) — two names you can change
+- [`version_stamp`](#version_stamp--recording-which-prompts-published-what) — off by default; adds a hidden version marker to what you publish
 - [The reviewer bot's private key](#the-reviewer-bots-private-key) — where it is read from
 
 ## Install scope
@@ -51,8 +53,8 @@ trying the plugin in a repo without committing anything.)
 ## `owners` — which repos it enforces on
 
 **This is what turns the hooks on, and it only matters in Mode A.** It is the
-first of the three values Claude Code prompts for at enable time — the other two
-are below, and neither of them turns anything on or off:
+first of the four values Claude Code prompts for at enable time — the other three
+are below, and none of them turns any *enforcement* on or off:
 
 | Setting | Meaning |
 | --- | --- |
@@ -116,6 +118,45 @@ PR title tag, and "only a human merges". Those are what the workflow *does*
 rather than parameters of it — the tag in particular is a join key, so a
 per-adopter format would destroy the signal exactly when someone is reading a PR
 list across repos.
+
+## `version_stamp` — recording which prompts published what
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `version_stamp` | off | Append `<!-- dnbg-workflow <version> -->` to PR descriptions, review bodies, and issue claim comments |
+
+Turn it on and three surfaces carry an HTML comment naming the plugin and the
+version that produced them: the PR description `git-workflow` writes, the review
+body `reviewer` posts, and the claim comment `issue-workflow` leaves on an issue.
+It renders invisibly, so nobody reading the PR sees it, and
+`gh pr view <n> --json body` is enough to read it back out.
+
+**It answers a question nothing else can.** A transcript records the plugin's
+*name* and Claude Code's version, never the plugin's own, and transcripts expire
+on a rolling window while a merged PR does not. So without the stamp, "which
+version of these prompts wrote this review" has no answer six months later —
+which matters exactly when you have changed a skill and want to know whether the
+PRs that went sideways predate the fix.
+
+**It is off by default because the stamp lands on other people's screens.** Every
+other value here changes how the plugin behaves on your machine; this one adds
+text to artifacts published under your name, in repos you may share with people
+who never installed this plugin and did not agree to carry a marker for it.
+Something with that reach should be something you switched on, and a default of
+off costs only the provenance you didn't ask for. The same reasoning sets the
+failure direction: a value the hook can't make sense of leaves the stamp **off**
+rather than on.
+
+Two things it is not. It is **not** a per-repo setting — like every value here it
+is read from your **user** `settings.json`, so it is on for all your repos or
+none. And it does **not** stamp commits, issue bodies, or inline review comments;
+only the three surfaces above, each of which is a single artifact whose author is
+already you.
+
+When it's off, the session-start note that carries the version is not emitted at
+all, and the three skills treat its absence as "don't stamp". They will not
+substitute a version from the manifest or from memory — a guessed version reads
+downstream exactly like a genuine one, so the skills would rather leave the gap.
 
 ## Opting a repo into `velocity-tradeoff`
 

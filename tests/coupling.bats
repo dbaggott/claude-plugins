@@ -197,19 +197,55 @@ EOF
   }
 }
 
+# `version_stamp` is pinned separately rather than as a third arm above, because
+# it has no lib.sh constant to compare against: it is a gate, and what an
+# unconfigured session does is decided by how `version_stamp_enabled` reads an
+# unset variable. A constant nothing consults would pin nothing.
+#
+# Its default is also the one here that is a safety property rather than a
+# convenience — it puts text on PR descriptions, review bodies and issue comments
+# that people who never installed this plugin will read. A dialog pre-ticked to
+# on would opt every existing install in at the next update, which no amount of
+# documentation undoes after the fact.
+@test "the version stamp defaults to off on both sides" {
+  local manifest="$ROOT/dnbg-workflow/.claude-plugin/plugin.json"
+  # shellcheck source=../dnbg-workflow/hooks/lib.sh
+  . "$ROOT/dnbg-workflow/hooks/lib.sh"
+
+  [ "$(jq -r '.userConfig.version_stamp.default' "$manifest")" = "false" ] || {
+    echo "the manifest offers the version stamp pre-enabled"
+    false
+  }
+  # The resolver, not the constant: what an unconfigured session gets is decided
+  # by how the resolver reads an unset variable, and a constant nothing consults
+  # would pin nothing.
+  ( unset CLAUDE_PLUGIN_OPTION_VERSION_STAMP; ! version_stamp_enabled ) || {
+    echo "an unconfigured session stamps"
+    false
+  }
+}
+
 # The exclusion decision in reverse. "Configurable opinions with opinionated
 # defaults" draws its line at mechanical-vs-behavioral, and the behavioral side —
 # drafts always, the send-to-review picker and its fixed option order, the
 # `[<branch-name>]` sibling title tag, "only a human merges" — is meant to have no
-# key at all. Nothing else notices a fourth key appearing, so the surface is
+# key at all. Nothing else notices a fifth key appearing, so the surface is
 # pinned by equality: a new knob is a decision to make deliberately, and this is
 # the test that makes someone make it.
-@test "the plugin exposes exactly the three intended configuration keys" {
+#
+# `version_stamp` is the one key that is neither a mechanical name nor a
+# workflow step, and it earns its place on a third ground: it is the only setting
+# that changes what this plugin writes onto artifacts *other people* read. A
+# switch over what gets published under the operator's name is theirs to hold
+# whichever way it defaults, so it is a key rather than an opinion. Read that as
+# the narrow exception it is — "the operator might prefer otherwise" is not one,
+# or every behavioral choice above qualifies.
+@test "the plugin exposes exactly the four intended configuration keys" {
   local keys
   keys=$(jq -r '.userConfig | keys_unsorted[]' "$ROOT/dnbg-workflow/.claude-plugin/plugin.json" | sort | tr '\n' ' ')
-  [ "$keys" = "claim_label owners worktree_path " ] || {
+  [ "$keys" = "claim_label owners version_stamp worktree_path " ] || {
     echo "userConfig keys are: $keys"
-    echo "adding one means deciding it is mechanical rather than behavioral — see docs/configuration.md"
+    echo "adding one means deciding it is mechanical, or that it governs what gets published — see docs/configuration.md"
     false
   }
 }

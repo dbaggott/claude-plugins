@@ -17,6 +17,7 @@ setup() { hook_env_setup; }
 
 run_hook() { run_hook_at "$HOOK" "$@"; }
 run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
+run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
 
 # --- rule injection ----------------------------------------------------------
 
@@ -42,13 +43,66 @@ run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
 # plugin's name and Claude Code's version, never this plugin's — so if the hook
 # stops emitting it, the attribution is lost silently and only shows up as a gap
 # in analysis months later.
+#
+# It is opt-in, and the off cases below are the ones worth breaking a build over.
+# Everything else here is one operator's own session; the stamp is text appended
+# to a PR description, a review body and an issue comment, all of which land in
+# front of people who never installed this plugin. Publishing that unasked is not
+# recoverable the way a missing stamp is.
 
-@test "emits the plugin version when the manifest is readable" {
+@test "emits the plugin version when the stamp is on and the manifest readable" {
+  stub_path jq git gh
+  write_manifest 2026.8.32
+  run_hook_stamped
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"## dnbg-workflow 2026.8.32"* ]]
+}
+
+@test "emits no stamp when the option is unset, manifest or no manifest" {
+  # The default, and the reason the feature is a knob at all. A readable manifest
+  # is exactly the state a real install is in, so if the gate ever inverts this
+  # is the test that says so.
   stub_path jq git gh
   write_manifest 2026.8.32
   run_hook
   [ "$status" -eq 0 ]
-  [[ "$output" == *"## dnbg-workflow 2026.8.32"* ]]
+  [[ "$output" == *"Always do the thing."* ]]
+  [[ "$output" != *"2026.8.32"* ]]
+}
+
+@test "treats anything that is not an affirmative as off" {
+  # The gate reads the affirmative rather than rejecting known-bad values, so a
+  # value it does not understand has to leave the stamp off. `false` is what the
+  # boolean option exports when the operator unticks the box; the rest stand in
+  # for a hand-edited `pluginConfigs` and for a typo.
+  stub_path jq git gh
+  write_manifest 2026.8.32
+  local value
+  for value in false FALSE 0 no off '' 'true '; do
+    run_hook_stamped "$value"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"2026.8.32"* ]] || {
+      echo "stamped on option value '$value', which is not an affirmative"
+      return 1
+    }
+  done
+}
+
+@test "accepts the affirmative spellings a config can produce" {
+  # `true` is what the boolean option type exports; `1` covers a value written
+  # into `pluginConfigs` by hand. Case-insensitive because neither source
+  # guarantees one.
+  stub_path jq git gh
+  write_manifest 2026.8.32
+  local value
+  for value in true TRUE True 1; do
+    run_hook_stamped "$value"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"## dnbg-workflow 2026.8.32"* ]] || {
+      echo "did not stamp on option value '$value', which is an affirmative"
+      return 1
+    }
+  done
 }
 
 @test "names the plugin the manifest names, not this one" {
@@ -57,7 +111,7 @@ run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
   # is worse than no stamp, because nothing downstream can tell them apart.
   stub_path jq git gh
   write_manifest 2026.44 qhcorp-workflow
-  run_hook
+  run_hook_stamped
   [ "$status" -eq 0 ]
   [[ "$output" == *"## qhcorp-workflow 2026.44"* ]]
   [[ "$output" != *"dnbg-workflow 2026.44"* ]]
@@ -70,7 +124,7 @@ run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
   # than a malformed one — a gap logged in the wrong place.
   stub_path jq git gh
   write_manifest 2026.8.32
-  run_hook
+  run_hook_stamped
   [ "$status" -eq 0 ]
   [[ "$output" == *'`<!-- dnbg-workflow 2026.8.32 -->`'* ]]
 }
@@ -81,16 +135,17 @@ run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
   stub_path jq git gh
   mkdir -p "$ROOT/.claude-plugin"
   printf '{"name":"dnbg-workflow"}\n' > "$ROOT/.claude-plugin/plugin.json"
-  run_hook
+  run_hook_stamped
   [ "$status" -eq 0 ]
   [[ "$output" == *"Always do the thing."* ]]
   [[ "$output" != *"## dnbg-workflow"* ]]
 }
 
 @test "stays silent about the version when the manifest is missing" {
-  # A broken install loses the stamp, not the rules.
+  # A broken install loses the stamp, not the rules — and asking for the stamp
+  # does not conjure a version from anywhere else.
   stub_path jq git gh
-  run_hook
+  run_hook_stamped
   [ "$status" -eq 0 ]
   [[ "$output" == *"Always do the thing."* ]]
   [[ "$output" != *"## dnbg-workflow "* ]]
@@ -101,7 +156,7 @@ run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
   # the stamp too is the acceptable half; losing the rules with it is not.
   stub_path git gh
   write_manifest 2026.8.32
-  run_hook
+  run_hook_stamped
   [ "$status" -eq 0 ]
   [[ "$output" == *"Always do the thing."* ]]
   [[ "$output" != *"2026.8.32"* ]]

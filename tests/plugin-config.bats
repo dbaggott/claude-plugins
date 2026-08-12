@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 #
-# The two mechanical knobs, at the level where they resolve: lib.sh.
+# The two mechanical knobs and the version-stamp gate, at the level where they
+# resolve: lib.sh.
 #
 # What makes these worth pinning is that the fallback is *ours*. The manifest's
 # `default` field looks like it supplies one and does not — an option nobody has
@@ -15,7 +16,8 @@ LIB="${BATS_TEST_DIRNAME}/../dnbg-workflow/hooks/lib.sh"
 setup() {
   # shellcheck source=../dnbg-workflow/hooks/lib.sh
   . "$LIB"
-  unset CLAUDE_PLUGIN_OPTION_WORKTREE_PATH CLAUDE_PLUGIN_OPTION_CLAIM_LABEL
+  unset CLAUDE_PLUGIN_OPTION_WORKTREE_PATH CLAUDE_PLUGIN_OPTION_CLAIM_LABEL \
+    CLAUDE_PLUGIN_OPTION_VERSION_STAMP
 }
 
 # Each resolve runs in a subshell with the option set, so a configured value can
@@ -29,6 +31,15 @@ with_worktree_path() {  # <value>
 
 with_claim_label() {  # <value>
   ( export CLAUDE_PLUGIN_OPTION_CLAIM_LABEL="$1"; resolve_claim_label )
+}
+
+# Same subshell discipline, but the answer is an exit status rather than output,
+# so this prints one of two words for a `[ ... = ... ]` to compare. A bare
+# `with_version_stamp x` under `[ ... ]` would test the *string*, which is
+# non-empty either way and passes on both.
+with_version_stamp() {  # <value>
+  ( export CLAUDE_PLUGIN_OPTION_VERSION_STAMP="$1"
+    if version_stamp_enabled; then echo on; else echo off; fi )
 }
 
 # --- defaults ----------------------------------------------------------------
@@ -177,4 +188,39 @@ with_claim_label() {  # <value>
   [[ "$(worktree_path_rejection '/tmp/wt')" == *"absolute"* ]]
   [[ "$(worktree_path_rejection '../wt')" == *".."* ]]
   [[ "$(claim_label_rejection 'in-progress')" == *"assigned:"* ]]
+}
+
+# --- the version stamp -------------------------------------------------------
+#
+# A gate, not a value, and the only knob here whose wrong answer is visible to
+# other people: it appends a marker to PR descriptions, review bodies and issue
+# comments. So it reads the affirmative and everything else means off — the
+# opposite shape to the two knobs above, which take a configured value and fall
+# back only on a rejection.
+
+@test "an unconfigured session does not stamp" {
+  ! version_stamp_enabled
+}
+
+@test "the affirmative spellings a config can produce all turn it on" {
+  # `true` is what the manifest's `boolean` type exports; `1` covers a value
+  # written into `pluginConfigs` by hand. Case-insensitive because neither
+  # source guarantees one.
+  [ "$(with_version_stamp true)" = on ]
+  [ "$(with_version_stamp TRUE)" = on ]
+  [ "$(with_version_stamp True)" = on ]
+  [ "$(with_version_stamp 1)" = on ]
+}
+
+@test "everything else is off, including values that look like a yes" {
+  # `false` is what unticking the box exports. The rest are the shapes a
+  # hand-written or typo'd value takes — and none may be read as consent,
+  # because the stamp publishes under the operator's name.
+  [ "$(with_version_stamp false)" = off ]
+  [ "$(with_version_stamp FALSE)" = off ]
+  [ "$(with_version_stamp 0)" = off ]
+  [ "$(with_version_stamp '')" = off ]
+  [ "$(with_version_stamp yes)" = off ]
+  [ "$(with_version_stamp on)" = off ]
+  [ "$(with_version_stamp 'true ')" = off ]
 }

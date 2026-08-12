@@ -175,7 +175,7 @@ anything sharing a row arrives together.
 
 Nothing is enforced until you say where: the hooks block only in repos whose
 owner you list in `owners`, and with it empty they never fire. That setting, the
-install scopes, and two configurable names are in
+install scopes, two configurable names, and an opt-in version stamp are in
 [configuration](docs/configuration.md). Requirements — a Claude Code floor and
 six command-line tools — are in [requirements](docs/requirements.md).
 
@@ -230,7 +230,7 @@ has the detail, and an issue first is always cheaper than a declined PR.
 | | |
 | --- | --- |
 | [Requirements](docs/requirements.md) | Claude Code floor, the six CLI tools, platforms |
-| [Configuration](docs/configuration.md) | Install scopes, `owners`, the two configurable names, the reviewer key |
+| [Configuration](docs/configuration.md) | Install scopes, `owners`, the two configurable names, the version stamp, the reviewer key |
 | [Forge support](docs/forge-support.md) | Per-forge matrix, and what declining looks like |
 | [Releases](docs/releases.md) | Updating, auto-update, CalVer, installing a specific version |
 | [Security](SECURITY.md) | Threat model, what the hooks see, reporting a vulnerability |
