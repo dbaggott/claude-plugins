@@ -44,12 +44,13 @@ the user what didn't fit and offer to file an issue upstream — the
 maintainer asks for these reports, and the destination is the
 `repository` field of this plugin's own
 `.claude-plugin/plugin.json`. Never file it under the user's
-identity without their consent — it is theirs to decide, and no
-user present means no filing; `issue-workflow` carries the rest. A
-hook that *blocks* you is working as intended — satisfy it, don't
-route around it. Never edit the installed copy under
-`~/.claude/plugins/`: unreviewed, invisible to everyone else, and
-gone at the next update.
+identity without their consent, and only after they approve the
+exact text, written from the generic case — no user present means
+no filing. `issue-workflow` carries the rest. A hook that *blocks*
+you is working as intended — satisfy it, don't route around it.
+Never edit the installed copy under `~/.claude/plugins/`:
+unreviewed, invisible to everyone else, and gone at the next
+update.
 
 ## Reference issues and PRs by full URL
 

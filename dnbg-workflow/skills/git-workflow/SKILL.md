@@ -179,9 +179,9 @@ The path reaches out of this skill's directory on purpose: the script is shared 
 
 **Do not hand-roll this loop.** Three ways a hand-written version goes wrong that are not obvious until they bite:
 
-- It polled for a review **on the current head SHA**. That is right after you push a fix, and wrong after you answer a reviewer in threads — replying moves nothing, so the filter matches the review you already handled and wakes you with stale news dressed as a fresh verdict.
+- It polls for a review **on the current head SHA**. That is right after you push a fix, and wrong after you answer a reviewer in threads — replying moves nothing, so the filter matches the review you already handled and wakes you with stale news dressed as a fresh verdict.
 - The fifth argument is the login whose activity to **ignore** — your own. This is load-bearing, not padding: replying to a review thread registers as a *review event authored by you*, with an empty body and state `COMMENTED`, so without it your own reply satisfies the wait and reports a PR as reviewed when nobody has looked. The script also handles the two spellings GitHub uses for the same bot (`<slug>` via GraphQL, `<slug>[bot]` via REST), which a hand-written filter reliably gets wrong.
-- It returned on the first thing it saw. A round is a **burst** — a reviewer files a verdict and several inline comments — and returning early is *lossy* rather than merely mis-ordered, because you re-arm with `since` set to now and anything unread is filtered out permanently. The script settles before reporting.
+- It returns on the first thing it sees. A round is a **burst** — a reviewer files a verdict and several inline comments — and returning early is *lossy* rather than merely mis-ordered, because you re-arm with `since` set to now and anything unread is filtered out permanently. The script settles before reporting.
 
 Being a file rather than a fenced block is itself part of the fix: `shellcheck` covers `scripts/`, and covers nothing inside a `.md`.
 
