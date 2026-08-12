@@ -34,14 +34,15 @@ change sits on `main`, invisible to existing installs, until some later release
 of that plugin happens to carry it along. That could be months.
 
 Because the failure is silent and unbounded, it is enforced rather than
-suggested: `ci.yml`'s `changelog-fragment` job fails any PR that touches a
-plugin's directory without adding a fragment.
+suggested: the changelog step in `ci.yml`'s `lint` job fails any PR that touches
+a plugin's directory without adding a fragment.
 
 **The escape hatch is the `no-changelog` label**, for changes with genuinely no
 user-visible effect — a comment fix inside a skill, a CI tweak that happens to
-touch a plugin directory. The release workflow applies it to its own PR, which
-edits every released plugin's manifest immediately after consuming its
-fragments and could otherwise never merge.
+touch a plugin directory. The release workflow's own PR needs the same exemption
+— it edits every released plugin's manifest immediately after consuming that
+plugin's fragments — but gets it from its `auto-release/` branch prefix rather
+than the label, which would cost a duplicate CI run to apply.
 
 ## Format
 

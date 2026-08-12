@@ -5,54 +5,78 @@ name: CI
 # calls, so a silent bash typo is high blast radius. Catching it pre-merge is
 # much nicer than catching it in someone else's terminal.
 #
-# Fanout jobs do the actual work, and a single `ci-required` job aggregates them
-# via `needs:`. Adding a new gating check means adding it to `ci-required.needs`
-# here — the branch-protection config only ever names the umbrella, so it never
-# has to learn about individual jobs.
+# Two working jobs and an aggregator. `lint` holds every static check as a
+# step; `hook-tests` stands alone because it runs longer than all of them
+# combined and is the one check a release PR can skip outright. `ci-required`
+# aggregates both via `needs:` — the branch-protection config only ever names
+# the umbrella, so it never has to learn about individual jobs. A new gating
+# check is a step in `lint` unless it is slow or independently skippable; a new
+# *job* also has to be added to `ci-required.needs`.
+#
+# Steps rather than jobs for the static checks, because Actions bills each job
+# rounded up to the whole minute. Those checks total well under a minute of
+# real work between them, so splitting them across jobs costs a billed minute
+# apiece to buy a few seconds of parallelism. Keep them as steps.
 
 on:
   pull_request:
     # `labeled`/`unlabeled` are on top of the defaults so that applying
-    # `no-changelog` re-runs `changelog-fragment` with a payload that contains
+    # `no-changelog` re-runs the changelog check with a payload that contains
     # it. Without them the label is unusable as an escape hatch: the payload is
     # a snapshot from PR creation, and re-running a check replays that same
     # payload, so a label added after the gate failed would never be seen.
+    #
+    # The cost is that any label applied to an open PR spends a full CI run.
+    # That is the right trade for a human reaching for the escape hatch, and it
+    # is why `release.yml` labels nothing — see the changelog step below.
+    #
     # `ready_for_review` runs CI when a draft is marked ready; the jobs below skip while it is one.
     types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
   push:
     branches: [main]
 
-jobs:
-  shellcheck:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: shellcheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run shellcheck on all .sh files
-        # Bring our own shellcheck (the pre-installed one on ubuntu-latest
-        # tracks the runner image's release cadence, which lags upstream by
-        # months). Pin an exact version so the CI signal is stable across
-        # runner-image updates and a future shellcheck-action release can't
-        # silently flap the check.
-        #
-        # Source-following and SCRIPTDIR resolution come from .shellcheckrc, so
-        # the hooks' shared lib.sh is analyzed rather than reported unfollowable.
-        uses: ludeeus/action-shellcheck@2.0.0
-        with:
-          scandir: '.'
+# One in-flight run per PR: a newer push or label supersedes the older run's
+# verdict, so cancelling it loses nothing.
+#
+# Push events get `run_id` — a group of one — rather than sharing a `main`
+# group. GitHub holds only a single *pending* entry per group, so a shared
+# group would silently drop the middle of any burst of merges, and each merge
+# to main is a distinct tree whose post-merge check nothing else covers.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-  validate-manifests:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: validate-manifests
+jobs:
+  lint:
+    name: lint
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    env:
+      # The release PR's diff is version fields, the CHANGELOG insert, and the
+      # fragments it consumed. Nothing in it can move a shell script, a
+      # workflow file, or a hook, so the steps that read those are gated on
+      # this. The manifest steps below are ungated: they are the only checks
+      # that diff *can* move, and the version they validate is computed fresh
+      # by `release.yml` rather than reviewed by anyone.
+      RELEASE_PR: ${{ startsWith(github.head_ref, 'auto-release/') }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history for the changelog step's merge-base diff. The other
+          # steps need only the tree, and on a repo this size the deeper fetch
+          # does not measurably cost anything.
+          fetch-depth: 0
+
+      # Every step below is `!cancelled()` rather than the default. Steps in a
+      # job stop at the first failure, which would let one broken manifest hide
+      # a shell error until the next round; this runs them all and still fails
+      # the job, so a round of CI reports everything wrong at once.
       - name: Verify JSON files parse
+        if: ${{ !cancelled() }}
         # `jq empty <file>` exits non-zero on invalid JSON. Deeper schema-shape
-        # validation is Claude Code's own `plugin validate`; this job keeps
-        # obvious editor mistakes — missing commas, stray characters — from
-        # landing on main.
+        # validation is Claude Code's own `plugin validate` below; this step
+        # keeps obvious editor mistakes — missing commas, stray characters —
+        # from landing on main.
         #
         # The file list is derived from the marketplace rather than hardcoded, so
         # adding a plugin needs no edit here.
@@ -69,6 +93,7 @@ jobs:
           done
 
       - name: Verify each marketplace description matches its plugin manifest
+        if: ${{ !cancelled() }}
         # Two copies of the same string, and nothing compared them. The
         # marketplace copy is what someone reads in `/plugin` while deciding
         # whether to install; the manifest copy is what tooling reads. They
@@ -89,12 +114,14 @@ jobs:
           exit "$fail"
 
       - name: Verify every plugin version is semver-parseable
+        if: ${{ !cancelled() }}
         # Not style policing. Dependency resolution ignores tags whose suffix
         # doesn't parse as semver, so a version like `2026.3` produces a tag that
         # exists and is never selected — the plugin silently drops out of any
         # other plugin's version constraint. Catching it pre-merge is the only
         # place a failure can still block; by release time the bad version is
-        # already on main.
+        # already on main. That includes the release PR, which is why this step
+        # is not gated on RELEASE_PR.
         #
         # Leading zeros are rejected by semver, which is why the release
         # workflow emits an unpadded month (`2026.8.1`, never `2026.08.1`).
@@ -112,119 +139,9 @@ jobs:
           done < <(jq -r '.plugins[] | "\(.name)\t\(.source)"' .claude-plugin/marketplace.json)
           exit "$fail"
 
-  actionlint:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: actionlint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Lint the workflow files
-        # This exists because a workflow shipped that could not start. A
-        # continuation line at column 0 inside a `run: |` block ended the block
-        # scalar and made the file invalid YAML; four checks went green and the
-        # first run after merge failed before any job existed. actionlint was
-        # confirmed to catch that exact commit.
-        #
-        # It matters more here than in most repos because PR CI cannot catch a
-        # broken workflow by running it — and for `release.yml` it never will,
-        # since that one triggers only on push to `main`. Merging is the only way
-        # to execute it, so static analysis is the only check available.
-        #
-        # Beyond syntax, actionlint checks `${{ }}` expressions and contexts —
-        # the other way a workflow fails at startup — and runs shellcheck over
-        # `run:` blocks, which the repo's other shellcheck job cannot see because
-        # that one only scans `.sh` files.
-        #
-        # The upstream Docker image rather than a third-party wrapper action:
-        # one less party to trust, and pinned to the version verified locally.
-        # The tag is mutable; a digest pin would be stricter, and is worth doing
-        # if this repo's threat model ever justifies the extra step.
-        #
-        # `-verbose` so a pass is self-evidencing. Without it the job logs
-        # nothing on success, and "green with no output" is indistinguishable by
-        # eye from a check that collected no files — which is exactly the shape
-        # of the failure this job was added for. It prints `Collected N YAML
-        # files`, so the log proves work happened rather than implying it.
-        uses: docker://rhysd/actionlint:1.7.12
-        with:
-          args: -verbose
-
-  hook-tests:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: hook-tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run the hook test suite
-        # `npx` rather than a global install: `npm install -g bats` fails on the
-        # runner with EACCES, because the package writes man pages into
-        # /usr/local/share/man and the runner user cannot. sudo would work and
-        # is worse — this needs no elevation at all.
-        #
-        # Pinned so a bats release cannot flap the check independently of the
-        # diff. 1.13.0 is npm's latest; the suite was written against Homebrew's
-        # 1.14.0 and was re-run against 1.13.0 to confirm it passes there too —
-        # the two version lines differ, so the local version is not a safe pin.
-        #
-        # The hooks decide whether an edit is blocked, and they run on every
-        # installer's machine. Until now nothing exercised them: shellcheck
-        # catches syntax, not behaviour.
-        #
-        # The suite drives them through the real interface — a JSON payload on
-        # stdin, an exit code out — against real git repositories, because most
-        # of what they decide (is this a worktree, is this file tracked) is
-        # answered by git rather than by the script.
-        run: npx --yes bats@1.13.0 tests/
-
-  plugin-validate:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: plugin-validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Claude Code
-        # The runner does not ship it. This is the cost of the check below; if
-        # it proves slow or flaky, drop the job rather than tolerating a gate
-        # that fails for reasons unrelated to the diff.
-        run: npm install -g @anthropic-ai/claude-code
-      - name: Validate the marketplace and every plugin manifest
-        # `jq empty` proves the JSON parses; this proves it is a *valid manifest*
-        # — unrecognized fields, missing metadata, marketplace and plugin
-        # versions disagreeing. Today CI delegates that to Claude Code at install
-        # time, which means to strangers' machines.
-        #
-        # --strict treats warnings as errors, which the tool's own help
-        # recommends for CI.
-        run: |
-          set -euo pipefail
-          claude plugin validate . --strict
-          # `select(type == "string")` because the marketplace schema also permits
-          # an object source. `jq -r` would emit that as JSON and `validate`
-          # would choke on it obscurely; failing loudly here says what is wrong.
-          while IFS= read -r src; do
-            echo "  $src"
-            claude plugin validate "$src" --strict
-          done < <(jq -r '.plugins[].source | select(type == "string")' .claude-plugin/marketplace.json)
-          declared=$(jq '.plugins | length' .claude-plugin/marketplace.json)
-          checked=$(jq '[.plugins[].source | select(type == "string")] | length' .claude-plugin/marketplace.json)
-          [ "$declared" = "$checked" ] || {
-            echo "::error::${declared} plugins declared but only ${checked} have a string source — the rest went unvalidated"
-            exit 1
-          }
-
-  changelog-fragment:
-    name: changelog-fragment
-    runs-on: ubuntu-latest
-    # PR-only. `ci-required` below accepts `skipped`, so this not running on a
-    # push to main doesn't hold the gate open.
-    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Full history: the check diffs against the merge-base with the base
-          # branch, which a shallow clone doesn't have.
-          fetch-depth: 0
       - name: Require a fragment for every changed plugin
+        # PR-only: there is no merge-base to diff against on a push to main.
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         # A plugin's version is Claude Code's update cache key — it "skips the
         # update if it matches what's already installed." So a change that
         # merges without a fragment doesn't just lose a release note: the
@@ -244,16 +161,14 @@ jobs:
           # immediately after deleting the fragments it consumed, so it can never
           # satisfy this gate.
           #
-          # Keyed on the branch prefix, NOT on the no-changelog label, because a
-          # label cannot work here: `gh pr create --label` can't attach labels at
-          # creation — GitHub's createPullRequest mutation doesn't accept them —
-          # so gh applies them in a second call, and the `pull_request.opened`
-          # payload that triggers this workflow is built with an empty labels
-          # array. `labeled` isn't in the default trigger types either, so the
-          # later application re-triggers nothing. Relying on the label would
-          # leave the release PR failing CI, auto-merge never firing, and the
-          # workflow's 15-minute merge-wait timing out — breaking every release,
-          # with no self-healing, since re-running replays the original payload.
+          # The branch prefix is the whole mechanism, and `release.yml` applies
+          # no label *because* of it. A label would work — `labeled` is in this
+          # workflow's trigger types — but `gh pr create --label` cannot attach
+          # one at creation (GitHub's createPullRequest mutation doesn't accept
+          # labels), so gh applies it in a second call that fires a second,
+          # duplicate CI run on the identical SHA. Every release would pay for
+          # a full extra run to tell this step something it already knows from
+          # the branch name.
           case "$HEAD_REF" in
             auto-release/*) echo "release PR — skipping"; exit 0 ;;
           esac
@@ -288,11 +203,123 @@ jobs:
           done < <(jq -r '.plugins[] | "\(.name)\t\(.source)"' .claude-plugin/marketplace.json)
           exit "$fail"
 
+      - name: Run shellcheck on all .sh files
+        if: ${{ !cancelled() && env.RELEASE_PR != 'true' }}
+        # Bring our own shellcheck (the pre-installed one on ubuntu-latest
+        # tracks the runner image's release cadence, which lags upstream by
+        # months). Pin an exact version so the CI signal is stable across
+        # runner-image updates and a future shellcheck-action release can't
+        # silently flap the check.
+        #
+        # Source-following and SCRIPTDIR resolution come from .shellcheckrc, so
+        # the hooks' shared lib.sh is analyzed rather than reported unfollowable.
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: '.'
+
+      - name: Lint the workflow files
+        if: ${{ !cancelled() && env.RELEASE_PR != 'true' }}
+        # This exists because a workflow shipped that could not start. A
+        # continuation line at column 0 inside a `run: |` block ended the block
+        # scalar and made the file invalid YAML; four checks went green and the
+        # first run after merge failed before any job existed. actionlint was
+        # confirmed to catch that exact commit.
+        #
+        # It matters more here than in most repos because PR CI cannot catch a
+        # broken workflow by running it — and for `release.yml` it never will,
+        # since that one triggers only on push to `main`. Merging is the only way
+        # to execute it, so static analysis is the only check available.
+        #
+        # Beyond syntax, actionlint checks `${{ }}` expressions and contexts —
+        # the other way a workflow fails at startup — and runs shellcheck over
+        # `run:` blocks, which the shellcheck step above cannot see because that
+        # one only scans `.sh` files.
+        #
+        # The upstream Docker image rather than a third-party wrapper action:
+        # one less party to trust, and pinned to the version verified locally.
+        # The tag is mutable; a digest pin would be stricter, and is worth doing
+        # if this repo's threat model ever justifies the extra step.
+        #
+        # `-verbose` so a pass is self-evidencing. Without it the step logs
+        # nothing on success, and "green with no output" is indistinguishable by
+        # eye from a check that collected no files — which is exactly the shape
+        # of the failure this check was added for. It prints `Collected N YAML
+        # files`, so the log proves work happened rather than implying it.
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -verbose
+
+      - name: Install Claude Code
+        if: ${{ !cancelled() }}
+        # The runner does not ship it. This is the cost of the step below; if
+        # it proves slow or flaky, drop both rather than tolerating a gate
+        # that fails for reasons unrelated to the diff.
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Validate the marketplace and every plugin manifest
+        if: ${{ !cancelled() }}
+        # `jq empty` proves the JSON parses; this proves it is a *valid manifest*
+        # — unrecognized fields, missing metadata, marketplace and plugin
+        # versions disagreeing. Today CI delegates that to Claude Code at install
+        # time, which means to strangers' machines. Ungated on RELEASE_PR for
+        # the same reason as the semver step: it reads the bumped manifest.
+        #
+        # --strict treats warnings as errors, which the tool's own help
+        # recommends for CI.
+        run: |
+          set -euo pipefail
+          claude plugin validate . --strict
+          # `select(type == "string")` because the marketplace schema also permits
+          # an object source. `jq -r` would emit that as JSON and `validate`
+          # would choke on it obscurely; failing loudly here says what is wrong.
+          while IFS= read -r src; do
+            echo "  $src"
+            claude plugin validate "$src" --strict
+          done < <(jq -r '.plugins[].source | select(type == "string")' .claude-plugin/marketplace.json)
+          declared=$(jq '.plugins | length' .claude-plugin/marketplace.json)
+          checked=$(jq '[.plugins[].source | select(type == "string")] | length' .claude-plugin/marketplace.json)
+          [ "$declared" = "$checked" ] || {
+            echo "::error::${declared} plugins declared but only ${checked} have a string source — the rest went unvalidated"
+            exit 1
+          }
+
+  hook-tests:
+    name: hook-tests
+    runs-on: ubuntu-latest
+    # Its own job, not a step in `lint`: it runs long enough to be worth the
+    # parallelism, and skipping it wholesale on a release PR is clearer at the
+    # job level than as a condition on a step. `ci-required` accepts `skipped`,
+    # so opting out here does not hold the gate open.
+    if: >-
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      && !startsWith(github.head_ref, 'auto-release/')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the hook test suite
+        # `npx` rather than a global install: `npm install -g bats` fails on the
+        # runner with EACCES, because the package writes man pages into
+        # /usr/local/share/man and the runner user cannot. sudo would work and
+        # is worse — this needs no elevation at all.
+        #
+        # Pinned so a bats release cannot flap the check independently of the
+        # diff. 1.13.0 is npm's latest; the suite was written against Homebrew's
+        # 1.14.0 and was re-run against 1.13.0 to confirm it passes there too —
+        # the two version lines differ, so the local version is not a safe pin.
+        #
+        # The hooks decide whether an edit is blocked, and they run on every
+        # installer's machine. shellcheck catches syntax, not behaviour.
+        #
+        # The suite drives them through the real interface — a JSON payload on
+        # stdin, an exit code out — against real git repositories, because most
+        # of what they decide (is this a worktree, is this file tracked) is
+        # answered by git rather than by the script.
+        run: npx --yes bats@1.13.0 tests/
+
   ci-required:
     # Single umbrella job. New fanout jobs added above gate merges by being
     # added to `needs:` here.
     if: always()
-    needs: [shellcheck, actionlint, validate-manifests, hook-tests, plugin-validate, changelog-fragment]
+    needs: [lint, hook-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs succeeded
