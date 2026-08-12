@@ -35,6 +35,78 @@ run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
   [ -z "$output" ]
 }
 
+# --- version stamp -----------------------------------------------------------
+#
+# The stamp is what lets a published review or PR be attributed to the prompts
+# that produced it. Nothing else carries the version — a transcript records the
+# plugin's name and Claude Code's version, never this plugin's — so if the hook
+# stops emitting it, the attribution is lost silently and only shows up as a gap
+# in analysis months later.
+
+@test "emits the plugin version when the manifest is readable" {
+  stub_path jq git gh
+  write_manifest 2026.8.32
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"## dnbg-workflow 2026.8.32"* ]]
+}
+
+@test "names the plugin the manifest names, not this one" {
+  # A vendored copy stamping `dnbg-workflow` over its own version number is the
+  # one wrong-attribution shape the stamp exists to rule out — and a wrong stamp
+  # is worse than no stamp, because nothing downstream can tell them apart.
+  stub_path jq git gh
+  write_manifest 2026.44 qhcorp-workflow
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"## qhcorp-workflow 2026.44"* ]]
+  [[ "$output" != *"dnbg-workflow 2026.44"* ]]
+}
+
+@test "gives the literal stamp format, not just the version" {
+  # The three skills that publish are read on demand, so a session that
+  # publishes without loading one has been told to stamp and not how. Without
+  # this it invents a format, which reads downstream as a missing stamp rather
+  # than a malformed one — a gap logged in the wrong place.
+  stub_path jq git gh
+  write_manifest 2026.8.32
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'`<!-- dnbg-workflow 2026.8.32 -->`'* ]]
+}
+
+@test "stays silent when the manifest names no version" {
+  # A manifest that parses but lacks the field yields no stamp rather than a
+  # half-formed one like `## dnbg-workflow ` with nothing after it.
+  stub_path jq git gh
+  mkdir -p "$ROOT/.claude-plugin"
+  printf '{"name":"dnbg-workflow"}\n' > "$ROOT/.claude-plugin/plugin.json"
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Always do the thing."* ]]
+  [[ "$output" != *"## dnbg-workflow"* ]]
+}
+
+@test "stays silent about the version when the manifest is missing" {
+  # A broken install loses the stamp, not the rules.
+  stub_path jq git gh
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Always do the thing."* ]]
+  [[ "$output" != *"## dnbg-workflow "* ]]
+}
+
+@test "drops the version rather than the rules when jq is absent" {
+  # `jq` reads the manifest, and its absence already disables the gates. Losing
+  # the stamp too is the acceptable half; losing the rules with it is not.
+  stub_path git gh
+  write_manifest 2026.8.32
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Always do the thing."* ]]
+  [[ "$output" != *"2026.8.32"* ]]
+}
+
 # --- dependency preflight ----------------------------------------------------
 
 @test "says nothing about dependencies when all of them are present" {

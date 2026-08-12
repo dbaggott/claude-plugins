@@ -55,6 +55,22 @@ context_of() {  # <hook stdout>
   [ "$(context_of "$output")" = "$RULES_TEXT" ]
 }
 
+# --- the version stamp -------------------------------------------------------
+
+@test "carries the version stamp through the envelope" {
+  # A subagent publishes too — it opens PRs and posts reviews — so a stamp that
+  # reached only the main loop would leave exactly the subagent-authored
+  # artifacts unattributable. SessionStart output does not reach here at all,
+  # which is why this needs its own assertion rather than trusting the coupling
+  # test below: that test pins the two payloads equal, and would stay green with
+  # the stamp missing from both.
+  stub_path jq
+  write_manifest 2026.8.32
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$(context_of "$output")" == *"## dnbg-workflow 2026.8.32"* ]]
+}
+
 # --- the shared payload ------------------------------------------------------
 
 @test "injects exactly what the session-start payload script emits" {
@@ -113,10 +129,15 @@ context_of() {  # <hook stdout>
 }
 
 @test "round-trips the real rules file" {
+  # Pointed at the real plugin, so the real manifest is readable and the payload
+  # is the rules file *followed by* the version stamp. Compare the leading
+  # portion: what this test is about is the real file's markdown surviving JSON
+  # encoding, and the stamp is pinned separately above.
+  local rules="${BATS_TEST_DIRNAME}/../dnbg-workflow/always-on-rules.md"
   stub_path jq
   run_hook "${BATS_TEST_DIRNAME}/../dnbg-workflow"
   [ "$status" -eq 0 ]
-  diff <(context_of "$output") "${BATS_TEST_DIRNAME}/../dnbg-workflow/always-on-rules.md"
+  diff <(context_of "$output" | head -n "$(wc -l < "$rules")") "$rules"
 }
 
 @test "escapes control characters rather than emitting them raw" {

@@ -299,6 +299,20 @@ a line that isn't part of the diff — and refers to the new version of the file
 default (`side: RIGHT`). To comment on a removed or unchanged context line, add
 `"side": "LEFT"`.
 
+**End the review body with the version stamp** — an HTML comment naming the
+version from the `## dnbg-workflow <version>` note injected at session start:
+
+```
+<!-- dnbg-workflow <version> -->
+```
+
+It renders invisibly, so it costs the reader nothing, and it is the only record
+of which prompts produced this review: a transcript names the plugin but not its
+version, and transcripts expire while the review does not. Stamp the review body
+only — repeating it on each inline comment says nothing the review body doesn't.
+Omit it if no such note appeared this session rather than guessing a version; a
+wrong stamp is worse than an absent one, since analysis cannot tell them apart.
+
 For a **verdict-only** review (no inline findings), the simpler form is
 equivalent:
 

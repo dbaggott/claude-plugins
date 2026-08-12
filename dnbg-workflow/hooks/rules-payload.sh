@@ -26,6 +26,45 @@ RULES="${CLAUDE_PLUGIN_ROOT:-}/always-on-rules.md"
 # the rules than to block the session start.
 [ -f "$RULES" ] && cat "$RULES"
 
+# --- version stamp -----------------------------------------------------------
+#
+# The version the session is running, so the skills can stamp what they publish
+# with it. Nothing else carries it: a transcript records the plugin *name* and
+# the Claude Code version, never the plugin's, so without this a review or PR
+# cannot be attributed to the prompts that produced it.
+#
+# *Where* to stamp lives in the three skills that publish, which are read on
+# demand; this file is charged to every session and every subagent spawn. The
+# literal format is the exception and stays here: a session that publishes
+# without loading one of those skills has been told to stamp and, without it,
+# not how — so it invents a format, and analysis reads that as a missing stamp
+# in the wrong place. A dozen tokens buys the difference between a gap and a
+# wrong answer.
+#
+# Name and version both read from the manifest, so a vendored copy stamps its
+# own identity rather than this one's — emitting `dnbg-workflow` over another
+# plugin's version number is the single wrong-attribution shape the stamp exists
+# to rule out. One value serves as both the heading and the literal, which is
+# also what keeps them from drifting apart.
+#
+# `jq` rather than a regex over JSON, and silently absent when `jq` is: the rules
+# above still inject without it (that path is exercised by inject-rules.bats),
+# and a stamp is worth less than the rules it would sit beside.
+MANIFEST="${CLAUDE_PLUGIN_ROOT:-}/.claude-plugin/plugin.json"
+STAMP=""
+if [ -f "$MANIFEST" ] && command -v jq >/dev/null 2>&1; then
+  STAMP=$(jq -r 'if .name and .version then "\(.name) \(.version)" else empty end' \
+    "$MANIFEST" 2>/dev/null)
+fi
+
+[ -n "$STAMP" ] && cat <<EOF
+
+## $STAMP
+
+Stamp what you publish with \`<!-- $STAMP -->\` — \`reviewer\`, \`git-workflow\`,
+and \`issue-workflow\` each say where it goes.
+EOF
+
 # --- configuration overrides -------------------------------------------------
 #
 # The skills state the mechanical defaults literally — `.worktrees/`,
