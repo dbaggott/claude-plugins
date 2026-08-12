@@ -238,7 +238,7 @@ posture applied on the author's side.
    a probe that never drives the path produces a negative reading as
    confirmation. Put the answer in the assertion message; runners swallow stdout.
 
-4. **Review for** (in priority order), against the standards the always-on
+4. **Review for** (in priority order), and against the standards the always-on
    "Coding standards stack" rule has you load:
    - **Bugs**: logic errors, off-by-one, race conditions, null dereferences,
      error paths that swallow exceptions.
