@@ -92,7 +92,9 @@ unattended run there is nobody to answer: take option 1 and say so.
 **Say what waiting costs when you take option 1**, in the same breath: the watch
 lives in this session, so a PR marked ready after the session ends gets no review
 until someone asks again. That is the operator's to weigh — option 2 is what
-buys a verdict in hand right now.
+buys a verdict in hand right now. It belongs here rather than in the option's
+description because the unattended path takes option 1 with no picker rendered
+at all.
 
 Skip the picker when they have already answered — "review it even though it's a
 draft", "review it once it's ready" — and don't replace it with a prose question.
@@ -432,9 +434,8 @@ PR to resume (it re-assesses current state and picks the watch back up).
      Review it now, as a first review; re-arm from the reported `new_head`,
      **without** `--was-draft`.
 
-   - **`CLOSED`** — the PR merged or closed. Stop watching, then finish: the
-     cleanup under "End state" below, then "Report the review, in three
-     sections".
+   - **`CLOSED`** — the PR merged or closed. Stop watching, then finish: "Clean
+     up what you synced" below, then "Report the review, in three sections".
    - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
    - **`ERROR reason=<source>`** — that source failed repeatedly and the watch
      cannot see. **Do not re-arm**: unlike `IDLE`, this says nothing about the PR,
