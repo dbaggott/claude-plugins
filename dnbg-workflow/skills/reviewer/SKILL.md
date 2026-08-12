@@ -43,8 +43,8 @@ The operator can assign you as the reviewer for an **issue** rather than for a
 single PR — "you review issue 74", "be the reviewer on <issue URL>", whether or
 not any PR exists yet.
 
-⚠️ **Read `issue-mode.md` in this skill's directory before acting on one, and
-don't improvise from the PR flow below.** That mode discovers the PRs resolving
+⚠️ **Read `references/issue-mode.md` before acting on one, and don't improvise
+from the PR flow below.** That mode discovers the PRs resolving
 the issue from three sources (using fewer silently misses PRs), waits when none
 exist, reviews the whole set against the issue's acceptance criteria, and keeps
 re-discovering until the issue closes. None of it is derivable from what follows.
@@ -60,12 +60,18 @@ The PR comes from what the user asked:
   current branch: `gh pr view --json number,url` (from the repo, or pass
   `--repo`). No PR for the branch → say so and stop.
 - Ambiguous (several candidates, no current-branch PR) → ask which PR.
-- An **issue** number or URL instead of a PR → that's issue mode (`issue-mode.md`),
+- An **issue** number or URL instead of a PR → that's issue mode (`references/issue-mode.md`),
   not a malformed PR reference. Don't resolve it to one PR and drop the rest.
 
 Throughout, `<repo>` is `owner/name` and `<n>` is the PR number. Pass
 `--repo <repo>` explicitly so the skill works from any directory. Resolving the
 PR can use your own `gh` auth; the bot token below is only needed to post.
+
+**A PR the operator names directly is reviewable whether or not it is a draft** —
+they asked, and the ask overrides the draft signal — but say that it's a draft,
+since they may not have noticed. If they instead ask you to review it *once it's
+ready*, don't review now: arm the watch with `--was-draft` (see "Watch the PR")
+and review when it reports `READY`.
 
 ## Get a bot token (scoped to the repo's owner)
 
@@ -329,6 +335,12 @@ PR to resume (it re-assesses current state and picks the watch back up).
    transient `gh` failures, and excludes the bot's own activity under *both*
    login forms (`<slug>` from GraphQL, `<slug>[bot]` from REST), so you never wake
    to react to your own posts. `IDLE` is normal for a quiet PR — just re-arm.
+
+   ⚠️ **Waiting for a draft to be marked ready? Append `--was-draft`.** Marking a
+   PR ready is neither a push nor a review nor a comment, so it is invisible
+   without the flag, and `READY` is emitted only when it is set — the PR would be
+   picked up on its next push, or never, and an idle watch is indistinguishable
+   from a quiet PR.
 3. **On return, branch on `result=`:**
    - **`COMMITS`** (`new_head=…`) — the author pushed. Re-review at the new HEAD
      per **Re-reviewing**, and resolve threads the new diff addressed.
@@ -394,7 +406,7 @@ the same as completion.
 ⚠️ **In the issue-scoped mode, a PR reaching `CLOSED` is not the end of the
 assignment** — it is the trigger to re-discover. Completion there is a fresh
 discovery pass finding no open PR *and* the issue closed; see "Discovery is
-continuous" in `issue-mode.md`. Treating one PR's `CLOSED` as the end is exactly how the
+continuous" in `references/issue-mode.md`. Treating one PR's `CLOSED` as the end is exactly how the
 sibling PR that opens tomorrow goes unreviewed.
 
 **Clean up what you synced, at `CLOSED`.** Reviewing can leave a checkout behind

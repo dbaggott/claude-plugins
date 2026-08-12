@@ -79,9 +79,8 @@ A verdict on a draft spends the attention that signal is asking you to withhold,
 and a `--request-changes` leaves threads the author has to resolve on work still
 in progress.
 
-This applies to the **discovered** set only. A PR the operator names directly is
-reviewable whether or not it is a draft — they asked, and the ask overrides the
-gate — but say that it's a draft, since they may not have noticed.
+This applies to the **discovered** set only; `SKILL.md`'s "Identify the PR"
+covers a draft the operator names directly.
 
 Watch a held-back draft rather than dropping it, arming the ready check:
 
@@ -95,10 +94,6 @@ refuses anything shorter (`result=ERROR reason=bad-args`). Worth saying here and
 not only at the re-arm site below: this spawn happens during *discovery*, where
 the SHA in hand is as likely to have come from something that printed one for a
 human as from a `headRefOid` read.
-
-Marking a PR ready is neither a push nor a review nor a comment, so without
-`--was-draft` the transition is invisible and the PR would be picked up only on
-its next push, or never.
 
 ⚠️ **All three can only find what the author linked.** A sibling PR whose body
 never mentions the issue is invisible to every method here — there is nothing to

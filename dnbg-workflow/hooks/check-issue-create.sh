@@ -55,7 +55,7 @@ CMD=${CMD//\\$'\n'/ }
 # has nothing to do with what they were doing. Precision over recall.
 # ⚠️ COMMAND POSITION MEANS "AFTER ANY PREFIX RUN", NOT "IMMEDIATELY AFTER THE
 # SEPARATOR". An invocation is routinely prefixed — `env -u GH_TOKEN gh issue
-# create` is MANDATED by reviewer/SKILL.md for every `gh` call once a bot token is
+# create` is MANDATED by reviewer/references/issue-mode.md for every `gh` call once a bot token is
 # exported, and `VAR=x gh …` is ordinary shell. Anchoring straight to `gh` un-gates
 # all of those, which is worse than the over-blocking this replaces: the gate would
 # fail open on the single commonest real invocation in this repo.
