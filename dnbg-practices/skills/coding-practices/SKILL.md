@@ -7,7 +7,7 @@ description: Core engineering principles — design and clarity over expediency,
 
 These apply to all code, regardless of language or repo.
 
-The Claude Code system prompt already covers the baseline a senior engineer would state first. Everything here is additive to it, not a restatement — so where the two touch, the system prompt is the authority and this file is the extension.
+These are extensions, not a baseline: what a senior engineer would state first is assumed rather than restated. Where this file touches something your harness or your project already states, that source is the authority and this file is the extension.
 
 ## Design and clarity over expediency
 
@@ -29,13 +29,13 @@ If you write something insecure, fix it immediately rather than filing it as a f
 
 Duplicated logic invites drift. When you find yourself copy-pasting, extract.
 
-(Wait until the shape of the duplication is clear before pulling out a helper — the system prompt's caution against premature abstraction still applies. But it guards only *one* of two opposite design vices; see "Two abstraction vices" below for the other, which is just as costly.)
+(Wait until the shape of the duplication is clear before pulling out a helper. But the caution against premature abstraction guards only *one* of two opposite design vices; see "Two abstraction vices" below for the other, which is just as costly.)
 
 ## Two abstraction vices, not one
 
-The system prompt's caution against premature abstraction guards one vice — **premature generalization**: building extensibility (parameters, hooks, config, plugin points) for requirements that don't exist yet. There is an opposite vice it says nothing about — **premature fragmentation**: treating two instances of *one* problem as two problems, so a single responsibility ends up split across owners or copied into several places. The first costs speculative complexity; the second costs duplicated state that diverges and the same decision made in two places — often the very bug you're now fixing. Both are real. Don't reach for YAGNI as if avoiding abstraction were free; weigh the two costs against each other.
+The familiar caution against premature abstraction guards one vice — **premature generalization**: building extensibility (parameters, hooks, config, plugin points) for requirements that don't exist yet. The opposite vice goes unnamed — **premature fragmentation**: treating two instances of *one* problem as two problems, so a single responsibility ends up split across owners or copied into several places. The first costs speculative complexity; the second costs duplicated state that diverges and the same decision made in two places — often the very bug you're now fixing. Both are real. Don't reach for YAGNI as if avoiding abstraction were free; weigh the two costs against each other.
 
-The agent default leans hard toward avoiding generalization, so the corrective is to give the second vice equal weight. The questions are different, and design comes first:
+The pull is nearly always toward avoiding generalization, so the corrective is to give the second vice equal weight. The questions are different, and design comes first:
 
 - **Ask "who owns this decision/fact?" before "is generalizing premature?"** The first is a present-tense fact about the domain you can answer now; the second is speculation control. Answer the first and the second often dissolves — correct ownership tends to support the general case for free, because the owner handles all its cases. (Same instinct as the "what it is, not how it's used" naming rule below: locate the thing, don't shape it around one caller.)
 - **A degenerate case is the same problem at a boundary — derive it, don't fork it.** When you're about to special-case a "trivial" / "edge" / "degenerate" instance, get it to fall out of the general path instead. If the general design *can't* express the degenerate case cleanly, that's evidence the general design is wrong — not that the case is separate. The degenerate case is a *test* of the design; folding it in is how you discover the design needs work, which is exactly why skipping it as "premature" hides the defect.
@@ -60,7 +60,7 @@ The agent default leans hard toward avoiding generalization, so the corrective i
 
 ## Clean, self-documenting code
 
-The system prompt covers the comment basics. What follows here — naming, then the two comment sections below it — is what that baseline doesn't reach.
+Comment basics are assumed. What follows — naming, then the two comment sections below it — is what that baseline doesn't reach.
 
 **Names do the work.** A well-named function, variable, or type makes the code legible without a comment. If a reader has to consult docs to understand a name, the name is wrong, not the docs.
 
@@ -182,15 +182,11 @@ pays for every line it doesn't act on.
 A file with twenty `⚠️` markers has no warnings. Reserve `⚠️` and ALL-CAPS for
 gate bypass, credential exposure, data loss, or outage — roughly one per file.
 That is a test each marker must pass, not a quota: three is fine when all three
-mark silent failures.
+mark silent failures, and zero is the right number for most files.
 
-⚠️ **When stripping markers en masse, watch for the marker that is a
-*referent*.** Cross-references like "see the ⚠️ at the top of this file" name the
-glyph rather than decorating with it, and removing it leaves "See the at the top
-of this file". No typechecker, linter or test catches that. **Fix it by naming
-the target in prose, never by restoring the glyph** — restoring works today and
-breaks at the next rebalancing, and the target's own marker may already be gone.
-Grep `see the ⚠️` and `per the ⚠️` after any such pass.
+**Never let a cross-reference name the glyph.** "See the ⚠️ above" breaks into
+"See the above" the moment that marker is rebalanced away, and nothing catches
+it. Name the target in prose.
 
 ## One-time setup doesn't belong in the repo
 
@@ -239,7 +235,7 @@ Be honest about what you've checked and what you're guessing:
 
 - **Read before changing.** Before editing a function, read it — and ideally a caller or two. Don't infer behavior from the name.
 - **Say "I haven't verified X" out loud.** If a recommendation hinges on an unchecked assumption, name the assumption rather than presenting it as fact. Same for code: if you're proposing a snippet whose API call you're not 100% sure about, flag it instead of asserting it works.
-- **For library APIs, use Context7 (below) or read the installed source.** Don't write code from memory for an API you haven't used recently.
+- **For library APIs, don't write from memory** — see "Use Context7" below.
 
 ## Use Context7 for library documentation
 
@@ -250,13 +246,8 @@ Typical flow:
 1. `mcp__context7__resolve-library-id` — get the canonical id for the library.
 2. `mcp__context7__get-library-docs` — fetch docs for that id, optionally scoped to a topic.
 
-Use it when:
-
-- You're calling an API you haven't used recently.
-- You're unsure whether a function signature, option name, or default has changed.
-- A code sample you'd otherwise write from memory could plausibly be wrong.
-
-Skip it for:
+Use it whenever you'd otherwise be writing a call, signature, option name, or
+default from memory. Skip it for:
 
 - Language standard library and other stable built-ins.
 - Project-internal code — read the source.
