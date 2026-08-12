@@ -436,6 +436,16 @@ When told a PR has been merged (or when the merge watcher above reports `result=
 3. Delete the local branch: `git branch -d <branch-name>`. **On a squash-merge repo this fails**, and that's expected rather than a problem: a squash rewrites the commits, so the feature branch tip is never an ancestor of the base branch, and `-d` walks that ancestry and refuses. Check `allow_squash_merge` from "Know the repo's merge settings" — where squash is the repo's merge method, go straight to `git branch -D`. The operator's "merged" confirmation (or the watcher's `result=MERGED`) is what authorises the force delete; git's ancestry check can't.
 4. Delete the remote branch **only if the repo doesn't do it for you**: `delete_branch_on_merge` from the settings read says which. When it's on, GitHub already deleted it and step 2's `--prune` cleared your local view — nothing to do. When it's off, `git push origin --delete <branch-name>`.
 
+### Then close the loop, in three sections
+
+Cleanup done, report the cycle to the operator under exactly these three headings, in this order. **All three every time, "None" under an empty one, and anything that could go under either of the last two goes under Actionable** — an omitted section reads as "nothing there" and "never considered" alike, and Observations is the one the operator is invited to skim.
+
+- **Summary** — what happened. The PR by full URL, what shipped as-built, and how the cycle went (rounds, verdicts, anything the review changed about the work). Self-contained: the operator may have been away since the handoff.
+- **Observations** — informational, and nothing for them to do. Something surprising in the code you touched, an assumption the change now rests on, a check that passed for a reason worth knowing.
+- **Actionable** — findings deferred with "Merge as-is", a follow-up the reviewer raised that you didn't take, setup or config the merged change now needs, a defect you saw and left alone. One line each, naming the concrete next step and where.
+
+Don't act on that list — filing and fixing are the operator's call, and `issue-workflow` covers the filing once they make it.
+
 ## After rebase or merge
 
 Always review incoming changes after rebasing or merging. Don't assume the prior state is still accurate — read the changed files before answering questions about them.

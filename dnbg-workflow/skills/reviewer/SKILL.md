@@ -76,14 +76,25 @@ Read `isDraft` when you resolve the PR — for one named by number,
 **Naming a draft is not evidence the operator noticed it was one.** Say it's a
 draft, then call `AskUserQuestion` (the tool auto-appends "Other"):
 
-1. **"Review it now (Recommended)"** — "Review the draft as asked and post the
-   verdict."
-2. **"Wait until it's ready"** — "Hold the review; watch the PR and review when
-   it leaves draft."
+1. **"Wait until it's ready (Recommended)"** — "Hold the review; watch the PR and
+   review when it leaves draft."
+2. **"Review it now"** — "Review the draft as asked and post the verdict."
 
-On 1, carry on with the flow below. On 2, post nothing now: arm the watch with
-`--was-draft` (see "Watch the PR") and review when it reports `READY`. In an
-unattended run there is nobody to answer: take option 2 and say so.
+Waiting is recommended because draft is the author's signal that the work is not
+yet endorsed for review, and a verdict on a draft spends the attention that
+signal is asking you to withhold — the same reason a *discovered* draft is held
+back without asking at all.
+
+On 1, post nothing now: arm the watch with `--was-draft` (see "Watch the PR")
+and review when it reports `READY`. On 2, carry on with the flow below. In an
+unattended run there is nobody to answer: take option 1 and say so.
+
+**Say what waiting costs when you take option 1**, in the same breath: the watch
+lives in this session, so a PR marked ready after the session ends gets no review
+until someone asks again. That is the operator's to weigh — option 2 is what
+buys a verdict in hand right now. It belongs here rather than in the option's
+description because the unattended path takes option 1 with no picker rendered
+at all.
 
 Skip the picker when they have already answered — "review it even though it's a
 draft", "review it once it's ready" — and don't replace it with a prose question.
@@ -423,7 +434,8 @@ PR to resume (it re-assesses current state and picks the watch back up).
      Review it now, as a first review; re-arm from the reported `new_head`,
      **without** `--was-draft`.
 
-   - **`CLOSED`** — the PR merged or closed. Stop watching — you're done.
+   - **`CLOSED`** — the PR merged or closed. Stop watching, then finish: "Clean
+     up what you synced" below, then "Report the review, in three sections".
    - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
    - **`ERROR reason=<source>`** — that source failed repeatedly and the watch
      cannot see. **Do not re-arm**: unlike `IDLE`, this says nothing about the PR,
@@ -512,6 +524,34 @@ expected, not a leak, since re-invoking resumes the watch and still cleans up at
 
 Reviewing entirely through `gh` leaves nothing to remove, which is the normal
 case and the reason to prefer it.
+
+## Report the review, in three sections
+
+At `CLOSED`, once the cleanup above is done, report the review to the operator
+under exactly these three headings, in this order. **All three every time,
+"None" under an empty one, and anything that could go under either of the last
+two goes under Actionable** — an omitted section reads as "nothing there" and
+"never considered" alike, and Observations is the one the operator is invited to
+skim.
+
+- **Summary** — what happened. The PR by full URL, how it ended (merged, or
+  closed unmerged), the verdicts you posted and the SHAs they sat on, and how
+  many rounds it took. Self-contained: the operator may have sent this PR to you
+  hours ago and read nothing since.
+- **Observations** — informational, and nothing for them to do. A pattern worth
+  knowing, a risk you checked and found handled, an area the change leaves
+  untouched but adjacent.
+- **Actionable** — a non-blocking finding the author didn't take, a thread you
+  resolved on the author's reasoning that you still think deserves a follow-up,
+  a coverage gap the merged diff carries. One line each, naming the concrete
+  next step and where.
+
+Don't act on that list — you are the reviewer, and filing or fixing is somebody
+else's side of the flow.
+
+In the issue-scoped mode this report fires **per PR**, as each one closes, and
+says nothing about the assignment being over — re-discovery decides that. Report
+the PR that just closed; don't write the section as a wrap-up.
 
 ## Re-reviewing
 
