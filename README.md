@@ -9,7 +9,7 @@ The workflow and prompts were developed and continuously improved over the cours
 of **more than 1,200 pull requests in 25 repositories** and were used
 exclusively by a small team of developers for many months. In our experience, an
 agent on its own is incapable of producing well-designed production-quality code.
-This plugin was built to support an AI-native startup.
+This plugin was built to make that possible.
 
 This plugin consists of **skills** (loaded on demand when they match the task), a
 short **always-on rules** file, and two **enforcement hooks** that make the worktree
