@@ -40,12 +40,12 @@ row "" "${C_USER}❯${C_OFF} review $P"
 beat 1.4
 row "" "${C_TOOL}● Skill${C_OFF}  dnbg-workflow:reviewer"
 beat 0.8
-row "" "${C_TOOL}● Bash${C_OFF}   mint-token.sh dbaggott"
-beat 0.9
-row "" "${C_SAY}● It's a draft. You asked, so I can review it${C_OFF}"
-row "" "${C_SAY}  anyway — but flagging it in case you hadn't${C_OFF}"
-row "" "${C_SAY}  noticed. Watching for ready instead.${C_OFF}"
-beat 1.8
+row "" "${C_SAY}● pull/104 is still a draft.${C_OFF}"
+beat 1.0
+picker_lines -s 2 "Review the draft now, or wait for ready?" \
+  "Review it now (Recommended)" "Wait until it's ready"
+for l in "${PICKER[@]}"; do row "" "$l"; beat 0.35; done
+beat 1.4
 row "" "${C_TOOL}● Task${C_OFF}   watch-pr.sh 104 --was-draft ${C_DIM}(background)${C_OFF}"
 beat 1.6
 
@@ -69,7 +69,7 @@ beat 1.4
 
 row "${C_TOOL}● Bash${C_OFF}   gh pr ready 104" "${C_DIM}         ← READY${C_OFF}"
 beat 1.3
-row "" "${C_TOOL}● Bash${C_OFF}   gh pr diff 104 · statusCheckRollup"
+row "" "${C_TOOL}● Bash${C_OFF}   mint-token.sh · gh pr diff 104 · checks"
 beat 0.9
 row "" "${C_SAY}● CI is green. Reading its results rather${C_OFF}"
 row "" "${C_SAY}  than re-running the suite locally.${C_OFF}"

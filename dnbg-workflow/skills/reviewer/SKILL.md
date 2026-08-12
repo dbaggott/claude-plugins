@@ -58,7 +58,7 @@ The PR comes from what the user asked:
 
 - An explicit number or URL → review that PR.
 - "Review my PR" / "review this branch" with no number → resolve the PR for the
-  current branch: `gh pr view --json number,url` (from the repo, or pass
+  current branch: `gh pr view --json number,url,isDraft` (from the repo, or pass
   `--repo`). No PR for the branch → say so and stop.
 - Ambiguous (several candidates, no current-branch PR) → ask which PR.
 - An **issue** number or URL instead of a PR → that's issue mode (`references/issue-mode.md`),
@@ -68,11 +68,25 @@ Throughout, `<repo>` is `owner/name` and `<n>` is the PR number. Pass
 `--repo <repo>` explicitly so the skill works from any directory. Resolving the
 PR can use your own `gh` auth; the bot token below is only needed to post.
 
-**A PR the operator names directly is reviewable whether or not it is a draft** —
-they asked, and the ask overrides the draft signal — but say that it's a draft,
-since they may not have noticed. If they instead ask you to review it *once it's
-ready*, don't review now: arm the watch with `--was-draft` (see "Watch the PR")
-and review when it reports `READY`.
+### If the PR is a draft, ask before reviewing
+
+Read `isDraft` when you resolve the PR — for one named by number,
+`gh pr view <n> --repo <repo> --json isDraft`.
+
+**Naming a draft is not evidence the operator noticed it was one.** Say it's a
+draft, then call `AskUserQuestion` (the tool auto-appends "Other"):
+
+1. **"Review it now (Recommended)"** — "Review the draft as asked and post the
+   verdict."
+2. **"Wait until it's ready"** — "Hold the review; watch the PR and review when
+   it leaves draft."
+
+On 1, carry on with the flow below. On 2, post nothing now: arm the watch with
+`--was-draft` (see "Watch the PR") and review when it reports `READY`. In an
+unattended run there is nobody to answer: take option 2 and say so.
+
+Skip the picker when they have already answered — "review it even though it's a
+draft", "review it once it's ready" — and don't replace it with a prose question.
 
 ## Get a bot token (scoped to the repo's owner)
 

@@ -66,13 +66,19 @@ panes() {
 # An AskUserQuestion picker. Claude Code draws this itself, so this is the one
 # element that is a drawing rather than a capture — kept to the same shape and
 # the same option order the skills specify.
-picker_lines() {
+#
+# `-s <n>` puts the cursor on option <n> — it is where a reader reads the answer
+# off, so it has to match what the demo then shows happening.
+picker_lines() {  # [-s <n>] <question> <option>...
+  local sel=1
+  [ "${1:-}" = "-s" ] && { sel="$2"; shift 2; }
   local q="$1"; shift
+  (( sel >= 1 && sel <= $# )) || { echo "picker_lines: -s $sel with $# options" >&2; exit 1; }
   PICKER=()
   PICKER+=("${C_DIM}╭─${C_OFF} ${C_USER}${q}${C_OFF}")
   local i=1 opt
   for opt in "$@"; do
-    if (( i == 1 )); then
+    if (( i == sel )); then
       PICKER+=("${C_DIM}│${C_OFF} ${C_OK}❯ ${i}. ${opt}${C_OFF}")
     else
       PICKER+=("${C_DIM}│${C_OFF}   ${i}. ${opt}")

@@ -27,7 +27,7 @@ DEMOS=(
   "resolve-review:127:50"
   "file-issue:82:32"
   "work-summary:80:45"
-  "vibe-review:127:48"
+  "vibe-review:127:49"
 )
 
 render() {
