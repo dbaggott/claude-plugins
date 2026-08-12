@@ -9,6 +9,13 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.34 — 2026-08-12
+
+Reviews, PR descriptions, and issue claim comments now carry the plugin version
+that produced them, as an HTML comment that renders invisibly. Sessions started
+against a broken install, or without `jq`, omit the stamp rather than guessing.
+
+
 ## dnbg-workflow 2026.8.33 — 2026-08-12
 
 Three `gh`/`jq`/GraphQL blocks that skill prose asked you to run verbatim are now
