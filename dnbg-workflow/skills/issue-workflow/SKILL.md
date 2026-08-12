@@ -1,6 +1,6 @@
 ---
 name: issue-workflow
-description: How to create, maintain, and pick up GitHub issues so context survives the handoff to whoever resolves them cold. Load when about to create a GitHub issue (any `gh issue create`), file follow-up work as an issue, update one after partial progress or a referenced PR closing, assign or dispatch one to anyone (person or bot), or pick up an issue named by number or URL ("resolve #245", "do issue 245", "work on <issue URL>") — on pickup load this *before* reading any file or opening a worktree, since claiming the issue comes first. The pickup trigger is an issue being named, not the user's choice of words. Skip for merely referencing an issue.
+description: How to create, maintain, and pick up GitHub issues so context survives the handoff to whoever resolves them cold. Load when about to create a GitHub issue (any `gh issue create`), file follow-up work as an issue, update one after partial progress or a referenced PR closing, label one along the type and `area:*` axes, assign or dispatch one to anyone (person or bot), or pick up an issue named by number or URL ("resolve #245", "do issue 245", "work on <issue URL>") — on pickup load this *before* reading any file or opening a worktree, since claiming the issue comes first. Also load before a PR leaves draft when the implementation departed from the approach the issue described. The pickup trigger is an issue being named, not the user's choice of words. Skip for merely referencing an issue.
 ---
 
 # Issue workflow

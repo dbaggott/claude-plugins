@@ -1,6 +1,6 @@
 ---
 name: coding-practices
-description: Core engineering principles: design and clarity over expediency, security as a first-class concern, DRY, self-documenting code and the bar a comment must clear, logging discipline, smells to stop on, and verifying what you don't know. Load when writing or reviewing code, naming things, weighing whether to add or keep a comment, choosing how to emit log or diagnostic output, looking up library APIs, sizing work, making a recommendation that rests on an unchecked assumption, or authoring prose that instructs an agent (a SKILL.md, an always-on rules file, a CLAUDE.md) — the comment bar governs those too. Skip for pure config edits (settings.json, lockfiles), questions that author nothing, and quick lookups where no logic is being written.
+description: Core engineering principles — design and clarity over expediency, security as a first-class concern, DRY, self-documenting code and the bar a comment must clear, logging discipline, smells to stop on, and verifying what you don't know. Load when writing or reviewing code, naming things, weighing whether to add or keep a comment, choosing how to emit log or diagnostic output, looking up library APIs, sizing work, making a recommendation that rests on an unchecked assumption, or authoring prose that instructs an agent (a SKILL.md, an always-on rules file, a CLAUDE.md) — the comment bar governs those too. Skip for pure config edits (settings.json, lockfiles), questions that author nothing, and quick lookups where no logic is being written.
 ---
 
 # Coding practices
