@@ -9,12 +9,23 @@
 # Prints the deduped union as one URL per line, then a result line, then exits 0:
 #   <url>
 #   ...
-#   result=OK count=<n> closing=ok|fail search=ok|fail timeline=ok|fail|shape
+#   result=OK count=<n> closing=<s> search=<s> timeline=<s>
 #
 #   result=ERROR reason=bad-args      # nothing was queried
 #   result=ERROR reason=all-sources   # every source failed; the URL list is empty
 #                                     # because nothing could see, not because
 #                                     # nothing is linked
+#
+# Each `<s>` is one of the SAME three values, meaning the same thing for every
+# source — `ok`, `fail` (the request did not come back), or `shape` (it came back
+# and stopped parsing). One vocabulary across all three on purpose: a caller
+# matching a per-source enumeration is one field it has never seen away from
+# reading a dead source as a live one, which is the exact confusion the fields
+# exist to remove.
+#
+# The distinction is worth keeping rather than collapsing to `fail`: a request
+# failure is transient by nature and worth retrying, while a payload that stopped
+# parsing will not start on its own.
 #
 # ⚠️ A PARTIAL FAILURE STILL PRINTS `result=OK`, WITH THE FAILING SOURCE NAMED.
 # Discovery is a union, so one live source is a real (if narrower) answer and
@@ -55,7 +66,7 @@ closing=ok
 closing_urls=""
 if J=$(gh issue view "$ISSUE" --repo "$REPO" --json closedByPullRequestsReferences 2>/dev/null); then
   closing_urls=$(echo "$J" | jq -r '(.closedByPullRequestsReferences // [])[] | .url // empty' 2>/dev/null) \
-    || { closing=fail; closing_urls=""; }
+    || { closing=shape; closing_urls=""; }
 else
   closing=fail
 fi

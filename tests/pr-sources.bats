@@ -119,6 +119,33 @@ xref() {  # <url> [more...]
   [[ "$output" == *"result=OK"* ]]
 }
 
+# ONE VOCABULARY ACROSS ALL THREE SOURCES. `closing` once reported a parse
+# failure as `fail` while the other two reported `shape`, so the same condition
+# had two names in the one file whose job is making partial failure legible — and
+# a caller matching a per-source enumeration would not recognise the third value.
+@test "a parse failure is spelled shape whichever source it happens in" {
+  echo 'not json' > "$CLOSING"
+  run "$SOURCES" o/r 5
+  [[ "$output" == *"closing=shape"* ]]
+  echo 'not json' > "$SEARCH"
+  run "$SOURCES" o/r 5
+  [[ "$output" == *"search=shape"* ]]
+}
+
+@test "a request that never comes back is spelled fail, whichever source it is" {
+  : > "$FAIL_CLOSING"
+  run "$SOURCES" o/r 5
+  [[ "$output" == *"closing=fail"* ]]
+
+  rm -f "$FAIL_CLOSING"; : > "$FAIL_TIMELINE"
+  run "$SOURCES" o/r 5
+  [[ "$output" == *"timeline=fail"* ]]
+
+  rm -f "$FAIL_TIMELINE"; : > "$FAIL_SEARCH"
+  run "$SOURCES" o/r 5
+  [[ "$output" == *"search=fail"* ]]
+}
+
 # All three blind is the one case where an empty list would be an outright lie,
 # so it is an ERROR rather than `count=0`.
 @test "every source failing is an error, not an empty set" {

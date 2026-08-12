@@ -131,6 +131,16 @@ field() { sed -n "s/.*[ ]$1=\([^ ]*\).*/\1/p" <<<"$2"; }
   [ "$output" = "result=ERROR reason=bad-args" ]
 }
 
+# Nothing here splits on the slash — `--repo` is handed to gh whole — so a
+# malformed repo would otherwise reach the API and come back as `pr-view`. Both
+# calling skills gloss that as "the check could not see", which sends the caller
+# to `gh auth status` when the fix is the argument they typed.
+@test "a repo with no slash is bad-args, not an API failure" {
+  pr_reviews aaa '[]'
+  run "$VERDICT" justarepo 1
+  [ "$output" = "result=ERROR reason=bad-args" ]
+}
+
 # A caller branches on `result=`, so a surplus argument must not be swallowed
 # into a plausible-looking answer.
 @test "a surplus argument reports bad-args" {

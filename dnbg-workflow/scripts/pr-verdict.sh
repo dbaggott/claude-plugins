@@ -43,7 +43,13 @@ REPO="${1:-}"; PR="${2:-}"
 
 # A result line rather than a silent `exit 1`, matching the watchers: callers
 # branch on `result=`, so a typo must not present as the vanished-process case.
-if [ -z "$REPO" ] || [ -z "$PR" ] || [ "$#" -gt 2 ]; then
+#
+# The slash is checked even though nothing here splits on it — `--repo` is handed
+# to gh whole. Without the check a malformed repo lands on `reason=pr-view`, which
+# both calling skills gloss as "the check could not see", sending the caller to
+# `gh auth status` when the fix is the argument they typed. Same reason the
+# watchers separate `bad-args` from every other ERROR: one code, opposite remedies.
+if [ -z "$REPO" ] || [ -z "$PR" ] || [ "$#" -gt 2 ] || [ "${REPO%/*}" = "$REPO" ]; then
   echo "result=ERROR reason=bad-args"
   exit 0
 fi
