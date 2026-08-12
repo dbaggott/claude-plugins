@@ -111,10 +111,10 @@ _poll_die() { echo "watch: $*" >&2; exit 1; }
 # running" produce identical logs.
 #
 # ⚠️ ON BY DEFAULT, AND THAT IS THE WHOLE POINT — an opt-in knob is off exactly when
-# it matters. The failure this traces is intermittent and unreproducible: it has
-# happened four times, never on demand, and nobody knows in advance which watch will
-# be the one that dies. A knob somebody has to remember to set BEFORE a random
-# failure captures nothing, so the feature would ship and never once fire.
+# it matters. The failure this traces is intermittent and unreproducible: it never
+# occurs on demand, and nobody knows in advance which watch will be the one that
+# dies. A knob somebody has to remember to set BEFORE a random failure captures
+# nothing, so the feature would ship and never once fire.
 #
 # `WATCH_LOG=off` opts out. Any other value is an explicit path.
 #

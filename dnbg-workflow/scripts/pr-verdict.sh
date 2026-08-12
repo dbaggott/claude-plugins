@@ -19,8 +19,7 @@
 # ⚠️ THE LAST VERDICT, NOT THE LAST APPROVAL. Filtering to `APPROVED` and taking
 # the last one reads an `APPROVED` followed by a `CHANGES_REQUESTED` at the SAME
 # SHA as approved — reachable two ways, a second reviewer objecting over a
-# standing approval and a reviewer reversing itself after a reply. The first cut
-# of this check had exactly that bug, in prose, in two skills at once.
+# standing approval and a reviewer reversing itself after a reply.
 #
 # ⚠️ `COMMENTED` IS NOT A VERDICT and must stay out of the set. A reviewer
 # answering a thread posts one, so counting it would blank the verdict on every
