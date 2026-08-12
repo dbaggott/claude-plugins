@@ -155,6 +155,17 @@ completes, and pasting both at once only registers the first as a slash command:
 /plugin install dnbg-all@dnbg
 ```
 
+Finally, turn on auto-update — **this plugin does not update itself.** Claude
+Code leaves auto-update off by default for a third-party marketplace, so what
+you install here stays exactly as it is until you say otherwise. Skipping this
+step is how you end up reading a README that describes behavior your copy
+doesn't have:
+
+`/plugin` → **Marketplaces** → **dnbg** → **Enable auto-update**
+
+[Releases](docs/releases.md) has the `settings.json` equivalent, the cadence, and
+how to pin a version instead if you would rather update deliberately.
+
 `dnbg-all` installs all three. To take only part of it, install what you want
 instead — they are independent, and none requires another:
 

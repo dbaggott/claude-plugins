@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Turning a week of merged PRs into a recap someone else can read.
 #
-# Condensed from a real session (2026-08-11) — the commands, the counts, the
-# three-axis question and the operator's actual answer to it ("do two, one for
-# teammates and one for leadership") are what happened. Two beats matter: the
-# gather reads PR *descriptions* rather than diffs, and audience is settled
-# before a word is written.
+# Condensed from a real session (2026-08-11) — the counts, the three-axis
+# question and the operator's actual answer to it ("do two, one for teammates
+# and one for leadership") are what happened. Two beats matter: the gather reads
+# PR *descriptions* rather than diffs, and audience is settled before a word is
+# written.
 #
 # A reenactment. See lib-demo.sh.
 set -euo pipefail
@@ -22,7 +22,7 @@ beat 0.9
 say "${C_TOOL}● Bash${C_OFF}   date '+%Y-%m-%d %A %z %Z' · gh api user --jq .login"
 say "${C_DIM}  ⎿ 2026-08-11 Tuesday -0700 PDT · dbaggott${C_OFF}"
 beat 1.2
-say "${C_TOOL}● Bash${C_OFF}   gh search prs --owner dbaggott,qhcorp --author dbaggott \\"
+say "${C_TOOL}● Bash${C_OFF}   gh search prs --owner dbaggott --author dbaggott \\"
 say "${C_TOOL}       ${C_OFF}     --merged-at 2026-08-10T04:00:00-07:00.."
 say "${C_DIM}  ⎿ 14 merged PRs across 6 repos${C_OFF}"
 beat 1.4
