@@ -1,6 +1,6 @@
 ---
 name: reviewer-setup
-description: One-time setup that creates your own GitHub App so the `reviewer` skill can post PR reviews under an independent bot identity (not your personal account), using only GitHub access — no cloud infrastructure, no shared secret. Drives the GitHub App Manifest flow to create a per-developer App, saves its private key locally, and installs it on the accounts whose repos you review. Load when asked to "set up the reviewer bot", "create my reviewer App", when the `reviewer` skill reports no credentials, or to re-create / repair the reviewer bot's credentials. The App's private key stays on this machine; the `reviewer` skill mints short-lived tokens from it at review time.
+description: One-time setup creating your own GitHub App, so the `reviewer` skill can post PR reviews under an independent bot identity rather than your personal account — GitHub access only, no cloud infrastructure, no shared secret. Load when asked to set up the reviewer bot or create your reviewer App, when the `reviewer` skill reports no credentials, or to repair or rotate its credentials. The App's private key stays on this machine.
 ---
 
 # Reviewer setup

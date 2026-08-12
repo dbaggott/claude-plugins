@@ -1,6 +1,6 @@
 ---
 name: work-summary
-description: Summarize your GitHub work into an audience-shaped recap — either shipped work (PRs merged, plus issues you filed, over a window — the default) or in-progress work (your open/draft PRs and their status). Gather via `gh search`, read PR/issue descriptions (not code), then settle audience, format, and detail before writing. Load when asked to "summarize yesterday", recap what shipped/got merged over a window ("this week", "since Monday", "last 3 days", a date or range), summarize what you're working on / what's in flight / what's blocked, or draft a standup or Slack update from your PRs. Skip for summarizing a single named PR (just read it) and for summarizing code-level changes rather than work outcomes/status.
+description: Summarize your GitHub work into an audience-shaped recap — shipped work over a window (the default), or in-progress work and its status. Load when asked to summarize or recap what shipped over a window ("summarize yesterday", "this week", "since Monday", a date or range), what you're working on, what's in flight or blocked, or to draft a standup or Slack update from your PRs. Skip for summarizing a single named PR (just read it), and for code-level changes rather than work outcomes.
 ---
 
 # Summarizing your work
