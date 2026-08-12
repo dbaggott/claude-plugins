@@ -34,6 +34,14 @@ Always do the thing.'
 
 teardown() { rm -rf "$TMP"; }
 
+# The manifest `rules-payload.sh` reads the version stamp from. Deliberately NOT
+# written by `hook_env_setup`: absent is the broken-install shape, so every suite
+# that says nothing about the stamp exercises the silent-no-op path for free.
+write_manifest() {  # <version>
+  mkdir -p "$ROOT/.claude-plugin"
+  printf '{"name":"dnbg-workflow","version":"%s"}\n' "$1" > "$ROOT/.claude-plugin/plugin.json"
+}
+
 stub_path() {  # <bin>...
   STUB="$TMP/bin"
   rm -rf "$STUB"; mkdir -p "$STUB"

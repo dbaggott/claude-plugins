@@ -111,6 +111,14 @@ The description reflects the **as-built** state (step 7) — and every claim in 
 
 `issue-workflow` holds issue bodies to the same bar, and states it there. When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
 
+**End the description with the version stamp**, naming the version from the `## dnbg-workflow <version>` note injected at session start:
+
+```
+<!-- dnbg-workflow <version> -->
+```
+
+It renders invisibly. It records which version of these prompts authored the PR — nothing else does, since a transcript carries the plugin's name but not its version, and transcripts expire on a rolling window while the PR does not. Re-state it when you rewrite the description under step 7; a description rewritten by a later session should carry that session's version, not the original one. Omit it when no such note appeared this session rather than guessing — nothing downstream can distinguish a guessed version from a read one.
+
 ## Multi-repo changes
 
 When one logical change spans repos (e.g. an infrastructure change plus the application change it enables), pair the PRs so a list view shows what goes with what:
