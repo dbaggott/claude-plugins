@@ -1,6 +1,6 @@
 ---
 name: git-workflow
-description: How to change any tracked file in a covered repo — git worktree creation (and treating other sessions' worktrees as expected rather than reportable), PR opening (drafts by default), pairing PRs across repos for multi-repo changes, watching for reviews, responding to reviewers, and post-merge cleanup. Load this whenever you're about to edit, write, or modify any tracked file in a covered repo (application code, skills, plugins, docs, configs, tests — anything that would show up in `git status`), open a PR, mark a PR ready, watch for review feedback, address review feedback, or clean up after a merge. The trigger is a tracked file changing, not the user's choice of words.
+description: How to change any tracked file in a covered repo: worktree, draft PR, review rounds, merge handoff, post-merge cleanup. Load before you edit, write, or modify any tracked file in a covered repo (application code, skills, plugins, docs, configs, tests — anything that would show up in `git status`), and when opening a PR, marking one ready, watching for or addressing review feedback, or cleaning up after a merge. The trigger is a tracked file changing, not the user's choice of words.
 ---
 
 # Git workflow
