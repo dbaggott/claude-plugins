@@ -95,7 +95,7 @@ HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1`. Bot
 
 An approval further down the list is an approval of a diff nobody is merging. Use this wherever the answer matters — before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
 
-**Don't hand-roll the query.** Both rules above were once prose around a fenced block copied into this skill and `reviewer`, and the first cut of that block took the last *approval* rather than the last *verdict* — in both copies at once, since they were copies. `tests/pr-verdict.bats` now pins each case, including the reversed approval and the `COMMENTED` exclusion. A `result=ERROR` line means the check could not see; it is not a verdict of "not approved".
+**Don't hand-roll the query.** `tests/pr-verdict.bats` pins each case, including the reversed approval and the `COMMENTED` exclusion. A `result=ERROR` line means the check could not see; it is not a verdict of "not approved".
 
 For a multi-repo change, read this **per repo**. Siblings genuinely differ, and a setting borrowed from the wrong one produces a merge command that fails or a cleanup step that silently does nothing.
 
@@ -220,7 +220,7 @@ gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate \
 
 This is not belt-and-braces. A body reading "four things below" with three summary bullets is normal — the fourth, often the only real defect, is inline. Summarize from the body alone and the next round opens with every finding still outstanding, because none of them was ever addressed.
 
-**And enumerate the unresolved threads — don't trust your own list of what you fixed.** This one has a command because prose was not enough: it was stated here without one, and was skipped twice in a single PR, with three threads left open while rounds were reported as handled. The reviewer read open threads as outstanding work, which is exactly what they mean.
+**And enumerate the unresolved threads — don't trust your own list of what you fixed.** Run the command rather than working from memory: a reviewer reads open threads as outstanding work, which is exactly what they mean, so a thread you believe you handled and left open reports the round as unaddressed.
 
 ```bash
 "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n>

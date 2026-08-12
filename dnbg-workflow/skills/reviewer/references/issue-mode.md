@@ -198,9 +198,7 @@ the catch-all**:
   list forward), and after the second empty window tell the operator nothing has
   landed rather than waiting silently. Both sources ran, so this genuinely means no
   PR references the issue — **don't reach for "the issue number is probably wrong"
-  as the explanation**. That reading came from the single-source wait, where a real
-  PR could sit unlinked-by-keyword and invisible; it sent the reviewer chasing a
-  diagnosis that could not be confirmed while an unreviewed PR merged.
+  as the explanation**.
 
 The `ERROR` branch is the whole point of using the shared script here. Routing it
 into the `IDLE` catch-all would re-arm into the same failure and then state

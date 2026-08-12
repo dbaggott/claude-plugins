@@ -483,7 +483,7 @@ of the plain unified diff it wraps.
   merge-from-base). **Name the SHA in the body** ("Re-approving at `1a2b3c4`").
 
   The trigger is the SHA mismatch, not whether the change was substantive.
-  Judging substantive-ness is what produced the failure this rule exists to fix:
+  Judging substantive-ness is what fails here:
   the author cannot distinguish silence-because-trivial from
   silence-because-the-reviewer-is-gone, so both read as a reviewer who might still
   speak, and their watcher waits for a signal you decided not to send.
@@ -523,10 +523,9 @@ keeping the record current:
 Your verdict is current iff the result line reads `at_head=1`. The script takes
 the last **verdict**, not the last approval — an `APPROVED` followed by a
 `CHANGES_REQUESTED` on the same SHA is not an approval, and `COMMENTED` (what a
-thread reply posts) is not a verdict at all. Both rules were prose here and in
-`git-workflow` before they were code, and the first cut got the first one wrong
-in both copies at once; `tests/pr-verdict.bats` pins them now. `result=ERROR`
-means the check could not see — not that your verdict is stale.
+thread reply posts) is not a verdict at all. `tests/pr-verdict.bats` pins both
+rules. `result=ERROR` means the check could not see — not that your verdict is
+stale.
 
 Where approvals are **required**, `reviewDecision` answers "is HEAD approved?"
 directly and is the primary source — it handles supersession and multiple

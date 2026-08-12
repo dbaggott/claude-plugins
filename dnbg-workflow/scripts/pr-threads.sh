@@ -52,10 +52,10 @@ unset GH_TOKEN
 
 REPO="${1:-}"; PR="${2:-}"; shift 2 2>/dev/null || true
 
-# Every branch either shifts or breaks. A `--resolve` with no value used to fall
-# through to a `shift 2` that fails on a one-element argv, leaving `$1` unchanged
-# and spinning the loop forever — a hang, which is the one failure mode a caller
-# reading `result=` lines cannot diagnose at all.
+# Every branch either shifts or breaks. A branch reaching a `shift 2` on a
+# one-element argv fails it, leaving `$1` unchanged and spinning the loop forever
+# — a hang, which is the one failure mode a caller reading `result=` lines cannot
+# diagnose at all.
 MINE=0; RESOLVE=""; bad=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
