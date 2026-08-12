@@ -107,7 +107,8 @@ what someone does?"**
 always-on rules file, a `CLAUDE.md`. Nothing enforces those either, and their
 reader can't ask a follow-up, so a stale line gets acted on rather than queried.
 **History** is what they accrete fastest: every incident invites a paragraph
-explaining itself, and none is ever removed.
+explaining itself, and none is ever removed. Four more failures are specific to
+that prose — see **Four ways agent-facing prose fails** below.
 
 These all fail that bar:
 
@@ -157,6 +158,24 @@ not its history.
 
 **Prefer an assertion to a prose invariant.** A test fails loudly; a comment rots
 quietly. General form: **enforceable > prose > nothing.**
+
+## Four ways agent-facing prose fails
+
+The bar is the one above; these are the failures a `SKILL.md`, a rules file, or a
+`CLAUDE.md` reaches that a comment does not. Its reader acts on every line, and
+pays for every line it doesn't act on.
+
+- **The same argument made twice.** Rationale earns a line where it changes what
+  the agent does — once, at the instruction. A paragraph defending a choice
+  already stated (and a picker option already marked "Recommended") is spent
+  attention; the PR is where a reviewer wants that argument.
+- **The inverse of a condition.** A section headed "if the PR is a draft" does
+  not also need "none of this applies when it isn't".
+- **A read an earlier step could have carried.** Prefer one more field on a fetch
+  the flow already makes to a second call for one value. The duplicate costs a
+  round trip on every run and reads as necessary.
+- **A branch this deployment never reaches.** Handling for a case that cannot
+  arise is read every time and invites the agent to go looking for it.
 
 ## Emphasis is a budget, not decoration
 
