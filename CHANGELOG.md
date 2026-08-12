@@ -9,6 +9,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.27 — 2026-08-12
+
+`reviewer`'s issue-scoped mode moves to `references/issue-mode.md`, leaving a
+pointer in `SKILL.md`. It was 2,124 words — 29% of the skill — that a PR-scoped
+review loaded and never used. Draft handling stays in `SKILL.md`, since a draft
+the operator names directly is a PR-scoped concern and arming the watch with
+`--was-draft` is the only way it ever reports `READY`.
+
+
 ## dnbg-workflow 2026.8.26 — 2026-08-12
 
 `reviewer` no longer files style nits as inline comments. An inline comment is a
