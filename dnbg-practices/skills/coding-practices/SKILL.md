@@ -165,17 +165,22 @@ The bar is the one above; these are the failures a `SKILL.md`, a rules file, or 
 `CLAUDE.md` reaches that a comment does not. Its reader acts on every line, and
 pays for every line it doesn't act on.
 
-- **The same argument made twice.** Rationale earns a line where it changes what
-  the agent does — once, at the instruction. A paragraph defending a choice
-  already stated (and a picker option already marked "Recommended") is spent
-  attention; the PR is where a reviewer wants that argument.
-- **The inverse of a condition.** A section headed "if the PR is a draft" does
-  not also need "none of this applies when it isn't".
-- **A read an earlier step could have carried.** Prefer one more field on a fetch
-  the flow already makes to a second call for one value. The duplicate costs a
-  round trip on every run and reads as necessary.
-- **A branch this deployment never reaches.** Handling for a case that cannot
-  arise is read every time and invites the agent to go looking for it.
+- **The same argument twice in the same place.** Rationale earns a line where it
+  changes what the agent does — once, at the instruction. A second paragraph
+  defending a choice the instruction already carries is spent attention; the PR
+  is where a reviewer wants that argument. (Distinct from *a rationale that
+  belongs on the definition* above, which is about the wrong **place**, not a
+  second copy.)
+- **The inverse of a condition.** A section scoped "when X" does not also need
+  "when not X, none of this applies". The agent read the heading.
+- **A read an earlier step could have carried.** When a step needs one more
+  field, add it to the fetch the flow already makes rather than issuing a second
+  call for it — the duplicate costs a round trip on every run, and nothing in the
+  prose marks it as avoidable.
+- **A branch for a state the install cannot be in.** Not the implausible
+  *misreading* above — an instruction for a real case that this deployment never
+  produces. It is read every run, and it invites the agent to go looking for the
+  case.
 
 ## Emphasis is a budget, not decoration
 

@@ -14,7 +14,7 @@ you haven't used recently.
 
 Before writing or reviewing code, load every standard that applies
 and hold the work to all of them: the repo's (its `CLAUDE.md`, any
-standards doc it names), the operator's, and
+standards doc it names), any the operator points you at, and
 `dnbg-practices:coding-practices` when it is installed. Installed
 is not *instead of* — where two disagree the project's own wins,
 and the rest still applies. Authoring prose that instructs an agent
