@@ -9,6 +9,21 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.32 — 2026-08-12
+
+`reviewer-setup` states its installation-permissions check once instead of twice —
+the copy under "Repair / rotate" now points at the one under "Verify", so there is
+no second copy to drift.
+
+
+## dnbg-work-summary 2026.8.4 — 2026-08-12
+
+`work-summary` drops Slack composer trivia that dated itself — which composer
+reads single asterisks as bold, and an instruction to re-check it — keeping the
+part a user can act on: emoji shortcodes must exist in the workspace, and
+Cmd-Shift-V is the fix when formatting doesn't survive a paste.
+
+
 ## dnbg-workflow 2026.8.31 — 2026-08-12
 
 `git-workflow` and the always-on rules shed prose that recorded how they got
