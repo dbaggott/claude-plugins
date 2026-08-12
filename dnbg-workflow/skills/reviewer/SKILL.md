@@ -327,9 +327,8 @@ PR to resume (it re-assesses current state and picks the watch back up).
    ⚠️ **`<last_head>` is the full 40-character SHA** — take it from
    `gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid`, never an
    abbreviated one you happened to print for a human. The watcher compares it as a
-   string against what GitHub returns, so a short SHA can never match; it now
-   refuses one (`result=ERROR reason=bad-args`), and before that it reported a
-   push that had not happened on its very first tick.
+   string against what GitHub returns, so a short SHA can never match; it is
+   refused (`result=ERROR reason=bad-args`).
 2. **Spawn `watch-pr.sh`** as a **background**
    task — it blocks until something happens, so its idle polling never enters the
    conversation; the harness wakes you when it returns:
@@ -434,14 +433,12 @@ Two boundaries, and they matter more than the cleanup itself:
 - **Don't delete a shared checkout you merely read from.** Reading files in an
   existing clone creates no cleanup obligation.
 
+A session that quits mid-review leaves its `.worktrees/review-<n>` behind —
+expected, not a leak, since re-invoking resumes the watch and still cleans up at
+`CLOSED`. Remove it by hand only if the review is being abandoned.
+
 Reviewing entirely through `gh` leaves nothing to remove, which is the normal
 case and the reason to prefer it.
-
-Cleanup is gated on `CLOSED`, so a session that quits mid-review leaves any
-`.worktrees/review-<n>` behind — more likely in the issue-scoped mode, where the
-wait for a PR can be long. That's expected, not a leak: re-invoking the skill on
-the PR resumes the watch and the same cleanup still runs at `CLOSED`. Remove it
-by hand if the review is being abandoned rather than resumed.
 
 ## Re-reviewing
 
