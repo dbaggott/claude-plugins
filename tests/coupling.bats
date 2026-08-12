@@ -295,7 +295,7 @@ EOF
   }
 }
 
-REVIEWER_SKILL="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
+REVIEWER_SKILL="$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md"
 
 @test "the issue-scoped wait sees every PR source discovery does" {
   run covers_discovery "$ROOT/dnbg-workflow/scripts/watch-pr.sh" "$REVIEWER_SKILL"
@@ -557,4 +557,22 @@ remote_read_calls() {  # <SKILL.md>
     echo "a decline-table row inherits its rule from a neighbour — spell it out, or it cannot go visibly stale"
     false
   fi
+}
+
+# `references/issue-mode.md` is reachable only through the pointer SKILL.md carries for it —
+# nothing else in the plugin names the file, and the discovery check above reads it
+# directly, so dropping the pointer leaves issue mode unreachable with the whole
+# suite green. That is the silent direction, and this is the check for it.
+#
+# Deliberately a bare filename grep: what must not vanish is the *name*, since an
+# agent reading SKILL.md can only find the file by seeing it mentioned. Asserting
+# the wording of the surrounding paragraph would fail on every edit that keeps the
+# pointer working, which is how a check gets deleted rather than fixed.
+@test "SKILL.md still points at issue-mode.md" {
+  local skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
+  [ -f "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md" ]
+  grep -q 'issue-mode\.md' "$skill" || {
+    echo "reviewer/SKILL.md no longer names issue-mode.md — issue-scoped reviews cannot find it"
+    false
+  }
 }
