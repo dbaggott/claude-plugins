@@ -68,11 +68,48 @@ Throughout, `<repo>` is `owner/name` and `<n>` is the PR number. Pass
 `--repo <repo>` explicitly so the skill works from any directory. Resolving the
 PR can use your own `gh` auth; the bot token below is only needed to post.
 
-**A PR the operator names directly is reviewable whether or not it is a draft** —
-they asked, and the ask overrides the draft signal — but say that it's a draft,
-since they may not have noticed. If they instead ask you to review it *once it's
-ready*, don't review now: arm the watch with `--was-draft` (see "Watch the PR")
-and review when it reports `READY`.
+### If the PR is a draft, ask before reviewing
+
+Read `isDraft` as part of identifying the PR:
+
+```bash
+gh pr view <n> --repo <repo> --json isDraft,url,title
+```
+
+**A draft named directly is reviewable — but don't just proceed.** The ask
+overrides the draft signal, so reviewing is a legitimate answer; it is not the
+*only* one, because the operator naming a PR is not evidence they noticed it was
+still a draft, and the two readings lead to opposite work. Say that it's a draft,
+then call `AskUserQuestion` with two options (the tool auto-appends "Other" for
+anything else):
+
+1. **"Review it now (Recommended)"** — "Review the draft as asked and post the
+   verdict."
+2. **"Wait until it's ready"** — "Hold the review; watch the PR and review when
+   it leaves draft."
+
+Recommend option 1: they asked for a review, and a draft the operator points at
+by number is usually one they want looked at now. Recommending it keeps the
+common case to a single keypress, and the second option is what makes the other
+reading cheap — cheaper than a verdict and a set of inline threads that landed on
+work the author was still moving.
+
+**Don't substitute a prose question for the picker**, and don't fire it at all
+when the operator has already answered — "review it even though it's a draft",
+"review it once it's ready", or an earlier answer for this same PR. A
+pre-answered picker is an interruption that spends the operator's attention on a
+decision they already made.
+
+On **"Review it now"**, carry on with the flow below. On **"Wait until it's
+ready"**, post nothing now: arm the watch with `--was-draft` (see "Watch the
+PR") and review when it reports `READY`.
+
+**With no operator to ask** — a headless or unattended run, where
+`AskUserQuestion` has no one in front of it — hold back and arm the watch,
+saying so. Waiting defers the review; reviewing early spends a verdict and
+inline threads on work the author hasn't endorsed, and neither can be taken back.
+
+None of this applies to a PR that isn't a draft: no picker, just review it.
 
 ## Get a bot token (scoped to the repo's owner)
 
