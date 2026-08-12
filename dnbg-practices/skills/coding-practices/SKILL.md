@@ -1,6 +1,6 @@
 ---
 name: coding-practices
-description: Core engineering principles — design and clarity over expediency, security as a first-class concern, DRY, clean self-documenting code, logging discipline (use a framework not stdout/stderr, one event per operation, no sensitive data, actionable WARN+), common smells to stop on, verifying what you don't know, using Context7 for library docs, and no human time estimates. Load when writing or reviewing code, naming things, deciding whether to add a comment or reviewing existing ones (what a comment must not carry, and emphasis as a budget), choosing how to emit log or diagnostic output, looking up library APIs, sizing work, or making a recommendation that rests on an unchecked assumption, or authoring prose that instructs an agent (a SKILL.md, an always-on rules file, a CLAUDE.md) — the comment bar governs those too. Skip for pure config edits, questions that author nothing, and quick lookups where no logic is being written.
+description: Core engineering principles — design and clarity over expediency, security as a first-class concern, DRY, clean self-documenting code, logging discipline (use a framework not stdout/stderr, one event per operation, no sensitive data, actionable WARN+), common smells to stop on, verifying what you don't know, using Context7 for library docs, and no human time estimates. Load when writing or reviewing code, naming things, deciding whether to add a comment or reviewing existing ones (what a comment must not carry, and emphasis as a budget), choosing how to emit log or diagnostic output, looking up library APIs, sizing work, or making a recommendation that rests on an unchecked assumption, or authoring prose that instructs an agent (a SKILL.md, an always-on rules file, a CLAUDE.md) — the comment bar governs those too. Skip for pure config edits (settings.json, lockfiles), questions that author nothing, and quick lookups where no logic is being written.
 ---
 
 # Coding practices
@@ -97,7 +97,7 @@ counter += 1  # bump before retry so the dedup key changes
 
 ## What a comment must not carry
 
-A comment is the only artifact in a repo with nothing enforcing it. No test fails
+A comment is an artifact with nothing enforcing it. No test fails
 when it goes stale, no build breaks, no formatter notices — it rots silently and
 surfaces only if a reader happens to open both files. So the bar is not "is this
 true?" but **"will this still be true after the next change, and does it change
