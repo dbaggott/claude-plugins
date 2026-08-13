@@ -717,3 +717,71 @@ EOF
   [ -n "$f" ]
   grep -q -- "args=\[--issue --exclude=https://github.com/o/r/pull/114 o/r 56 " "$f"
 }
+
+# The watcher polls the comments it reports on, so reporting only a flag makes the
+# caller fetch them again. These pin the payload it now carries with the flag.
+
+@test "the activity behind activity=1 is emitted, not just the flag" {
+  printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"four things below","commit":{"oid":"%s"}}]' \
+    "$(sha40 0)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=ACTIVITY"* ]]
+  [[ "$output" == *'"kind":"review"'* ]]
+  [[ "$output" == *"four things below"* ]]
+}
+
+# The case the flag exists for: a push and a reply in one burst. The reply is only
+# ever reported here — the caller re-arms with since_iso set to now, so a payload
+# it did not carry is filtered out for good.
+@test "a push that lands with replies carries the replies" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "pr view")
+    n=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$TICKS"
+    h=0; [ "$n" -ge 2 ] && h=1
+    printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[]}' "$h" ;;
+  "api "*|"api")
+    echo '[{"created_at":"2999-01-01T00:00:00Z","user":{"login":"someone"},"path":"a.sh","line":7,"id":99,"body":"the fourth thing"}]' ;;
+  *) exit 1 ;;
+esac
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"result=COMMITS"* ]]
+  [[ "$output" == *"activity=1"* ]]
+  [[ "$output" == *'"kind":"inline"'* ]]
+  # The id an in-thread reply needs as `in_reply_to`, which is otherwise a re-fetch.
+  [[ "$output" == *'"id":99'* ]]
+}
+
+# A caller reading the lines above `result=` must not find leftovers on a quiet
+# watch — an empty burst has to look empty.
+@test "a quiet watch prints its result line and nothing else" {
+  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot
+  [ "${#lines[@]}" -eq 1 ]
+  [[ "${lines[0]}" == result=IDLE* ]]
+}
+
+@test "a verdict wake names the state that stands, not only its SHA" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"verdict=APPROVED"* ]]
+  [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
+}
+
+# The branching hint has to name the LAST verdict, or it sends the caller down the
+# clean-review path over a standing objection. Same rule pr-verdict.sh is pinned to.
+@test "verdict= reports a reversal at the same SHA, not the approval under it" {
+  printf '[{"state":"APPROVED","submittedAt":"1970-01-02T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"%s"}},
+           {"state":"CHANGES_REQUESTED","submittedAt":"1970-01-02T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"%s"}}]' \
+    "$(sha40 0)" "$(sha40 0)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"verdict=CHANGES_REQUESTED"* ]]
+}

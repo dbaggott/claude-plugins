@@ -574,12 +574,16 @@ PR to resume (it re-assesses current state and picks the watch back up).
      Re-arming is cheap; assuming quiet is not.
 
 **`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.** It
-means comments or replies landed alongside the push. The primary result says what
-to do first; the flag says there is also unread conversation. Handle it per
-**Responding to comments and replies** in the same pass as the re-review — not on
-a later wake, because step 4 re-arms with `since_iso` set to the reported `now`,
-which filters out everything already reported. Deferring those replies deletes
-them.
+means comments or replies landed alongside the push, and **the JSON lines above
+the result line are those comments**, emitted from the poll that saw them. The
+primary result says what to do first; handle the conversation per **Responding to
+comments and replies** in the same pass as the re-review — not on a later wake,
+because step 4 re-arms with `since_iso` set to the reported `now`, which filters
+out everything already reported. Deferring those replies deletes them.
+
+`verdict=<state>` alongside `verdict_sha=` says which verdict now stands, so you
+can tell another reviewer's objection from an approval before fetching anything.
+It is a branching hint; `pr-round.sh` re-reads the verdict when you act on it.
 
 4. **Re-arm:** update `last_head`/`since_iso` to the values the watcher reported
    (`new_head`, `now`) and spawn it again. Repeat until `CLOSED` or the operator
@@ -671,21 +675,25 @@ When asked to re-review a PR your bot already reviewed — new commits were push
 or the author asks for another look — post a fresh review. The verdict is keyed
 to the new HEAD.
 
-**Read the delta, not the whole PR diff again:**
+**Take the round in one call** — the delta diff, whatever landed in
+conversation, your standing verdict, and every unresolved thread:
 
 ```bash
-gh api repos/<repo>/compare/<last-reviewed-sha>...<new-head> \
-  -H "Accept: application/vnd.github.diff"
+"<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-reviewed-sha> <since_iso> <slug>
 ```
 
-You already track the last-reviewed SHA for the watcher, so the input is on
-hand. This is cheaper than re-reading the full diff and a better-targeted
-question: it is exactly the set of changes your prior verdict didn't cover. Fall
-back to the full diff only when you have no prior SHA to compare from.
+Those are the values you already track for the watcher, so the input is on hand.
+It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one
+result line carrying `verdict`, `verdict_sha`, `at_head` and a `_src` status per
+source. Pass `""` for the SHA on a first review; that asks for the full diff.
 
-The `Accept` header is load-bearing: without it the response is JSON whose
-`patch` fields are escaped and interleaved with metadata, several times the size
-of the plain unified diff it wraps.
+The diff is the **delta** wherever a prior SHA exists — exactly the changes your
+last verdict didn't cover, rather than the whole PR again. `diff=none` means HEAD
+hasn't moved since you handled it, which is the normal answer on an `ACTIVITY`
+wake and costs no request at all.
+
+An empty section means "nothing there" only where its `_src` reads `ok`; `fail`
+or `shape` means that source went blind, which is not a quiet round.
 
 - **Prior verdict `--approve`**: **re-post a verdict whenever HEAD has moved past
   the SHA your standing approval is attached to** — `--approve` if the new diff is
@@ -723,9 +731,10 @@ of the plain unified diff it wraps.
   are no-op substance that didn't address the findings, leave it — the PR stays
   correctly blocked.
 
-One call answers "has HEAD moved past my verdict?" — and the same call is what
-the author's side uses to answer "is HEAD approved?", which is the point of
-keeping the record current:
+"Has HEAD moved past my verdict?" is answered by the packet's own `at_head`,
+which is `pr-verdict.sh`'s answer carried through — the same question the
+author's side asks as "is HEAD approved?", which is the point of keeping the
+record current. Outside a round, ask it directly:
 
 ```bash
 "<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <n>
@@ -749,8 +758,11 @@ answered** (below).
 
 ## Responding to comments and replies
 
-When the watcher surfaces `ACTIVITY`, read what landed and respond only when
-there's something substantive to add — never "I agree" filler. Replies post as
+When the watcher surfaces `ACTIVITY`, what landed is already in hand — the JSON
+lines above its result line, or the packet's `── activity ──` section if you
+took a round. Respond only when there's something substantive to add — never "I
+agree" filler. An inline object carries the `id` the reply below needs as
+`in_reply_to`. Replies post as
 the bot (its `pull_requests: write` covers reviews, inline comments, thread
 replies, and conversation comments), so each of the commands below wants the
 guarded mint ahead of it, in that same tool call:

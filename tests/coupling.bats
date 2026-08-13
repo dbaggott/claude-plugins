@@ -715,3 +715,42 @@ remote_read_calls() {  # <SKILL.md>
       false; }
   done
 }
+
+# `verdict=` is now answered in three places — pr-verdict.sh, watch-pr.sh's
+# level-triggered check, and the round packet — but only the first two can hold a
+# copy of the RULE. The packet delegates, so the set stays pinned by the test
+# above rather than needing a third arm that would have to be kept in step.
+@test "pr-round.sh delegates the verdict rather than carrying a third copy" {
+  local f="$ROOT/dnbg-workflow/scripts/pr-round.sh"
+  local states
+  states=$(verdict_states "$f")
+  [ -z "$states" ] || {
+    echo "pr-round.sh names verdict states itself: $(echo "$states" | tr '\n' ' ')"
+    echo "call pr-verdict.sh instead — tests/coupling.bats pins the set across two files, not three"
+    false
+  }
+  pr_command_lines "$f" | grep -q 'pr-verdict\.sh' || {
+    echo "pr-round.sh no longer invokes pr-verdict.sh, so its verdict comes from nowhere"; false; }
+  pr_command_lines "$f" | grep -q 'pr-threads\.sh' || {
+    echo "pr-round.sh no longer invokes pr-threads.sh"; false; }
+}
+
+# The watcher emits the activity it already polled and the packet fetches the
+# same thing; a caller reads both, so the objects have to match field for field.
+# One sourced definition is what makes that true — spelling the filter inline in
+# either file is the drift, and it is silent (the two just disagree).
+@test "both activity producers source the shared filters instead of spelling them" {
+  local f
+  for f in "$ROOT/dnbg-workflow/scripts/watch-pr.sh" \
+           "$ROOT/dnbg-workflow/scripts/pr-round.sh"; do
+    grep -q 'lib-activity\.sh' "$f" || {
+      echo "$(basename "$f") no longer sources lib-activity.sh"; false; }
+    grep -v '^[[:space:]]*#' "$f" | grep -q 'kind: *"' && {
+      echo "$(basename "$f") spells an activity object inline — use lib-activity.sh"; false; }
+  done
+  # And the shared file really does define both, or the greps above pass on a
+  # source that supplies nothing.
+  local lib="$ROOT/dnbg-workflow/scripts/lib-activity.sh"
+  grep -q '^ACTIVITY_JQ_REVIEWS=' "$lib"
+  grep -q '^ACTIVITY_JQ_INLINE=' "$lib"
+}
