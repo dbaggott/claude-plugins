@@ -30,10 +30,11 @@ The path matters. `extraKnownMarketplaces` is also valid in a project's
 marketplace — and that file is normally committed. Put this in your user file
 unless you mean to ask a whole repo.
 
-Either way, updates are picked up between sessions rather than during one: a
-running session keeps the version it launched with, and you'll be prompted to
-`/reload-plugins` or get the new version next launch. When you want a release
-now rather than whenever it arrives, update by hand — below.
+When updates are applied, and what that does to a running session, is Claude
+Code's own behavior rather than this project's — see [Configure
+auto-updates](https://code.claude.com/docs/en/discover-plugins#configure-auto-updates)
+in its documentation. To take a release immediately rather than whenever it
+arrives, update by hand — below.
 
 **To see which version you are on**, run `claude plugin list`. If you want to
 confirm what is actually unpacked on disk:
