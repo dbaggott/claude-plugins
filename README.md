@@ -201,9 +201,10 @@ six command-line tools — are in [requirements](docs/requirements.md).
 
 ## Which forges
 
-**GitHub is supported.** GitLab and Bitbucket are
-[planned](https://github.com/dbaggott/claude-plugins/issues/21); everything else
-is unsupported. The forge-neutral skills — `coding-practices` and
+**GitHub is supported.** GitLab is
+[next](https://github.com/dbaggott/claude-plugins/issues/149), then
+[Bitbucket](https://github.com/dbaggott/claude-plugins/issues/150); everything
+else is unsupported. The forge-neutral skills — `coding-practices` and
 `velocity-tradeoff` — work anywhere regardless.
 
 On an unsupported forge a coupled skill **declines and says so**, naming the host
