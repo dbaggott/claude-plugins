@@ -698,7 +698,7 @@ while :; do
   fi
 
   # A draft we are deliberately holding back is not reportable. Without this a
-  # push returns COMMITS, which routes the reviewer into Re-reviewing — reviewing
+  # push returns COMMITS, which routes the reviewer into a re-review — reviewing
   # the very draft "Don't review a discovered PR that is still a draft" excludes.
   # Keep accumulating; the READY check above is what releases the burst.
   holding_draft=0

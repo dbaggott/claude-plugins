@@ -653,22 +653,34 @@ remote_read_calls() {  # <SKILL.md>
   fi
 }
 
-# `references/issue-mode.md` is reachable only through the pointer SKILL.md carries for it —
-# nothing else in the plugin names the file, and the discovery check above reads it
-# directly, so dropping the pointer leaves issue mode unreachable with the whole
-# suite green. That is the silent direction, and this is the check for it.
+# Every file under `reviewer/references/` is reachable only through the pointer
+# SKILL.md carries for it — nothing else in the plugin names one, and the discovery
+# check above reads issue-mode.md directly, so dropping a pointer leaves that file
+# unreachable with the whole suite green. That is the silent direction, and this is
+# the check for it. It matters most for the files the reviewer needs *mid-cycle*:
+# an agent that never loads watch.md branches on `result=` from the names alone.
 #
 # Deliberately a bare filename grep: what must not vanish is the *name*, since an
 # agent reading SKILL.md can only find the file by seeing it mentioned. Asserting
 # the wording of the surrounding paragraph would fail on every edit that keeps the
 # pointer working, which is how a check gets deleted rather than fixed.
-@test "SKILL.md still points at issue-mode.md" {
-  local skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
-  [ -f "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md" ]
-  grep -q 'issue-mode\.md' "$skill" || {
-    echo "reviewer/SKILL.md no longer names issue-mode.md — issue-scoped reviews cannot find it"
-    false
-  }
+#
+# Globbed rather than enumerated so a reference file added later is covered without
+# anyone remembering to come back here.
+@test "SKILL.md points at every one of its reference files" {
+  local skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md" f bad=0
+  local found=0
+  for f in "$ROOT/dnbg-workflow/skills/reviewer/references/"*.md; do
+    found=1
+    grep -q "$(basename "$f" | sed 's/\./\\./g')" "$skill" || {
+      echo "reviewer/SKILL.md no longer names $(basename "$f") — nothing can reach it"
+      bad=1
+    }
+  done
+  # An empty glob would pass vacuously, which is the one way this check can go
+  # quiet without anyone noticing the directory was emptied.
+  [ "$found" -eq 1 ] || { echo "reviewer/references/ has no .md files at all"; bad=1; }
+  [ "$bad" -eq 0 ]
 }
 
 # A `description:` whose value contains an unquoted `: ` is not a description with

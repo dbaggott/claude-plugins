@@ -191,7 +191,25 @@ posture applied on the author's side.
 
 ## How to do the work
 
-1. **Read the diff.** `gh pr diff <n> --repo <repo>` for the full unified diff;
+1. **Load the standards you'll review against, before you read any code.** The
+   always-on "Coding standards stack" rule names them; what it cannot name is
+   *whose* they are — **the PR's repo decides, not your working directory.** You
+   may be reviewing from an unrelated checkout or from none at all, so read the
+   target repo's own `CLAUDE.md` and any standards doc it names, at the head SHA:
+
+   ```bash
+   gh api "repos/<repo>/contents/CLAUDE.md?ref=<head-sha>" -H "Accept: application/vnd.github.raw"
+   ```
+
+   A 404 says the repo carries none, which is an answer rather than a failure.
+   `dnbg-practices:coding-practices` applies on top wherever it is installed, and
+   the repo's own standards win where the two disagree.
+
+   **It is step 1 because a deferred load is an abandoned one.** Every later step
+   reads as actionable without it, so nothing downstream ever forces it, and a
+   review that skipped it silently falls back to your own taste.
+
+2. **Read the diff.** `gh pr diff <n> --repo <repo>` for the full unified diff;
    `gh pr view <n> --repo <repo> --json files,additions,deletions` for the
    file-level summary. For larger PRs, read the changed files directly — prefer
    fetching them over checking the branch out, since a remote read leaves nothing
@@ -218,8 +236,8 @@ posture applied on the author's side.
    ```
 
    The file list is the part worth re-running every round — cheap, and base
-   movement is invisible to the delta compare under "Re-reviewing". Take hunks
-   from the delta, not from a re-derived full diff.
+   movement is invisible to the delta compare in `references/re-review.md`. Take
+   hunks from the delta, not from a re-derived full diff.
 
    **When the PR changes, gates, or removes an existing feature, sweep the
    feature's identifier families across the head SHA before reading the diff.**
@@ -245,33 +263,11 @@ posture applied on the author's side.
    adjacency** — that's how a +22/−1 change costs a 750-line read.
 
    When a review genuinely needs the tree — running a type-checker, tracing call
-   sites across many files, or an instrumented probe (see step 3) — create a
-   worktree **you own** and note that you created it, because you remove it when
-   the review ends (see "End state"). **Re-running the project's test suite is
-   not on that list** — see step 3. Create the worktree when a specific need
-   arrives, not speculatively at the start of the review:
-
-   ```bash
-   git fetch origin pull/<n>/head
-   git worktree add .worktrees/review-<n> --detach <head-sha>
-   ```
-
-   Via the PR ref rather than `origin/<head-branch>`, which doesn't exist for a
-   fork-based PR. Check out the **head SHA** (from `gh pr view <n> --json
-   headRefOid`), not `FETCH_HEAD`: `FETCH_HEAD` is per-worktree, so it resolves
-   only where the fetch ran and is absent in the review worktree you just made.
-
-   **`.worktrees/` is the default, not a constant.** It is configurable, so if a
-   `dnbg-workflow` note at session start names a different worktree root, that
-   note wins and every `.worktrees/` in this skill means the root it names —
-   here, and in the cleanup at the end. With no such note, the literal above is
-   what this session uses.
-
-   **This branch is the only part of the skill that needs a local
-   clone of the target repo** — everything else runs from any directory via
-   `--repo`, and the remote read above is what keeps that true. Working with no
-   clone? Read remotely, or clone deliberately and remove it at the end like any
-   other checkout you created.
+   sites across many files, or an instrumented probe (see step 4) — read
+   `references/worktree.md` and make the checkout there; it also owns removing it
+   at `CLOSED`. **Re-running the project's test suite is not on that list** — see
+   step 4. Create it when a specific need arrives, not speculatively at the start
+   of the review.
 
    When the PR description references an issue or another PR, read it only if a
    specific question blocks your review — not for general background. Honor
@@ -279,7 +275,7 @@ posture applied on the author's side.
    read unless blocked)") are skippable by construction. Depth 1 only; never
    chase links transitively.
 
-2. **Check CI status.** `gh pr checks <n> --repo <repo>`. If a check completed
+3. **Check CI status.** `gh pr checks <n> --repo <repo>`. If a check completed
    non-passing (`fail`, `cancel`, `timed_out`, `action_required`) **and** the
    failure is a real defect tied to the diff (deterministic test failure on
    changed code, compiler/type error), surface it as a finding the author must
@@ -300,7 +296,7 @@ posture applied on the author's side.
    to fix, and holding the verdict open would not have caught it either — the
    window that decides the merge runs past any verdict you could post.
 
-3. **Read the check results; don't reproduce them.** That covers every
+4. **Read the check results; don't reproduce them.** That covers every
    *mechanical* gate a CI check has already decided — a required changelog
    fragment, a JSON parse, a formatter, a schema or lint check — not the test
    suite alone. None can silently pass, so re-deriving one tells the author what
@@ -344,8 +340,8 @@ posture applied on the author's side.
    rounds re-prove it at the same cost, so re-render only when the pipeline
    itself changes.
 
-4. **Review for** (in priority order), and against the standards the always-on
-   "Coding standards stack" rule has you load:
+5. **Review for** (in priority order), against the standards you loaded in
+   step 1:
    - **Bugs**: logic errors, off-by-one, race conditions, null dereferences,
      error paths that swallow exceptions.
    - **Security**: SQL/command injection, hardcoded secrets, auth bypasses,
@@ -360,7 +356,7 @@ posture applied on the author's side.
    length, a file count — a `grep -c` before and after settles it, and a number
    isn't a matter of taste.
 
-5. **Eyes out for complexity.** If you're re-reviewing and bugs keep getting
+6. **Eyes out for complexity.** If you're re-reviewing and bugs keep getting
    discovered cycle after cycle, check for a deeper unaddressed problem. Call out
    the structural issue rather than letting symptoms get patched one at a time.
 
@@ -537,224 +533,12 @@ PR to resume (it re-assesses current state and picks the watch back up).
    without the flag, and `READY` is emitted only when it is set — the PR would be
    picked up on its next push, or never, and an idle watch is indistinguishable
    from a quiet PR.
-3. **On return, branch on `result=`:**
-   - **`COMMITS`** (`new_head=…`) — the author pushed. Re-review at the new HEAD
-     per **Re-reviewing**, and resolve threads the new diff addressed.
-   - **`ACTIVITY`** — a new review, comment, or reply (not the bot's). Handle per
-     **Responding to comments and replies**; resolve threads now answered.
-   - **`READY`** (`new_head=…`) — a draft you were holding back was marked ready.
-     Review it now, as a first review; re-arm from the reported `new_head`,
-     **without** `--was-draft`.
-
-   - **`CLOSED`** — the PR merged or closed. Stop watching, then finish: "Clean
-     up what you synced" below, then "Report the review, in three sections".
-   - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
-   - **`ERROR reason=<source>`** — that source failed repeatedly and the watch
-     cannot see. **Do not re-arm**: unlike `IDLE`, this says nothing about the PR,
-     so re-arming polls straight back into the same failure while reporting
-     nothing wrong — the silent-blindness case the next bullet describes for a
-     killed task. Check `gh auth status` and the number/repo pair, then say so
-     rather than continuing to watch.
-   - **`ERROR reason=bad-args`** — the same code, a different cause, and the
-     remedy above is the wrong one: nothing failed, the watch refused to start
-     because an argument could not do its job. Fix the argument and re-spawn.
-     Three reach here: an empty `<slug>` (its filter would match no login, so the
-     watch wakes on its own posts), a `<last_head>` or `--last-verdict` value that
-     is neither empty nor a full 40-character lowercase SHA, and a trailing
-     argument that is neither `--was-draft` nor `--last-verdict=<sha>`. Don't send
-     the operator to `gh auth status` for any of them.
-   - **No `result=` line at all** — the task was killed or failed rather than
-     returning (a session ending, a reload, exit 143). This is the dangerous one,
-     because it looks exactly like a quiet PR while being the opposite: the
-     watcher stopped observing and anything pushed since is unreported. **Never
-     treat a missing result as "nothing changed."** Re-read the current
-     `headRefOid` and `reviewDecision` with `gh pr view`, and diff from the last
-     SHA you actually reviewed — per **Re-reviewing** below — rather than from
-     whatever state the watcher last reported. Then re-arm.
-     Re-arming is cheap; assuming quiet is not.
-
-**`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.** It
-means comments or replies landed alongside the push, and **the JSON lines above
-the result line are those comments**, emitted from the poll that saw them. The
-primary result says what to do first; handle the conversation per **Responding to
-comments and replies** in the same pass as the re-review — not on a later wake,
-because step 4 re-arms with `since_iso` set to the reported `now`, which filters
-out everything already reported. Deferring those replies deletes them.
-
-`verdict=<state>` alongside `verdict_sha=` says which verdict now stands, so you
-can tell another reviewer's objection from an approval before fetching anything.
-It is a branching hint; `pr-round.sh` re-reads the verdict when you act on it.
-
-4. **Re-arm:** update `last_head`/`since_iso` to the values the watcher reported
-   (`new_head`, `now`) and spawn it again. Repeat until `CLOSED` or the operator
-   says to stop.
-
-   `verdict_sha` is reported the same way, and is the value to re-arm
-   `--last-verdict` with — it appears only when the level-triggered check fired,
-   so carry the previous value forward when it is absent. Re-arming with an empty
-   `--last-verdict=` while a verdict you have already handled still stands at HEAD
-   wakes every subsequent watch on its first tick.
-
-The same applies after a watch is **paused and resumed** — an operator interrupt,
-a session restart. The gap is invisible from the watcher's side, so re-establish
-HEAD from GitHub before deciding anything rather than continuing from the state
-you had when it stopped.
-
-**End state.** The PR merging or closing (`CLOSED`) is the *only* completion. An
-`--approve` is **not** terminal — and the reason is mechanical, not stylistic: a
-later push moves HEAD past the SHA your approval is attached to, so the diff
-being merged has not been reviewed by anyone. That holds whether or not GitHub
-dismissed the approval; where it doesn't dismiss, the merge box still shows green
-over the unreviewed diff, which is the worse case. Stopping at "approved" leaves
-a PR that reads as reviewed and isn't. So the reviewer stays subscribed, idling and re-arming on a
-quiet-but-open PR, until the PR is actually finished. The operator can stop the
-watch early; quitting the session *pauses* it (re-invoke to resume), which is not
-the same as completion.
-
-⚠️ **In the issue-scoped mode, a PR reaching `CLOSED` is not the end of the
-assignment** — it is the trigger to re-discover. Completion there is a fresh
-discovery pass finding no open PR *and* the issue closed; see "Discovery is
-continuous" in `references/issue-mode.md`. Treating one PR's `CLOSED` as the end is exactly how the
-sibling PR that opens tomorrow goes unreviewed.
-
-**Clean up what you synced, at `CLOSED`.** Reviewing can leave a checkout behind
-— a worktree made to run a type-checker, a temporary clone, files pulled into a
-scratch directory. Remove exactly what *you* created:
-
-```bash
-git worktree remove .worktrees/review-<n>   # only if you created it
-git worktree prune
-```
-
-Two boundaries, and they matter more than the cleanup itself:
-
-- **Never remove anything you didn't create.** The author's worktree and branch
-  belong to their side of the flow — `git-workflow`'s post-merge cleanup owns
-  those — and other `.worktrees/` entries are other people's in-flight work.
-- **Don't delete a shared checkout you merely read from.** Reading files in an
-  existing clone creates no cleanup obligation.
-
-A session that quits mid-review leaves its `.worktrees/review-<n>` behind —
-expected, not a leak, since re-invoking resumes the watch and still cleans up at
-`CLOSED`. Remove it by hand only if the review is being abandoned.
-
-Reviewing entirely through `gh` leaves nothing to remove, which is the normal
-case and the reason to prefer it.
-
-## Report the review, in three sections
-
-At `CLOSED`, once the cleanup above is done, report the review to the operator
-under exactly these three headings, in this order. **All three every time,
-"None" under an empty one, and anything that could go under either of the last
-two goes under Actionable** — an omitted section reads as "nothing there" and
-"never considered" alike, and Observations is the one the operator is invited to
-skim.
-
-- **Summary** — what happened. The PR by full URL, how it ended (merged, or
-  closed unmerged), the verdicts you posted and the SHAs they sat on, and how
-  many rounds it took. Self-contained: the operator may have sent this PR to you
-  hours ago and read nothing since.
-- **Observations** — informational, and nothing for them to do. A pattern worth
-  knowing, a risk you checked and found handled, an area the change leaves
-  untouched but adjacent.
-- **Actionable** — a non-blocking finding the author didn't take, a thread you
-  resolved on the author's reasoning that you still think deserves a follow-up,
-  a coverage gap the merged diff carries. One line each, naming the concrete
-  next step and where.
-
-Don't act on that list — you are the reviewer, and filing or fixing is somebody
-else's side of the flow.
-
-In the issue-scoped mode this report fires **per PR**, as each one closes, and
-says nothing about the assignment being over — re-discovery decides that. Report
-the PR that just closed; don't write the section as a wrap-up.
-
-## Re-reviewing
-
-When asked to re-review a PR your bot already reviewed — new commits were pushed,
-or the author asks for another look — post a fresh review. The verdict is keyed
-to the new HEAD.
-
-**Take the round in one call** — the delta diff, whatever landed in
-conversation, your standing verdict, and every unresolved thread:
-
-```bash
-"<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-reviewed-sha> <since_iso> <slug>
-```
-
-Those are the values you already track for the watcher, so the input is on hand.
-It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one
-result line carrying `verdict`, `verdict_sha`, `at_head` and a `_src` status per
-source. Pass `""` for the SHA on a first review; that asks for the full diff.
-
-The diff is the **delta** wherever a prior SHA exists — exactly the changes your
-last verdict didn't cover, rather than the whole PR again. `diff=none` means HEAD
-hasn't moved since you handled it, which is the normal answer on an `ACTIVITY`
-wake and costs no request at all.
-
-An empty section means "nothing there" only where its `_src` reads `ok`; `fail`
-or `shape` means that source went blind, which is not a quiet round.
-
-- **Prior verdict `--approve`**: **re-post a verdict whenever HEAD has moved past
-  the SHA your standing approval is attached to** — `--approve` if the new diff is
-  still clean, `--request-changes` if it introduces issues. Even when your verdict
-  is unchanged, and including no-op-substance pushes (whitespace, formatter,
-  merge-from-base). **Name the SHA in the body** ("Re-approving at `1a2b3c4`").
-
-  The trigger is the SHA mismatch, not whether the change was substantive.
-  Judging substantive-ness is what fails here:
-  the author cannot distinguish silence-because-trivial from
-  silence-because-the-reviewer-is-gone, so both read as a reviewer who might still
-  speak, and their watcher waits for a signal you decided not to send.
-
-  It also moves the *record*, not just the conversation. A review carries a
-  `commit_id`, and GitHub renders a stale approval in the merge box with no
-  caveat — one green check over "read the new commits and is fine", "hasn't looked
-  yet", and "no verdict is ever coming". A fresh verdict re-attaches `commit_id`
-  to the current HEAD, so "is HEAD approved?" becomes answerable from the API by
-  the author, a human merger, or a later session, without asking anyone.
-
-  **Review the delta before re-approving.** This rule invites rubber-stamping,
-  which is worse than the silence it replaces: silence is merely uninformative,
-  while a verdict nobody stood behind is confidently wrong and gets merged on.
-
-- Whether GitHub dismissed the approval on the push does not enter into it. Under
-  the rule above you re-verdict either way, so the repo's *Dismiss stale pull
-  request approvals* setting changes no behaviour of yours — don't read branch
-  protection to decide this (it needs **admin** and answers 403/404 on write-only
-  access, so the branch was unreliable as well as unnecessary). Where stale
-  dismissal genuinely bites, GitHub already forces the re-approval and this rule
-  is a no-op; it only fires in the ambiguous case.
-- **Prior verdict `--request-changes`**: the PR stays blocked until a fresh
-  review lands (a top-level comment doesn't dismiss it). `--approve` if the new
-  diff fixes the findings; `--request-changes` again if not. If the new commits
-  are no-op substance that didn't address the findings, leave it — the PR stays
-  correctly blocked.
-
-"Has HEAD moved past my verdict?" is answered by the packet's own `at_head`,
-which is `pr-verdict.sh`'s answer carried through — the same question the
-author's side asks as "is HEAD approved?", which is the point of keeping the
-record current. Outside a round, ask it directly:
-
-```bash
-"<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <n>
-```
-
-Your verdict is current iff the result line reads `at_head=1`. The script takes
-the last **verdict**, not the last approval — an `APPROVED` followed by a
-`CHANGES_REQUESTED` on the same SHA is not an approval, and `COMMENTED` (what a
-thread reply posts) is not a verdict at all. `tests/pr-verdict.bats` pins both
-rules. `result=ERROR` means the check could not see — not that your verdict is
-stale.
-
-Where approvals are **required**, `reviewDecision` answers "is HEAD approved?"
-directly and is the primary source — it handles supersession and multiple
-reviewers, which this comparison does not. This is the answer where no approval
-is required, and it is the only one there: `reviewDecision` is `null`, and
-neither the merge box nor `dismiss_stale_reviews` fills the gap.
-
-Alongside the fresh review, **resolve any inline thread whose concern is now
-answered** (below).
+3. **On return, read `references/watch.md` before you branch on `result=`.**
+   Every return lands there — each branch, the values to re-arm with, what a
+   *missing* `result=` line means, and where the watch actually ends. Don't
+   improvise a branch from the result names: the two `ERROR` codes take opposite
+   remedies, and a missing line is the one case that reads like a quiet PR while
+   meaning the opposite.
 
 ## Responding to comments and replies
 
@@ -833,7 +617,7 @@ blocker, which is a blocked merge working correctly.
 Don't post comments that are neither actionable nor informative — no "Reviewed,
 looks good, posting approval" filler. The verdict and body carry the signal.
 
-This does **not** cover the re-verdict on a moved HEAD ("Re-reviewing" above).
+This does **not** cover the re-verdict on a moved HEAD (`references/re-review.md`).
 That one is informative even when its body is a single sentence: it is the only
 thing that attaches an `APPROVED` `commit_id` to the current HEAD, so it carries
 information nothing else on the PR carries. The rule here bans content-free
