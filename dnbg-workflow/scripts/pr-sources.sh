@@ -45,8 +45,8 @@
 # accessible by integration`. `pull_requests: write` covers conversation comments
 # on a *PR*, a different resource, which is what makes this look like it should
 # work. Unsetting here rather than asking each caller to remember `env -u
-# GH_TOKEN` is the point of the script: `reviewer` exports GH_TOKEN from the first
-# PR pickup onward, so every later return to the issue would otherwise fail.
+# GH_TOKEN` is the point of the script: `reviewer` mints a bot token inside the
+# same call as each write, so a call that also reaches the issue would fail.
 set -euo pipefail
 unset GH_TOKEN
 
