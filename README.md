@@ -11,13 +11,6 @@ and were used exclusively by a small team of developers for several months. In
 our experience, an agent on its own is incapable of producing well-designed
 production-quality code. This plugin was built to close that gap.
 
-This plugin consists of **skills** (loaded on demand when they match the task), a
-short **always-on rules** file, and two **enforcement hooks** that make the worktree
-and issue flows non-optional in the repos you choose. Two of those are things a
-`CLAUDE.md` structurally cannot do: hooks that *enforce* the flow rather than
-advising it, and an identity separate from yours that can post a binding verdict
-on a PR you wrote.
-
 **[Install it](#install)** — two commands, and nothing is enforced until you say
 where.
 
@@ -126,6 +119,13 @@ CI's, so every green run argues "flaky, ignore it"; being cheaper is the second
 effect, not the reason.
 
 ## What's in it
+
+This plugin consists of **skills** (loaded on demand when they match the task), a
+short **always-on rules** file, and two **enforcement hooks** that make the worktree
+and issue flows non-optional in the repos you choose. Two of those are things a
+`CLAUDE.md` structurally cannot do: hooks that *enforce* the flow rather than
+advising it, and an identity separate from yours that can post a binding verdict
+on a PR you wrote.
 
 | Skill | Plugin | Forge | For |
 | --- | --- | --- | --- |
