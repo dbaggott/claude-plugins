@@ -61,7 +61,7 @@
 # than dying silently: a caller reads a MISSING result line as "killed", so a typo
 # would otherwise imitate the vanished watch this script exists to make legible. A
 # malformed POLL_CURVE still dies at source time via `_poll_die` — that one is a
-# caller bug caught before the loop, and predates this contract.
+# caller bug caught before the loop.
 #
 # ERROR is not IDLE. IDLE means the PR was quiet; ERROR means one source failed
 # for FAIL_MAX ticks AND at least FAIL_MIN_SECONDS of awake time, so the watch
@@ -347,7 +347,7 @@ while :; do
   # `fails_primary` on every iteration — sharing that counter caps a shape
   # failure at 1, so it can never reach FAIL_MAX and the watch idles out.
   #
-  # ⚠️ THAT IS THE FAIL-CLOSED-AND-SILENT SHAPE, stated here once for the whole file.
+  # That is the fail-closed-and-silent shape, stated here once for the whole file.
   # A parse failure folded into a default — `|| echo 0`, a swallowed `jq` — reads as
   # "nothing new": `gh` keeps succeeding, the watch looks perfectly healthy, and
   # whatever it can no longer see goes unreported. Every fetch/parse split below is

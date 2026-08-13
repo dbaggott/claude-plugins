@@ -141,9 +141,9 @@ _poll_trace_default() {
 #
 # A caller that parses leading flags of its own must capture argv BEFORE shifting them
 # away and pre-set this, or the trace records only what survived the shift — see
-# watch-pr.sh, which does so and says what it costs. `-` not `:-`: a caller that
-# pre-set it to empty said something, and re-deriving from the post-shift `$*` would
-# silently contradict it.
+# watch-pr.sh, which does so and says what is lost without it. `-` not `:-`: a
+# caller that pre-set it to empty said something, and re-deriving from the post-shift
+# `$*` would silently contradict it.
 _poll_argv="${_poll_argv-$*}"
 
 _poll_trace_defaulted=0
