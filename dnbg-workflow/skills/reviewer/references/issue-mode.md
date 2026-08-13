@@ -139,8 +139,12 @@ So the assignment is a loop, not a pass:
 either — it is equally discovery-time, and it only finds siblings sharing a
 branch name, so a later follow-up PR on its own branch is invisible to it.
 
-**When discovery finds nothing yet, wait.** Spawn as a **background** task so the
-idle polling never enters the conversation:
+**When discovery finds nothing yet, wait — and load `SKILL.md` step 1's standards
+during that wait**, not when the first PR lands: the wait is the one stretch of
+the cycle with nothing else in it, and the issue already names the target repo.
+
+Spawn the wait as a **background** task so the idle polling never enters the
+conversation:
 
 ```bash
 "<skill-dir>/../../scripts/watch-pr.sh" --issue [--exclude=<url,url,...>] \
