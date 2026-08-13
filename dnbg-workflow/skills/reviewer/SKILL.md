@@ -114,8 +114,9 @@ working directory persists and the environment does not. Every write block below
 therefore mints its own token:
 
 ```bash
-export GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")"   # <owner> = the org, or your login
-gh …                                                         # same call, or the token isn't there
+GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1   # <owner> = the org, or your login
+export GH_TOKEN
+gh …                                                            # same call, or the token isn't there
 ```
 
 **A missing token does not fail — it posts under the wrong identity.** `gh`
@@ -126,6 +127,15 @@ falls back to your own auth, and on a PR someone else wrote that call *succeeds*
 request`, because GitHub's self-approval block catches it — which is why this
 degrades silently on exactly the common case.) So the `gh api` posts below ask
 for `user.login` back: reading that field is how you know the identity held.
+
+**Keep the assignment plain and guarded, exactly as above.** Folding it into the
+`export` — `export GH_TOKEN="$(…mint…)"` — reads as the same line and is not:
+`export` reports its *own* exit status, so a mint that exits non-zero is
+discarded, `GH_TOKEN` is set to the empty string, and the `gh` below posts under
+your auth. Neither `set -e` nor `&&` recovers it, because `export` already
+returned 0. The plain assignment propagates the failure and `|| exit 1` acts on
+it, which is what stops a failed mint before the post rather than after — and
+after is unrecoverable, since a submitted review can't be withdrawn.
 
 If you're reviewing the **PR that introduces this skill**, it isn't installed
 yet — there's no Base directory — so run the helper from the PR branch instead:
@@ -344,7 +354,8 @@ multi-paragraph body inside literal JSON is easy to get subtly wrong, and `--arg
 handles the quoting for you:
 
 ```bash
-export GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")"
+GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
+export GH_TOKEN
 jq -n --arg body "<summary / non-inline findings as markdown>" \
   '{event: "REQUEST_CHANGES", body: $body,
     comments: [
@@ -392,7 +403,8 @@ For a **verdict-only** review (no inline findings), the simpler form is
 equivalent — mint in the same call here too:
 
 ```bash
-export GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")"
+GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
+export GH_TOKEN
 gh pr review <n> --repo <repo> --approve --body "<non-blocking observations>"
 # or
 gh pr review <n> --repo <repo> --request-changes --body "<findings as markdown>"
@@ -667,10 +679,11 @@ When the watcher surfaces `ACTIVITY`, read what landed and respond only when
 there's something substantive to add — never "I agree" filler. Replies post as
 the bot (its `pull_requests: write` covers reviews, inline comments, thread
 replies, and conversation comments), so each of the commands below wants the
-mint on the line above it, in that same tool call:
+guarded mint ahead of it, in that same tool call:
 
 ```bash
-export GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")"
+GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
+export GH_TOKEN
 gh …   # the reply command for the case you're in
 ```
 
