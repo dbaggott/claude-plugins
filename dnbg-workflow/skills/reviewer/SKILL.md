@@ -212,13 +212,14 @@ posture applied on the author's side.
    exactly like findings:
 
    ```bash
-   git fetch origin <base-branch>
+   git fetch origin <base-branch> pull/<n>/head   # the head SHA won't resolve otherwise
    BASE=$(git merge-base origin/<base-branch> <head-sha>)
-   git diff "$BASE" <head-sha>
+   git diff --name-only "$BASE" <head-sha>        # every round: catches base movement
    ```
 
-   Re-run it every round: base movement is the one thing re-checking the author's
-   own changes never looks for.
+   The file list is the part worth re-running every round — cheap, and base
+   movement is invisible to the delta compare under "Re-reviewing". Take hunks
+   from the delta, not from a re-derived full diff.
 
    **When the PR changes, gates, or removes an existing feature, sweep the
    feature's identifier families across the head SHA before reading the diff.**
@@ -300,10 +301,10 @@ posture applied on the author's side.
    window that decides the merge runs past any verdict you could post.
 
 3. **Read the check results; don't reproduce them.** That covers every
-   *mechanical* gate a required check decides — a required changelog fragment, a
-   JSON parse, a formatter, a schema or lint check — not the test suite alone.
-   None can silently pass, so re-deriving one tells the author what CI already
-   told them.
+   *mechanical* gate a CI check has already decided — a required changelog
+   fragment, a JSON parse, a formatter, a schema or lint check — not the test
+   suite alone. None can silently pass, so re-deriving one tells the author what
+   the check already told them.
 
    What you uniquely add is judging whether what a gate accepted is **true**: a
    changelog fragment parses, is attributed to the right plugin, and still
@@ -441,8 +442,8 @@ resolution step below keys on — but it's submitted as part of the one review,
 not as a stray comment.)
 
 **On a 5xx, re-list the reviews before retrying — the write may have succeeded.**
-An observed `502` had already posted; a blind retry adds a second blocking review,
-which can't be withdrawn.
+An observed `502` had already posted; a blind retry adds a second blocking review
+to the PR.
 
 ```bash
 gh api repos/<repo>/pulls/<n>/reviews \
