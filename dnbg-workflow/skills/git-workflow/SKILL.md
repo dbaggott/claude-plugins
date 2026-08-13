@@ -203,7 +203,7 @@ The path reaches out of this skill's directory on purpose: the script is shared 
 
 Being a file rather than a fenced block is itself part of the fix: `shellcheck` covers `scripts/`, and covers nothing inside a `.md`.
 
-The script prints one result line. Treat the returns differently:
+The script prints whatever activity it saw as one JSON object per line, then one result line. Treat the returns differently:
 
 - **`result=ACTIVITY`** — a review, comment or reply landed. Go to "When a review comes in".
 - **`result=COMMITS`** — someone pushed to the branch. If it wasn't you, read the change before responding to anything. **If `activity=1`, comments or replies landed in the same burst — handle them in this same pass**, per "When a review comes in". This is reachable from your side: a reviewer clicking "Update branch", or applying a suggestion while filing comments, produces exactly `COMMITS activity=1`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good. Same failure the third bullet above gives as a reason not to hand-roll this.
@@ -218,6 +218,8 @@ The script prints one result line. Treat the returns differently:
 
 **A result line carrying `verdict_sha=<sha>` is the value to re-arm `--last-verdict` with.** It means the level-triggered check fired — a verdict stands at HEAD that you had not handled. No such field means it didn't fire, so carry the value you already had forward. Re-arming with an empty `--last-verdict=` after handling a verdict that is still at HEAD wakes the next watch instantly and repeatedly, since nothing about that verdict has changed.
 
+The `verdict=<state>` beside it says which verdict that is, so you can tell a clean approval from a findings round before fetching anything. It is a branching hint only — the clean-review path below re-reads the verdict rather than trusting it.
+
 The same spawn works after pushing a fix in response to feedback — record the new head and a fresh timestamp, and re-arm. After a push the old verdict is no longer at HEAD, so it can no longer trigger a wake whatever you pass.
 
 ⚠️ **The new head is the full 40-character SHA**, from `gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid` — never an abbreviated one you happened to print for a human. The watcher compares it as a string against what GitHub returns, so a short SHA can never match; it refuses one outright (`result=ERROR reason=bad-args`). This is the re-arm's exposure and the spawn's guard does not cover it: that guard tests `$HEAD` for *blankness*, and an abbreviated SHA is not blank. The same holds for `--last-verdict`, which is compared against `commit.oid` the same way — take it from the watcher's `verdict_sha` or from `pr-verdict.sh`, both of which report the full SHA.
@@ -225,30 +227,27 @@ The same spawn works after pushing a fix in response to feedback — record the 
 
 ## When a review comes in
 
-**Fetch the inline comments first — the review body is not the whole review.** Findings are routinely filed on lines of the diff, and those do **not** appear in `gh pr view --json reviews`. Read them before summarizing anything:
+**Read the whole round in one call** — review bodies, inline findings, the standing verdict, and every unresolved thread. A verdict alone is a third of the review, and three separate reads are three chances to perform two:
 
 ```bash
-gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate \
-  --jq '.[] | "── \(.path):\(.line // .original_line)\n\(.body)\n"'
+"<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-handled-sha> <since-iso> <your-login>
 ```
 
-This is not belt-and-braces. A body reading "four things below" with three summary bullets is normal — the fourth, often the only real defect, is inline. Summarize from the body alone and the next round opens with every finding still outstanding, because none of them was ever addressed.
+The same three values you armed the watcher with — the SHA you last handled, the timestamp marking "handled up to here", and your own login, whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta.
 
-**And enumerate the unresolved threads — don't trust your own list of what you fixed.** Run the command rather than working from memory: a reviewer reads open threads as outstanding work, which is exactly what they mean, so a thread you believe you handled and left open reports the round as unaddressed.
+What the sections are for, and the mistake each one prevents:
 
-```bash
-"<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n>
-```
-
-One JSON object per unresolved thread — `id`, `path`, `line`, `author`, `body` — then `result=OK count=<n>`. **No `--mine` here:** that flag narrows to the reviewer bot's own threads, and a human reviewer's thread blocks the merge just as surely.
-
-Run all three — verdict, inline comments, threads — before summarizing anything. A verdict alone is a third of the review.
+- **`── activity ──`** — `"kind":"review"` is a review body, `"kind":"inline"` a finding filed on a line of the diff. Inline findings do **not** appear in `gh pr view --json reviews`, so a body reading "four things below" with three summary bullets is normal — the fourth, often the only real defect, is only ever inline. Each inline object carries the `id` an in-thread reply needs.
+- **`── threads ──`** — every unresolved thread, so you never work from memory about what you fixed: a reviewer reads open threads as outstanding work. Not narrowed to the bot's, because a human reviewer's thread blocks the merge just as surely.
+- **The `_src` fields** — an empty section means "nothing there" only where its status reads `ok`. `fail` or `shape` means that source went blind, which is not a quiet round.
 
 Read the review payload and pick one of three responses based on content. Track whether the operator has opted in to auto-handling for *this* PR — once they pick "Auto-handle all rounds" in the picker below, the choice is sticky across subsequent rounds until the PR merges or they explicitly stop.
 
-**Clean review (APPROVED, no actionable findings).** First, **confirm the standing verdict is an approval attached to the current HEAD** — run `pr-verdict.sh` per "Know the repo's merge settings". `APPROVED` in the watcher payload only tells you an approval exists somewhere in the list; it may sit on a commit you have since pushed past, or have been superseded by a later `CHANGES_REQUESTED` from another reviewer. Where the repo doesn't dismiss stale approvals — the common case, since dismissal needs `required_approving_review_count` above 0 — the merge box shows an unqualified green check over exactly that state, so nothing on the PR will correct you. If the last verdict isn't `APPROVED` at HEAD, this isn't the clean-review case: say what the standing verdict is and which SHA it sits on, and wait for the reviewer to re-verdict (which `reviewer` now does unprompted on any HEAD move).
+**Clean review (APPROVED, no actionable findings).** The packet's `verdict=APPROVED at_head=1` is what confirms it — those fields are `pr-verdict.sh`'s own answer, taken as part of the round. **The watcher's `verdict=` is not, and must not stand in for them:** it reports what a poll saw, so an approval there may sit on a commit you have since pushed past, or have been superseded by a later `CHANGES_REQUESTED` from another reviewer. Where the repo doesn't dismiss stale approvals — the common case, since dismissal needs `required_approving_review_count` above 0 — the merge box shows an unqualified green check over exactly that state, so nothing on the PR will correct you. If the packet doesn't read `APPROVED` with `at_head=1`, this isn't the clean-review case: say what the standing verdict is and which SHA it sits on, and wait for the reviewer to re-verdict (which `reviewer` now does unprompted on any HEAD move).
 
-Once they match, tell the operator the PR is ready to merge, then **immediately spawn the merge watcher** (see "Watching for the merge to complete" → start it proactively) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per "Composing the merge command" below — hand over exactly one form, the one that will work:
+**Read the approving review's body before composing the handoff.** An approval is not always empty — reviewers put CI triage, deferred follow-ups and scope notes in it, and none of that reaches you as a finding. It is already in the packet, as the `"kind":"review"` object; skipping it means re-deriving from scratch what the reviewer has already written down, then reporting it as your own discovery.
+
+With the verdict confirmed and that body read, tell the operator the PR is ready to merge, then **immediately spawn the merge watcher** (see "Watching for the merge to complete" → start it proactively) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per "Composing the merge command" below — hand over exactly one form, the one that will work:
 
 > Reviewer approved at <commit>. No actionable findings. Ready to merge: <full URL>.
 >
