@@ -785,3 +785,17 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"verdict=CHANGES_REQUESTED"* ]]
 }
+
+# THE VERDICT READ MUST DIE LOUDLY RATHER THAN EMPTY OUT. Its jq is unguarded on
+# purpose — a payload that stops parsing there is a shape change, never transient —
+# and feeding the substitution to `read` through a heredoc discards its exit status,
+# leaving both variables empty so the level-triggered check silently stops firing and
+# the watch reports a quiet PR. `commit` as a number breaks that query alone: the
+# shape gate passes, and the activity count above it reads fields that are all there.
+@test "a verdict payload that stops parsing kills the watch instead of reporting quiet" {
+  printf '[{"submittedAt":"1970-01-02T00:00:00Z","author":{"login":"someone"},"state":"APPROVED","commit":5}]' \
+    > "$REVIEWS"
+  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+  [ "$status" -ne 0 ]
+  [[ "$output" != *"result="* ]]
+}

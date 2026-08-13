@@ -60,7 +60,7 @@
 # re-arm `--last-verdict` with; absent means that check did not fire, so carry the
 # previous value forward.
 #
-# ⚠️ `verdict=` IS A BRANCHING HINT AND MUST NOT REPLACE THE `pr-verdict.sh` READ.
+# `verdict=` IS A BRANCHING HINT AND MUST NOT REPLACE THE `pr-verdict.sh` READ.
 # It reports the standing verdict as of this poll, which is not the question a
 # caller about to act on an approval is asking — that one has to be re-read
 # against the HEAD being merged. Its value is picking the branch before fetching.
@@ -567,10 +567,14 @@ while :; do
   # not the elements: `reviews: [1,2]` would still error on `.submittedAt`. Same
   # judgement as the linked-PR count above — unreachable without well-formed JSON
   # of the wrong shape, and not worth a guard the gate already covers.
-  NEW=$(echo "$J" | jq --arg s "$SINCE" --arg slug "$SLUG" '
-    def mine: . == $slug or . == ($slug + "[bot]");
-    [ (.reviews[]?  | select(.submittedAt > $s and (.author.login | mine | not))),
-      (.comments[]? | select(.createdAt  > $s and (.author.login | mine | not))) ] | length')
+  #
+  # COUNTED WITH THE FILTER THAT EMITS, NOT A MATCHING COPY OF IT. `emit_activity`
+  # reports what this counts, so a predicate that drifted between the two would print
+  # `activity=1` above an empty payload — and a caller now told the payload IS the
+  # conversation reads that as nothing landed, then re-arms with `since_iso` set to
+  # now and loses it for good. Wrapping the shared filter makes them one expression
+  # rather than two that agree today.
+  NEW=$(echo "$J" | jq --arg s "$SINCE" --arg slug "$SLUG" "[ $ACTIVITY_JQ_REVIEWS ] | length")
   # New inline review-comments (thread replies) after SINCE, not by the bot.
   # Split the fetch from the parse so a failure is not read as "no new replies" —
   # the fail-closed-and-silent shape the shape gate above states.
@@ -596,9 +600,8 @@ while :; do
   # not a real burst — and even at the bound it degrades safely: the count saturates
   # rather than resetting, so it still rises and still wakes the watch.
   if RAWC=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direction=desc" 2>/dev/null); then
-    if NEWC=$(echo "$RAWC" | jq --arg s "$SINCE" --arg slug "$SLUG" '
-        def mine: . == $slug or . == ($slug + "[bot]");
-        [ .[] | select(.created_at > $s and (.user.login | mine | not)) ] | length' 2>/dev/null)
+    if NEWC=$(echo "$RAWC" | jq --arg s "$SINCE" --arg slug "$SLUG" \
+                "[ $ACTIVITY_JQ_INLINE ] | length" 2>/dev/null)
     then fails_comments=0
     else
       # A jq failure here is a payload-shape change, never transient — the same
@@ -620,8 +623,9 @@ while :; do
   # does not register. That is harmless today, and the reason is two lines away rather
   # than local: raising `obs_*` always sets `changed=1`, which arms `settle_until`, and
   # nothing ever sets it back to 0 — so the idle-out below is disabled and a report is
-  # already guaranteed. `ACTIVITY` carries no payload, so the caller re-reads everything
-  # since `$SINCE` and finds the replacement anyway.
+  # already guaranteed. And the report carries the replacement regardless of what the
+  # counts did, because `emit_activity` re-filters the whole payload against `$SINCE`
+  # rather than emitting a per-tick delta.
   #
   # Clear `settle_until` anywhere and that stops holding: the watch could then return
   # to a quiet, still-running state carrying a raised high-water mark, and genuinely new
@@ -656,15 +660,21 @@ while :; do
   if [ "$HAVE_LAST_VERDICT" = 1 ]; then
     # State and SHA in one read: the caller wants to know WHICH verdict stands
     # before it fetches, and the reviews list is already in hand either way.
-    IFS=$'\t' read -r VSTATE VSHA <<EOF
-$(echo "$J" | jq -r --arg slug "$SLUG" '
+    #
+    # ASSIGNED FIRST, THEN SPLIT, BECAUSE A HEREDOC WOULD SWALLOW THE FAILURE. The
+    # jq stays unguarded on purpose (see the `NEW` query above) so a payload-shape
+    # change kills the watch loudly; a command substitution feeding `read` via a
+    # heredoc discards its exit status instead, leaving both variables empty and this
+    # check silently never firing again — fail-closed-and-silent, reached through the
+    # one line written to avoid it.
+    VLINE=$(echo "$J" | jq -r --arg slug "$SLUG" '
       def mine: . == $slug or . == ($slug + "[bot]");
       [ .reviews[]?
         | select((.author.login | mine | not)
                  and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"
                       or .state == "DISMISSED")) ]
       | last | [(.state // ""), (.commit.oid // "")] | @tsv')
-EOF
+    IFS=$'\t' read -r VSTATE VSHA <<<"$VLINE"
     # At HEAD only. A verdict the author has since pushed past is stale by construction
     # — it needs a fresh review, which arrives as a new verdict at the new HEAD — and
     # waking on it would fire after every push, on feedback the caller already handled.
