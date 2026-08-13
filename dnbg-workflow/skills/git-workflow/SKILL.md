@@ -179,8 +179,8 @@ ME=$(gh api user --jq .login)
 # SETTLE=10 is the same directional argument. The script's default coalesces an
 # author's burst of separate writes; a reviewer files its verdict and inline
 # comments in one, so this side needs only one poll interval of quiet — enough to
-# cover skew between the watcher's two sources — and every second beyond that was
-# latency on the whole cycle.
+# cover skew between the watcher's two sources. Anything past that is latency on
+# every round.
 # --last-verdict makes the verdict check level-triggered, so a review that landed
 # before this watch existed — in the gap after `gh pr ready`, or before the
 # timestamp above — still wakes it instead of being invisible for the whole
