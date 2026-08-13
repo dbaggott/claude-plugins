@@ -45,7 +45,9 @@
 # transition is ignored, which is right for a PR already under review (it cannot
 # go back to draft mid-review in any way that should re-trigger one).
 #
-# Prints exactly one result line, then exits 0:
+# Prints the activity it saw as one compact JSON object per line, then exactly one
+# result line, then exits 0:
+#   {"kind":"review|comment|inline","author":…,"at":…,"body":…}
 #   result=COMMITS new_head=<sha> activity=0|1 now=<iso>  # author pushed
 #   result=ACTIVITY activity=1 now=<iso>                  # review/comment/reply, not the bot's
 #   result=READY new_head=<sha> activity=0|1 now=<iso>    # draft marked ready — only with --was-draft
@@ -53,9 +55,15 @@
 #   result=IDLE now=<iso>                                 # nothing within the window — re-arm
 #   result=ERROR reason=<source> now=<iso>                # the watch itself is broken — do NOT re-arm
 #
-# COMMITS, ACTIVITY and READY carry `verdict_sha=<sha>` before `now=` when the
-# level-triggered check above fired. It is the value to re-arm `--last-verdict`
-# with; absent means that check did not fire, so carry the previous value forward.
+# COMMITS, ACTIVITY and READY carry `verdict_sha=<sha> verdict=<state>` before
+# `now=` when the level-triggered check above fired. The SHA is the value to
+# re-arm `--last-verdict` with; absent means that check did not fire, so carry the
+# previous value forward.
+#
+# ⚠️ `verdict=` IS A BRANCHING HINT AND MUST NOT REPLACE THE `pr-verdict.sh` READ.
+# It reports the standing verdict as of this poll, which is not the question a
+# caller about to act on an approval is asking — that one has to be re-read
+# against the HEAD being merged. Its value is picking the branch before fetching.
 #
 # A bad argument reports `result=ERROR reason=bad-args` and still exits 0, rather
 # than dying silently: a caller reads a MISSING result line as "killed", so a typo
@@ -70,9 +78,11 @@
 # a wifi hiccup, the reconnect after a lid opens — are ridden out.
 #
 # `activity=1` on a COMMITS or READY result means comments or replies landed in
-# the same burst. The primary result names what to do first; the flag says there
-# is also unread conversation. Ignoring it loses those replies for good, because
-# the agent re-arms with since_iso set to now.
+# the same burst, and the JSON lines above the result line are what landed — the
+# poll that set the flag already held them, so re-fetching to act on them is a
+# round trip nothing needs to spend. The primary result names what to do first;
+# ignoring the rest loses those replies for good, because the agent re-arms with
+# since_iso set to now.
 #
 # Reads with the dev's own gh auth (not the short-lived bot token) so a long watch —
 # including across laptop sleep — doesn't expire its credential mid-poll.
@@ -161,6 +171,10 @@ EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' \
 # here is routine, since a quiet PR is expected and the agent simply re-arms.
 # shellcheck source=./lib-poll.sh
 . "$(dirname "$0")/lib-poll.sh"
+
+# The activity filters, shared with pr-round.sh so both emit the same objects.
+# shellcheck source=./lib-activity.sh
+. "$(dirname "$0")/lib-activity.sh"
 
 # ⚠️ AN EMPTY SLUG IS FATAL ON THE PR PATH RATHER THAN A DEFAULT. `mine` reduces to
 # `. == "" or . == "[bot]"`, which matches no login at all — so the watch stops
@@ -281,10 +295,24 @@ report_error() {
   exit 0
 }
 
+# What set `activity=1`, straight from the payloads the poll already made. The
+# alternative is the caller re-fetching comments this watch has held all along.
+#
+# Reads the LAST SUCCESSFUL poll's payloads, which is what the unreachable-gh path
+# has when it reports a burst it can no longer confirm quiet — the best available
+# answer there, and exact everywhere else. The filters come from lib-activity.sh
+# rather than being spelled here, so pr-round.sh emits the same objects.
+emit_activity() {
+  [ "$saw_activity" = 1 ] || return 0
+  echo "${J:-}"    | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_REVIEWS" 2>/dev/null || true
+  echo "${RAWC:-}" | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_INLINE"  2>/dev/null || true
+}
+
 # Report the accumulated burst. Defined once because two paths reach it — the
 # quiet-period exit below, and the unreachable-gh path at the top of the loop,
 # which must not silently drop a burst it can no longer confirm quiet.
 report_burst() {
+  emit_activity
   if [ "$saw_commits" = 1 ]; then
     echo "result=COMMITS new_head=$new_head activity=$saw_activity$(verdict_field) now=$(poll_now_iso)"
   else
@@ -293,16 +321,19 @@ report_burst() {
   exit 0
 }
 
-# The SHA to re-arm `--last-verdict` with, printed only when the level-triggered
-# check fired. Absent rather than empty on every other result: an empty field would
-# be indistinguishable from "no verdict handled", and a caller reading it back would
-# discard the baseline it already holds and wake on that same verdict next arm.
-verdict_field() { [ -n "$verdict_sha" ] && printf ' verdict_sha=%s' "$verdict_sha" || true; }
+# The SHA to re-arm `--last-verdict` with and the state standing at it, printed
+# only when the level-triggered check fired. Absent rather than empty on every
+# other result: an empty field would be indistinguishable from "no verdict
+# handled", and a caller reading it back would discard the baseline it already
+# holds and wake on that same verdict next arm.
+verdict_field() {
+  [ -n "$verdict_sha" ] && printf ' verdict_sha=%s verdict=%s' "$verdict_sha" "$verdict_state" || true
+}
 
 # What the burst contained. `obs_*` track the last values already accounted for,
 # so a *second* push or reply during the window registers as new and extends it
 # rather than re-reporting the same one forever.
-saw_commits=0; saw_activity=0; new_head=""; verdict_sha=""
+saw_commits=0; saw_activity=0; new_head=""; verdict_sha=""; verdict_state=""
 obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0
 settle_until=0; settle_cap=0
 # Initialised here, not left to the per-tick assignment: the unreachable-gh path
@@ -623,20 +654,24 @@ while :; do
   # reports. Unguarded jq for the reason the `NEW` query above gives — the shape gate
   # has already proved the payload parses, and `[]?`/`//` cover a missing field.
   if [ "$HAVE_LAST_VERDICT" = 1 ]; then
-    VSHA=$(echo "$J" | jq -r --arg slug "$SLUG" '
+    # State and SHA in one read: the caller wants to know WHICH verdict stands
+    # before it fetches, and the reviews list is already in hand either way.
+    IFS=$'\t' read -r VSTATE VSHA <<EOF
+$(echo "$J" | jq -r --arg slug "$SLUG" '
       def mine: . == $slug or . == ($slug + "[bot]");
       [ .reviews[]?
         | select((.author.login | mine | not)
                  and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"
                       or .state == "DISMISSED")) ]
-      | last | .commit.oid // ""')
+      | last | [(.state // ""), (.commit.oid // "")] | @tsv')
+EOF
     # At HEAD only. A verdict the author has since pushed past is stale by construction
     # — it needs a fresh review, which arrives as a new verdict at the new HEAD — and
     # waking on it would fire after every push, on feedback the caller already handled.
     if [ -n "$VSHA" ] && [ "$VSHA" = "$HEAD" ] && [ "$VSHA" != "$LAST_VERDICT" ]; then
       # Advancing the baseline is what keeps this from re-firing on every tick for the
       # life of the watch — the same ratchet `obs_*` are, for the same reason.
-      saw_activity=1; verdict_sha="$VSHA"; LAST_VERDICT="$VSHA"; changed=1
+      saw_activity=1; verdict_sha="$VSHA"; verdict_state="$VSTATE"; LAST_VERDICT="$VSHA"; changed=1
     fi
   fi
 
@@ -648,6 +683,7 @@ while :; do
   # Reported immediately rather than settled: a draft going ready is the signal to
   # start a first review, and nothing else in the burst changes that.
   if [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = false ]; then
+    emit_activity
     echo "result=READY new_head=$HEAD activity=$saw_activity$(verdict_field) now=$(poll_now_iso)"; exit 0
   fi
 
