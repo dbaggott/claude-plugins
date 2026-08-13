@@ -5,9 +5,9 @@
 # asked me to enforce on?" — from two different inputs (a git remote, a `gh
 # --repo` argument), so the owner match lives here rather than in each script.
 
-# The layered strips below have been buggy before. If another fix is needed,
-# stop patching and parse the URL once into (scheme, user, host, port, path),
-# then answer both questions from the parts.
+# The layered strips below are fragile. If another fix is needed, stop patching
+# and parse the URL once into (scheme, user, host, port, path), then answer both
+# questions from the parts.
 #
 # Owner segment of a git remote URL. Handles the forms git emits:
 #   git@github.com:owner/repo.git

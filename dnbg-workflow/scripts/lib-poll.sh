@@ -141,9 +141,9 @@ _poll_trace_default() {
 #
 # A caller that parses leading flags of its own must capture argv BEFORE shifting them
 # away and pre-set this, or the trace records only what survived the shift — see
-# watch-pr.sh, where an unset capture reads as a bare `o/r 56`, indistinguishable from
-# a PR watch on PR 56. `-` not `:-`: a caller that pre-set it to empty said something,
-# and re-deriving from the post-shift `$*` would silently contradict it.
+# watch-pr.sh, which does so and says what it costs. `-` not `:-`: a caller that
+# pre-set it to empty said something, and re-deriving from the post-shift `$*` would
+# silently contradict it.
 _poll_argv="${_poll_argv-$*}"
 
 _poll_trace_defaulted=0
@@ -188,7 +188,7 @@ _poll_on_signal() {
   # re-raise, and the death is recorded as an ordinary exit. That is a FALSE trace
   # (a SIGNAL line and an EXIT line together, contradicting the table, with the
   # status no longer naming the signal), which costs strictly more than the stray
-  # `sleep` the reap was added to prevent.
+  # `sleep` this kill exists to reap.
   if [ -n "${_poll_napper:-}" ]; then kill "$_poll_napper" 2>/dev/null || true; fi
   trap - "$1"
   kill -s "$1" $$
@@ -217,8 +217,8 @@ poll_trace_init() {
   # ⚠️ `2>/dev/null` FIRST, BEFORE THE APPEND. Redirections are applied left to right,
   # so writing it the other way round attempts `>>` while stderr is still the
   # caller's — bash prints its own `Permission denied` there before the suppression
-  # is in effect. Now that tracing defaults on, this line is reached by every watch
-  # on the machine, and the branch below deliberately carries on without dying: a raw
+  # is in effect. Tracing defaults on, so this line is reached by every watch on the
+  # machine, and the branch below deliberately carries on without dying: a raw
   # error on the stderr of a watch that then runs perfectly normally is a confusing
   # thing to hand somebody, especially on the one script whose stderr gets read when
   # they are already trying to work out why a watch misbehaved.
@@ -227,9 +227,9 @@ poll_trace_init() {
     # is the point. An explicit path that cannot be written is a caller error, and
     # swallowing it produces the most misleading outcome this feature has: no file at
     # all, which the table above reads as row three. The default path is nobody's
-    # request, so it must never take down a watch that was otherwise doing its job —
-    # now that tracing is on by default, dying here would turn an unwritable TMPDIR
-    # into every watch failing to start.
+    # request, so it must never take down a watch that was otherwise doing its job:
+    # with tracing on by default, dying here would turn an unwritable TMPDIR into
+    # every watch failing to start.
     [ "$_poll_trace_defaulted" = 1 ] || _poll_die "WATCH_LOG=$WATCH_LOG is not writable"
     WATCH_LOG=""
     return 0
@@ -267,11 +267,11 @@ _poll_parse_curve() {
     case $t in ''|*[!0-9]*) _poll_die "POLL_CURVE offset '$t' is not a non-negative integer" ;; esac
     # ⚠️ OFFSETS MAY BE ZERO, INTERVALS MAY NOT, and the asymmetry is the point: the
     # curve has to start at offset 0, while a zero INTERVAL makes `poll_nap` return
-    # at once and turns the watch into a busy loop around `gh`. Measured before this
-    # check: 200 naps in 2s, which is the hourly REST budget gone inside a minute and
-    # the watch then blind behind rate-limit failures for the rest of its window —
-    # while still reporting a perfectly ordinary IDLE. `INTERVAL` is the knob tests
-    # and callers reach for, so `INTERVAL=0` is a live typo, not a hypothetical.
+    # at once and turns the watch into a busy loop around `gh` — measured at 200 naps
+    # in 2s, which is the hourly REST budget gone inside a minute and the watch then
+    # blind behind rate-limit failures for the rest of its window, while still
+    # reporting a perfectly ordinary IDLE. `INTERVAL` is the knob tests and callers
+    # reach for, so `INTERVAL=0` is a live typo, not a hypothetical.
     case $i in ''|*[!0-9]*) _poll_die "POLL_CURVE interval '$i' is not a non-negative integer" ;; esac
     [ "$i" -ge 1 ] || _poll_die "POLL_CURVE interval must be at least 1s (got $i) — 0 spins"
     # Strictly increasing, so the interpolation below can never divide by zero
@@ -342,12 +342,13 @@ poll_nap() {
   # reason. Bash defers a trap until the running foreground command finishes, so a
   # foreground nap swallows a SIGTERM for up to a full interval — five minutes at
   # the cap. Worse, where a SIGKILL follows the TERM, the handler never runs at
-  # all and the log shows exactly the silent death the trace was added to rule
-  # out, which is a false answer rather than a missing one. `wait` is
-  # interruptible, so the handler runs while the signal still means something.
+  # all and the log shows exactly the silent death the trace exists to rule out,
+  # which is a false answer rather than a missing one. `wait` is interruptible, so
+  # the handler runs while the signal still means something.
   #
   # Only trapped signals cut `wait` short, and the traps are installed only while
-  # tracing — so with WATCH_LOG unset this sleeps precisely as it did before.
+  # tracing — so with WATCH_LOG unset nothing interrupts the wait and this is a
+  # plain sleep.
   # ⚠️ THIS CLOBBERS `$!` FOR THE CALLER. Neither watcher backgrounds anything, so
   # nothing is broken today — but this is a shared library function, so a future
   # caller that backgrounds a job and reads `$!` after a nap would get the sleep.

@@ -89,10 +89,10 @@ unset GH_TOKEN   # use the dev's own (non-expiring) gh auth for the long poll
 
 # ⚠️ CAPTURED BEFORE THE FLAG SHIFTS BELOW, and read by lib-poll.sh's START trace.
 # lib-poll captures `$*` at source time, which is *after* those shifts, so without
-# this an issue watch traces as a bare `o/r 56` — indistinguishable from a PR watch
-# on PR 56, and with no record of which PRs were excluded. The trace is the only
-# evidence a killed watch leaves, so the arguments most likely to be wrong on a
-# re-arm are exactly the ones it must not drop.
+# this the trace records only what survived them — no `--issue`, no `--exclude`, and
+# so no way to tell an issue watch from a PR watch on the same number. The trace is
+# the only evidence a killed watch leaves, so the arguments most likely to be wrong
+# on a re-arm are exactly the ones it must not drop.
 _poll_argv="$*"
 
 # --issue switches what is watched, not how: the curve, the awake clock and the
@@ -121,12 +121,10 @@ LAST_HEAD="${3:-}"; SINCE="${4:-1970-01-01T00:00:00Z}"; SLUG="${5:-}"
 # Trailing flags, in any order, and anything unrecognised is refused.
 #
 # ⚠️ THE REFUSAL IS THE POINT, because the alternative is a flag that silently does
-# nothing. `--was-draft` used to be read as `${6:-}`, so it worked in position six and
-# was ignored everywhere else — with a second trailing flag in play, `--was-draft
-# --last-verdict=<sha>` would have armed the draft check and dropped the verdict
-# baseline, or the reverse, depending only on the order they were typed. Both are wake
-# paths, and a wake path that fails quietly is the class of bug `--exclude`'s valueless
-# form is refused to avoid.
+# nothing. Reading a trailing flag by position instead honours `--was-draft
+# --last-verdict=<sha>` in one order and drops half of it in the other, depending only
+# on how they were typed. Both are wake paths, and a wake path that fails quietly is
+# the class of bug `--exclude`'s valueless form is refused to avoid.
 #
 # `shift` is bounded by `$#` because the two `${n:?}` above only guarantee two
 # arguments: `shift 5` on a three-argument call fails, which under `set -e` kills the
@@ -152,8 +150,8 @@ done
 # is silently ignored. The result is exactly the hot loop `--exclude` exists to prevent,
 # with no diagnostic: the caller passed the PR, the watch wakes on it anyway. Every
 # other malformed argument on this path is refused loudly (`bad-args` for a valueless
-# --exclude, a short SHA, an empty slug); a quiet failure of the wake path is the class
-# of bug this mode was broadened to remove, so it must not be reintroduced by the fix.
+# --exclude, a short SHA, an empty slug); a quiet failure of the wake path is the one
+# thing this mode must never do.
 EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' \
   | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^$' || true)
 
@@ -176,10 +174,9 @@ EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' \
 # ⚠️ AN ABBREVIATED `<last_head>` IS A SILENT FALSE POSITIVE, NOT A CONVENIENCE. It is
 # compared as a string against the 40-character `headRefOid` GitHub returns, so a short
 # SHA can never equal it: the first tick reports COMMITS naming a push that never
-# happened. Observed live — two watches armed with 7-character SHAs both returned
-# COMMITS within seconds, each naming the full SHA as `new_head`. `reviewer` routes that
-# into re-reviewing a delta that does not exist, and `git-workflow` reads it as the
-# author having pushed; neither can tell it from a real push.
+# happened, with the full SHA as `new_head`. `reviewer` routes that into re-reviewing a
+# delta that does not exist, and `git-workflow` reads it as the author having pushed;
+# neither can tell it from a real push.
 #
 # Rejected rather than prefix-matched: every caller can obtain the full value from
 # `gh pr view --json headRefOid`, and accepting abbreviations would make a genuine
@@ -348,18 +345,21 @@ while :; do
   #
   # It needs its own counter because the successful poll above resets
   # `fails_primary` on every iteration — sharing that counter caps a shape
-  # failure at 1, so it can never reach FAIL_MAX and the watch idles out exactly
-  # as it did when the parse was swallowed with `|| echo 0`.
+  # failure at 1, so it can never reach FAIL_MAX and the watch idles out.
+  #
+  # ⚠️ THAT IS THE FAIL-CLOSED-AND-SILENT SHAPE, stated here once for the whole file.
+  # A parse failure folded into a default — `|| echo 0`, a swallowed `jq` — reads as
+  # "nothing new": `gh` keeps succeeding, the watch looks perfectly healthy, and
+  # whatever it can no longer see goes unreported. Every fetch/parse split below is
+  # there to avoid it, and points back here rather than restating it.
   #
   # Guarded, not bare: an unguarded assignment dies under `set -e` with no
   # `result=` line at all, which is the same blindness in a louder costume.
   # ⚠️ IT MUST PROVE THE FIELDS ARE THERE, NOT ONLY THAT THE PAYLOAD PARSES. `// empty`
-  # alone established the second and was read as establishing the first: an error body
-  # like `{"message":"Not Found"}` is well-formed JSON, so it passed the gate with
-  # `fails_shape=0` and `STATE=""` — matching neither MERGED nor CLOSED — and the watch
-  # ran its entire window against it and reported IDLE on a PR that had already closed.
-  # That is exactly the "broken watch indistinguishable from a calm one" this counter
-  # exists to prevent, arriving through the gate meant to catch it.
+  # establishes only the second: an error body like `{"message":"Not Found"}` is
+  # well-formed JSON, so it passes the gate with `fails_shape=0` and `STATE=""` —
+  # matching neither MERGED nor CLOSED — and the watch runs its whole window against
+  # that, reporting IDLE on a PR that has already closed. Hence the emptiness tests.
   #
   # `isDraft` is checked on the PR path for the same reason and is not cosmetic: a
   # missing field renders as the string `null`, which equals neither `true` nor
@@ -415,8 +415,6 @@ while :; do
     # looks: 30/min sustains 1800/hr against core's 5000/hr — roughly 3x tighter, not an
     # order of magnitude. One watch at the 10s floor issues 6 polls/min, well inside
     # 30/min; it would take about five concurrent issue waits to threaten the ceiling.
-    # Stated precisely because a margin quoted too grimly gets discounted wholesale the
-    # first time someone measures it, taking the sound reason above down with it.
     #
     # Lowercase deliberately. An assignment to a name the caller already exported
     # updates the *exported* value, so a generic uppercase internal here would
@@ -443,8 +441,8 @@ while :; do
     # no sort parameter to invert it, so on an issue past 100 events every new
     # cross-reference lands on the LAST page. Fetching page one only would poll nothing
     # but history: the wake condition could never fire and the watch would idle out
-    # looking perfectly healthy — the same fail-closed-and-silent shape the inline
-    # comments fetch below documents, reached from the other end of the ordering.
+    # looking perfectly healthy — the fail-closed-and-silent shape the shape gate
+    # above states, reached from the other end of the ordering.
     #
     # The cost this accepts is one request per 100 timeline events per tick. Unlike the
     # comments endpoint there is no `direction=desc` escape, so it scales with the
@@ -452,16 +450,15 @@ while :; do
     # leaves the 10s floor within half an hour, and because a wait that cannot see is
     # worth more requests than one that can't be trusted.
     #
-    # Split fetch from parse for the reason the comments block gives: folded together, a
-    # parse failure reads as "no cross-references" and the watch goes blind silently.
-    # ⚠️ FETCH AND PARSE ARE COUNTED SEPARATELY, because lib-poll.sh:66-69 says they are
-    # different kinds of failure: a network call is transient by nature and earns the
-    # FAIL_MIN_SECONDS grace, while a payload that stopped parsing "will not start
-    # parsing on its own, so waiting three minutes to say so only delays the report".
-    # The primary payload already honours that split via `fails_shape`. The inline
-    # comments block below still folds the two into one counter — a pre-existing
-    # divergence this change does not widen, and the reason the split is spelled out
-    # here rather than assumed.
+    # Split fetch from parse for the reason above: folded together, a parse failure
+    # reads as "no cross-references" and the watch goes blind silently.
+    #
+    # ⚠️ FETCH AND PARSE ARE COUNTED SEPARATELY, because `poll_broken` in lib-poll.sh
+    # grades them differently: a network call is transient by nature and earns the
+    # FAIL_MIN_SECONDS grace, while a payload that stopped parsing gets the plain
+    # FAIL_MAX check. The primary payload honours that split via `fails_shape`; the
+    # inline comments block below folds the two into one counter, which is why the
+    # split is spelled out here rather than assumed.
     if RAWT=$(gh api "repos/$REPO/issues/$PR/timeline" --paginate --slurp 2>/dev/null); then
       fails_timeline=0
       if xref_urls=$(echo "$RAWT" | jq -r '.[][]
@@ -512,9 +509,9 @@ while :; do
   HEAD=$(echo "$J" | jq -r '.headRefOid // empty')
 
   # ⚠️ ADOPT THE FIRST HEAD WE SEE WHEN THE CALLER GAVE US NONE. `obs_head` gates the
-  # commit branch below and is assigned only inside it, so an empty `<last_head>` used
-  # to be a closed loop: the gate could never open, a push went undetected for the
-  # whole window, and the watch reported IDLE on a PR that had moved. Self-healing
+  # commit branch below and is assigned only inside it, so without this an empty
+  # `<last_head>` is a closed loop: the gate never opens, a push goes undetected for
+  # the whole window, and the watch reports IDLE on a PR that has moved. Self-healing
   # here costs one missed detection at most — a push landing between the caller's last
   # look and our first — instead of failing for the life of the watch. That cost is
   # real rather than free: a caller holding a baseline WOULD have caught that push, so
@@ -533,18 +530,16 @@ while :; do
     [ (.reviews[]?  | select(.submittedAt > $s and (.author.login | mine | not))),
       (.comments[]? | select(.createdAt  > $s and (.author.login | mine | not))) ] | length')
   # New inline review-comments (thread replies) after SINCE, not by the bot.
-  # Split the fetch from the parse so a failure is not read as "no new replies".
-  # Ending it in `|| echo 0` would make this path fail *closed and silent*:
-  # `gh pr view` keeps succeeding, so the watch looks healthy while thread
-  # replies never register — partial blindness nothing reported.
-  # ⚠️ PAGINATED, AND THE ORDER IS WHY IT HAS TO BE. This endpoint caps at 30 per
-  # page and returns OLDEST FIRST, so on a PR that has accumulated more than 30
-  # inline comments every page-one result is old news and each new reply lands on
-  # the LAST page. Unpaginated, `NEWC` is then computed over nothing but history:
+  # Split the fetch from the parse so a failure is not read as "no new replies" —
+  # the fail-closed-and-silent shape the shape gate above states.
+  #
+  # ⚠️ THE ENDPOINT'S DEFAULTS ARE UNUSABLE HERE, AND THE ORDER IS WHY. It caps at
+  # 30 per page and returns OLDEST FIRST, so on a PR that has accumulated more than
+  # 30 inline comments every page-one result is old news and each new reply lands on
+  # the LAST page. Left at the defaults, `NEWC` is computed over nothing but history:
   # it never rises, no reply ever registers, and the watch idles out looking
-  # perfectly healthy. That is the same fail-closed-and-silent shape the note
-  # above describes, reached by a different route, and a busy PR with several
-  # reviewers is exactly where it bites.
+  # perfectly healthy — the same shape reached by a different route, and a busy PR
+  # with several reviewers is exactly where it bites.
   #
   # ⚠️ NEWEST FIRST, WHICH IS WHAT MAKES ONE REQUEST ENOUGH. Paging through the whole
   # thread history would also be correct, but it re-fetches every page on every tick,

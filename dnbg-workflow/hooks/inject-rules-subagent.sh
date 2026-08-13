@@ -31,15 +31,14 @@ PAYLOAD="$("$(dirname "$0")/rules-payload.sh")"
 [ -n "$PAYLOAD" ] || exit 0
 
 # `jq` builds the envelope, the same as every other non-trivial JSON in this
-# plugin. Hand-rolling the escaping to survive a jq-less machine was considered
-# and rejected: `jq` is what both enforcement hooks and both watch scripts run
-# on, so a machine without it has no gates and no watchers either — this hook
-# going quiet is not what makes that install unusable, and a hand-rolled escaper
-# is a correctness surface that buys nothing the operator can use.
+# plugin. Don't hand-roll the escaping to survive a jq-less machine: `jq` is what
+# both enforcement hooks and both watch scripts run on, so a machine without it
+# has no gates and no watchers either — this hook going quiet is not what makes
+# that install unusable, and a hand-rolled escaper is a correctness surface that
+# buys nothing the operator can use.
 #
-# It is not silent, which was the objection worth answering: the SessionStart
-# preflight already fires on a missing `jq`, and says there that subagents lose
-# the rules too.
+# Nor is it silent: the SessionStart preflight already fires on a missing `jq`,
+# and says there that subagents lose the rules too.
 command -v jq >/dev/null 2>&1 || exit 0
 
 printf '%s' "$PAYLOAD" | jq -Rs -c \
