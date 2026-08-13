@@ -201,6 +201,31 @@ posture applied on the author's side.
    gh api "repos/<repo>/contents/<path>?ref=<head-sha>" -H "Accept: application/vnd.github.raw"
    ```
 
+   **Read PR content at the head SHA, never at a local branch name.** A stale
+   `origin/<branch>` reads exactly like a current one, so you report a version of
+   the code nobody is merging. In a checkout, `git show` and `git grep` take
+   `<head-sha>` (from `gh pr view <n> --repo <repo> --json headRefOid`) the same
+   way `?ref=` does above.
+
+   **Deriving the changed set locally? Diff against the merge-base** — a base
+   that moved underneath you surfaces files the PR never touched, and those look
+   exactly like findings:
+
+   ```bash
+   git fetch origin <base-branch>
+   BASE=$(git merge-base origin/<base-branch> <head-sha>)
+   git diff "$BASE" <head-sha>
+   ```
+
+   Re-run it every round: base movement is the one thing re-checking the author's
+   own changes never looks for.
+
+   **When the PR changes, gates, or removes an existing feature, sweep the
+   feature's identifier families across the head SHA before reading the diff.**
+   The call site the author's own sweep missed sits in the file that *didn't*
+   change, so no diff shows it. One `grep` per family — flag names, JSON fields,
+   struct fields, file extensions, fixtures — and it scopes every read after it.
+
    **Read as little of each file as answers the question.** The `--json files`
    call above already returns `changeType` per entry — let it decide:
 
@@ -208,6 +233,12 @@ posture applied on the author's side.
      again duplicates what you have; fetch only if you skipped the full diff.
    - **`MODIFIED`** — read the hunks. Fetch whole only when they don't carry
      enough to judge the change — an invariant, type, or caller you can't see.
+
+   **An absence criterion inverts that split.** When the ask is that something no
+   longer appears *anywhere* — a sweep, a removal, a deprecation — the diff cannot
+   answer it: it shows what moved, never what remains. Read the full files in
+   scope at the head SHA, however long, and re-test "we checked the rest and it's
+   clean" rather than taking it on trust.
 
    **Batch fetches by the question you're answering, not by directory
    adjacency** — that's how a +22/−1 change costs a 750-line read.
@@ -268,12 +299,21 @@ posture applied on the author's side.
    to fix, and holding the verdict open would not have caught it either — the
    window that decides the merge runs past any verdict you could post.
 
-3. **Read the check results; don't reproduce them.** **Don't re-run the project's
-   test suite**, whole or per-file, and don't sweep it for flakes. A local run
-   reproduces the *author's* environment, not CI's — so on a timing- or
-   load-sensitive defect your machine wins the race a loaded runner loses, and
-   every green run argues "flaky, ignore it", the wrong verdict reached
-   expensively. This holds even when the suite is cheap.
+3. **Read the check results; don't reproduce them.** That covers every
+   *mechanical* gate a required check decides — a required changelog fragment, a
+   JSON parse, a formatter, a schema or lint check — not the test suite alone.
+   None can silently pass, so re-deriving one tells the author what CI already
+   told them.
+
+   What you uniquely add is judging whether what a gate accepted is **true**: a
+   changelog fragment parses, is attributed to the right plugin, and still
+   describes a change the diff doesn't contain.
+
+   **Don't re-run the project's test suite**, whole or per-file, and don't sweep
+   it for flakes. A local run reproduces the *author's* environment, not CI's —
+   so on a timing- or load-sensitive defect your machine wins the race a loaded
+   runner loses, and every green run argues "flaky, ignore it", the wrong verdict
+   reached expensively. This holds even when the suite is cheap.
 
    **Instrumented reproduction of one doubted claim is the exception, and it's
    your sharpest tool.** Reach for a probe when a claim is load-bearing and you
@@ -284,9 +324,24 @@ posture applied on the author's side.
    most valuable probes are routinely run while CI is green; a rule keyed on red
    CI talks you out of exactly those. Don't read check state to decide.
 
-   Say what the probe must **exercise**, then confirm the run reached that path —
-   a probe that never drives the path produces a negative reading as
-   confirmation. Put the answer in the assertion message; runners swallow stdout.
+   Say what the probe must **exercise**, then confirm the run reached that path
+   **under the conditions the target actually runs in** — the shell its shebang
+   names, its real working directory, its real input set. A probe that never
+   drives the path reads as confirmation; one that drives it under a mismatched
+   harness invents a finding. All three mismatches have fired: `zsh`'s `echo`
+   expands escapes a `#!/usr/bin/env bash` script never sees, a file copied to a
+   scratch directory can't source its siblings, a linter aimed at one file
+   reports what CI's whole-directory run doesn't. A mismatched harness is grounds
+   to re-probe, never to report. Put the answer in the assertion message; runners
+   swallow stdout.
+
+   **A generated artifact is render-verified once, not every round.** For anything
+   a committed pipeline derives — a `.gif` from a `.cast` from a script, a
+   snapshot, a lockfile, a fixture — review the *generator*, confirm the artifact
+   was regenerated (the blob changed), and render it at the first review that
+   touches it. Rendering proves what no text diff can: what a reader sees. Later
+   rounds re-prove it at the same cost, so re-render only when the pipeline
+   itself changes.
 
 4. **Review for** (in priority order), and against the standards the always-on
    "Coding standards stack" rule has you load:
@@ -298,6 +353,11 @@ posture applied on the author's side.
      new code paths?
    - **Style and clarity**: only when it materially affects readability. Don't
      nitpick formatting a linter would catch.
+
+   **Compute countable properties rather than eyeballing them.** Where the
+   standards name something countable — an emphasis budget, a comment block's
+   length, a file count — a `grep -c` before and after settles it, and a number
+   isn't a matter of taste.
 
 5. **Eyes out for complexity.** If you're re-reviewing and bugs keep getting
    discovered cycle after cycle, check for a deeper unaddressed problem. Call out
@@ -379,6 +439,19 @@ the operator the stray one is on the PR — it's theirs to dismiss. (Each inline
 comment is still its own resolvable thread authored by the bot — that's what the
 resolution step below keys on — but it's submitted as part of the one review,
 not as a stray comment.)
+
+**On a 5xx, re-list the reviews before retrying — the write may have succeeded.**
+An observed `502` had already posted; a blind retry adds a second blocking review,
+which can't be withdrawn.
+
+```bash
+gh api repos/<repo>/pulls/<n>/reviews \
+  --jq '.[] | {id, state, commit_id, user: .user.login, submitted_at}'
+```
+
+Your POST landed if a review from the bot sits at the head SHA with the state you
+sent — then don't re-post. List unfiltered: a filter narrowed to the SHA or the
+login answers empty both when nothing posted and when the filter was wrong.
 
 Each comment's `line` must fall **inside the diff hunk** — GitHub returns 422 for
 a line that isn't part of the diff — and refers to the new version of the file by
