@@ -72,8 +72,8 @@ EOF
 # --- configuration overrides -------------------------------------------------
 #
 # The skills state the mechanical defaults literally — `.worktrees/`,
-# `assigned:agent-session` — which is what makes an unconfigured session
-# byte-identical to one from before these knobs existed, and costs it nothing.
+# `assigned:agent-session` — so an unconfigured session pays nothing for these
+# knobs and reads the skills as written.
 # When a knob *is* set, this note is the only thing that says so, and it says it
 # where both audiences see it: the skills cannot carry the configured value
 # themselves, because `${user_config.*}` substitutes nothing whatsoever when an

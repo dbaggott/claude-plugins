@@ -33,9 +33,7 @@ CMD=${CMD//\\$'\n'/ }
 # ⚠️ THE PHRASE HAS TO BE A COMMAND, NOT A MENTION OF ONE. Matching it anywhere in
 # the string is content-blind: it fires on any command whose *payload* discusses
 # issue creation, and the payloads most likely to do that are the ones written
-# while working on this repo — review bodies, commit messages, issue text. That
-# blocked the reviewer bot from posting a review about this very hook
-# (https://github.com/dbaggott/claude-plugins/issues/59).
+# while working on this repo — review bodies, commit messages, issue text.
 #
 # Two independent narrowings, because neither covers the other:
 #
@@ -57,8 +55,8 @@ CMD=${CMD//\\$'\n'/ }
 # SEPARATOR". An invocation is routinely prefixed — `env -u GH_TOKEN gh issue
 # create` is MANDATED by reviewer/references/issue-mode.md for every `gh` call once a bot token is
 # exported, and `VAR=x gh …` is ordinary shell. Anchoring straight to `gh` un-gates
-# all of those, which is worse than the over-blocking this replaces: the gate would
-# fail open on the single commonest real invocation in this repo.
+# all of those: the gate would fail open on the single commonest real invocation in
+# this repo.
 PREFIX='(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|command|time|sudo|env([[:space:]]+(-[^[:space:]]+|[A-Z_][A-Z0-9_]*))*)[[:space:]]+)*'
 SCAN=$(printf '%s' "$CMD" | sed -E 's/"[^"]*"/ /g; s/'"'"'[^'"'"']*'"'"'/ /g')
 printf '%s\n' "$SCAN" | grep -qE "(^|[;&|(])[[:space:]]*${PREFIX}gh +issue +create\b" || exit 0

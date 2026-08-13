@@ -59,9 +59,9 @@ fi
 OWNER="${REPO%%/*}"
 
 # 1. Closing references — only PRs carrying a closing keyword. The narrowest
-#    source by construction, and the one both other call sites once had alone:
-#    `git-workflow`'s multi-repo rule has exactly ONE sibling close the issue and
-#    the rest merely reference it, so this source sees a fraction of the set.
+#    source by construction: `git-workflow`'s multi-repo rule has exactly ONE
+#    sibling close the issue and the rest merely reference it, so this source sees
+#    a fraction of the set.
 closing=ok
 closing_urls=""
 if J=$(gh issue view "$ISSUE" --repo "$REPO" --json closedByPullRequestsReferences 2>/dev/null); then
