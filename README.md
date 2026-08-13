@@ -155,9 +155,9 @@ completes, and pasting both at once only registers the first as a slash command:
 /plugin install dnbg-all@dnbg
 ```
 
-Finally, turn on auto-update — **this plugin does not update itself.** Claude
-Code leaves auto-update off by default for a third-party marketplace, so what
-you install here stays as it is until you say otherwise:
+Finally, **recommended:** turn on auto-update, so you automatically get
+improvements and bug fixes. Claude Code leaves it off by default for a
+third-party marketplace, so it is a step you have to take:
 
 `/plugin` → **Marketplaces** → **dnbg** → **Enable auto-update**
 
