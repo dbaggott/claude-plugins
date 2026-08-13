@@ -191,6 +191,22 @@ posture applied on the author's side.
 
 ## How to do the work
 
+Two costs run through every step below: the **bytes** a read lands in context,
+and the **round trip** that fetches them — every call re-sends everything
+accumulated so far. So batch: anything whose input you already have goes in the
+same call as its neighbours — one for repo conventions, one for cross-reference
+greps, one for probes. When a check needs the same field across many PRs or
+issues, ask once rather than looping a `gh` subcommand per item:
+
+```bash
+gh api graphql -f query='{ search(query: "repo:<repo> is:pr is:merged", type: ISSUE, first: 100) {
+  nodes { ... on PullRequest { url closingIssuesReferences(first: 20) { totalCount } } } } }'
+```
+
+The per-call token mint under "Get a bot token" is not redundancy to collapse —
+an extra API call, not an extra round trip, and merging those blocks posts under
+the wrong identity.
+
 1. **Load the standards you'll review against, before reading any code.** The
    always-on "Coding standards stack" rule says which; what it cannot say is
    *whose* — **the PR's repo decides, not your working directory**, which on a
@@ -210,6 +226,25 @@ posture applied on the author's side.
    ```bash
    gh api "repos/<repo>/contents/<path>?ref=<head-sha>" -H "Accept: application/vnd.github.raw"
    ```
+
+   **`gh pr diff` takes no pathspec** — `gh pr diff <n> --repo <repo> -- <path>`
+   fails with `accepts at most 1 arg(s)`. Filter the per-file patches instead:
+
+   ```bash
+   gh api "repos/<repo>/pulls/<n>/files" \
+     --jq '.[] | select(.filename | test("<regex>")) | .patch'
+   ```
+
+   **Past ~2 questions of the tree, or for any repo-wide sweep, take the whole
+   tree in one call** — nothing left in the user's repo, unlike the worktree
+   below:
+
+   ```bash
+   T=$(mktemp -d)
+   gh api "repos/<repo>/tarball/<head-sha>" | tar xz -C "$T" --strip-components=1
+   ```
+
+   Then stop issuing `contents` reads at that SHA; the two paths overlap silently.
 
    **Read PR content at the head SHA, never at a local branch name.** A stale
    `origin/<branch>` reads exactly like a current one, so you report a version of
@@ -252,13 +287,16 @@ posture applied on the author's side.
    clean" rather than taking it on trust.
 
    **Batch fetches by the question you're answering, not by directory
-   adjacency** — that's how a +22/−1 change costs a 750-line read.
+   adjacency** — that's how a +22/−1 change costs a 750-line read. And filter at
+   the pipe: a whole-file fetch goes through `grep -n`, `sed -n` or `--jq`, not
+   into context, when three lines of it are the answer.
 
-   When a review genuinely needs the tree — running a type-checker, tracing call
-   sites across many files, or an instrumented probe (see step 4) — make it per
-   `references/worktree.md`. **Re-running the project's test suite is not on that
-   list** — see step 4. Create it when a specific need arrives, not speculatively
-   at the start of the review.
+   When a review needs to *run* the tree — a type-checker, a build, a probe that
+   executes something (see step 4) — make a worktree per
+   `references/worktree.md`. A probe that only *reads* is not that case: fetch
+   the files it needs and `awk` over them. **Re-running the project's test suite
+   is not on the list either** — see step 4. Create a worktree when a specific
+   need arrives, not speculatively at the start of the review.
 
    When the PR description references an issue or another PR, read it only if a
    specific question blocks your review — not for general background. Honor
@@ -572,12 +610,14 @@ PR to resume (it re-assesses current state and picks the watch back up).
 
 When the watcher surfaces `ACTIVITY`, what landed is already in hand — the JSON
 lines above its result line, or the packet's `── activity ──` section if you
-took a round. Respond only when there's something substantive to add — never "I
-agree" filler. An inline object carries the `id` the reply below needs as
-`in_reply_to`. Replies post as
-the bot (its `pull_requests: write` covers reviews, inline comments, thread
-replies, and conversation comments), so each of the commands below wants the
-guarded mint ahead of it, in that same tool call:
+took a round. You also know your own inline-thread count without asking GitHub:
+having filed none, the first case below cannot fire, so don't fetch
+`pulls/<n>/comments` to find out. Respond only when there's something
+substantive to add — never "I agree" filler. An inline object carries the `id`
+the reply below needs as `in_reply_to`. Replies post as the bot (its
+`pull_requests: write` covers reviews, inline comments, thread replies, and
+conversation comments), so each of the commands below wants the guarded mint
+ahead of it, in that same tool call:
 
 ```bash
 GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
