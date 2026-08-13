@@ -8,14 +8,19 @@ already tell your session how this project works, and the hooks keep it honest.
 This file is for everyone else: what the project wants, and the handful of
 mechanics you cannot guess.
 
-## The gates do not fire on your fork
+## Whether the gates fire on your fork
 
 Worth knowing so the silence does not mislead you. The two enforcement hooks
 only fire for repos in an operator's `owners` config, and `remote_is_covered()`
 in [`dnbg-workflow/hooks/lib.sh`](dnbg-workflow/hooks/lib.sh) requires both
-`github.com` **and** an owner match. Your fork's owner is you, so on it the
-gates are inert. That is deliberate — the plugin fails open so a fresh install
+`github.com` **and** an owner match. Your fork's owner is you rather than this
+project, so unless you have listed your own login in `owners` the gates are
+inert on it. That is deliberate — the plugin fails open so a fresh install
 blocks nothing — not a sign you have configured something wrong.
+
+List yourself and the opposite holds, which is the ordinary state for anyone
+who uses the plugin on their own repos: the fork is covered like any other repo
+of yours, and the worktree + draft-PR flow drives your contribution.
 
 ## Scope
 
@@ -69,6 +74,15 @@ the current set.
 The ordinary fork flow: fork, branch from `main`, one logical change, push, and
 open a PR against `dbaggott/claude-plugins:main`. Draft it if it is not
 finished. Do not merge your own PR.
+
+**Sync your fork's `main` before branching** (`gh repo sync <you>/claude-plugins`,
+or the Sync fork button). A fork's `main` is a snapshot from whenever you forked
+and nothing advances it for you, so branching from a stale one writes the change
+against code that has since moved — a conflict at best, a fix for something
+already fixed at worst. Nothing warns you: the PR still diffs against the
+merge-base, so it looks clean. This is easiest to miss with the fork covered
+(above), where `git-workflow` bases the worktree on `origin/<default-branch>`
+and on a fork `origin` is the fork.
 
 For the description, the only thing asked is that it be accurate: say what you
 verified and how, and mention what you could not check. Under-claiming costs
