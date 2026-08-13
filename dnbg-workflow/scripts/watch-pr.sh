@@ -244,6 +244,17 @@ fi
 # further, and report the whole burst at once. SETTLE_MAX caps it so an author
 # who keeps working can't hold the watch open indefinitely.
 #
+# That burst is what watching an author looks like, and the default is sized for
+# it. A reviewer's round is the opposite shape: one write. Its verdict and every
+# inline comment filed with it share a timestamp, and the two sources below expose
+# them on the same tick — measured, not deduced. Watching a reviewer therefore
+# needs settle only to cover skew between those sources, which is why
+# `git-workflow`'s spawn passes its own value instead of inheriting this one.
+# That reading is of an agent reviewer. A human filing comments over several
+# minutes is a burst like any author's, and a settle sized for skew alone reports
+# it as one wake per write; each write is newer than the re-arm point, so that
+# costs extra rounds rather than the loss described above.
+#
 # Deliberately wall-clock, not awake time, and the only duration here that is.
 # SETTLE exists to coalesce one author's burst of actions; a machine that
 # suspended mid-burst has ended it by definition, so releasing immediately on
