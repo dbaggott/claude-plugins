@@ -30,10 +30,18 @@ The path matters. `extraKnownMarketplaces` is also valid in a project's
 marketplace — and that file is normally committed. Put this in your user file
 unless you mean to ask a whole repo.
 
-Either way, Claude Code checks after each session starts, with a random delay of
-up to ten minutes, then refreshes the marketplace and updates installed plugins
-on disk. Your running session keeps the version it launched with; you'll be
-prompted to `/reload-plugins`, or the new version loads next launch.
+When updates are applied, and what that does to a running session, is Claude
+Code's own behavior rather than this project's — see [Configure
+auto-updates](https://code.claude.com/docs/en/discover-plugins#configure-auto-updates)
+in its documentation. To take a release immediately rather than whenever it
+arrives, update by hand — below.
+
+**To see which version you are on**, run `claude plugin list`. If you want to
+confirm what is actually unpacked on disk:
+
+```
+ls -1 ~/.claude/plugins/cache/dnbg/dnbg-workflow/ | sort -V | tail -1
+```
 
 The config form also works in managed settings, so an administrator can enable
 it for an organisation without asking each person to toggle it.

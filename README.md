@@ -155,6 +155,24 @@ completes, and pasting both at once only registers the first as a slash command:
 /plugin install dnbg-all@dnbg
 ```
 
+Finally, **recommended:** turn on auto-update, so you automatically get
+improvements and bug fixes. Claude Code leaves it off by default for a
+third-party marketplace, so it is a step you have to take:
+
+`/plugin` → **Marketplaces** → **dnbg** → **Enable auto-update**
+
+To see which version you are on, and to update on demand:
+
+```
+claude plugin list
+```
+
+```
+/plugin marketplace update dnbg
+```
+
+More on updating and versions: [Releases](docs/releases.md).
+
 `dnbg-all` installs all three. To take only part of it, install what you want
 instead — they are independent, and none requires another:
 
