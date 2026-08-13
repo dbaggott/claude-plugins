@@ -176,13 +176,18 @@ ME=$(gh api user --jq .login)
 # `reviewer`, where IDLE is routine; here IDLE means something is wrong, and a
 # signal the operator waits six hours for is not a signal. A bot reviewer
 # normally replies in 1–3 minutes, so 30 minutes is a generous safety net.
+# SETTLE=10 is the same directional argument. The script's default coalesces an
+# author's burst of separate writes; a reviewer files its verdict and inline
+# comments in one, so this side needs only one poll interval of quiet — enough to
+# cover skew between the watcher's two sources — and every second beyond that was
+# latency on the whole cycle.
 # --last-verdict makes the verdict check level-triggered, so a review that landed
 # before this watch existed — in the gap after `gh pr ready`, or before the
 # timestamp above — still wakes it instead of being invisible for the whole
 # window. Empty is correct here and only here: it says "I have handled no verdict
 # yet". On every re-arm pass the SHA of the verdict you last handled, or the watch
 # wakes on that same verdict on its first tick, every time.
-WINDOW=1800 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
+WINDOW=1800 SETTLE=10 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
   "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ME" --last-verdict=
 ```
 
