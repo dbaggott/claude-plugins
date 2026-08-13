@@ -250,6 +250,10 @@ fi
 # them on the same tick — measured, not deduced. Watching a reviewer therefore
 # needs settle only to cover skew between those sources, which is why
 # `git-workflow`'s spawn passes its own value instead of inheriting this one.
+# That reading is of an agent reviewer. A human filing comments over several
+# minutes is a burst like any author's, and a settle sized for skew alone reports
+# it as one wake per write; each write is newer than the re-arm point, so that
+# costs extra rounds rather than the loss described above.
 #
 # Deliberately wall-clock, not awake time, and the only duration here that is.
 # SETTLE exists to coalesce one author's burst of actions; a machine that

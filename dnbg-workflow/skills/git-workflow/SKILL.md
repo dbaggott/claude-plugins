@@ -176,11 +176,10 @@ ME=$(gh api user --jq .login)
 # `reviewer`, where IDLE is routine; here IDLE means something is wrong, and a
 # signal the operator waits six hours for is not a signal. A bot reviewer
 # normally replies in 1–3 minutes, so 30 minutes is a generous safety net.
-# SETTLE=10 is the same directional argument. The script's default coalesces an
-# author's burst of separate writes; a reviewer files its verdict and inline
-# comments in one, so this side needs only one poll interval of quiet — enough to
-# cover skew between the watcher's two sources. Anything past that is latency on
-# every round.
+# SETTLE=10 is the same directional argument, and `watch-pr.sh`'s SETTLE header
+# holds the measurement behind it, including what that measurement does not
+# cover — read it before retuning this. One poll interval is all the quiet this
+# side needs; anything past that is latency on every round.
 # --last-verdict makes the verdict check level-triggered, so a review that landed
 # before this watch existed — in the gap after `gh pr ready`, or before the
 # timestamp above — still wakes it instead of being invisible for the whole
