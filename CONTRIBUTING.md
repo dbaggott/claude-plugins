@@ -16,11 +16,8 @@ in [`dnbg-workflow/hooks/lib.sh`](dnbg-workflow/hooks/lib.sh) requires both
 `github.com` **and** an owner match. Your fork's owner is you rather than this
 project, so unless you have listed your own login in `owners` the gates are
 inert on it. That is deliberate — the plugin fails open so a fresh install
-blocks nothing — not a sign you have configured something wrong.
-
-List yourself and the opposite holds, which is the ordinary state for anyone
-who uses the plugin on their own repos: the fork is covered like any other repo
-of yours, and the worktree + draft-PR flow drives your contribution.
+blocks nothing — not a sign you have configured something wrong. List yourself
+and the fork is covered like any other repo of yours.
 
 ## Scope
 
@@ -75,14 +72,10 @@ The ordinary fork flow: fork, branch from `main`, one logical change, push, and
 open a PR against `dbaggott/claude-plugins:main`. Draft it if it is not
 finished. Do not merge your own PR.
 
-**Sync your fork's `main` before branching** (`gh repo sync <you>/claude-plugins`,
-or the Sync fork button). A fork's `main` is a snapshot from whenever you forked
-and nothing advances it for you, so branching from a stale one writes the change
-against code that has since moved — a conflict at best, a fix for something
-already fixed at worst. Nothing warns you: the PR still diffs against the
-merge-base, so it looks clean. This is easiest to miss with the fork covered
-(above), where `git-workflow` bases the worktree on `origin/<default-branch>`
-and on a fork `origin` is the fork.
+**Sync your fork's `main` before branching** (`gh repo sync <you>/claude-plugins`).
+Nothing advances a fork's `main` for you, and the PR diffs against the merge-base
+either way — so a stale base looks clean while the change is written against code
+that has moved. With the fork covered, `git-workflow` branches from it too.
 
 For the description, the only thing asked is that it be accurate: say what you
 verified and how, and mention what you could not check. Under-claiming costs
