@@ -30,10 +30,10 @@ The path matters. `extraKnownMarketplaces` is also valid in a project's
 marketplace — and that file is normally committed. Put this in your user file
 unless you mean to ask a whole repo.
 
-Either way, Claude Code checks after each session starts, with a random delay of
-up to ten minutes, then refreshes the marketplace and updates installed plugins
-on disk. Your running session keeps the version it launched with; you'll be
-prompted to `/reload-plugins`, or the new version loads next launch.
+Either way, updates are picked up between sessions rather than during one: a
+running session keeps the version it launched with, and you'll be prompted to
+`/reload-plugins` or get the new version next launch. When you want a release
+now rather than whenever it arrives, update by hand — below.
 
 **To see which version you are on**, run `claude plugin list`. If you want to
 confirm what is actually unpacked on disk:
