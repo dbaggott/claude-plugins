@@ -279,8 +279,7 @@ posture applied on the author's side.
    triggers one reads check state for themselves at that moment. What red CI does
    owe you is the paragraph above — a completed failure tied to the diff is a
    finding on any repo, gate or no gate. Don't assume a gate will catch it for
-   you ("Repo settings you cannot read"), and don't lecture about passing checks
-   or pad the review with CI status.
+   you ("Repo settings you cannot read").
 
    **Never wait for CI, and never poll it.** Read whatever state exists when you
    look, once, and proceed. A check that reddens after you post is the author's
@@ -393,6 +392,46 @@ taken.
 not spend the round", written in the body while a thread you filed is open, is a
 contradiction the merge box settles against you. If it really is fine to merge
 over, it belongs in the body and the thread should not exist.
+
+### What earns a place in the body
+
+An observation costs a round whether or not it blocks the merge: the author acts,
+HEAD moves, and a moved HEAD owes a fresh verdict and a fresh CI run. Right price
+for a real finding, pure loss for a musing. Test each one before it goes in:
+
+- **Could acting on it change a tracked file?** The bar is file-change potential,
+  not interestingness.
+- **Did this diff change it, or make it wrong?** Both clauses count — a flipped
+  default leaves a pre-existing documented command wrong in a file the diff never
+  touched. Neither, and it belongs to a different PR.
+- **Does your own phrasing argue it down?** "Defensible", "reasonable either
+  way", "just noting" — you have already reached "no change needed"; cut it.
+  ("Avoid noise" bans content-free commentary, not the well-argued note that
+  talks itself out.)
+- **Could you be wrong in a way only the author can check?** You see the PR, the
+  diff and the repo, never their session — injected context, plugin version, tool
+  availability. "Your stamp says X and should say Y" settles only by the author
+  asserting private state. Drop it, or phrase it so it costs no reply.
+- **Re-reviewing? Would it have been worth raising in round 1 had the text
+  shipped this way?** A correct fix wants confirming, not annotating. The bar
+  rises each round, and clearing it still isn't the same as being worth it.
+
+Then hand the pacing decision over in a sentence, not a heading: **"None of this
+needs a round before merge"**, not a section headed "Non-blocking".
+
+**Keep CI status out of the body.** A check result that changes your verdict is a
+finding and goes in as one (step 3 of "How to do the work"); one that does not
+belongs only on the PR page, where it is live rather than a stale snapshot.
+
+**Report verification selectively.** Verify as broadly as the review needs; say
+so only where the author flagged an uncertainty, you swept wider than the check
+they stated, or you disagree. Keep that narration on `APPROVE`, where it
+justifies the verdict; on `REQUEST_CHANGES` compress it to a bare list of
+surfaces checked.
+
+**A re-verdict body states the SHA, the verdict, and what changed** — it does not
+ratify the author's reasoning back at them or restate fixes they can read in
+their own diff.
 
 **Post one atomic review.** When you have inline findings, use the reviews
 endpoint so the verdict *and* all inline comments land as a single review (one
