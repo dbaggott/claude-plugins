@@ -9,6 +9,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.44 — 2026-08-13
+
+`git-workflow`'s review watch now settles for 10s instead of the script's 45s
+default, so a review reaches you roughly half a minute sooner. The default is
+sized to coalesce an author's burst of separate actions, which is what `reviewer`
+watches; a reviewer files its verdict and inline comments in a single write, so
+the author side was paying a coalescing window it had nothing to coalesce.
+
+
 ## dnbg-workflow 2026.8.43 — 2026-08-13
 
 Tightened the `reviewer` skill's verification discipline, so a review is less
