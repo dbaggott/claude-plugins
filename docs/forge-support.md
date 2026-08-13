@@ -1,16 +1,18 @@
 # Forge support
 
 Worth reading before you install. The workflow skills drive the `gh` CLI
-throughout — `gh pr`, `gh issue`, `gh api`, `gh search` — and this isn't
-incidental coupling that a shim could paper over:
+throughout — `gh pr`, `gh issue`, `gh api`, `gh search` — deeply enough that
+another forge needs its own backend behind a shared contract, not a shim over
+the calls below:
 
-- `reviewer` and `reviewer-setup` are built on **GitHub Apps**. The entire point
-  is an App identity that can post a binding verdict on a PR you authored, which
-  GitHub otherwise forbids from your own account. The mechanism `reviewer-setup`
-  automates — the GitHub App **Manifest flow** that `bootstrap.py` drives — has
-  no counterpart on GitLab or Bitbucket, so the reviewer is GitHub-only.
-  Multi-forge support is tracked at
-  https://github.com/dbaggott/claude-plugins/issues/21.
+- `reviewer` and `reviewer-setup` are built on **GitHub Apps**. The point is an
+  identity distinct from your own that can post a verdict on a PR you authored,
+  which GitHub forbids from your own account. `reviewer-setup` automates the
+  GitHub App **Manifest flow** that `bootstrap.py` drives; GitLab and Bitbucket
+  reach the same identity far more cheaply, through project and repository
+  access tokens, so the setup is per-forge rather than portable. The reviewer is
+  GitHub-only today because only the GitHub backend exists — see
+  https://github.com/dbaggott/claude-plugins/issues/149.
 - `git-workflow`'s review, merge-state, and auto-merge handling reads
   GitHub-shaped fields (`mergeStateStatus`, `statusCheckRollup`, review threads).
 - `check-issue-create.sh` matches `gh issue create`, and `owners` resolves
@@ -23,8 +25,8 @@ says:
 | Forge | Forge-coupled skills | Forge-neutral skills | Status |
 | --- | --- | --- | --- |
 | GitHub | yes | yes | **Supported** |
-| GitLab | no | yes | [Planned](https://github.com/dbaggott/claude-plugins/issues/21) |
-| Bitbucket | no | yes | [Planned](https://github.com/dbaggott/claude-plugins/issues/21) |
+| GitLab | no | yes | [Next](https://github.com/dbaggott/claude-plugins/issues/149) |
+| Bitbucket | no | yes | [Planned](https://github.com/dbaggott/claude-plugins/issues/150) |
 | Azure Repos | no | yes | Not planned |
 | Anything else, including self-hosted and GitHub Enterprise | no | yes | Unsupported |
 
@@ -47,8 +49,8 @@ flow is GitHub-only, names the host it actually found, and hands back to
 whatever flow your project already uses. It will not run a `gh` command that
 cannot succeed, and it will not translate itself to `glab` or the Bitbucket API
 — a half-translated flow is worse than either extreme, and translating properly
-is [the multi-forge
-roadmap's](https://github.com/dbaggott/claude-plugins/issues/21) job rather than
+is [the per-forge
+backends'](https://github.com/dbaggott/claude-plugins/issues/149) job rather than
 something to do by halves here.
 
 *What* it checks differs by skill, because the five coupled skills don't all act

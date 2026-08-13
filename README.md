@@ -124,8 +124,8 @@ This plugin consists of **skills** (loaded on demand when they match the task), 
 short **always-on rules** file, and two **enforcement hooks** that make the worktree
 and issue flows non-optional in the repos you choose. Two of those are things a
 `CLAUDE.md` structurally cannot do: hooks that *enforce* the flow rather than
-advising it, and an identity separate from yours that can post a binding verdict
-on a PR you wrote.
+advising it, and an identity separate from yours that can post a verdict on a PR
+you wrote.
 
 | Skill | Plugin | Forge | For |
 | --- | --- | --- | --- |
@@ -201,14 +201,15 @@ six command-line tools — are in [requirements](docs/requirements.md).
 
 ## Which forges
 
-**GitHub is supported.** GitLab and Bitbucket are
-[planned](https://github.com/dbaggott/claude-plugins/issues/21); everything else
-is unsupported. The forge-neutral skills — `coding-practices` and
+**GitHub is supported.** GitLab is
+[next](https://github.com/dbaggott/claude-plugins/issues/149), then
+[Bitbucket](https://github.com/dbaggott/claude-plugins/issues/150); everything
+else is unsupported. The forge-neutral skills — `coding-practices` and
 `velocity-tradeoff` — work anywhere regardless.
 
 On an unsupported forge a coupled skill **declines and says so**, naming the host
 it found, rather than half-translating itself to another CLI. The per-forge
-matrix, what each skill checks, and why the coupling isn't papering-over-able are
+matrix, what each skill checks, and why another forge needs its own backend are
 in [forge support](docs/forge-support.md).
 
 ## What it runs on your machine
