@@ -171,8 +171,7 @@ claude plugin list
 /plugin marketplace update dnbg
 ```
 
-[Releases](docs/releases.md) has the `settings.json` equivalent and how to pin a
-version instead if you would rather update deliberately.
+More on updating and versions: [Releases](docs/releases.md).
 
 `dnbg-all` installs all three. To take only part of it, install what you want
 instead — they are independent, and none requires another:
