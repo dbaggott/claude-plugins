@@ -1,9 +1,9 @@
 # Reviewer: when the review needs a checkout
 
 Part of the `reviewer` skill. Read this only when a specific need for the tree
-arrives — `SKILL.md`'s "How to do the work" reads the PR remotely by default, and
-most reviews never come here. Both halves live together because a review that
-never made a checkout owes neither: creating one, and removing it at `CLOSED`.
+arrives — `SKILL.md`'s "How to do the work" reads the PR remotely by default, so
+most reviews never come here. Making the checkout and removing it at `CLOSED` are
+both below.
 
 ## Create a worktree you own
 
@@ -26,11 +26,11 @@ note wins and every `.worktrees/` in this skill means the root it names —
 here, and in the cleanup at the end. With no such note, the literal above is
 what this session uses.
 
-**This branch is the only part of the skill that needs a local
+**This file is the only part of the skill that needs a local
 clone of the target repo** — everything else runs from any directory via
-`--repo`, and the remote read above is what keeps that true. Working with no
-clone? Read remotely, or clone deliberately and remove it at the end like any
-other checkout you created.
+`--repo`, and `SKILL.md`'s remote read at the head SHA is what keeps that true.
+Working with no clone? Read remotely, or clone deliberately and remove it at the
+end like any other checkout you created.
 
 ## Clean up what you synced, at `CLOSED`
 

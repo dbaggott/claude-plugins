@@ -139,13 +139,9 @@ So the assignment is a loop, not a pass:
 either — it is equally discovery-time, and it only finds siblings sharing a
 branch name, so a later follow-up PR on its own branch is invisible to it.
 
-**When discovery finds nothing yet, wait — and load the standards during the
-wait, not when the first PR lands.** `SKILL.md` step 1 says which standards and
-whose; what is specific to this mode is *when*. An issue-scoped assignment can
-sit for hours before anything arrives, and that wait is the one stretch of the
-cycle with nothing else in it — so a reviewer that defers the load until a PR
-appears is one that begins its first review without it, on the round where a
-finding is cheapest to act on. The target repo is already known from the issue.
+**When discovery finds nothing yet, wait — and load `SKILL.md` step 1's standards
+during that wait**, not when the first PR lands: the wait is the one stretch of
+the cycle with nothing else in it, and the issue already names the target repo.
 
 Spawn the wait as a **background** task so the idle polling never enters the
 conversation:

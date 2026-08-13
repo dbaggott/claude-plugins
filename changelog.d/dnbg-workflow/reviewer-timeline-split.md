@@ -5,7 +5,7 @@ files at the point each one binds: `references/watch.md` on the watcher's first
 return, `references/re-review.md` when HEAD moves, and `references/worktree.md`
 on the minority of reviews that need a checkout. Each is pointed at from the step
 that precedes needing it, so nothing has to be found from a reference list. The
-skill drops from 860 to 645 lines.
+skill drops from 860 to 633 lines.
 
 The motivation is placement as much as size: several rules were correct but sat
 in a section the reviewer was not in when they applied.

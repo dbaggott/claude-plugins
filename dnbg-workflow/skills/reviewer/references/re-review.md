@@ -87,4 +87,4 @@ is required, and it is the only one there: `reviewDecision` is `null`, and
 neither the merge box nor `dismiss_stale_reviews` fills the gap.
 
 Alongside the fresh review, **resolve any inline thread whose concern is now
-answered** (below).
+answered** — `SKILL.md`'s "Resolving inline findings" carries the mechanics.

@@ -191,23 +191,15 @@ posture applied on the author's side.
 
 ## How to do the work
 
-1. **Load the standards you'll review against, before you read any code.** The
-   always-on "Coding standards stack" rule names them; what it cannot name is
-   *whose* they are — **the PR's repo decides, not your working directory.** You
-   may be reviewing from an unrelated checkout or from none at all, so read the
-   target repo's own `CLAUDE.md` and any standards doc it names, at the head SHA:
+1. **Load the standards you'll review against, before reading any code.** The
+   always-on "Coding standards stack" rule says which; what it cannot say is
+   *whose* — **the PR's repo decides, not your working directory**, which on a
+   remote review is a different repo. Read its `CLAUDE.md` and any standards doc
+   it names, at the head SHA; a 404 means it carries none.
 
    ```bash
    gh api "repos/<repo>/contents/CLAUDE.md?ref=<head-sha>" -H "Accept: application/vnd.github.raw"
    ```
-
-   A 404 says the repo carries none, which is an answer rather than a failure.
-   `dnbg-practices:coding-practices` applies on top wherever it is installed, and
-   the repo's own standards win where the two disagree.
-
-   **It is step 1 because a deferred load is an abandoned one.** Every later step
-   reads as actionable without it, so nothing downstream ever forces it, and a
-   review that skipped it silently falls back to your own taste.
 
 2. **Read the diff.** `gh pr diff <n> --repo <repo>` for the full unified diff;
    `gh pr view <n> --repo <repo> --json files,additions,deletions` for the
@@ -263,11 +255,10 @@ posture applied on the author's side.
    adjacency** — that's how a +22/−1 change costs a 750-line read.
 
    When a review genuinely needs the tree — running a type-checker, tracing call
-   sites across many files, or an instrumented probe (see step 4) — read
-   `references/worktree.md` and make the checkout there; it also owns removing it
-   at `CLOSED`. **Re-running the project's test suite is not on that list** — see
-   step 4. Create it when a specific need arrives, not speculatively at the start
-   of the review.
+   sites across many files, or an instrumented probe (see step 4) — make it per
+   `references/worktree.md`. **Re-running the project's test suite is not on that
+   list** — see step 4. Create it when a specific need arrives, not speculatively
+   at the start of the review.
 
    When the PR description references an issue or another PR, read it only if a
    specific question blocks your review — not for general background. Honor
@@ -533,12 +524,10 @@ PR to resume (it re-assesses current state and picks the watch back up).
    without the flag, and `READY` is emitted only when it is set — the PR would be
    picked up on its next push, or never, and an idle watch is indistinguishable
    from a quiet PR.
-3. **On return, read `references/watch.md` before you branch on `result=`.**
-   Every return lands there — each branch, the values to re-arm with, what a
-   *missing* `result=` line means, and where the watch actually ends. Don't
-   improvise a branch from the result names: the two `ERROR` codes take opposite
-   remedies, and a missing line is the one case that reads like a quiet PR while
-   meaning the opposite.
+3. **On return, read `references/watch.md` before branching on `result=`.**
+   Don't branch from the result names alone — the two `ERROR` codes take opposite
+   remedies, and a missing `result=` line reads like a quiet PR while meaning the
+   opposite.
 
 ## Responding to comments and replies
 

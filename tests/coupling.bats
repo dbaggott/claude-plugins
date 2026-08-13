@@ -668,18 +668,21 @@ remote_read_calls() {  # <SKILL.md>
 # Globbed rather than enumerated so a reference file added later is covered without
 # anyone remembering to come back here.
 @test "SKILL.md points at every one of its reference files" {
-  local skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md" f bad=0
-  local found=0
+  local skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md" f bad=0 found=0
+  # `nullglob` so an emptied references/ yields no iterations rather than one over
+  # the literal pattern — without it the count below can never reach zero, and the
+  # emptied case reports a missing pointer to a file named `*.md`.
+  shopt -s nullglob
   for f in "$ROOT/dnbg-workflow/skills/reviewer/references/"*.md; do
-    found=1
+    found=$((found + 1))
     grep -q "$(basename "$f" | sed 's/\./\\./g')" "$skill" || {
       echo "reviewer/SKILL.md no longer names $(basename "$f") — nothing can reach it"
       bad=1
     }
   done
-  # An empty glob would pass vacuously, which is the one way this check can go
-  # quiet without anyone noticing the directory was emptied.
-  [ "$found" -eq 1 ] || { echo "reviewer/references/ has no .md files at all"; bad=1; }
+  shopt -u nullglob
+  # Zero files is the one way this check goes quiet: every assertion is in the loop.
+  [ "$found" -gt 0 ] || { echo "reviewer/references/ has no .md files at all"; bad=1; }
   [ "$bad" -eq 0 ]
 }
 
