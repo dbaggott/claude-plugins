@@ -107,8 +107,9 @@ what someone does?"**
 always-on rules file, a `CLAUDE.md`. Nothing enforces those either, and their
 reader can't ask a follow-up, so a stale line gets acted on rather than queried.
 **History** is what they accrete fastest: every incident invites a paragraph
-explaining itself, and none is ever removed. Four more failures are specific to
-that prose — see **Four ways agent-facing prose fails** below.
+explaining itself, and none is ever removed. A test for that prose, and four
+failures specific to it, are in **What earns a line in agent-facing prose**
+below.
 
 These all fail that bar:
 
@@ -159,18 +160,30 @@ not its history.
 **Prefer an assertion to a prose invariant.** A test fails loudly; a comment rots
 quietly. General form: **enforceable > prose > nothing.**
 
-## Four ways agent-facing prose fails
+## What earns a line in agent-facing prose
 
-The bar is the one above; these are the failures a `SKILL.md`, a rules file, or a
-`CLAUDE.md` reaches that a comment does not. Its reader acts on every line, and
-pays for every line it doesn't act on.
+The bar is the one above, plus a problem a comment does not have: two readers,
+only one of them charged. The **executor** loads every line on every run and acts
+on it. The **editor** opens the file once, to change it. Rationale aimed at the
+editor — why the instruction is shaped this way, what broke before it existed —
+is paid for on every run and acted on by none.
 
-- **The same argument twice in the same place.** Rationale earns a line where it
-  changes what the agent does — once, at the instruction. A second paragraph
-  defending a choice the instruction already carries is spent attention; the PR
-  is where a reviewer wants that argument. (Distinct from *a rationale that
-  belongs on the definition* above, which is about the wrong **place**, not a
-  second copy.)
+**So test every line of rationale: would an executor that never read it do
+something different?** Often yes, and then it stays — a *why* that lets the agent
+choose correctly in a case the instruction doesn't enumerate is doing work no
+list of steps can. What goes is the *why* that only defends the instruction
+against whoever might one day change it. That reader opens the file once, and
+the places they look are the script's own header comment, a test name, and the
+PR that introduced it. Prefer the enforceable home: a case a test pins cannot be
+simplified away, so it needs no paragraph standing guard over it.
+
+Four more failures, same bar:
+
+- **The same argument twice in the same place.** Rationale that passes the test
+  above earns one line, at the instruction. A second paragraph defending a choice
+  the instruction already carries is spent attention; the PR is where a reviewer
+  wants that argument. (Distinct from *a rationale that belongs on the
+  definition* above, which is about the wrong **place**, not a second copy.)
 - **The inverse of a condition.** A section scoped "when X" does not also need
   "when not X, none of this applies". The agent read the heading.
 - **A read an earlier step could have carried.** When a step needs one more
