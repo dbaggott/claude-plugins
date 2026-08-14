@@ -21,13 +21,10 @@ git remote get-url origin
 
 **If the host is not `github.com`, stop and decline.** Say that this flow is
 GitHub-only, name the host you actually found, and fall back to whatever flow
-the project already uses. Do not run a `gh` command against it to "see what
-happens" — the value here is a clear statement instead of a cascade of confusing
-command errors, and one attempted call forfeits it. Do not translate the flow to
-`glab` or another forge's CLI either: a half-working translation is worse than a
-clean decline.
+the project already uses. Do not run a `gh` command against it
+first, and do not translate the flow to `glab` or another forge's CLI.
 
-Two cases that are **not** a decline:
+These are **not** a decline:
 
 - **No `origin`.** A local-only repo, or one whose remotes are named something
   else, makes no forge claim either way. Don't degrade and don't assume GitHub —
@@ -51,7 +48,7 @@ per plugin.
 7. **Re-read your own diff against the standards** — the set the always-on "Coding standards stack" rule had you load. `git diff origin/<default-branch>...HEAD`, read against those files re-opened rather than recalled: you wrote the diff from memory of them, so memory is what needs checking. Where a standard names something countable, grep the diff for it instead of eyeballing. Fix what you find before pushing.
 8. Push, and **open the PR as a draft** (`gh pr create --draft ...`).
 9. After each commit, update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description.
-10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker: drafting keeps reviewers (human and bot) from spending attention on something the author hasn't endorsed yet, and the picker is what makes send-to-review a single keypress.
+10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker.
 11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`gh pr ready <number> --repo <repo>`) and start watching for the first review — see `references/review-rounds.md`, which carries the watch, the round handling and the reply flow through to a clean verdict.
 12. Never merge. Only a human merges PRs.
 
@@ -65,7 +62,7 @@ What *is* worth raising is a concrete collision: step 2's open-PR check, or a si
 
 ## Know the repo's merge settings
 
-Three later steps depend on how this particular repo is configured: which branch to fork from, how the merge command is composed, whether a push dismisses an approval, and what the post-merge cleanup still has to do. **Read them, don't assume them** — these settings vary between an org's repos and a personal account's, and between two repos in the same account.
+Later steps depend on how this particular repo is configured: which branch to fork from, how the merge command is composed, whether a push dismisses an approval, and what the post-merge cleanup still has to do. **Read them, don't assume them** — these settings vary between an org's repos and a personal account's, and between two repos in the same account.
 
 Read once per repo, early:
 
@@ -82,25 +79,19 @@ gh api repos/<owner>/<repo> --jq \
 | `allow_squash_merge` / `allow_merge_commit` / `allow_rebase_merge` | which merge flag to hand the operator, and whether the branch tip ends up an ancestor of the base (which decides `-d` vs `-D` locally) |
 | `delete_branch_on_merge` | whether the remote branch still needs deleting after the merge |
 
-**Don't read branch protection to find out whether an approval still counts.** Reaching for the repo's `dismiss_stale_reviews` flag is wrong twice over. That flag lives on the branch-protection endpoint, which requires **admin** — so on a repo where you have only write access (common when contributing to an org repo you don't administer) it answers 403 or 404 and tells you nothing. And where it *does* answer, the answer misleads: `dismiss_stale_reviews: true` alongside `required_approving_review_count: 0` means no approval is required, so there is no approval gate to make stale and nothing is ever dismissed. That pairing is the default on a personal repo that gates on CI.
-
-This is one instance of a general posture, and the general form is `reviewer`'s "Repo settings you cannot read": an unreadable setting gets assumed in whichever direction makes the behavior safe, and no instruction here may rest on one being *on*. The `UNSTABLE` arm in `references/merge.md` is where this skill applies the other half of it.
-
-The question that field gets reached for is always really **"is HEAD approved?"**. Where approvals are *required* — `reviewDecision` is non-null — that field answers it directly and is the primary source: it accounts for supersession and for multiple required reviewers, neither of which the check below models. Where they are not required, `reviewDecision` is `null` and says nothing, and this is what remains:
+**Don't read branch protection to find out whether an approval still counts.** `dismiss_stale_reviews` needs admin, so on a repo you only have write on it answers 403 and tells you nothing — and where it does answer, it still doesn't say whether HEAD is approved. Ask that question directly:
 
 ```bash
 "<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
 ```
 
-HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1 reviewed_after_head=1`. All three are load-bearing, and knowing *why* is what keeps a later simplification from dropping one:
+HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1 reviewed_after_head=1`. Anything less is an approval of a diff nobody is merging — `APPROVED at_head=1` alone included, which a force-push produces over a tree nobody read. Use this wherever the answer matters: before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
 
-- **The latest verdict, not the latest approval.** Filtering to `APPROVED` and taking the last one reads an `APPROVED` followed by a `CHANGES_REQUESTED` at the *same* SHA as approved. Two routes reach that: a second reviewer objecting over a standing approval, and a reviewer reversing itself after a reply. Where `reviewDecision` is `null` nothing downstream catches it.
-- **`COMMENTED` is not a verdict** and must stay out of the set — a reviewer answering a thread posts one, and counting it would blank the verdict on every exchange.
-- **A force-push moves an existing review onto the rewritten commit**, so `at_head=1` can sit over a tree nobody looked at. `reviewed_after_head` compares the verdict's submission time against when the commit at HEAD was created, which the rewrite cannot fake. **The wait this adds is bounded**: `reviewer` re-verdicts unprompted on any HEAD move, so a rebase that only inherits reviewed content still costs one round and the fresh verdict arrives on its own. `unknown` is not a `1` and is the exception to that — no verdict clears it, and past 100 commits it is permanent — so surface it and let the operator decide rather than waiting.
+Two returns need a decision rather than a retry. **`reviewed_after_head=unknown`** is not a `1` and no verdict clears it — surface it and let the operator decide. **`result=ERROR`** means the check could not see; it is not a verdict of "not approved". Any other shortfall resolves itself: `reviewer` re-verdicts unprompted on a HEAD move, so the fresh verdict arrives without prompting.
 
-An approval further down the list is an approval of a diff nobody is merging. Use this wherever the answer matters — before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
+Where `review_decision` comes back non-null, approvals are *required* on this repo and that field is the primary source — it accounts for supersession and for multiple required reviewers, which the SHA comparison does not model.
 
-**Don't hand-roll the query.** `tests/pr-verdict.bats` pins each case, including the reversed approval and the `COMMENTED` exclusion. A `result=ERROR` line means the check could not see; it is not a verdict of "not approved".
+**Don't hand-roll the query** — `tests/pr-verdict.bats` pins each case.
 
 For a multi-repo change, read this **per repo**. Siblings genuinely differ, and a setting borrowed from the wrong one produces a merge command that fails or a cleanup step that silently does nothing.
 
@@ -122,7 +113,7 @@ The description reflects the **as-built** state, rewritten after each commit —
 <!-- dnbg-workflow <version> -->
 ```
 
-It renders invisibly. It records which version of these prompts authored the PR — nothing else does, since a transcript carries the plugin's name but not its version, and transcripts expire on a rolling window while the PR does not. Re-state it on every rewrite of the description; a description rewritten by a later session should carry that session's version, not the original one. With no note, take the version from nowhere else — not the manifest, not one you remember — and leave the stamp off: nothing downstream can distinguish a guessed version from a read one.
+It renders invisibly. Re-state it on every rewrite, carrying the rewriting session's version rather than the original. With no note, leave the stamp off — do not take the version from the manifest or from memory, since nothing downstream can tell a guessed version from a read one.
 
 ## Multi-repo changes
 
@@ -133,9 +124,7 @@ When one logical change spans repos (e.g. an infrastructure change plus the appl
 
 3. **Every sibling references the issue by full URL; exactly one closes it.** When the set resolves an issue, put the issue URL in *each* PR's body — the sibling's opening line is a good home ("The infrastructure half of `<issue URL>`"). Only the PR that actually completes the work carries a closing keyword (`Closes <issue URL>`); the others just mention it.
 
-   This is not bookkeeping. A mention is the **only** thing that makes a sibling discoverable from the issue: `closedByPullRequestsReferences` returns just the closing PR, and both of the other routes — the issue timeline's `cross-referenced` events, and text search — are driven by the mention. A sibling whose body never names the issue cannot be found from the issue by any means, so anyone working from it (the `reviewer` skill's issue-scoped mode, or a human) sees a set that looks complete and is not. The failure is silent, and it lands on whoever reviews or ships the half that did get linked.
-
-   The branch name pairs the PRs *to each other*; the issue URL is what ties the set *to the issue*. Both are needed — neither substitutes for the other.
+   The mention is the only thing that makes a sibling discoverable from the issue — every route back to it is driven by the mention, so a sibling that omits it cannot be found from the issue at all, and anyone working from that issue sees a set that looks complete and is not. The branch name pairs the PRs to each other; the issue URL ties the set to the issue. Both are needed.
 
 Single-repo PRs (the common case) stay untagged — the tag's presence is itself the signal that siblings exist in other repos.
 
@@ -143,16 +132,16 @@ If a change turns multi-repo midway — the first PR is already open when you di
 
 ## After opening a draft PR
 
-**Before this picker, if you made a substantive design change mid-implementation** — a departure from the approach agreed at pickup (the issue's "Proposed approach", or, for a PR with no issue, whatever you and the operator settled on in chat), a contract/interface change, anything a reviewer would be surprised by — surface that change and its rationale in chat *first*, per `issue-workflow`'s "Surface design changes that emerge mid-implementation". Send-to-review is the gate it's tied to: the operator must learn the design moved before review and manual testing run against it, not discover it inside the review. The rule's home is `issue-workflow`, but it applies to any PR — without an issue, the "agreed design" simply lives in the chat thread instead of an issue body.
+**Before this picker, if you made a substantive design change mid-implementation** — a departure from the approach agreed at pickup (the issue's "Proposed approach", or, for a PR with no issue, whatever you and the operator settled on in chat), a contract/interface change, anything a reviewer would be surprised by — surface that change and its rationale in chat *first*, per `issue-workflow`'s "Surface design changes that emerge mid-implementation". The operator must learn the design moved before review and manual testing run against it, not discover it inside the review. This applies to any PR — without an issue, the agreed design lives in the chat thread instead of an issue body.
 
 Announce the draft PR with its full URL, then call `AskUserQuestion` with two options (the tool auto-appends "Other" for anything else):
 
 1. **"Send to review (Recommended)"** — "Mark the PR ready and watch for the first review."
 2. **"Not yet"** — "Leave it in draft; say 'ready' whenever you want it reviewed."
 
-The picker makes the default path (send to review) a single keypress while keeping the out visible. On "Send to review", run the flow in `references/review-rounds.md`. On "Not yet", leave the PR in draft and carry on — the operator saying "ready" later re-enters the same flow.
+On "Send to review", run the flow in `references/review-rounds.md`. On "Not yet", leave the PR in draft and carry on — the operator saying "ready" later re-enters the same flow.
 
-Don't offer "or run `gh pr ready` yourself" as an option or alternative. The auto-poll and the review-handling logic only fire when you do the mark-ready step, so an operator who marks it ready out-of-band gets no follow-up from you — which means the dual-path framing misleads them about what to expect. If they want to drive the review cycle manually, they can do so without your prompting; the skill's job is to make the auto-handling path the clear default.
+Don't offer "or run `gh pr ready` yourself" as an option. The watch and the review handling only fire when you run the mark-ready step, so an operator who does it out-of-band gets no follow-up from you and has been told otherwise.
 
 ## Issue and PR references
 

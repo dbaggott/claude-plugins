@@ -69,11 +69,7 @@ Spawn this as a **background** poller (Bash `run_in_background: true`) — both 
 
 **Do not hand-roll this loop** — same reasons as the review watcher above. `tests/watch-merge.bats` pins every branch: merged, closed, conflicted, terminally blocked, blocked-but-still-running, timed out, unreachable, and a payload that stops parsing.
 
-It reads only — the test suite greps it for every mutating form (`gh pr merge`/`close`/`review`, `-X POST`, `--method PUT`, ...), because a watcher that could merge is a failure nothing else would catch. A grep is a smoke test, not a proof, but it is the cheap half of one.
-
-The default window is 6h of **laptop-open time**, and the poll interval follows the shared curve in `scripts/lib-poll.sh` — 10s at the start, easing to 30s over half an hour, a minute by the 90-minute mark, and 5 minutes thereafter. A merge that's going to happen usually happens in the first few minutes, and nearly always within the hour; past that the odds flatten and a fast poll buys nothing. Both are overridable (`WINDOW`, `POLL_CURVE`) but the defaults are tuned for exactly this watch.
-
-**Laptop-open time, not wall-clock**, matters here more than anywhere else in this skill: a lid closed overnight must not burn the window. The shared clock discounts suspended time from both the window and the curve, so a watch resumes where it left off and comes back at the 10s floor — the responsiveness you want at exactly the moment the operator reopens the machine.
+The default window is 6h of **laptop-open time**, with the poll interval on the shared curve in `scripts/lib-poll.sh`. Both are overridable (`WINDOW`, `POLL_CURVE`); the defaults are tuned for this watch. Suspended time is discounted from both, so a lid closed overnight doesn't burn the window and a resumed watch comes back responsive.
 
 `reviewDecision` is in the JSON the script prints so the surface-and-ask branch below can identify a dismissed-approval cause without a second `gh pr view`. Read it as a *gate* question, not an approval question: `null` means no review is required to merge on this repo, which rules review out as the cause of a `BLOCKED`. It says nothing about whether HEAD is approved — that is the `commit.oid` comparison, and on a repo with `reviewDecision: null` it is the only thing that answers it.
 

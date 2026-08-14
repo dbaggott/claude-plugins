@@ -15,29 +15,14 @@ When the operator picks "Send to review" in the picker above, or otherwise signa
 ```bash
 HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
 ME=$(gh api user --jq .login)
-# Both are load-bearing, and a blank one means the `gh` call above failed — that
-# is what this catches. The watcher's two responses differ, and neither reads
-# clearly off its result line:
-#   - A blank login is REFUSED (`result=ERROR reason=bad-args`), because the
-#     exclude filter would match nobody and your own thread replies would
-#     register as activity — the exact failure the fifth argument prevents.
-#   - A blank head is ACCEPTED: the watcher adopts the first HEAD it observes.
-#     That self-heal costs only the push it could never have seen, but here that
-#     window is real, since `gh pr ready` ran moments ago.
+# A blank value means the `gh` call above failed. Catch it here rather than
+# letting the watcher act on it.
 [ -n "$HEAD" ] && [ -n "$ME" ] || { echo "could not resolve head SHA / login — re-run the watch"; exit 1; }
-# WINDOW=1800 overrides the script's 6h default. That default is right for
-# `reviewer`, where IDLE is routine; here IDLE means something is wrong, and a
-# signal the operator waits six hours for is not a signal. A bot reviewer
-# normally replies in 1–3 minutes, so 30 minutes is a generous safety net.
-# SETTLE=10 is the same directional argument, and `watch-pr.sh`'s SETTLE header
-# holds the measurement behind it, including what that measurement does not
-# cover — read it before retuning this. One poll interval is all the quiet this
-# side needs; anything past that is latency on every round.
-# --last-verdict makes the verdict check level-triggered, so a review that landed
-# before this watch existed — in the gap after `gh pr ready`, or before the
-# timestamp above — still wakes it instead of being invisible for the whole
-# window. Empty is correct here and only here: it says "I have handled no verdict
-# yet". On every re-arm pass the SHA of the verdict you last handled, or the watch
+# WINDOW and SETTLE override the script's defaults, which are tuned for
+# `reviewer`. watch-pr.sh's headers carry the measurements; read them before
+# retuning either.
+# --last-verdict= is empty here and only here: it says "no verdict handled yet".
+# On every re-arm pass the SHA of the verdict you last handled, or the watch
 # wakes on that same verdict on its first tick, every time.
 WINDOW=1800 SETTLE=10 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
   "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ME" --last-verdict=
@@ -45,27 +30,18 @@ WINDOW=1800 SETTLE=10 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <nu
 
 Both watchers trace themselves to `${TMPDIR:-/tmp}/dnbg-watch/<script>-<pid>.log` by default. When a watch returns no result line, that trace says which of three things happened: a `SIGNAL=` line (something stopped it), an `EXIT code=` line (it stopped itself), or a heartbeat and nothing after (an uncatchable kill). It is the only record — a killed watch writes no result, and the task output is empty either way.
 
-
-The path reaches out of this skill's directory on purpose: the script is shared with `reviewer`, which watches the same PRs from the other side. `CLAUDE_PLUGIN_ROOT` is exported to *hook* processes, not to yours, so a skill can only address a sibling relative to its own announced Base directory — and skill directories are always `<plugin>/skills/<name>/`, which makes `../../scripts/` deterministic.
-
-**Do not hand-roll this loop.** Three ways a hand-written version goes wrong that are not obvious until they bite:
-
-- It polls for a review **on the current head SHA**. That is right after you push a fix, and wrong after you answer a reviewer in threads — replying moves nothing, so the filter matches the review you already handled and wakes you with stale news dressed as a fresh verdict.
-- The fifth argument is the login whose activity to **ignore** — your own. This is load-bearing, not padding: replying to a review thread registers as a *review event authored by you*, with an empty body and state `COMMENTED`, so without it your own reply satisfies the wait and reports a PR as reviewed when nobody has looked. The script also handles the two spellings GitHub uses for the same bot (`<slug>` via GraphQL, `<slug>[bot]` via REST), which a hand-written filter reliably gets wrong.
-- It returns on the first thing it sees. A round is a **burst** — a reviewer files a verdict and several inline comments — and returning early is *lossy* rather than merely mis-ordered, because you re-arm with `since` set to now and anything unread is filtered out permanently. The script settles before reporting.
-
-Being a file rather than a fenced block is itself part of the fix: `shellcheck` covers `scripts/`, and covers nothing inside a `.md`.
+**Do not hand-roll this loop.** It filters your own activity out, settles before reporting so a burst arrives whole, and polls on the SHA you last handled rather than current HEAD — a hand-written version gets each of these wrong in ways that surface as a review silently lost or a stale one reported as fresh. `tests/watch-pr.bats` pins them.
 
 The script prints a summary of the activity it saw as one JSON object per line — who posted what kind of thing, where, without the text — then, on the results with a round behind them, a `── next ──` line carrying the `pr-round.sh` call that reads that round in full, then one result line. Treat the returns differently:
 
 - **`result=ACTIVITY`** — a review, comment or reply landed. Go to "When a review comes in".
-- **`result=COMMITS`** — someone pushed to the branch. If it wasn't you, read the change before responding to anything. **If `activity=1`, comments or replies landed in the same burst — handle them in this same pass**, per "When a review comes in". This is reachable from your side: a reviewer clicking "Update branch", or applying a suggestion while filing comments, produces exactly `COMMITS activity=1`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good. Same failure the third bullet above gives as a reason not to hand-roll this.
+- **`result=COMMITS`** — someone pushed to the branch. If it wasn't you, read the change before responding to anything. **If `activity=1`, comments or replies landed in the same burst — handle them in this same pass**, per "When a review comes in". This is reachable from your side: a reviewer clicking "Update branch", or applying a suggestion while filing comments, produces exactly `COMMITS activity=1`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good.
 - **`result=CLOSED`** — merged or closed. Stop watching; if `state=MERGED`, run the post-merge cleanup.
 - **`result=ERROR reason=<source>`** — the watch itself is broken: that source failed repeatedly, so it cannot see. **Do not re-arm** — you would poll straight back into the same failure. Check `gh auth status` and the `<num>`/`<repo>` pair, then tell the operator. Unlike `IDLE` this means nothing about the PR; the watch never got a look at it.
 - **`result=ERROR reason=bad-args`** — the same code, the opposite remedy. Nothing failed: the watch refused to start because an argument could not do its job. Fix the argument and re-spawn; don't go near `gh auth status`. The guard on the spawn above catches the blank-`$ME` case before it gets here, so what actually reaches you is a re-arm's argument: an abbreviated `<last_head>` or `--last-verdict` value (see the note below — both take a full 40-character SHA), or a trailing flag that is neither `--was-draft` nor `--last-verdict=<sha>`.
 - **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (`reviewer` treats `IDLE` as routine and re-arms, because a quiet PR is expected on that side. Same script, opposite caller.)
 
-  **Check whether HEAD is already approved before reporting that no review landed** — run `pr-verdict.sh` per `SKILL.md`'s "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it. `--last-verdict` above is what stops that happening, so this is the backstop for what it doesn't cover: a watch armed without the flag, and a verdict replaced at the same SHA. Reporting "no review has landed" there is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands and the reviewer really is the thing to check.
+  **Check whether HEAD is already approved before reporting that no review landed** — run `pr-verdict.sh` per `SKILL.md`'s "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it. Reporting "no review has landed" over a standing approval is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands.
 
 - **No `result=` line at all** — the task was killed or failed rather than returning. This is the dangerous one, because it looks exactly like a quiet watch while being its opposite: the watcher stopped observing, and anything pushed or posted since is unreported. **Never treat a missing result as "nothing happened."** Re-read `headRefOid` with `gh pr view` and compare against the SHA you last handled, then re-arm from what GitHub says rather than from what the watcher last told you. Traces make this diagnosable after the fact — see the trace note after the spawn block.
 
