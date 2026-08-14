@@ -26,11 +26,18 @@
 # the `gh pr view` already made here, so it costs no extra request.
 #
 # `unknown` means the comparison could not be made — no `commits` field, or head
-# absent from it. It must never collapse to `1`.
+# absent from it. It must never collapse to `1`. On a PR past one page of commits
+# (see the jq below) it is permanent rather than one round's answer, so a caller
+# waiting for it to clear waits forever.
 #
-# Two gaps, both fail-closed: a force-push that resets to an OLDER commit (the SHA
+# Three gaps. Fail-closed: a force-push that resets to an OLDER commit (the SHA
 # comparison catches that one instead), and a committer clock ahead of GitHub's,
 # which reads a genuine review as predating head until the next one lands.
+# Fail-OPEN, so the one to weigh: a rewrite that preserves committer dates
+# (`--committer-date-is-author-date`, `GIT_COMMITTER_DATE` by hand) leaves the
+# rewritten commit dated before the review re-anchored onto it. Both opt-in —
+# GitHub's own rebase paths stamp the committer date at rewrite time. Deduced
+# from the flag's semantics; the re-anchoring has not been reproduced under it.
 #
 # Whether GitHub's "Update branch" emits `head_ref_force_pushed` is UNTESTED: its
 # rebase variant rewrites and so can re-anchor, and only its merge variant is
@@ -84,9 +91,9 @@ fi
 # body like `{"message":"Not Found"}` is well-formed JSON — so `headRefOid` is
 # checked for emptiness below, the same gate watch-pr.sh applies to `.state`.
 #
-# Head is located by oid rather than taken as the last commit: the field carries
-# one page, so on a longer PR the last entry is not head, and matching lands on
-# `unknown` instead of comparing against the wrong commit. The two dates are
+# Head is located by oid rather than taken as the last commit: the field asks for
+# `commits(first: 100)`, so past that the last entry is not head, and matching
+# lands on `unknown` instead of comparing against the wrong one. The two dates are
 # compared as strings, which orders these correctly because GitHub returns both
 # in the same fixed-width UTC form.
 if ! OUT=$(echo "$J" | jq -r '
