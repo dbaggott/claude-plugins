@@ -47,11 +47,13 @@ per plugin.
 3. Re-read any files you touched in a prior session — code may have changed.
 4. `git worktree add .worktrees/<branch-name> -b <branch-name> origin/<default-branch>` — the default branch comes from the settings read below; don't assume `main`. If the change spans repos, the branch name is the pairing key; see "Multi-repo changes" below before picking it.
 5. Make changes in the worktree.
-6. Commit, push, and **open the PR as a draft** (`gh pr create --draft ...`).
-7. After each commit, update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description.
-8. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker: drafting keeps reviewers (human and bot) from spending attention on something the author hasn't endorsed yet, and the picker is what makes send-to-review a single keypress.
-9. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`gh pr ready <number> --repo <repo>`) and start watching for the first review — see "Watching for the first review" below.
-10. Never merge. Only a human merges PRs.
+6. Commit.
+7. **Re-read your own diff against the standards** — the set the always-on "Coding standards stack" rule had you load. `git diff origin/<default-branch>...HEAD`, read against those files re-opened rather than recalled: you wrote the diff from memory of them, so memory is what needs checking. Where a standard names something countable, grep the diff for it instead of eyeballing. Fix what you find before pushing.
+8. Push, and **open the PR as a draft** (`gh pr create --draft ...`).
+9. After each commit, update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description.
+10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker: drafting keeps reviewers (human and bot) from spending attention on something the author hasn't endorsed yet, and the picker is what makes send-to-review a single keypress.
+11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`gh pr ready <number> --repo <repo>`) and start watching for the first review — see "Watching for the first review" below.
+12. Never merge. Only a human merges PRs.
 
 Worktrees live in `.worktrees/` inside the repo. Ensure `.worktrees` is in `.gitignore`.
 
@@ -104,13 +106,13 @@ For a multi-repo change, read this **per repo**. Siblings genuinely differ, and 
 
 ## Writing the PR description
 
-The description reflects the **as-built** state (step 7) — and every claim in it must be *true and earned*. A reviewer who catches one inflated claim discounts the whole description, so the asymmetry is stark: under-claiming costs nothing, over-claiming costs trust.
+The description reflects the **as-built** state, rewritten after each commit — and every claim in it must be *true and earned*. A reviewer who catches one inflated claim discounts the whole description, so the asymmetry is stark: under-claiming costs nothing, over-claiming costs trust.
 
 - **Name what you verified, and how — don't imply more.** "Typechecks (`tsc`)" and "CI green" are not "tested"; "eyeballed one case on dev" is not "verified end-to-end." State the check you actually ran; if you didn't run one, don't phrase the body so it reads as if you did.
 - **Don't assert coverage you don't have.** No unit runner for a file? Say its helpers are covered by typecheck + manual, not that they're "tested." Never describe intended or aspirational tests as existing ones.
 - **Don't state impact without evidence.** Performance, cost, "fixes X for all inputs" — back it with the measurement or the reasoning, or hedge it. A confident-sounding number with no source is an over-claim.
 - **Claim only the scope you checked.** The over-claim usually starts one step earlier, as an unexamined assumption written up as fact: that a change generalizes, that it fixes the root cause (not just the symptom you reproduced), that the correlation you saw is the cause, that nothing else is affected. Verify the assumption, or state the scope you actually verified ("fixes the observed case; other inputs unchecked"; "removes the symptom — root cause not confirmed"). An assumption is not a result.
-- **Surface gaps, not just wins.** Known limitations, unverified branches, and deferred follow-ups belong in the body — these are as-built facts about the result, not the development narrative step 7 rules out; omitting them reads as "all handled," and the next reader inherits the surprise.
+- **Surface gaps, not just wins.** Known limitations, unverified branches, and deferred follow-ups belong in the body — these are as-built facts about the result, not the development narrative ruled out above; omitting them reads as "all handled," and the next reader inherits the surprise.
 
 `issue-workflow` holds issue bodies to the same bar, and states it there. When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
 
@@ -120,7 +122,7 @@ The description reflects the **as-built** state (step 7) — and every claim in 
 <!-- dnbg-workflow <version> -->
 ```
 
-It renders invisibly. It records which version of these prompts authored the PR — nothing else does, since a transcript carries the plugin's name but not its version, and transcripts expire on a rolling window while the PR does not. Re-state it when you rewrite the description under step 7; a description rewritten by a later session should carry that session's version, not the original one. With no note, take the version from nowhere else — not the manifest, not one you remember — and leave the stamp off: nothing downstream can distinguish a guessed version from a read one.
+It renders invisibly. It records which version of these prompts authored the PR — nothing else does, since a transcript carries the plugin's name but not its version, and transcripts expire on a rolling window while the PR does not. Re-state it on every rewrite of the description; a description rewritten by a later session should carry that session's version, not the original one. With no note, take the version from nowhere else — not the manifest, not one you remember — and leave the stamp off: nothing downstream can distinguish a guessed version from a read one.
 
 ## Multi-repo changes
 

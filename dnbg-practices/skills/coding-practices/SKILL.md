@@ -60,7 +60,7 @@ The pull is nearly always toward avoiding generalization, so the corrective is t
 
 ## Clean, self-documenting code
 
-Comment basics are assumed. What follows — naming, then the two comment sections below it — is what that baseline doesn't reach.
+Comment basics are assumed. What follows — naming, then the comment sections below it — is what that baseline doesn't reach.
 
 **Names do the work.** A well-named function, variable, or type makes the code legible without a comment. If a reader has to consult docs to understand a name, the name is wrong, not the docs.
 
@@ -107,8 +107,9 @@ what someone does?"**
 always-on rules file, a `CLAUDE.md`. Nothing enforces those either, and their
 reader can't ask a follow-up, so a stale line gets acted on rather than queried.
 **History** is what they accrete fastest: every incident invites a paragraph
-explaining itself, and none is ever removed. Four more failures are specific to
-that prose — see **Four ways agent-facing prose fails** below.
+explaining itself, and none is ever removed. A test for that prose, and the
+failures specific to it, are in **What earns a line in agent-facing prose**
+below.
 
 These all fail that bar:
 
@@ -141,14 +142,22 @@ These all fail that bar:
   so nobody makes it. This one slips past the transient-state litmus above: the
   answer there is "no, I'd edit the number", and it rots regardless.
   **Test: would a different value change what the reader does?** If not, name the
-  property and drop the number — "short-lived; mint per use". Scope the detail to
-  what the point actually needs.
+  property and drop the number — "short-lived; mint per use". The two halves are
+  independent: how likely the detail is to need an edit, and whether a reader
+  acts differently for having it. Detail scoring badly on both is pure carrying
+  cost, numbers or not.
 
   When the value *is* load-bearing — a limit the reader must respect, a constant
   that must match another — keep it, and put it where it can be checked: on the
   line with the literal it explains, or asserted, per **enforceable > prose >
   nothing** below. A number restated at a distance from its source is a copy, and
   copies drift.
+
+- **A count of the list it introduces.** "Four ways this fails"; "the three
+  checks below". The clearest case of that trade: the list counts itself, so no
+  reader acts on the number, and any added item silently falsifies it — the prose
+  still reads fine, so nothing catches it. Write "these fail" and let the list
+  say how many.
 
 What stays is a **current, non-obvious constraint** — a platform behavior, a
 fail-closed risk, two values that must move together. That is what comments are
@@ -159,18 +168,30 @@ not its history.
 **Prefer an assertion to a prose invariant.** A test fails loudly; a comment rots
 quietly. General form: **enforceable > prose > nothing.**
 
-## Four ways agent-facing prose fails
+## What earns a line in agent-facing prose
 
-The bar is the one above; these are the failures a `SKILL.md`, a rules file, or a
-`CLAUDE.md` reaches that a comment does not. Its reader acts on every line, and
-pays for every line it doesn't act on.
+The bar is the one above, plus a problem a comment does not have: two readers,
+only one of them charged. The **executor** loads every line on every run and acts
+on it. The **editor** opens the file once, to change it. Rationale aimed at the
+editor — why the instruction is shaped this way, what broke before it existed —
+is paid for on every run and acted on by none.
 
-- **The same argument twice in the same place.** Rationale earns a line where it
-  changes what the agent does — once, at the instruction. A second paragraph
-  defending a choice the instruction already carries is spent attention; the PR
-  is where a reviewer wants that argument. (Distinct from *a rationale that
-  belongs on the definition* above, which is about the wrong **place**, not a
-  second copy.)
+**So test every line of rationale: would an executor that never read it do
+something different?** Often yes, and then it stays — a *why* that lets the agent
+choose correctly in a case the instruction doesn't enumerate is doing work no
+list of steps can. What goes is the *why* that only defends the instruction
+against whoever might one day change it — that belongs where its reader looks:
+the script's own header comment, a test name, the PR that introduced it. Prefer
+the enforceable home, since a case a test pins cannot be simplified away and
+needs no paragraph standing guard over it.
+
+More failures, same bar:
+
+- **The same argument twice in the same place.** Rationale that passes the test
+  above earns one line, at the instruction. A second paragraph defending a choice
+  the instruction already carries is spent attention; the PR is where a reviewer
+  wants that argument. (Distinct from *a rationale that belongs on the
+  definition* above, which is about the wrong **place**, not a second copy.)
 - **The inverse of a condition.** A section scoped "when X" does not also need
   "when not X, none of this applies". The agent read the heading.
 - **A read an earlier step could have carried.** When a step needs one more
