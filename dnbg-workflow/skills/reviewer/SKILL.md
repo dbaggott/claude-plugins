@@ -540,6 +540,18 @@ only — repeating it on each inline comment says nothing the review body doesn'
 With no note, take the version from nowhere else and leave the stamp off; a
 wrong stamp is worse than an absent one, since analysis cannot tell them apart.
 
+**Stamp the SHA you reviewed the same way, on its own line, always** — this one
+needs no note and has no version to get wrong:
+
+```
+<!-- reviewed-sha: <full 40-character SHA> -->
+```
+
+A force-push rewrites a review's `commit_id` (`pr-verdict.sh` holds the
+mechanism), so it stops recording what you looked at. A review body is never
+rewritten, which makes this the only durable record and you the only party that
+knows it first-hand.
+
 For a **verdict-only** review (no inline findings), the simpler form is
 equivalent — mint in the same call here too:
 
