@@ -130,10 +130,11 @@ So the assignment is a loop, not a pass:
 2. **Review and watch** every open PR found that you haven't already reviewed.
 3. **On every watcher return** — `CLOSED` *or* a re-arm — **discover again** before
    deciding anything. A PR that appeared while you were watching another joins the
-   set here. **Skip it while an issue-level wait is armed** — that wait polls the
-   same sources discovery does, so a PR watcher's return need only handle its own
-   PR. Discover unconditionally with no issue wait armed, at any `CLOSED`, and on
-   the issue wait's own `ACTIVITY`.
+   set here. **Skip it while an issue-level wait is armed** — that wait finds
+   everything a discovery pass would, and sooner (see the source-3 note below), so
+   a PR watcher's return need only handle its own PR. Discover unconditionally
+   with no issue wait armed, at any `CLOSED`, and on the issue wait's own
+   `ACTIVITY`.
 4. **End only when a fresh discovery pass finds no open PR *and* the issue is
    closed.** An open issue with everything merged means more work may still be
    coming; that is not completion.
