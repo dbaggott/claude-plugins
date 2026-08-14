@@ -88,14 +88,20 @@ Five GIFs, one script each, all driven by `render.sh`:
 
 ```bash
 brew install asciinema agg
-git clone https://github.com/dbaggott/claude-plugins /private/tmp/demo/claude-plugins
-docs/media/render.sh /private/tmp/demo/claude-plugins           # all five
-docs/media/render.sh /private/tmp/demo/claude-plugins gate      # or one
+docs/media/render.sh           # all five
+docs/media/render.sh gate      # or one, by name
 ```
+
+Nothing else to set up: the demos build whatever state they drive, reach neither
+the network nor any path outside `/tmp`, and an unrecognised name is an error
+rather than a silent no-op.
+
+`check-render.sh` fails CI when a committed artifact stops matching its script,
+so the re-render is enforced rather than remembered — see below.
 
 | Demo | What it is |
 | --- | --- |
-| `demo-gate` | A genuine capture — the real `check-worktree.sh`, real `git`, real reviews off the API |
+| `demo-gate` | A genuine capture — the real `check-worktree.sh` and real `git`, against a repo it builds. Reviews are formatted live from `fixtures/gate-reviews.json`, captured once from a real PR |
 | `demo-resolve-review` | Reenacted. Two panes, resolver and reviewer, driven by an issue |
 | `demo-vibe-review` | Reenacted. Two panes, no issue — conversation to PR to merge and cleanup |
 | `demo-file-issue` | Reenacted, except the `BLOCKED` message, which the real hook produces at record time |
@@ -108,16 +114,36 @@ skills specify: if a skill's flow changes, the demo depicting it is wrong and
 needs re-scripting, not just re-rendering. The table above is the record of which
 is which; keep it accurate as demos are added or reworked.
 
-The clone matters only to `demo-gate`, which drives the real hook against it and
-creates a worktree inside it. Its `origin` owner has to be in your `owners`
-config or the gate has nothing to fire on, and `gh` has to be authenticated for
-the act that reads real reviews. Re-record it whenever the block message
-changes — it shows that text verbatim, so a reworded gate silently dates it.
+**The artifacts have four inputs and only one is the demo script.** `lib-demo.sh`
+feeds every reenactment, and `demo-gate` and `demo-file-issue` print a hook's
+real block message — so rewording one stales a GIF from a change that never
+touches `docs/media/`. `docs/media/check-render.sh` is what catches that: for
+each demo it re-runs the script and compares the output against the committed
+`.cast`, and compares that `.cast`'s window size against `demos.sh`. It runs as a
+step in `lint`, in under a second, because a no-op `sleep` first on `PATH`
+removes the only thing in a demo that takes real time.
 
-Pass a directory whose path git will not resolve through a symlink. On macOS
-`/tmp` is a symlink to `/private/tmp`, and
-[`check-worktree.sh` mishandles that](https://github.com/dbaggott/claude-plugins/issues/97):
-the block message it prints names a path that does not exist.
+```bash
+docs/media/check-render.sh     # what CI runs; same output locally
+```
+
+So the loop is: change a script, run `render.sh <name>`, commit the artifacts
+with it. A demo missing from `demos.sh` fails the check rather than going
+quietly unrendered.
+
+Two things are deliberately outside it. The `.gif` is not compared — `agg` writes
+it in the same `render.sh` call as the `.cast`, so a fresh `.cast` implies a
+fresh `.gif` — and `demo-gate`'s repo path is compared with `/private/tmp`
+normalised to `/tmp`, since macOS resolves that symlink and Linux does not.
+
+**Keeping `demo-gate` reproducible is a constraint on editing it.** It builds its
+own repo from pinned content and pinned commit dates, so its path and its commit
+SHA are identical on every machine, and it draws reviews from a fixture rather
+than the live API. Anything that puts wall-clock time, a live API read, the
+recording machine's paths, or a terminfo-driven binary such as `clear` on screen
+breaks the check for everyone else. That last one is not hypothetical: `clear`
+emits the same three escapes in a different order on macOS and on
+`ubuntu-latest`.
 
 `lib-demo.sh` holds the shared renderer. The split-pane one is append-only
 rather than repainting, because a full-screen repaint per step makes every GIF

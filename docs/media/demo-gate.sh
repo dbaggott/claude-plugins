@@ -27,10 +27,9 @@ REPO="$DEMO_ROOT/claude-plugins"
 # operator's settings.json, set at plugin-enable time.
 export CLAUDE_PLUGIN_OPTION_OWNERS=dbaggott
 
-# Pinned at the source so a recording and a check-render.sh run produce the same
-# bytes on any machine: `clear` emits whatever TERM describes, and git's output
-# answers to the operator's global config.
-export TERM=xterm-256color
+# git's output otherwise answers to whoever is recording — their aliases, their
+# `advice.*`, their `init.defaultBranch`. Pinned at the source rather than in
+# check-render.sh, so a recording and a check produce the same bytes.
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
 # Built from scratch each run, so the recording starts from the same state every
@@ -92,9 +91,10 @@ beat 4.0
 # real PR, captured once into fixtures/gate-reviews.json — the same shape the
 # API returns, with each body trimmed to the first line, which is all the
 # formatting below ever shows.
-# Written out rather than `clear`, whose bytes come from the terminfo entry and
-# the ncurses build — neither pinned, and both differ between a laptop and a
-# runner. Scrollback, cursor home, screen.
+# Scrollback, cursor home, screen. Written out rather than shelling to `clear`,
+# which emits the same three in whatever order its ncurses build chose — macOS
+# and ubuntu-latest disagree, so the recording could only ever match the machine
+# it was made on.
 printf '\033[3J\033[H\033[2J'
 say "❯ gh pr view 94 --json reviews"
 beat 1.2

@@ -36,6 +36,15 @@ render() {
   printf '  %-16s %s KB\n' "$name" "$(( $(wc -c < "$gif") / 1024 ))"
 }
 
+# A name that matches nothing would otherwise render nothing and exit 0, which
+# reads exactly like "everything was already current".
+if [ -n "$ONLY" ]; then
+  case " ${DEMOS[*]} " in
+    *" $ONLY:"*) ;;
+    *) echo "render.sh: no demo named '$ONLY' — pick one of: ${DEMOS[*]%%:*}" >&2; exit 1 ;;
+  esac
+fi
+
 for d in "${DEMOS[@]}"; do
   IFS=: read -r name cols rows <<< "$d"
   [ -n "$ONLY" ] && [ "$ONLY" != "$name" ] && continue
