@@ -108,7 +108,7 @@
 set -euo pipefail
 unset GH_TOKEN   # use the dev's own (non-expiring) gh auth for the long poll
 
-# ⚠️ CAPTURED BEFORE THE FLAG SHIFTS BELOW, and read by lib-poll.sh's START trace.
+# Captured before the flag shifts below, and read by lib-poll.sh's START trace.
 # lib-poll captures `$*` at source time, which is *after* those shifts, so without
 # this the trace records only what survived them — no `--issue`, no `--exclude`, and
 # so no way to tell an issue watch from a PR watch on the same number. The trace is
@@ -141,7 +141,7 @@ LAST_HEAD="${3:-}"; SINCE="${4:-1970-01-01T00:00:00Z}"; SLUG="${5:-}"
 
 # Trailing flags, in any order, and anything unrecognised is refused.
 #
-# ⚠️ THE REFUSAL IS THE POINT, because the alternative is a flag that silently does
+# The refusal is the point: the alternative is a flag that silently does
 # nothing. Reading a trailing flag by position instead honours `--was-draft
 # --last-verdict=<sha>` in one order and drops half of it in the other, depending only
 # on how they were typed. Both are wake paths, and a wake path that fails quietly is
@@ -214,7 +214,7 @@ EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' \
 # reason — the caller has handled no verdict yet — which is why both go through one
 # check rather than each growing its own.
 #
-# ⚠️ THE HEX CLASS IS ENUMERATED, NOT A RANGE, AND `a-f` IS THE REASON. Bracket ranges
+# The hex class is enumerated rather than a range, and `a-f` is the reason. Bracket ranges
 # are matched in COLLATION order, which under bash 3.2 — stock macOS, and what
 # `env bash` finds on a machine with no Homebrew bash — interleaves case in a UTF-8
 # locale: `a-f` spans `a A b B … f F`, so `[!0-9a-f]` does not match `A` and the
@@ -246,8 +246,8 @@ sha_ok "$LAST_VERDICT" || bad_flag=1
 [ "$ISSUE_MODE" = 1 ] && [ "$HAVE_LAST_VERDICT" = 1 ] && bad_flag=1
 
 if [ "$bad_flag" = 1 ] || { [ "$ISSUE_MODE" = 0 ] && { [ -z "$SLUG" ] || [ "$bad_head" = 1 ]; }; }; then
-  # ⚠️ A RESULT LINE, NOT `_poll_die`, AND THE DIFFERENCE MATTERS HERE MORE THAN
-  # ANYWHERE. Callers branch on `result=`, and `reviewer`'s only handler for a
+  # A result line, not `_poll_die`, and the difference matters here more than
+  # anywhere. Callers branch on `result=`, and `reviewer`'s only handler for a
   # MISSING one reads it as "the task was killed — do not assume quiet, re-read
   # HEAD". So exiting 1 silently would make a plain typo in the fifth argument
   # present as exactly the vanished watch this script's tracing exists to make
@@ -466,8 +466,8 @@ while :; do
   if [ "$ISSUE_MODE" = 1 ]; then
     if [ "$STATE" = CLOSED ]; then echo "result=CLOSED state=CLOSED"; exit 0; fi
 
-    # ⚠️ TWO SOURCES, BECAUSE `closedByPullRequestsReferences` LISTS ONLY PRs CARRYING A
-    # CLOSING KEYWORD. It is the narrower half by construction, and the `reviewer` skill
+    # The second source exists because `closedByPullRequestsReferences` lists only
+    # PRs carrying a closing keyword. It is the narrower half by construction, and the `reviewer` skill
     # requires the *mention* rather than the keyword — `git-workflow`'s multi-repo rule
     # has exactly one sibling close the issue and the rest merely reference it. Polling
     # the keyword source alone therefore makes the wake condition strictly narrower than
@@ -528,7 +528,7 @@ while :; do
     # Split fetch from parse for the reason above: folded together, a parse failure
     # reads as "no cross-references" and the watch goes blind silently.
     #
-    # ⚠️ FETCH AND PARSE ARE COUNTED SEPARATELY, because `poll_broken` in lib-poll.sh
+    # Fetch and parse are counted separately, because `poll_broken` in lib-poll.sh
     # grades them differently: a network call is transient by nature and earns the
     # FAIL_MIN_SECONDS grace, while a payload that stopped parsing gets the plain
     # FAIL_MAX check. The primary payload honours that split via `fails_shape`; the
@@ -620,7 +620,7 @@ while :; do
   # perfectly healthy — the same shape reached by a different route, and a busy PR
   # with several reviewers is exactly where it bites.
   #
-  # ⚠️ NEWEST FIRST, WHICH IS WHAT MAKES ONE REQUEST ENOUGH. Paging through the whole
+  # Newest first, which is what makes one request enough. Paging through the whole
   # thread history would also be correct, but it re-fetches every page on every tick,
   # so its cost scales with the PR's TOTAL comment count rather than with what is
   # new: a PR at ~250 inline comments is 3 requests per tick, and at the 10s floor
@@ -650,7 +650,7 @@ while :; do
 
   # Accumulate this tick's deltas, and restart the quiet timer on anything new.
   #
-  # ⚠️ `obs_*` ARE SAFE AS COUNTS ONLY BECAUSE `settle_until` IS NEVER CLEARED. The
+  # `obs_*` are safe as counts only because `settle_until` is never cleared. The
   # strictly-greater tests below are a ratchet: once `obs_new` has risen, an item
   # arriving at or below that mark — a delete-and-replace nets to the same total —
   # does not register. That is harmless today, and the reason is two lines away rather
@@ -681,7 +681,7 @@ while :; do
   # The exclusion is a no-op on the author side, where the slug is the author's own login
   # and GitHub does not let an author verdict their own PR.
   #
-  # ⚠️ `COMMENTED` IS NOT A VERDICT and must stay out of the set: a reviewer answering a
+  # `COMMENTED` is not a verdict and must stay out of the set: a reviewer answering a
   # thread posts one, so counting it would wake on every exchange. `DISMISSED` is in it
   # because a dismissal genuinely ends the review it dismissed. Same set, same reasoning,
   # as pr-verdict.sh — `tests/coupling.bats` pins the two together.

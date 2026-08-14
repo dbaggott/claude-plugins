@@ -87,7 +87,7 @@ gh api repos/<owner>/<repo> --jq \
 
 HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1 reviewed_after_head=1`. Anything less is an approval of a diff nobody is merging — `APPROVED at_head=1` alone included, which a force-push produces over a tree nobody read. Use this wherever the answer matters: before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
 
-Two returns need a decision rather than a retry. **`reviewed_after_head=unknown`** is not a `1` and no verdict clears it — surface it and let the operator decide. **`result=ERROR`** means the check could not see; it is not a verdict of "not approved". Any other shortfall resolves itself: `reviewer` re-verdicts unprompted on a HEAD move, so the fresh verdict arrives without prompting.
+These returns need a decision rather than a retry. **`reviewed_after_head=unknown`** is not a `1` and no verdict clears it — surface it and let the operator decide. **`result=ERROR`** means the check could not see; it is not a verdict of "not approved". Any other shortfall resolves itself: `reviewer` re-verdicts unprompted on a HEAD move, so the fresh verdict arrives without prompting.
 
 Where `review_decision` comes back non-null, approvals are *required* on this repo and that field is the primary source — it accounts for supersession and for multiple required reviewers, which the SHA comparison does not model.
 
