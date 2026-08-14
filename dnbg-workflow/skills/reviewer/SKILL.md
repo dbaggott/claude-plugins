@@ -648,9 +648,8 @@ and from whom, not what it said — so they route you to the packet rather than
 standing in for it. Everything is already in that packet, so a fan-out across the
 endpoints can only re-fetch what you hold — and with no inline threads of your
 own filed, the first case below cannot fire at all. Respond only when there's
-something
-substantive to add — never "I agree" filler. An inline object carries the `id`
-the reply below needs as `in_reply_to`. Replies post as the bot (its
+something substantive to add — never "I agree" filler. An inline object carries
+the `id` the reply below needs as `in_reply_to`. Replies post as the bot (its
 `pull_requests: write` covers reviews, inline comments, thread replies, and
 conversation comments), so each of the commands below wants the guarded mint
 ahead of it, in that same tool call:

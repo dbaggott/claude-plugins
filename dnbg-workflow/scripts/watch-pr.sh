@@ -89,11 +89,11 @@
 # a wifi hiccup, the reconnect after a lid opens — are ridden out.
 #
 # `activity=1` on a COMMITS or READY result means comments or replies landed in
-# the same burst, and the JSON lines above the result line are what landed — the
-# poll that set the flag already held them, so re-fetching to act on them is a
-# round trip nothing needs to spend. The primary result names what to do first;
-# ignoring the rest loses those replies for good, because the agent re-arms with
-# since_iso set to now.
+# the same burst, and the JSON lines above the result line say what landed and
+# from whom — read them together with the `── next ──` call, which is what
+# fetches the text. The primary result names what to do first; ignoring the rest
+# loses those replies for good, because the agent re-arms with since_iso set to
+# now.
 #
 # Reads with the dev's own gh auth (not the short-lived bot token) so a long watch —
 # including across laptop sleep — doesn't expire its credential mid-poll.
