@@ -198,6 +198,13 @@ same call as its neighbours — one for repo conventions, one for cross-referenc
 greps, one for probes. When a check needs the same field across many PRs or
 issues, ask once rather than looping a `gh` subcommand per item:
 
+**Except a read that decides how to do the reads beside it.** A reference file
+naming which call to make, or what an argument means, has its input available
+immediately, so this rule pulls it into the same batch as the work it governs —
+where it arrives after that work is already done and its instructions cannot
+apply. Fetch it, read it, then act. That is the one read whose whole value is
+being early, and the only case where a round trip is the cheaper side.
+
 ```bash
 gh api graphql -f query='{ search(query: "repo:<repo> is:pr is:merged", type: ISSUE, first: 100) {
   nodes { ... on PullRequest { url closingIssuesReferences(first: 20) { totalCount } } } } }'
@@ -622,15 +629,26 @@ PR to resume (it re-assesses current state and picks the watch back up).
    Don't branch from the result names alone — the two `ERROR` codes take opposite
    remedies, and a missing `result=` line reads like a quiet PR while meaning the
    opposite.
+4. **Where the return carries a `── next ──` line, run that command.** It is
+   `pr-round.sh` with every argument already filled in, and one call returns the
+   whole round: the delta diff, the activity *with* bodies, every unresolved
+   thread with the `PRRT_…` id a reply takes, and the standing verdict. The
+   watcher summarises — who posted what kind of thing, where — and this is what
+   delivers. Assembling the round from separate `gh` calls instead costs several
+   round trips and still misses the threads, which is what a reviewer reads as
+   outstanding work.
 
 ## Responding to comments and replies
 
-When the watcher surfaces `ACTIVITY`, what landed is already in hand — the JSON
-lines above its result line, or the packet's `── activity ──` section if you
-took a round. **Those are the source; don't go fetching the comment endpoints
-yourself.** Both are already in the packet, so a fan-out across them can only
-re-fetch what you have — and with no inline threads of your own filed, the first
-case below cannot fire at all. Respond only when there's something
+When the watcher surfaces `ACTIVITY`, the round is one call away and the round is
+the source: the packet's `── activity ──` section, from the `── next ──` command
+above. **That is what you read; don't go fetching the comment endpoints
+yourself.** The watcher's own JSON lines carry no bodies — they say what landed
+and from whom, not what it said — so they route you to the packet rather than
+standing in for it. Everything is already in that packet, so a fan-out across the
+endpoints can only re-fetch what you hold — and with no inline threads of your
+own filed, the first case below cannot fire at all. Respond only when there's
+something
 substantive to add — never "I agree" filler. An inline object carries the `id`
 the reply below needs as `in_reply_to`. Replies post as the bot (its
 `pull_requests: write` covers reviews, inline comments, thread replies, and
