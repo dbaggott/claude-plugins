@@ -10,9 +10,9 @@ Each return is also a line to the operator: what came back, what you did, the PR
 URL. Not a re-summary of the review — that is already on the PR, and the full
 report is owed once, at `CLOSED`, under the three headings below.
 
-Each of these carries a `── next ──` line — the `pr-round.sh` call, arguments
-filled in, returning the diff, the bodies, the threads and the verdict together.
-**Run it first; it is what the handling below reads from.**
+`COMMITS`, `ACTIVITY` and `READY` carry a `── next ──` line — the `pr-round.sh`
+call, arguments filled in, returning the diff, the bodies, the threads and the
+verdict together. **Run it first; it is what their handling below reads from.**
 
 - **`COMMITS`** (`new_head=…`) — the author pushed. Re-review at the new HEAD
   per `references/re-review.md`, and resolve threads the new diff addressed.
