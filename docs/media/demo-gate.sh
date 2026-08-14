@@ -92,7 +92,10 @@ beat 4.0
 # real PR, captured once into fixtures/gate-reviews.json — the same shape the
 # API returns, with each body trimmed to the first line, which is all the
 # formatting below ever shows.
-clear
+# Written out rather than `clear`, whose bytes come from the terminfo entry and
+# the ncurses build — neither pinned, and both differ between a laptop and a
+# runner. Scrollback, cursor home, screen.
+printf '\033[3J\033[H\033[2J'
 say "❯ gh pr view 94 --json reviews"
 beat 1.2
 printf '\n'
