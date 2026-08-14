@@ -6,6 +6,10 @@ everything from the first return to the final report is here.
 
 ## Branch on `result=`
 
+Each return is also a line to the operator: what came back, what you did, the PR
+URL. Not a re-summary of the review — that is already on the PR, and the full
+report is owed once, at `CLOSED`, under the three headings below.
+
 - **`COMMITS`** (`new_head=…`) — the author pushed. Re-review at the new HEAD
   per `references/re-review.md`, and resolve threads the new diff addressed.
 - **`ACTIVITY`** — a new review, comment, or reply (not the bot's). Handle per
