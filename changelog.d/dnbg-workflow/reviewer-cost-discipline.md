@@ -11,9 +11,10 @@ per-file `contents` fetches and a full worktree, one call now pulls the whole
 tree at a SHA into a scratch directory and leaves nothing in the repo to clean
 up — worth it past ~2 questions of the tree, or for any repo-wide sweep. It is a
 script rather than a snippet because the failure is silent in the worst
-direction: a bad SHA leaves an *empty* tree, and a sweep over one comes back
-with zero hits, which is exactly the answer an absence check is looking for. It
-reports `reason=empty` instead. The worktree triggers narrowed to match — a
+direction: a fetch that goes wrong leaves an *empty* tree, and a sweep over one
+comes back with zero hits — exactly the answer an absence check is looking for.
+It reports `reason=fetch` or `reason=empty` instead, so an empty tree can never
+be mistaken for a clean sweep. The worktree triggers narrowed to match — a
 probe that *runs* something still needs a checkout, a probe that only reads gets
 its files fetched.
 

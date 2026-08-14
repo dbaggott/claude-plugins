@@ -4,11 +4,13 @@
 # test asked for — a real tarball, a 404 body, or a failure — so every branch is
 # reachable without a network.
 #
-# The case that matters is `empty`. A bad SHA leaves a zero-file directory, and
-# the caller's next move is a repo-wide sweep, where zero hits reads as "nothing
-# references it" rather than "nothing was fetched". Measured before this script
-# existed: the pipeline exits non-zero, but nothing downstream looks at that, and
-# the empty tree answers an absence criterion in the wrong direction.
+# What matters is that an empty tree never reaches the caller as an answer, and
+# two different failures produce one: a bad SHA, which fails the pipeline and
+# reports `reason=fetch`, and an archive with no members, where both sides of the
+# pipe exit 0 and only the file count catches it. Both are covered below.
+# Measured before the script existed: the inline snippet it replaces left a
+# zero-file directory on a bad SHA and nothing downstream read the exit code, so
+# a repo-wide sweep over that directory came back clean.
 
 FETCH="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/fetch-tree.sh"
 

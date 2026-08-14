@@ -614,10 +614,9 @@ PR to resume (it re-assesses current state and picks the watch back up).
 When the watcher surfaces `ACTIVITY`, what landed is already in hand — the JSON
 lines above its result line, or the packet's `── activity ──` section if you
 took a round. **Those are the source; don't go fetching the comment endpoints
-yourself.** Both are already in the packet, a fan-out across them can only
-re-fetch what you have, and on the common case it re-fetches nothing: with no
-inline threads of your own filed, `pulls/<n>/comments` has nothing to return and
-the first case below cannot fire at all. Respond only when there's something
+yourself.** Both are already in the packet, so a fan-out across them can only
+re-fetch what you have — and with no inline threads of your own filed, the first
+case below cannot fire at all. Respond only when there's something
 substantive to add — never "I agree" filler. An inline object carries the `id`
 the reply below needs as `in_reply_to`. Replies post as the bot (its
 `pull_requests: write` covers reviews, inline comments, thread replies, and

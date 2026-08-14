@@ -14,11 +14,14 @@
 # that matches neither.
 #
 # ⚠️ AN EMPTY TREE IS AN ERROR, NOT AN EMPTY ANSWER. This is the whole reason the
-# fetch is a script. A bad SHA yields a 404 body that tar rejects, leaving zero
-# files — and the caller's next move is typically a repo-wide sweep, where zero
-# hits is exactly the answer an absence criterion is looking for ("nothing else
-# references it, clean"). The failure would read as the finding. `reason=empty`
-# says the tree was never there, so a sweep over it establishes nothing.
+# fetch is a script, and the two guards below catch different failures — neither
+# is redundant. A bad SHA fails the pipeline (gh 404s, pipefail propagates it)
+# and lands on `reason=fetch`. `reason=empty` catches what gets past that: an
+# archive with no members, where both sides of the pipe exit 0 and the directory
+# is still empty. Either way the caller's next move is typically a repo-wide
+# sweep, where zero hits is exactly the answer an absence criterion is looking
+# for ("nothing else references it, clean") — so an empty tree reported as OK
+# would read as the finding.
 #
 # The extraction strips the leading `<owner>-<repo>-<sha>/` component GitHub
 # wraps every tarball in, so paths under `dir` are repo-relative and a grep's

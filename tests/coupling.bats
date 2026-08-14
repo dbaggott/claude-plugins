@@ -788,12 +788,13 @@ remote_read_calls() {  # <SKILL.md>
   grep -q '^ACTIVITY_JQ_INLINE=' "$lib"
 }
 
-# The whole-tree fetch is a script for one reason: a bad SHA leaves an EMPTY tree,
-# and the caller's next move is usually a repo-wide sweep, where zero hits reads as
-# "nothing references it" rather than "nothing was fetched". A fenced `gh api
-# .../tarball/... | tar xz` in the prose has no such check — both sides of the pipe
-# can succeed over an empty archive — so re-inlining it silently restores the
-# failure. Catch the re-inlining, not the mention: the prose may describe what the
+# The whole-tree fetch is a script for one reason: a failed fetch leaves an EMPTY
+# tree, and the caller's next move is usually a repo-wide sweep, where zero hits
+# reads as "nothing references it" rather than "nothing was fetched". A fenced
+# `gh api .../tarball/... | tar xz` in the prose reports neither failure — a bad
+# SHA only fails the pipeline, which nothing downstream reads, and an archive with
+# no members lets both sides exit 0 — so re-inlining it silently restores the
+# hazard. Catch the re-inlining, not the mention: the prose may describe what the
 # script does.
 @test "the tree fetch calls fetch-tree.sh rather than piping a tarball inline" {
   local f bad=0
