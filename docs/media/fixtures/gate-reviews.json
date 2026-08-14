@@ -1,0 +1,34 @@
+[
+  {
+    "body": "Verified every anchor in the file against `3310f17` and they all hold: `bootstrap.py:12-15`, `:64-66`, `:77-84`, `:113` (`S_IRWXU`), `:118` (`0o600`); the six permissions and the deliberate absence of `contents: write` / `issues`; the three key sources and their precedence in `mint-token.sh:22-26`; the ~9-minute JWT (`:182`, `now+540` with a 60s backdate); `${TMPDIR:-/tmp}/dnbg-watch/` swept at `-mtime +3` with `WATCH_LOG=off` (`lib-poll.sh:125-129`, `:150`); the four `hooks.json` entries; the `README.md#the-reviewer-bots-private-key` anchor; and the `{plugin}--v{version}` tag scheme. The fail-open reasoning and the \"not a security boundary\" section are correct and are the most useful part of the file. CI is green.",
+    "state": "CHANGES_REQUESTED",
+    "submitted_at": "2026-08-10T16:58:01Z",
+    "user": {
+      "login": "agent-reviewer-dbaggott[bot]"
+    }
+  },
+  {
+    "body": "",
+    "state": "COMMENTED",
+    "submitted_at": "2026-08-10T17:01:48Z",
+    "user": {
+      "login": "dbaggott"
+    }
+  },
+  {
+    "body": "",
+    "state": "COMMENTED",
+    "submitted_at": "2026-08-10T17:02:01Z",
+    "user": {
+      "login": "dbaggott"
+    }
+  },
+  {
+    "body": "Approving at `bc27d8e`. Both blocking findings are fixed and I re-verified each against the tree rather than taking the reply for it.",
+    "state": "APPROVED",
+    "submitted_at": "2026-08-10T17:04:02Z",
+    "user": {
+      "login": "agent-reviewer-dbaggott[bot]"
+    }
+  }
+]
