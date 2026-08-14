@@ -9,6 +9,63 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.48 — 2026-08-14
+
+Closed two ways `reviewer` silently lost events when re-arming a watch. Both
+looked exactly like a quiet PR, which is what made them worth stating.
+
+**Re-arming with a self-generated timestamp opened a blind window.**
+`references/watch.md` said to carry the `now` the watcher reported but never said
+why, so a fresh `date -u` read as an equivalent source of it — and the interval
+between the two readings is observed by no watch. The step now carries the reason
+and names what survives a gap: commits and verdicts do, being level-triggered by
+head SHA and `--last-verdict`; comments, replies and `COMMENTED` reviews are
+counted against `since_iso` and are dropped for good. `SKILL.md`'s record-state
+step, which previously named `date -u` unqualified, now scopes it to the first
+arm.
+
+**Nothing said the issue-scoped wait is a singleton.** `references/issue-mode.md`
+told the reviewer to re-discover on every watcher return, which could be read as
+arming a *second* issue wait alongside the one already running — each paginating
+the whole timeline every tick, both reporting the same `CLOSED`. It now states
+that at most one exists at a time, re-armed only on its own return, and that an
+armed issue wait *is* the discovery mechanism, so a PR watcher's return need only
+handle its own PR. Discovery stays unconditional with no issue wait armed, at any
+`CLOSED`, and on the issue wait's own `ACTIVITY`.
+
+`reviewer` now spends fewer calls per review. It previously budgeted only bytes,
+so a reviewer could read economically and still burn a cycle on round trips: the
+round trip is now named as a cost alongside bytes, independent probes go in one
+call rather than a sequence, and a check needing the same field across many PRs
+or issues is one GraphQL query instead of a `gh` loop per item. The per-call bot
+token mint is explicitly exempted — it is an extra API call, not an extra round
+trip, and collapsing those blocks posts the review under the wrong identity.
+
+Reading the tree gained a middle mode, as a new `scripts/fetch-tree.sh`. Between
+per-file `contents` fetches and a full worktree, one call now pulls the whole
+tree at a SHA into a scratch directory and leaves nothing in the repo to clean
+up — worth it past ~2 questions of the tree, or for any repo-wide sweep. It is a
+script rather than a snippet because the failure is silent in the worst
+direction: a fetch that goes wrong leaves an *empty* tree, and a sweep over one
+comes back with zero hits — exactly the answer an absence check is looking for.
+It reports `reason=fetch` or `reason=empty` instead, so an empty tree can never
+be mistaken for a clean sweep. The worktree triggers narrowed to match — a
+probe that *runs* something still needs a checkout, a probe that only reads gets
+its files fetched.
+
+Three smaller additions: whole-file fetches are filtered at the pipe rather than
+landing in context; `gh pr diff`'s lack of pathspec support is stated with the
+per-file-patch idiom that replaces it; and the round packet is named as the
+source for incoming comments, rather than the reviewer fanning out across
+comment endpoints that can only re-fetch what it already has.
+
+Between watch cycles, a reviewer now reports a status line rather than restating
+the review. The review body is the artifact, and the full three-section report is
+owed once, when the PR closes.
+
+None of this changes what a reviewer checks or concludes.
+
+
 ## dnbg-workflow 2026.8.47 — 2026-08-13
 
 `reviewer` now applies a bar to non-blocking observations before they go in a
