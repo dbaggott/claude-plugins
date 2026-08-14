@@ -9,7 +9,9 @@ or the author asks for another look — post a fresh review. The verdict is keye
 to the new HEAD.
 
 **Take the round in one call** — the delta diff, whatever landed in
-conversation, your standing verdict, and every unresolved thread:
+conversation, your standing verdict, and every unresolved thread. The watcher
+prints this call as its `── next ──` line with the arguments filled in; run that
+rather than composing it:
 
 ```bash
 "<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-reviewed-sha> <since_iso> <slug>

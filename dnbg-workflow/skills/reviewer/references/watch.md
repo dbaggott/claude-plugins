@@ -10,6 +10,10 @@ Each return is also a line to the operator: what came back, what you did, the PR
 URL. Not a re-summary of the review — that is already on the PR, and the full
 report is owed once, at `CLOSED`, under the three headings below.
 
+`COMMITS`, `ACTIVITY` and `READY` carry a `── next ──` line — the `pr-round.sh`
+call, arguments filled in, returning the diff, the bodies, the threads and the
+verdict together. **Run it first; it is what their handling below reads from.**
+
 - **`COMMITS`** (`new_head=…`) — the author pushed. Re-review at the new HEAD
   per `references/re-review.md`, and resolve threads the new diff addressed.
 - **`ACTIVITY`** — a new review, comment, or reply (not the bot's). Handle per
@@ -47,8 +51,10 @@ report is owed once, at `CLOSED`, under the three headings below.
   Re-arming is cheap; assuming quiet is not.
 
 **`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.** It
-means comments or replies landed alongside the push, and **the JSON lines above
-the result line are those comments**, emitted from the poll that saw them. The
+means comments or replies landed alongside the push. The JSON lines above the
+result line say what landed and from whom; **the text is behind the `── next ──`
+command**, which is `pr-round.sh` with its arguments filled in and returns the
+bodies, the unresolved threads and the diff in one call. Run it. The
 primary result says what to do first; handle the conversation per **Responding to
 comments and replies** in `SKILL.md` in the same pass as the re-review — not on
 a later wake, because the re-arm below sets `since_iso` to the reported `now`,

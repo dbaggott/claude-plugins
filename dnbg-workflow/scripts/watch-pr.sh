@@ -45,9 +45,12 @@
 # transition is ignored, which is right for a PR already under review (it cannot
 # go back to draft mid-review in any way that should re-trigger one).
 #
-# Prints the activity it saw as one compact JSON object per line, then exactly one
-# result line, then exits 0:
-#   {"kind":"review|comment|inline","author":…,"at":…,"body":…}
+# Prints a summary of the activity it saw as one compact JSON object per line,
+# then — where a round is there to be read — the call that reads it in full, then
+# exactly one result line, then exits 0:
+#   {"kind":"review|comment|inline","author":…,"at":…}
+#   ── next ──
+#   "<dir>/pr-round.sh" <owner/repo> <pr> <since-sha> <since-iso> <slug>
 #   result=COMMITS new_head=<sha> activity=0|1 now=<iso>  # author pushed
 #   result=ACTIVITY activity=1 now=<iso>                  # review/comment/reply, not the bot's
 #   result=READY new_head=<sha> activity=0|1 now=<iso>    # draft marked ready — only with --was-draft
@@ -58,7 +61,15 @@
 # COMMITS, ACTIVITY and READY carry `verdict_sha=<sha> verdict=<state>` before
 # `now=` when the level-triggered check above fired. The SHA is the value to
 # re-arm `--last-verdict` with; absent means that check did not fire, so carry the
-# previous value forward.
+# previous value forward. Those three are also the results that print `── next ──`,
+# because they are the ones with a round behind them.
+#
+# No bodies here — this signals, `pr-round.sh` delivers. What a wake needs is
+# whether to act and on what; the text, the unresolved threads and the diff are
+# one call away and only that call has all three. A watcher that printed bodies
+# looked complete while carrying neither the threads nor the diff, so a caller
+# could act on it and be wrong — and one that ran pr-round.sh anyway paid for
+# every body twice.
 #
 # `verdict=` IS A BRANCHING HINT AND MUST NOT REPLACE THE `pr-verdict.sh` READ.
 # It reports the standing verdict as of this poll, which is not the question a
@@ -78,11 +89,11 @@
 # a wifi hiccup, the reconnect after a lid opens — are ridden out.
 #
 # `activity=1` on a COMMITS or READY result means comments or replies landed in
-# the same burst, and the JSON lines above the result line are what landed — the
-# poll that set the flag already held them, so re-fetching to act on them is a
-# round trip nothing needs to spend. The primary result names what to do first;
-# ignoring the rest loses those replies for good, because the agent re-arms with
-# since_iso set to now.
+# the same burst, and the JSON lines above the result line say what landed and
+# from whom — read them together with the `── next ──` call, which is what
+# fetches the text. The primary result names what to do first; ignoring the rest
+# loses those replies for good, because the agent re-arms with since_iso set to
+# now.
 #
 # Reads with the dev's own gh auth (not the short-lived bot token) so a long watch —
 # including across laptop sleep — doesn't expire its credential mid-poll.
@@ -295,17 +306,38 @@ report_error() {
   exit 0
 }
 
-# What set `activity=1`, straight from the payloads the poll already made. The
-# alternative is the caller re-fetching comments this watch has held all along.
+# What set `activity=1`, straight from the payloads the poll already made — as a
+# summary. Who posted what kind of thing, where, and when; not the text.
 #
 # Reads the LAST SUCCESSFUL poll's payloads, which is what the unreachable-gh path
 # has when it reports a burst it can no longer confirm quiet — the best available
 # answer there, and exact everywhere else. The filters come from lib-activity.sh
-# rather than being spelled here, so pr-round.sh emits the same objects.
+# rather than being spelled here, so pr-round.sh emits the same objects and this
+# emits that shape minus the body.
 emit_activity() {
   [ "$saw_activity" = 1 ] || return 0
-  echo "${J:-}"    | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_REVIEWS" 2>/dev/null || true
-  echo "${RAWC:-}" | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_INLINE"  2>/dev/null || true
+  { echo "${J:-}"    | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_REVIEWS" 2>/dev/null || true
+    echo "${RAWC:-}" | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_INLINE"  2>/dev/null || true
+  } | jq -c "$ACTIVITY_JQ_SUMMARY" 2>/dev/null || true
+}
+
+# The call that reads this round in full, with every argument already filled in.
+#
+# This watch holds the whole tuple pr-round.sh takes, so a caller reassembling it
+# by hand is copying state across a boundary that did not need one — and a caller
+# who never learns the script exists hand-rolls the round instead. A printed
+# command is reachable from the wake itself; a prose pointer in another file is
+# not, and loses outright to any instruction to batch reads.
+#
+# `<since-sha>` stays the SHA the caller last handled even on COMMITS: the new
+# head is what they have *not* handled, so it is the far end of the delta, not
+# the near one. Blank renders as a literal `""` — pr-round.sh takes that as "no
+# round handled yet, send the full diff", and takes a missing argument as
+# bad-args, so the quotes are what keeps the printed command runnable.
+emit_next() {
+  printf '── next ──\n'
+  printf '"%s/pr-round.sh" %s %s %s %s %s\n' \
+    "$(cd "$(dirname "$0")" && pwd)" "$REPO" "$PR" "${LAST_HEAD:-\"\"}" "$SINCE" "$SLUG"
 }
 
 # Report the accumulated burst. Defined once because two paths reach it — the
@@ -313,6 +345,7 @@ emit_activity() {
 # which must not silently drop a burst it can no longer confirm quiet.
 report_burst() {
   emit_activity
+  emit_next
   if [ "$saw_commits" = 1 ]; then
     echo "result=COMMITS new_head=$new_head activity=$saw_activity$(verdict_field) now=$(poll_now_iso)"
   else
@@ -694,6 +727,7 @@ while :; do
   # start a first review, and nothing else in the burst changes that.
   if [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = false ]; then
     emit_activity
+    emit_next
     echo "result=READY new_head=$HEAD activity=$saw_activity$(verdict_field) now=$(poll_now_iso)"; exit 0
   fi
 

@@ -206,7 +206,7 @@ The path reaches out of this skill's directory on purpose: the script is shared 
 
 Being a file rather than a fenced block is itself part of the fix: `shellcheck` covers `scripts/`, and covers nothing inside a `.md`.
 
-The script prints whatever activity it saw as one JSON object per line, then one result line. Treat the returns differently:
+The script prints a summary of the activity it saw as one JSON object per line — who posted what kind of thing, where, without the text — then, on the results with a round behind them, a `── next ──` line carrying the `pr-round.sh` call that reads that round in full, then one result line. Treat the returns differently:
 
 - **`result=ACTIVITY`** — a review, comment or reply landed. Go to "When a review comes in".
 - **`result=COMMITS`** — someone pushed to the branch. If it wasn't you, read the change before responding to anything. **If `activity=1`, comments or replies landed in the same burst — handle them in this same pass**, per "When a review comes in". This is reachable from your side: a reviewer clicking "Update branch", or applying a suggestion while filing comments, produces exactly `COMMITS activity=1`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good. Same failure the third bullet above gives as a reason not to hand-roll this.
@@ -230,17 +230,19 @@ The same spawn works after pushing a fix in response to feedback — record the 
 
 ## When a review comes in
 
-**Read the whole round in one call** — review bodies, inline findings, the standing verdict, and every unresolved thread. A verdict alone is a third of the review, and three separate reads are three chances to perform two:
+**Read the whole round in one call** — review bodies, inline findings, the standing verdict, and every unresolved thread. A verdict alone is a third of the review, and three separate reads are three chances to perform two.
+
+**Run the `── next ──` command the watcher printed.** It is this, with every argument already filled in:
 
 ```bash
 "<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-handled-sha> <since-iso> <your-login>
 ```
 
-The same three values you armed the watcher with — the SHA you last handled, the timestamp marking "handled up to here", and your own login, whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta.
+The same values you armed the watcher with — the SHA you last handled, the timestamp marking "handled up to here", and your own login, whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta — which is what the printed command already does on a first round.
 
 What the sections are for, and the mistake each one prevents:
 
-- **`── activity ──`** — `"kind":"review"` is a review body, `"kind":"inline"` a finding filed on a line of the diff. Inline findings do **not** appear in `gh pr view --json reviews`, so a body reading "four things below" with three summary bullets is normal — the fourth, often the only real defect, is only ever inline. Each inline object carries the `id` an in-thread reply needs.
+- **`── activity ──`** — `"kind":"review"` is a review body, `"kind":"inline"` a finding filed on a line of the diff. Inline findings do **not** appear in `gh pr view --json reviews`, so a body reading "four things below" with three summary bullets is normal — the fourth, often the only real defect, is only ever inline. Each inline object carries an `id` — the REST comment id, which a reply via `in_reply_to` takes. It is **not** the `PRRT_…` thread id the GraphQL mutation under "Responding to reviewers" takes; that one is in `── threads ──`, and reaching for this `id` against that mutation costs a fetch to discover they are different namespaces.
 - **`── threads ──`** — every unresolved thread, so you never work from memory about what you fixed: a reviewer reads open threads as outstanding work. Not narrowed to the bot's, because a human reviewer's thread blocks the merge just as surely.
 - **The `_src` fields** — an empty section means "nothing there" only where its status reads `ok`. `fail` or `shape` means that source went blind, which is not a quiet round.
 
@@ -309,7 +311,7 @@ Address comments to the reviewer using `@username` mentions.
 2. **The code.** If the concern is real, the fix *is* the answer.
 3. **The PR body.** For what you verified and how, what scope you checked, why one approach beat another. This is the as-built record, and the right home for evidence and provenance.
 
-**Reply in the thread itself, and resolve it.** A top-level PR comment does not close a thread, and an unresolved thread is how a reviewer tracks outstanding work — so answering at the top level leaves the finding looking untouched no matter how thoroughly you fixed it. Use the thread `id` from the enumeration above:
+**Reply in the thread itself, and resolve it.** A top-level PR comment does not close a thread, and an unresolved thread is how a reviewer tracks outstanding work — so answering at the top level leaves the finding looking untouched no matter how thoroughly you fixed it. Use the `PRRT_…` id from the round packet's `── threads ──` section:
 
 ```bash
 gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(

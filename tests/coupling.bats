@@ -786,6 +786,10 @@ remote_read_calls() {  # <SKILL.md>
   local lib="$ROOT/dnbg-workflow/scripts/lib-activity.sh"
   grep -q '^ACTIVITY_JQ_REVIEWS=' "$lib"
   grep -q '^ACTIVITY_JQ_INLINE=' "$lib"
+  # The summary is a projection of those two, not a third description of the
+  # shape. Spelled anywhere else it drifts from what it claims to be a subset of.
+  grep -q '^ACTIVITY_JQ_SUMMARY=' "$lib"
+  grep -q 'ACTIVITY_JQ_SUMMARY' "$ROOT/dnbg-workflow/scripts/watch-pr.sh"
 }
 
 # The whole-tree fetch is a script for one reason: a failed fetch leaves an EMPTY

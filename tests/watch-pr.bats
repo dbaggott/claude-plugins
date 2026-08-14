@@ -719,16 +719,42 @@ EOF
 }
 
 # The watcher polls the comments it reports on, so reporting only a flag makes the
-# caller fetch them again. These pin the payload it now carries with the flag.
+# caller fetch them again. These pin what it carries with the flag: enough to know
+# whether to act and on what, and the call that fetches the rest.
 
-@test "the activity behind activity=1 is emitted, not just the flag" {
+@test "the activity behind activity=1 is summarised, without the body" {
   printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"four things below","commit":{"oid":"%s"}}]' \
     "$(sha40 0)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ACTIVITY"* ]]
   [[ "$output" == *'"kind":"review"'* ]]
-  [[ "$output" == *"four things below"* ]]
+  [[ "$output" == *'"state":"CHANGES_REQUESTED"'* ]]
+  # The body is pr-round.sh's to deliver. Emitting it here made the wake look like
+  # a whole round while carrying neither the threads nor the diff one needs.
+  [[ "$output" != *"four things below"* ]]
+}
+
+# A prose pointer to pr-round.sh in another file loses to any instruction to batch
+# reads — it arrives after the work it was meant to direct. The filled-in command
+# is reachable from the wake itself, which is what makes it hold.
+@test "a reported round prints the pr-round.sh call with its arguments filled in" {
+  printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"x","commit":{"oid":"%s"}}]' \
+    "$(sha40 0)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"── next ──"* ]]
+  [[ "$output" == *"/pr-round.sh\" o/r 1 $(sha40 0) 1970-01-01T00:00:00Z bot"* ]]
+}
+
+# pr-round.sh takes five arguments and answers bad-args to four, so a blank
+# last-head has to reach it as a literal `""` rather than collapsing away.
+@test "a blank last-head prints as an empty-string argument, not a missing one" {
+  printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"x","commit":{"oid":"%s"}}]' \
+    "$(sha40 0)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"/pr-round.sh\" o/r 1 \"\" 1970-01-01T00:00:00Z bot"* ]]
 }
 
 # The case the flag exists for: a push and a reply in one burst. The reply is only
@@ -753,8 +779,11 @@ EOF
   [[ "$output" == *"result=COMMITS"* ]]
   [[ "$output" == *"activity=1"* ]]
   [[ "$output" == *'"kind":"inline"'* ]]
-  # The id an in-thread reply needs as `in_reply_to`, which is otherwise a re-fetch.
+  # The REST comment id an `in_reply_to` reply takes, which is otherwise a
+  # re-fetch. Survives the body being dropped; the GraphQL thread id is a
+  # different namespace and comes from the round packet's threads section.
   [[ "$output" == *'"id":99'* ]]
+  [[ "$output" != *"the fourth thing"* ]]
 }
 
 # A caller reading the lines above `result=` must not find leftovers on a quiet
