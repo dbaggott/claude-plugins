@@ -9,6 +9,39 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-practices 2026.8.5 — 2026-08-14
+
+`coding-practices` sharpens two rules about detail that costs more than it earns.
+
+**Agent-facing prose now has a test for when rationale earns its line.** A
+`SKILL.md`, rules file, or `CLAUDE.md` has two readers and charges one: the
+executor loads every line on every run, the editor opens the file once. Ask
+whether an executor that never read a line of rationale would act differently. A
+*why* that decides a case the instruction doesn't enumerate stays; a *why* that
+only defends the instruction against a future editor moves to the script's header
+comment, a test name, or the PR. The section is renamed from "Four ways
+agent-facing prose fails" to "What earns a line in agent-facing prose".
+
+**A count of the list it introduces is now called out as a comment failure.**
+"Four ways this fails"; "the three checks below" — the list counts itself, so no
+reader acts on the number, and any added item silently falsifies it. The
+neighbouring rule on specific values now names the general trade behind both: how
+likely a detail is to need an edit, against whether a reader acts differently for
+having it.
+
+
+## dnbg-workflow 2026.8.50 — 2026-08-14
+
+`git-workflow` adds a step between committing and pushing: re-read your own diff
+against the standards you loaded, with those files re-opened rather than
+recalled, and grep the diff for anything a standard states as countable. Fix what
+you find before pushing.
+
+Committing and pushing were one step and are now two, so the diff exists to be
+read. Steps after them renumber, and the references that pointed at "step 7" now
+name what they mean instead, so a later insertion can't silently falsify them.
+
+
 ## dnbg-workflow 2026.8.49 — 2026-08-14
 
 A force-push can move a standing review onto the rewritten commit, so the
