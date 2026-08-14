@@ -285,7 +285,10 @@ EOF
 # passes while the site stays blind, which is the single failure it exists to prevent.
 pr_command_lines() {  # <file>
   case "$1" in
-    *.md) awk '/^```/ { inside = !inside; next } inside' "$1" ;;
+    # Indented fences count: a fence inside a numbered list item is still a
+    # command block, and anchoring at column 0 would make every command in one
+    # invisible to the checks below — a place to hide exactly what they look for.
+    *.md) awk '/^[[:space:]]*```/ { inside = !inside; next } inside' "$1" ;;
     *)    cat "$1" ;;
   esac | grep -v '^[[:space:]]*#'
 }
@@ -783,4 +786,26 @@ remote_read_calls() {  # <SKILL.md>
   local lib="$ROOT/dnbg-workflow/scripts/lib-activity.sh"
   grep -q '^ACTIVITY_JQ_REVIEWS=' "$lib"
   grep -q '^ACTIVITY_JQ_INLINE=' "$lib"
+}
+
+# The whole-tree fetch is a script for one reason: a bad SHA leaves an EMPTY tree,
+# and the caller's next move is usually a repo-wide sweep, where zero hits reads as
+# "nothing references it" rather than "nothing was fetched". A fenced `gh api
+# .../tarball/... | tar xz` in the prose has no such check — both sides of the pipe
+# can succeed over an empty archive — so re-inlining it silently restores the
+# failure. Catch the re-inlining, not the mention: the prose may describe what the
+# script does.
+@test "the tree fetch calls fetch-tree.sh rather than piping a tarball inline" {
+  local f bad=0
+  while IFS= read -r f; do
+    pr_command_lines "$f" | grep -qE '/tarball/' && {
+      echo "${f#"$ROOT"/} pipes a tarball inline — call fetch-tree.sh, which fails on an empty tree"
+      bad=1; }
+  done < <(find "$ROOT" -path "$ROOT/.git" -prune -o -name '*.md' -path '*/skills/*' -print)
+  [ "$bad" -eq 0 ]
+
+  # The other direction: deleting the call would pass the check above trivially.
+  local skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
+  pr_command_lines "$skill" | grep -q 'fetch-tree\.sh' || {
+    echo "reviewer/SKILL.md names no tree fetch — the third access mode is unreachable"; false; }
 }

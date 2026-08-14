@@ -6,17 +6,22 @@ or issues is one GraphQL query instead of a `gh` loop per item. The per-call bot
 token mint is explicitly exempted — it is an extra API call, not an extra round
 trip, and collapsing those blocks posts the review under the wrong identity.
 
-Reading the tree gained a middle mode. Between per-file `contents` fetches and a
-full worktree there is now a tarball fetched into a scratch directory: past ~2
-questions of the tree, or for any repo-wide sweep, one call gets the whole tree
-and leaves nothing in the repo to clean up. The worktree triggers narrowed to
-match — a probe that *runs* something still needs a checkout, a probe that only
-reads gets its files fetched.
+Reading the tree gained a middle mode, as a new `scripts/fetch-tree.sh`. Between
+per-file `contents` fetches and a full worktree, one call now pulls the whole
+tree at a SHA into a scratch directory and leaves nothing in the repo to clean
+up — worth it past ~2 questions of the tree, or for any repo-wide sweep. It is a
+script rather than a snippet because the failure is silent in the worst
+direction: a bad SHA leaves an *empty* tree, and a sweep over one comes back
+with zero hits, which is exactly the answer an absence check is looking for. It
+reports `reason=empty` instead. The worktree triggers narrowed to match — a
+probe that *runs* something still needs a checkout, a probe that only reads gets
+its files fetched.
 
 Three smaller additions: whole-file fetches are filtered at the pipe rather than
 landing in context; `gh pr diff`'s lack of pathspec support is stated with the
-per-file-patch idiom that replaces it; and the review-comments fetch is skipped
-when no inline threads were filed, since it can only answer empty.
+per-file-patch idiom that replaces it; and the round packet is named as the
+source for incoming comments, rather than the reviewer fanning out across
+comment endpoints that can only re-fetch what it already has.
 
 Between watch cycles, a reviewer now reports a status line rather than restating
 the review. The review body is the artifact, and the full three-section report is

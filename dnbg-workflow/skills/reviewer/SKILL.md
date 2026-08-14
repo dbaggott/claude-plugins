@@ -237,14 +237,17 @@ the wrong identity.
 
    **Past ~2 questions of the tree, or for any repo-wide sweep, take the whole
    tree in one call** — nothing left in the user's repo, unlike the worktree
-   below:
+   below. Then stop issuing `contents` reads at that SHA; the two paths overlap
+   silently.
 
    ```bash
-   T=$(mktemp -d)
-   gh api "repos/<repo>/tarball/<head-sha>" | tar xz -C "$T" --strip-components=1
+   "<skill-dir>/../../scripts/fetch-tree.sh" <owner>/<repo> <head-sha>
    ```
 
-   Then stop issuing `contents` reads at that SHA; the two paths overlap silently.
+   It prints `result=OK dir=<path> files=<n>`; sweep under that `dir`. **A
+   `reason=empty` or `reason=fetch` is not an empty answer** — the tree was never
+   fetched, so a sweep over it establishes nothing, and zero hits is exactly what
+   an absence criterion is looking for.
 
    **Read PR content at the head SHA, never at a local branch name.** A stale
    `origin/<branch>` reads exactly like a current one, so you report a version of
@@ -610,9 +613,11 @@ PR to resume (it re-assesses current state and picks the watch back up).
 
 When the watcher surfaces `ACTIVITY`, what landed is already in hand — the JSON
 lines above its result line, or the packet's `── activity ──` section if you
-took a round. You also know your own inline-thread count without asking GitHub:
-having filed none, the first case below cannot fire, so don't fetch
-`pulls/<n>/comments` to find out. Respond only when there's something
+took a round. **Those are the source; don't go fetching the comment endpoints
+yourself.** Both are already in the packet, a fan-out across them can only
+re-fetch what you have, and on the common case it re-fetches nothing: with no
+inline threads of your own filed, `pulls/<n>/comments` has nothing to return and
+the first case below cannot fire at all. Respond only when there's something
 substantive to add — never "I agree" filler. An inline object carries the `id`
 the reply below needs as `in_reply_to`. Replies post as the bot (its
 `pull_requests: write` covers reviews, inline comments, thread replies, and
