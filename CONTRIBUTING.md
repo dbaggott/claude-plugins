@@ -107,6 +107,7 @@ jq -r '.plugins[].source' .claude-plugin/marketplace.json \
   | xargs -I{} find {} -name '*.json' | xargs -n1 jq empty
 claude plugin validate . --strict
 actionlint                                  # brew install actionlint
+docs/media/check-render.sh                  # README demos; a hook reword stales one
 ```
 
 Two of those are narrower than the CI step they stand for, so a green run here

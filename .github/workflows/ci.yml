@@ -214,6 +214,21 @@ jobs:
         with:
           scandir: '.'
 
+      - name: Verify docs/media matches the demo scripts
+        if: ${{ !cancelled() }}
+        # The README's GIFs have four inputs and only one of them is the demo
+        # script: lib-demo.sh feeds every reenactment, and the two demos that
+        # print a hook's real block message go stale the moment that message is
+        # reworded — in a PR that never touches docs/media/, where no reviewer
+        # would think to look. Nothing checked any of it; reviewers re-rendered
+        # demos by hand instead, one round at a time.
+        #
+        # A step rather than a job, per the note at the top of this file: it
+        # needs no tooling the runner lacks and finishes in under a second,
+        # because a no-op `sleep` on PATH removes the only thing in a demo that
+        # takes real time.
+        run: docs/media/check-render.sh
+
       - name: Lint the workflow files
         if: ${{ !cancelled() }}
         # This exists because a workflow shipped that could not start. A
