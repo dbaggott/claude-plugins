@@ -90,10 +90,11 @@ The question that field gets reached for is always really **"is HEAD approved?"*
 "<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
 ```
 
-HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1`. Both halves are load-bearing, and knowing *why* is what keeps a later simplification from dropping one:
+HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1 reviewed_after_head=1`. All three are load-bearing, and knowing *why* is what keeps a later simplification from dropping one:
 
 - **The latest verdict, not the latest approval.** Filtering to `APPROVED` and taking the last one reads an `APPROVED` followed by a `CHANGES_REQUESTED` at the *same* SHA as approved. Two routes reach that: a second reviewer objecting over a standing approval, and a reviewer reversing itself after a reply. Where `reviewDecision` is `null` nothing downstream catches it.
 - **`COMMENTED` is not a verdict** and must stay out of the set — a reviewer answering a thread posts one, and counting it would blank the verdict on every exchange.
+- **A force-push moves an existing review onto the rewritten commit**, so `at_head=1` can sit over a tree nobody looked at. `reviewed_after_head` compares the verdict's submission time against when the commit at HEAD was created, which the rewrite cannot fake; `unknown` means the check could not compare and is not a `1`. **The wait this adds is bounded**: `reviewer` re-verdicts unprompted on any HEAD move, so a rebase that only inherits reviewed content still costs one round and the fresh verdict arrives on its own.
 
 An approval further down the list is an approval of a diff nobody is merging. Use this wherever the answer matters — before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
 
@@ -233,7 +234,7 @@ The same spawn works after pushing a fix in response to feedback — record the 
 "<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-handled-sha> <since-iso> <your-login>
 ```
 
-The same three values you armed the watcher with — the SHA you last handled, the timestamp marking "handled up to here", and your own login, whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta.
+The same three values you armed the watcher with — the SHA you last handled, the timestamp marking "handled up to here", and your own login, whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta.
 
 What the sections are for, and the mistake each one prevents:
 
@@ -243,7 +244,7 @@ What the sections are for, and the mistake each one prevents:
 
 Read the review payload and pick one of three responses based on content. Track whether the operator has opted in to auto-handling for *this* PR — once they pick "Auto-handle all rounds" in the picker below, the choice is sticky across subsequent rounds until the PR merges or they explicitly stop.
 
-**Clean review (APPROVED, no actionable findings).** The packet's `verdict=APPROVED at_head=1` is what confirms it — those fields are `pr-verdict.sh`'s own answer, taken as part of the round. **The watcher's `verdict=` is not, and must not stand in for them:** it reports what a poll saw, so an approval there may sit on a commit you have since pushed past, or have been superseded by a later `CHANGES_REQUESTED` from another reviewer. Where the repo doesn't dismiss stale approvals — the common case, since dismissal needs `required_approving_review_count` above 0 — the merge box shows an unqualified green check over exactly that state, so nothing on the PR will correct you. If the packet doesn't read `APPROVED` with `at_head=1`, this isn't the clean-review case: say what the standing verdict is and which SHA it sits on, and wait for the reviewer to re-verdict (which `reviewer` now does unprompted on any HEAD move).
+**Clean review (APPROVED, no actionable findings).** The packet's `verdict=APPROVED at_head=1 reviewed_after_head=1` is what confirms it — those fields are `pr-verdict.sh`'s own answer, taken as part of the round, and the third is what keeps a force-push from re-anchoring a review onto a tree nobody read (see "is HEAD approved?" above). **The watcher's `verdict=` is not, and must not stand in for them:** it reports what a poll saw, so an approval there may sit on a commit you have since pushed past, or have been superseded by a later `CHANGES_REQUESTED` from another reviewer. Where the repo doesn't dismiss stale approvals — the common case, since dismissal needs `required_approving_review_count` above 0 — the merge box shows an unqualified green check over exactly that state, so nothing on the PR will correct you. If the packet doesn't read `APPROVED` with both `at_head=1` and `reviewed_after_head=1`, this isn't the clean-review case: say what the standing verdict is and which SHA it sits on, and wait for the reviewer to re-verdict (which `reviewer` now does unprompted on any HEAD move — so this wait ends on its own and needs no prompting).
 
 **Read the approving review's body before composing the handoff.** An approval is not always empty — reviewers put CI triage, deferred follow-ups and scope notes in it, and none of that reaches you as a finding. It is already in the packet, as the `"kind":"review"` object; skipping it means re-deriving from scratch what the reviewer has already written down, then reporting it as your own discovery.
 

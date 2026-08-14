@@ -17,8 +17,9 @@ conversation, your standing verdict, and every unresolved thread:
 
 Those are the values you already track for the watcher, so the input is on hand.
 It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one
-result line carrying `verdict`, `verdict_sha`, `at_head` and a `_src` status per
-source. Pass `""` for the SHA on a first review; that asks for the full diff.
+result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head`
+and a `_src` status per source. Pass `""` for the SHA on a first review; that
+asks for the full diff.
 
 The diff is the **delta** wherever a prior SHA exists — exactly the changes your
 last verdict didn't cover, rather than the whole PR again. `diff=none` means HEAD
@@ -64,8 +65,8 @@ or `shape` means that source went blind, which is not a quiet round.
   are no-op substance that didn't address the findings, leave it — the PR stays
   correctly blocked.
 
-"Has HEAD moved past my verdict?" is answered by the packet's own `at_head`,
-which is `pr-verdict.sh`'s answer carried through — the same question the
+"Has HEAD moved past my verdict?" is answered by the packet's own `at_head` and
+`reviewed_after_head`, which are `pr-verdict.sh`'s answer carried through — the same question the
 author's side asks as "is HEAD approved?", which is the point of keeping the
 record current. Outside a round, ask it directly:
 
@@ -73,12 +74,16 @@ record current. Outside a round, ask it directly:
 "<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <n>
 ```
 
-Your verdict is current iff the result line reads `at_head=1`. The script takes
-the last **verdict**, not the last approval — an `APPROVED` followed by a
-`CHANGES_REQUESTED` on the same SHA is not an approval, and `COMMENTED` (what a
-thread reply posts) is not a verdict at all. `tests/pr-verdict.bats` pins both
-rules. `result=ERROR` means the check could not see — not that your verdict is
-stale.
+Your verdict is current iff the result line reads `at_head=1 reviewed_after_head=1`.
+The script takes the last **verdict**, not the last approval — an `APPROVED`
+followed by a `CHANGES_REQUESTED` on the same SHA is not an approval, and
+`COMMENTED` (what a thread reply posts) is not a verdict at all.
+`reviewed_after_head` is the third condition because a force-push re-anchors an
+existing review onto the rewritten commit, leaving `at_head=1` over a tree you
+never saw — re-review it. That is invisible to a **resumed or fresh session**,
+which has no `LAST_HEAD` baseline to catch the push with.
+`tests/pr-verdict.bats` pins all three. `result=ERROR`, and `unknown` in that
+field, both mean the check could not see — not that your verdict is stale.
 
 Where approvals are **required**, `reviewDecision` answers "is HEAD approved?"
 directly and is the primary source — it handles supersession and multiple

@@ -26,9 +26,15 @@ EOF
 }
 
 # headRefOid, then a JSON array of {state, oid} pairs in submission order.
-pr_reviews() {
-  local head="$1"; shift
-  printf '{"headRefOid":"%s","reviewDecision":"","reviews":%s}' "$head" "$1" > "$STATEFILE"
+#
+# Head is given a `committedDate`, and every review without its own `submittedAt`
+# one that follows it, so `reviewed_after_head` reads 1 throughout and the cases
+# that exercise it below are the ones that say so.
+pr_reviews() {  # <head> <reviews-json>
+  jq -cn --arg head "$1" --argjson reviews "$2" \
+    '{headRefOid: $head, reviewDecision: "",
+      reviews: ($reviews | map(.submittedAt //= "2020-06-01T00:00:00Z")),
+      commits: [{oid: $head, committedDate: "2020-01-01T00:00:00Z"}]}' > "$STATEFILE"
 }
 
 field() { sed -n "s/.*[ ]$1=\([^ ]*\).*/\1/p" <<<"$2"; }
@@ -92,6 +98,65 @@ field() { sed -n "s/.*[ ]$1=\([^ ]*\).*/\1/p" <<<"$2"; }
 @test "an empty verdict SHA never counts as attached to head" {
   pr_reviews aaa '[{"state":"APPROVED"}]'
   run "$VERDICT" o/r 1
+  [ "$(field at_head "$output")" = 0 ]
+}
+
+# THE FORCE-PUSH CASE, AND THE ONLY REASON THIS FIELD EXISTS. GitHub moves a
+# review's commit_id onto the rewritten commit, so at_head reads 1 over a tree
+# nobody looked at. Every SHA- or tree-based check is defeated by the same
+# rewrite; the two timestamps are not rewritten, and they disagree.
+@test "a verdict that predates the commit at head is not a review of it" {
+  printf '{"headRefOid":"aaa","reviewDecision":"","reviews":[
+             {"state":"APPROVED","commit":{"oid":"aaa"},"submittedAt":"2026-08-13T18:44:21Z"}],
+           "commits":[{"oid":"aaa","committedDate":"2026-08-13T18:46:23Z"}]}' > "$STATEFILE"
+  run "$VERDICT" o/r 1
+  [ "$(field at_head "$output")" = 1 ]
+  [ "$(field reviewed_after_head "$output")" = 0 ]
+}
+
+@test "a verdict submitted after the commit at head reviewed it" {
+  pr_reviews aaa '[{"state":"APPROVED","commit":{"oid":"aaa"}}]'
+  run "$VERDICT" o/r 1
+  [ "$(field reviewed_after_head "$output")" = 1 ]
+}
+
+# Not `unknown`: nothing failed to parse. There is simply no verdict that could
+# have been submitted after head, which is a determinate answer.
+@test "no verdict at all reports reviewed_after_head=0, not unknown" {
+  pr_reviews aaa '[]'
+  run "$VERDICT" o/r 1
+  [ "$(field verdict "$output")" = NONE ]
+  [ "$(field reviewed_after_head "$output")" = 0 ]
+}
+
+# `unknown` must never collapse to `1` — that is the fail-closed-and-silent shape
+# every script here is written against. Head absent from `commits` is how a PR
+# past one page of them arrives, as well as a payload missing the field.
+@test "a comparison that cannot be made reports unknown rather than 1" {
+  printf '{"headRefOid":"aaa","reviewDecision":"","reviews":[
+             {"state":"APPROVED","commit":{"oid":"aaa"},"submittedAt":"2026-08-13T18:44:21Z"}]}' \
+    > "$STATEFILE"
+  run "$VERDICT" o/r 1
+  [ "$(field at_head "$output")" = 1 ]
+  [ "$(field reviewed_after_head "$output")" = unknown ]
+
+  printf '{"headRefOid":"aaa","reviewDecision":"","reviews":[
+             {"state":"APPROVED","commit":{"oid":"aaa"},"submittedAt":"2026-08-13T18:44:21Z"}],
+           "commits":[{"oid":"zzz","committedDate":"2026-08-13T18:00:00Z"}]}' > "$STATEFILE"
+  run "$VERDICT" o/r 1
+  [ "$(field reviewed_after_head "$output")" = unknown ]
+}
+
+# A verdict with no timestamp cannot be placed either side of head. The bare
+# `[{"state":"APPROVED"}]` shape below also leaves verdict_sha empty, which is
+# the field read last off the tab-separated row — proving an empty one there
+# doesn't shift the other two.
+@test "a verdict with no submittedAt reports unknown" {
+  printf '{"headRefOid":"aaa","reviewDecision":"","reviews":[{"state":"APPROVED"}],
+           "commits":[{"oid":"aaa","committedDate":"2026-08-13T18:00:00Z"}]}' > "$STATEFILE"
+  run "$VERDICT" o/r 1
+  [ "$(field verdict "$output")" = APPROVED ]
+  [ "$(field reviewed_after_head "$output")" = unknown ]
   [ "$(field at_head "$output")" = 0 ]
 }
 

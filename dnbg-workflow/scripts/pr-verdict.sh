@@ -7,14 +7,35 @@
 #   pr-verdict.sh <owner/repo> <pr>
 #
 # Prints exactly one result line, then exits 0:
-#   result=OK head=<sha> verdict=<state> verdict_sha=<sha> at_head=0|1
-#   result=OK head=<sha> verdict=NONE verdict_sha= at_head=0   # no verdict yet
+#   result=OK head=<sha> verdict=<state> verdict_sha=<sha> at_head=0|1 \
+#     reviewed_after_head=0|1|unknown review_decision=<state>
 #   result=ERROR reason=bad-args|pr-view|pr-view-shape
 #
-# `verdict=APPROVED at_head=1` is the only combination that means HEAD is
-# approved. Every other pairing is a different situation and the callers describe
-# them differently, so the fields are printed separately rather than reduced to a
-# single yes/no here.
+# `verdict=APPROVED at_head=1 reviewed_after_head=1` is the only combination that
+# means HEAD is approved. Every other pairing is a different situation and the
+# callers describe them differently, so the fields are printed separately rather
+# than reduced to a single yes/no here.
+#
+# ⚠️ `at_head` ALONE DOES NOT MEAN HEAD HAS BEEN REVIEWED. A force-push moves an
+# existing review's `commit_id` onto the rewritten commit — observed on
+# https://github.com/dbaggott/claude-plugins/pull/168, a review submitted 18:44:21Z
+# reporting a commit created 18:46:23Z. SHA and tree comparisons are both defeated
+# by that rewrite (the re-anchored review's tree IS head's tree), so this compares
+# the two things it cannot touch: `reviewed_after_head=1` means the standing
+# verdict was submitted after the commit at head was created. Both dates come from
+# the `gh pr view` already made here, so it costs no extra request.
+#
+# `unknown` means the comparison could not be made — no `commits` field, or head
+# absent from it. It must never collapse to `1`.
+#
+# Two gaps, both fail-closed: a force-push that resets to an OLDER commit (the SHA
+# comparison catches that one instead), and a committer clock ahead of GitHub's,
+# which reads a genuine review as predating head until the next one lands.
+#
+# Whether GitHub's "Update branch" emits `head_ref_force_pushed` is UNTESTED: its
+# rebase variant rewrites and so can re-anchor, and only its merge variant is
+# reachable from the REST endpoint. The date comparison covers both either way —
+# settle it before reaching for the timeline event instead.
 #
 # ⚠️ THE LAST VERDICT, NOT THE LAST APPROVAL. Filtering to `APPROVED` and taking
 # the last one reads an `APPROVED` followed by a `CHANGES_REQUESTED` at the SAME
@@ -53,7 +74,7 @@ if [ -z "$REPO" ] || [ -z "$PR" ] || [ "$#" -gt 2 ] || [ "${REPO%/*}" = "$REPO" 
   exit 0
 fi
 
-if ! J=$(gh pr view "$PR" --repo "$REPO" --json headRefOid,reviews,reviewDecision 2>/dev/null); then
+if ! J=$(gh pr view "$PR" --repo "$REPO" --json headRefOid,reviews,reviewDecision,commits 2>/dev/null); then
   echo "result=ERROR reason=pr-view"
   exit 0
 fi
@@ -62,11 +83,25 @@ fi
 # three. `// empty` alone would not establish the FIELDS are present — an error
 # body like `{"message":"Not Found"}` is well-formed JSON — so `headRefOid` is
 # checked for emptiness below, the same gate watch-pr.sh applies to `.state`.
+#
+# Head is located by oid rather than taken as the last commit: the field carries
+# one page, so on a longer PR the last entry is not head, and matching lands on
+# `unknown` instead of comparing against the wrong commit. The two dates are
+# compared as strings, which orders these correctly because GitHub returns both
+# in the same fixed-width UTC form.
 if ! OUT=$(echo "$J" | jq -r '
-      (.reviews // [])
+      . as $root
+      | ($root.commits // []) | map(select(.oid == $root.headRefOid)) | last as $h
+      | ($root.reviews // [])
       | map(select(.state=="APPROVED" or .state=="CHANGES_REQUESTED" or .state=="DISMISSED"))
       | last as $v
-      | [$v.state // "NONE", $v.commit.oid // ""] | @tsv' 2>/dev/null); then
+      | [$v.state // "NONE",
+         (if ($h.committedDate // "") == "" then "unknown"
+          elif $v == null then "0"
+          elif ($v.submittedAt // "") == "" then "unknown"
+          elif $v.submittedAt > $h.committedDate then "1"
+          else "0" end),
+         $v.commit.oid // ""] | @tsv' 2>/dev/null); then
   echo "result=ERROR reason=pr-view-shape"
   exit 0
 fi
@@ -79,11 +114,14 @@ fi
 
 DECISION=$(echo "$J" | jq -r '.reviewDecision // ""' 2>/dev/null || true)
 
-IFS=$'\t' read -r VERDICT VSHA <<EOF
+# `verdict_sha` is read last because it is the only one of the three that can be
+# empty, and a tab IFS collapses an empty field between two others.
+IFS=$'\t' read -r VERDICT REVIEWED_AFTER VSHA <<EOF
 $OUT
 EOF
 
 AT_HEAD=0
 [ -n "$VSHA" ] && [ "$VSHA" = "$HEAD" ] && AT_HEAD=1
 
-echo "result=OK head=$HEAD verdict=$VERDICT verdict_sha=$VSHA at_head=$AT_HEAD review_decision=$DECISION"
+echo "result=OK head=$HEAD verdict=$VERDICT verdict_sha=$VSHA at_head=$AT_HEAD" \
+     "reviewed_after_head=$REVIEWED_AFTER review_decision=$DECISION"

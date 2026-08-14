@@ -44,7 +44,7 @@ EOF
   chmod +x "$STUB/gh"
   export PATH="$STUB:$PATH"
 
-  printf '{"headRefOid":"bbb","reviewDecision":"","reviews":[{"state":"APPROVED","commit":{"oid":"bbb"}}]}' \
+  printf '{"headRefOid":"bbb","reviewDecision":"","reviews":[{"state":"APPROVED","commit":{"oid":"bbb"},"submittedAt":"2026-08-02T00:00:00Z"}],"commits":[{"oid":"bbb","committedDate":"2026-08-01T00:00:00Z"}]}' \
     > "$VERDICT_JSON"
   printf '{"reviews":[{"state":"CHANGES_REQUESTED","submittedAt":"2026-08-02T00:00:00Z","author":{"login":"human"},"body":"four things below"}],"comments":[]}' \
     > "$REVIEWS_JSON"
@@ -165,6 +165,34 @@ section() {  # <name> <output>
   run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
   [ "$(field verdict "$(result "$output")")" = CHANGES_REQUESTED ]
   [ "$(field at_head "$(result "$output")")" = 1 ]
+}
+
+# WITHOUT THIS THE FORCE-PUSH CHECK IS INERT ON THE PATH IT PROTECTS. pr-round.sh
+# rebuilds its result line from an explicit list of fields rather than passing
+# pr-verdict.sh's through, and git-workflow's clean-review path reads the packet
+# rather than calling pr-verdict.sh itself — so a field the packet drops is one
+# that path can never see.
+@test "reviewed_after_head is forwarded onto the packet's result line" {
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field reviewed_after_head "$(result "$output")")" = 1 ]
+
+  printf '{"headRefOid":"bbb","reviewDecision":"","reviews":[{"state":"APPROVED","commit":{"oid":"bbb"},"submittedAt":"2026-08-01T00:00:00Z"}],"commits":[{"oid":"bbb","committedDate":"2026-08-02T00:00:00Z"}]}' \
+    > "$VERDICT_JSON"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field at_head "$(result "$output")")" = 1 ]
+  [ "$(field reviewed_after_head "$(result "$output")")" = 0 ]
+}
+
+# A verdict source that failed knows nothing, and the callers gate the merge on
+# this field reading 1 — so the default it falls back to must be `unknown`, never
+# the `1` a previous healthy call would have produced.
+@test "a failed verdict source yields unknown rather than a stale 1" {
+  : > "$FAIL_VERDICT"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  local r; r=$(result "$output")
+  [[ "$r" == result=OK* ]]
+  [ "$(field verdict_src "$r")" = fail ]
+  [ "$(field reviewed_after_head "$r")" = unknown ]
 }
 
 @test "an approval on a superseded commit is reported as not at head" {

@@ -19,6 +19,7 @@
 #   ── threads ──
 #   {"id":"PRRT_…","path":…,"line":…,"author":…,"body":…}
 #   result=OK head=<sha> verdict=<state> verdict_sha=<sha> at_head=0|1
+#     reviewed_after_head=0|1|unknown
 #     review_decision=<state> verdict_src=<s> diff=delta|full|none|fail
 #     activity=<n> reviews_src=<s> inline_src=<s> threads=<n> threads_src=<s>
 #
@@ -73,12 +74,16 @@ field() {  # <key> <line>
 }
 
 # 1. The standing verdict, and the HEAD the diff is taken against.
+# `reviewed_after_head` defaults to `unknown` rather than `0` for the same reason
+# pr-verdict.sh never lets it collapse to `1`: a verdict source that failed knows
+# nothing, and both callers gate the merge on this field reading `1`.
 VRES=$("$DIR/pr-verdict.sh" "$REPO" "$PR")
-HEAD=""; VERDICT=NONE; VSHA=""; AT_HEAD=0; DECISION=""
+HEAD=""; VERDICT=NONE; VSHA=""; AT_HEAD=0; REVIEWED_AFTER=unknown; DECISION=""
 if [ "$(field result "$VRES")" = OK ]; then
   verdict_src=ok
   HEAD=$(field head "$VRES"); VERDICT=$(field verdict "$VRES")
   VSHA=$(field verdict_sha "$VRES"); AT_HEAD=$(field at_head "$VRES")
+  REVIEWED_AFTER=$(field reviewed_after_head "$VRES")
   DECISION=$(field review_decision "$VRES")
 else
   case "$(field reason "$VRES")" in
@@ -153,6 +158,7 @@ printf '── threads ──\n'
 [ -n "$THREADS" ] && printf '%s\n' "$THREADS"
 
 echo "result=OK head=$HEAD verdict=$VERDICT verdict_sha=$VSHA at_head=$AT_HEAD" \
+     "reviewed_after_head=$REVIEWED_AFTER" \
      "review_decision=$DECISION verdict_src=$verdict_src diff=$diff_src" \
      "activity=$(printf '%s' "$ACTIVITY" | grep -c . || true)" \
      "reviews_src=$reviews_src inline_src=$inline_src" \
