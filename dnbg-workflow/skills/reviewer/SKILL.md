@@ -569,8 +569,10 @@ whatever changed meanwhile. If you quit the session, re-invoke the skill on the
 PR to resume (it re-assesses current state and picks the watch back up).
 
 1. **Record state** after each action: the HEAD SHA you last reviewed, a
-   timestamp marking "handled up to here" (`date -u +%Y-%m-%dT%H:%M:%SZ`), and the
-   SHA of the verdict you last handled — nothing yet, on a first arm.
+   timestamp marking "handled up to here" (`date -u +%Y-%m-%dT%H:%M:%SZ` on the
+   first arm only — on a re-arm carry the `now` the watcher reported, per
+   `references/watch.md`), and the SHA of the verdict you last handled — nothing
+   yet, on a first arm.
 
    ⚠️ **`<last_head>` is the full 40-character SHA** — take it from
    `gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid`, never an

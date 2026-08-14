@@ -62,6 +62,13 @@ It is a branching hint; `pr-round.sh` re-reads the verdict when you act on it.
 (`new_head`, `now`) and spawn it again. Repeat until `CLOSED` or the operator
 says to stop.
 
+**Carry the `now` the watcher reported; never substitute a fresh `date`.** The
+interval between the watcher's reading and yours is observed by no watch.
+Commits and verdicts survive it — both are level-triggered, by head SHA and by
+`--last-verdict` — but comments, replies and `COMMENTED` reviews are counted
+against `since_iso`, so anything conversational landing there is dropped
+indistinguishably from silence. `date` is right only for the *first* arm.
+
 `verdict_sha` is reported the same way, and is the value to re-arm
 `--last-verdict` with — it appears only when the level-triggered check fired,
 so carry the previous value forward when it is absent. Re-arming with an empty
