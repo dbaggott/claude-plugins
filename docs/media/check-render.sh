@@ -45,10 +45,7 @@ note() { printf '::error::%s\n' "$1" >&2; fail=1; }
 # A demo missing from demos.sh is rendered by nothing and checked by nothing.
 for script in "$HERE"/demo-*.sh; do
   name="$(basename "$script" .sh)"; name="${name#demo-}"
-  case " ${DEMOS[*]} " in
-    *" $name:"*) ;;
-    *) note "demo-$name.sh is not in demos.sh — it is neither rendered nor checked" ;;
-  esac
+  has_demo "$name" || note "demo-$name.sh is not in demos.sh — it is neither rendered nor checked"
 done
 
 for d in "${DEMOS[@]}"; do

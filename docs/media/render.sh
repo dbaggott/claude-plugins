@@ -38,11 +38,9 @@ render() {
 
 # A name that matches nothing would otherwise render nothing and exit 0, which
 # reads exactly like "everything was already current".
-if [ -n "$ONLY" ]; then
-  case " ${DEMOS[*]} " in
-    *" $ONLY:"*) ;;
-    *) echo "render.sh: no demo named '$ONLY' — pick one of: ${DEMOS[*]%%:*}" >&2; exit 1 ;;
-  esac
+if [ -n "$ONLY" ] && ! has_demo "$ONLY"; then
+  echo "render.sh: no demo named '$ONLY' — pick one of: ${DEMOS[*]%%:*}" >&2
+  exit 1
 fi
 
 for d in "${DEMOS[@]}"; do

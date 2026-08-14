@@ -15,3 +15,6 @@ DEMOS=(
   "work-summary:80:45"
   "vibe-review:127:52"
 )
+
+# Both consumers ask this, so the encoding above keeps a single reader.
+has_demo() { case " ${DEMOS[*]} " in *" $1:"*) return 0 ;; *) return 1 ;; esac; }
