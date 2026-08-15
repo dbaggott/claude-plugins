@@ -17,7 +17,7 @@ unmet acceptance criterion as a finding like any other. Honor the same reading
 discipline the body's own labels set (`issue-workflow`): "Related (optional — do
 not read unless blocked)" links stay unread, depth 1 only.
 
-⚠️ **Every `gh issue` command in this file runs under your own auth, not the
+**Every `gh issue` command in this file runs under your own auth, not the
 bot's** — prefix each with `env -u GH_TOKEN`. The reviewer App requests
 `pull_requests`, `contents`, `checks` and `metadata` and **no `issues` scope at
 all** (`reviewer-setup/bootstrap.py`), so a bot token cannot touch a genuine
@@ -77,7 +77,7 @@ queries but not the judgement:
   owner mentioning the issue) is the safe direction — judge relevance from the
   PR, don't narrow the query.
 
-⚠️ **Don't review a discovered PR that is still a draft.** Check `isDraft` on
+**Don't review a discovered PR that is still a draft.** Check `isDraft` on
 each and hold the drafts back. Draft status is the author's signal that the work
 is not yet endorsed for review — `git-workflow` covers why it opens PRs that way.
 A verdict on a draft spends the attention that signal is asking you to withhold,
