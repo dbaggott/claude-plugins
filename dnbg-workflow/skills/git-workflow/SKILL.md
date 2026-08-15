@@ -21,8 +21,8 @@ git remote get-url origin
 
 **If the host is not `github.com`, stop and decline.** Say that this flow is
 GitHub-only, name the host you actually found, and fall back to whatever flow
-the project already uses. Do not run a `gh` command against it
-first, and do not translate the flow to `glab` or another forge's CLI.
+the project already uses. Do not run a `gh` command against it first, and do not
+translate the flow to `glab` or another forge's CLI.
 
 These are **not** a decline:
 
@@ -78,6 +78,8 @@ gh api repos/<owner>/<repo> --jq \
 | `allow_auto_merge` | whether `gh pr merge --auto` works at all |
 | `allow_squash_merge` / `allow_merge_commit` / `allow_rebase_merge` | which merge flag to hand the operator, and whether the branch tip ends up an ancestor of the base (which decides `-d` vs `-D` locally) |
 | `delete_branch_on_merge` | whether the remote branch still needs deleting after the merge |
+
+Throughout this skill and its references, `<skill-dir>` is the **Base directory** announced when the skill loads — not the directory of the file you are reading. The scripts sit beside the skills rather than inside one, so `../../scripts/` is the same path from either.
 
 **Don't read branch protection to find out whether an approval still counts.** `dismiss_stale_reviews` needs admin, so on a repo you only have write on it answers 403 and tells you nothing — and where it does answer, it still doesn't say whether HEAD is approved. Ask that question directly:
 

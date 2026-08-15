@@ -125,8 +125,8 @@ falls back to your own auth, and on a PR someone else wrote that call *succeeds*
 `agent-reviewer-<owner>[bot]`. Nothing on the PR or in the response marks it.
 Reviewing your own PR is the one case that errors (`422 Review Can not approve
 your own pull request`), so the silent failure is the common one. The `gh api`
-posts below ask
-for `user.login` back: reading that field is how you know the identity held.
+posts below ask for `user.login` back: reading that field is how you know the
+identity held.
 
 **Keep the assignment plain and guarded, exactly as above.** `export
 GH_TOKEN="$(…mint…)"` reads as the same line and is not — `export` returns its
@@ -167,8 +167,8 @@ review.
 
 Branch protection and rulesets take **admin** to read, so from write access the
 endpoint answers 403 or 404 rather than the truth — `git-workflow`'s "Know the
-repo's merge settings" refuses the call for exactly that reason. These follow from not knowing, and
-point in opposite directions on purpose:
+repo's merge settings" refuses the call for exactly that reason. These follow
+from not knowing, and point in opposite directions on purpose:
 
 - **Assume the direction that makes your behavior safe, not the convenient one.**
   For `required_conversation_resolution` (see "Post the review") that means
@@ -180,8 +180,8 @@ point in opposite directions on purpose:
   could have protection have simply never had it configured. On those repos
   nothing is ever `BLOCKED`, no check is required, and `reviewDecision` is always
   `null`, so a rule justified by "the merge is gated anyway" is justified by
-  nothing. Every branch written to catch a bad state is then
-  dead, and the permissive branch takes all the traffic.
+  nothing. Every branch written to catch a bad state is then dead, and the
+  permissive branch takes all the traffic.
 
 `git-workflow`'s `UNSTABLE` arm in `references/merge.md` is the same posture
 applied on the author's side.

@@ -6,7 +6,7 @@ review, before spawning anything. `SKILL.md` carries the flow up to that point;
 
 ## Watching for the first review
 
-When the operator picks "Send to review" in the picker above, or otherwise signals the PR is ready (says "ready", "go", "mark it ready", etc.):
+When the operator picks "Send to review" in `SKILL.md`'s picker, or otherwise signals the PR is ready (says "ready", "go", "mark it ready", etc.):
 
 1. Run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft.
 2. **Record state**: the current head SHA, a timestamp marking "handled up to here", and the SHA of the verdict you last handled (nothing yet, on a first arm).
@@ -19,8 +19,8 @@ ME=$(gh api user --jq .login)
 # letting the watcher act on it.
 [ -n "$HEAD" ] && [ -n "$ME" ] || { echo "could not resolve head SHA / login — re-run the watch"; exit 1; }
 # WINDOW and SETTLE override the script's defaults, which are tuned for
-# `reviewer`. watch-pr.sh's headers carry the measurements; read them before
-# retuning either.
+# `reviewer`. watch-pr.sh's header holds the SETTLE measurement and lib-poll.sh
+# holds the WINDOW default; read both before retuning either.
 # --last-verdict= is empty here and only here: it says "no verdict handled yet".
 # On every re-arm pass the SHA of the verdict you last handled, or the watch
 # wakes on that same verdict on its first tick, every time.

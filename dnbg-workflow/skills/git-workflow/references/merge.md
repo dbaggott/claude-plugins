@@ -40,7 +40,7 @@ gh pr merge 48 --repo <owner>/examples --squash --delete-branch
 
 ## Watching for the merge to complete
 
-**Start it proactively.** The moment a review comes back clean (the clean-review handoff above), spawn the background poller below on the PR — don't wait for the operator to announce anything. It watches until the PR merges, closes, hits a conflict, hits a terminal block, or its window elapses, then wakes you once. This removes the round-trip in the common case (operator merges right away) and the unwatched gap in the AFK case (operator merges hours later). Spawning a watcher is read-only — it never merges; only a human does.
+**Start it proactively.** The moment a review comes back clean (the clean-review handoff in `references/review-rounds.md`), spawn the background poller below on the PR — don't wait for the operator to announce anything. It watches until the PR merges, closes, hits a conflict, hits a terminal block, or its window elapses, then wakes you once. This removes the round-trip in the common case (operator merges right away) and the unwatched gap in the AFK case (operator merges hours later). Spawning a watcher is read-only — it never merges; only a human does.
 
 **One watcher per PR.** A proactive watcher is normally already in flight by the time the operator says anything about the merge. Don't spawn a second — verify state as below and let the running one carry it to completion.
 
@@ -67,7 +67,7 @@ Spawn this as a **background** poller (Bash `run_in_background: true`) — both 
 "<skill-dir>/../../scripts/watch-merge.sh" <owner>/<repo> <num>
 ```
 
-**Do not hand-roll this loop** — same reasons as the review watcher above. `tests/watch-merge.bats` pins every branch: merged, closed, conflicted, terminally blocked, blocked-but-still-running, timed out, unreachable, and a payload that stops parsing.
+**Do not hand-roll this loop** — same reasons as the review watcher in `references/review-rounds.md`. `tests/watch-merge.bats` pins every branch: merged, closed, conflicted, terminally blocked, blocked-but-still-running, timed out, unreachable, and a payload that stops parsing.
 
 The default window is 6h of **laptop-open time**, with the poll interval on the shared curve in `scripts/lib-poll.sh`. Both are overridable (`WINDOW`, `POLL_CURVE`); the defaults are tuned for this watch. Suspended time is discounted from both, so a lid closed overnight doesn't burn the window and a resumed watch comes back responsive.
 
