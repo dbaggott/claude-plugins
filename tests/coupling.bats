@@ -764,8 +764,8 @@ remote_read_calls() {  # <SKILL.md>
 # One sourced definition is what makes that true — spelling the filter inline in
 # either file is the drift, and it is silent (the two just disagree).
 #
-# The selection predicate is pinned, not only the object shape, AND IT IS THE HALF
-# THAT COSTS DATA. `watch-pr.sh` counts what it emits in order to set `activity=1`;
+# The selection predicate is pinned, not only the object shape, and it is the half
+# that costs data. `watch-pr.sh` counts what it emits in order to set `activity=1`;
 # a count filtered differently from the emission prints `activity=1` above an EMPTY
 # payload, which a caller now told the payload is the conversation reads as nothing
 # landed — and it then re-arms with `since_iso` set to now, losing it permanently.

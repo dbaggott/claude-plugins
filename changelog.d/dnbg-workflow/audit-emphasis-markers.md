@@ -1,6 +1,7 @@
 Audited every `⚠️` marker in the repo against the emphasis budget, rather than
-only the one file `watch-pr.sh` was rebalanced in. 91 markers across 25 files;
-31 remain across 16, none above seven in a file.
+only the one file `watch-pr.sh` was rebalanced in. 89 markers across 24 files;
+31 remain across 17, none above seven in a file. Both figures exclude
+`coding-practices`, whose two hits are the rule quoting itself.
 
 Each was judged on the stated test — does it mark a silent failure of the
 reserved kind — with doubt resolved toward removing. That threshold retires a
