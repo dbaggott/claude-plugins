@@ -123,19 +123,16 @@ gh …                                                            # same call, o
 falls back to your own auth, and on a PR someone else wrote that call *succeeds*
 — a review on the PR that looks entirely right, authored by you instead of
 `agent-reviewer-<owner>[bot]`. Nothing on the PR or in the response marks it.
-(Only a self-authored PR errors, `422 Review Can not approve your own pull
-request`, because GitHub's self-approval block catches it — which is why this
-degrades silently on exactly the common case.) So the `gh api` posts below ask
-for `user.login` back: reading that field is how you know the identity held.
+Reviewing your own PR is the one case that errors (`422 Review Can not approve
+your own pull request`), so the silent failure is the common one. The `gh api`
+posts below ask for `user.login` back: reading that field is how you know the
+identity held.
 
-**Keep the assignment plain and guarded, exactly as above.** Folding it into the
-`export` — `export GH_TOKEN="$(…mint…)"` — reads as the same line and is not:
-`export` reports its *own* exit status, so a mint that exits non-zero is
-discarded, `GH_TOKEN` is set to the empty string, and the `gh` below posts under
-your auth. Neither `set -e` nor `&&` recovers it, because `export` already
-returned 0. The plain assignment propagates the failure and `|| exit 1` acts on
-it, which is what stops a failed mint before the post rather than after — and
-after is unrecoverable, since a submitted review can't be withdrawn.
+**Keep the assignment plain and guarded, exactly as above.** `export
+GH_TOKEN="$(…mint…)"` reads as the same line and is not — `export` returns its
+own status, so a failed mint is swallowed and the `gh` below posts under your
+auth. Neither `set -e` nor `&&` recovers it, and a submitted review cannot be
+withdrawn.
 
 If you're reviewing the **PR that introduces this skill**, it isn't installed
 yet — there's no Base directory — so run the helper from the PR branch instead:
@@ -170,8 +167,8 @@ review.
 
 Branch protection and rulesets take **admin** to read, so from write access the
 endpoint answers 403 or 404 rather than the truth — `git-workflow`'s "Know the
-repo's merge settings" refuses the call for exactly that reason. Two rules follow
-from not knowing, and they point in opposite directions on purpose:
+repo's merge settings" refuses the call for exactly that reason. These follow
+from not knowing, and point in opposite directions on purpose:
 
 - **Assume the direction that makes your behavior safe, not the convenient one.**
   For `required_conversation_resolution` (see "Post the review") that means
@@ -183,11 +180,11 @@ from not knowing, and they point in opposite directions on purpose:
   could have protection have simply never had it configured. On those repos
   nothing is ever `BLOCKED`, no check is required, and `reviewDecision` is always
   `null`, so a rule justified by "the merge is gated anyway" is justified by
-  nothing. The inversion is what makes it hard to spot: every branch written to
-  catch a bad state is dead, and the permissive branch takes all the traffic.
+  nothing. Every branch written to catch a bad state is then dead, and the
+  permissive branch takes all the traffic.
 
-`git-workflow`'s `UNSTABLE` arm under "Composing the merge command" is the same
-posture applied on the author's side.
+`git-workflow`'s `UNSTABLE` arm, in that skill's `references/merge.md`, is the same posture
+applied on the author's side.
 
 ## How to do the work
 

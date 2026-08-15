@@ -159,6 +159,14 @@ These all fail that bar:
   still reads fine, so nothing catches it. Write "these fail" and let the list
   say how many.
 
+  **Where the count scopes a subset, name the members instead of dropping it.**
+  "These three carry a handoff" over a list of seven is a count doing two jobs,
+  and deleting the number leaves "these", which now claims all seven. Naming them
+  — "`COMMITS`, `ACTIVITY` and `READY` carry a handoff" — drops the count and
+  keeps the scope, and stays right when a fourth joins them. Check which job the
+  number is doing before removing it: over a whole list it is redundant, over a
+  subset it is the only thing bounding the claim.
+
 What stays is a **current, non-obvious constraint** — a platform behavior, a
 fail-closed risk, two values that must move together. That is what comments are
 for. So are provenance markers that change how much a reader should trust a claim
