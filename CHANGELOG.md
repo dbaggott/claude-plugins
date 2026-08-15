@@ -9,6 +9,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.57 — 2026-08-15
+
+`reviewer`'s end-of-review cleanup is now conditional. A review run entirely
+through `gh` creates no checkout, so it no longer opens
+`references/worktree.md` at `CLOSED` to be told there is nothing to remove —
+that read now fires only when the review actually made a worktree, a clone, or
+a scratch directory.
+
+
 ## dnbg-workflow 2026.8.56 — 2026-08-15
 
 The end-of-cycle report no longer pads its **Actionable** section. The tie-break
