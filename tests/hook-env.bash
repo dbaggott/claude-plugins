@@ -7,7 +7,7 @@
 # harness that quietly stopped matching would undercut exactly the property they
 # exist to pin.
 #
-# ⚠️ A PATH CARRYING ONLY THE NAMED BINARIES is the point of `stub_path`, and
+# A path carrying only the named binaries is the point of `stub_path`, and
 # shadowing is not an alternative: the hooks ask `command -v`, which searches
 # PATH for an executable, so the only way to make a binary absent is to build a
 # PATH that genuinely lacks it.

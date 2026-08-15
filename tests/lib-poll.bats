@@ -319,7 +319,7 @@ EOF
   [ -s "$log" ] || { echo "child never started tracing"; return 1; }
   kill -TERM "$pid"
 
-  # ⚠️ THE DEADLINE IS THE ASSERTION. The nap is 30s; a foreground `sleep` defers
+  # The deadline is the assertion. The nap is 30s; a foreground `sleep` defers
   # the trap until it finishes, so if poll_nap ever goes back to one, nothing is
   # in the log within three seconds and this fails. That regression is otherwise
   # invisible — the line still appears eventually, just far too late to be true.
@@ -365,7 +365,7 @@ EOF
 }
 
 @test "a SIGKILL leaves a heartbeat and neither a signal nor an exit line" {
-  # ⚠️ ROW THREE OF THE TABLE, and the only outcome that is an ABSENCE. The whole
+  # Row three of the table, and the only outcome that is an absence. The whole
   # design rests on "heartbeat, but no SIGNAL and no EXIT" meaning an uncatchable
   # kill, so it is the row most exposed to silent regression: anything that later
   # buffers the tick line, or adds a trap catching what should be uncatchable, turns
@@ -387,7 +387,7 @@ EOF
 }
 
 @test "an orphaned watch names its new parent, not the one it started under" {
-  # ⚠️ WHAT A `parent=` OF `(1)` ON A TICK LINE IS WORTH. `_poll_parent` re-reads the
+  # What a `parent=` of `(1)` on a tick line is worth. `_poll_parent` re-reads the
   # live parent every tick instead of using `$PPID`, which bash captures once at startup
   # and never refreshes. So a TICK naming `(1)` means the watch outlived its wrapper and
   # went on polling — orphaned, which is a different failure from being killed and is
@@ -395,7 +395,7 @@ EOF
   # the watch and hide it. Nothing asserted this, so a change back to `$PPID` — or one
   # that cached the lookup — would have passed the whole suite while removing it.
   #
-  # ⚠️ THE SAME FIELD ON A `SIGNAL=` LINE PROVES NOTHING OF THE KIND, and the trap is
+  # The same field on a `SIGNAL=` line proves nothing of the kind, and the trap is
   # worth naming because the investigation fell into it: `_poll_on_signal` reads the
   # parent inside the handler, so `(1)` there says only that the wrapper was gone by the
   # time the handler ran — the ordinary outcome of ONE process-group TERM taking wrapper
@@ -515,7 +515,7 @@ EOF
 }
 
 @test "an unwritable default location leaks nothing to stderr" {
-  # ⚠️ THE DIRECTORY EXISTS BUT IS NOT WRITABLE, which is the case the sibling test
+  # The directory exists but is not writable, which is the case the sibling test
   # cannot reach: there `mkdir -p` fails, so the append is never attempted. Only this
   # shape gets as far as the `: >> "$WATCH_LOG"` probe, which is where a misordered
   # `2>/dev/null` lets bash print its own "Permission denied" before the suppression
@@ -551,7 +551,7 @@ EOF
   # is exactly what a width-truncated `ps` produces on a CI runner with no tty. This
   # asserts the guard still recognises a real watch, so truncation fails loudly here
   # rather than quietly disarming the reaper.
-  # ⚠️ WAIT ON THE TRACE, NOT ON THE PID. `kill -0` succeeds the instant `&` returns
+  # Wait on the trace, not on the pid. `kill -0` succeeds the instant `&` returns
   # — the pid exists from the fork — so it gates on nothing. What matters is the
   # child having EXEC'd: until then `ps` reports the bats harness's command line,
   # which the guard correctly declines to match, and calling the reaper inside that

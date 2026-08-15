@@ -25,7 +25,7 @@ teardown() {
     # another session. Reuse needs a full wrap of the pid space and is not plausible at
     # observed churn (~5/sec against a ~23s worst-case window), but the guard costs one
     # `ps` and removes the failure mode rather than relying on that arithmetic holding.
-    # ⚠️ `-ww`, NOT A BARE `ps`. procps-ng honours COLUMNS and falls back to 80 with
+    # `-ww`, not a bare `ps`. procps-ng honours COLUMNS and falls back to 80 with
     # no tty, which is CI — and the substring being matched sits well past column 80
     # in these children (`bash -c export WATCH_LOG=… . '<repo>/…/lib-poll.sh' …`). A
     # truncated line matches nothing, the reaper silently stops reaping, and the

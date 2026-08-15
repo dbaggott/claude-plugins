@@ -308,7 +308,7 @@ create --title x')"
 }
 
 @test "a mention inside a heredoc body is not an issue creation" {
-  # ⚠️ THE CASE QUOTE-STRIPPING ALONE DOES NOT COVER, and the most common one here:
+  # The case quote-stripping alone does not cover, and the most common one here:
   # a heredoc body is not quoted, and heredocs are how commit messages and PR
   # bodies get written in this repo. Command-position matching is what catches it.
   run_issue_hook "$(bash_payload 'git commit -F - <<MSG

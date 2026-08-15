@@ -22,7 +22,7 @@
 # Tests that deliberately exercise the DEFAULT trace path set their own `TMPDIR`
 # inline and so override this — which is why it needs no per-test exceptions.
 #
-# ⚠️ THE DIRECTORY NAME MUST NOT BE ONE OF THOSE TESTS' OWN, and `tmp` was: three of
+# The directory name must not be one of those tests' own, and `tmp` was: three of
 # them build `$BATS_TEST_TMPDIR/tmp` as their `$home`, so pointing containment at the
 # same path made their `export TMPDIR=…` a no-op. `tracing is on with no WATCH_LOG set,
 # and lands under TMPDIR` then passed with that export deleted — the one assertion it

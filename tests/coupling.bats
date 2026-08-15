@@ -278,7 +278,7 @@ EOF
 # argument is what lets the induced-failure tests below run the real code against
 # fixtures rather than only against the passing case.
 
-# ⚠️ ONLY THE LINES A SITE ACTUALLY RUNS — fenced-block contents for a skill, the whole
+# Only the lines a site actually runs — fenced-block contents for a skill, the whole
 # file for a script, minus comments in both. A plain grep over the file counts a source
 # NAMED in prose as a source QUERIED, and worse, counts the exemption marker's own text
 # (which has to name the source it exempts) as coverage of it. Either way the check
@@ -457,7 +457,7 @@ verdict_states() {  # <file>
   # The watcher scripts and the library are the only things that start a watch, so
   # RUNNING one is what makes a suite a watch-spawning suite.
   #
-  # ⚠️ COMMENT LINES ARE EXCLUDED, AND THAT IS THE SELECTION, NOT TIDYING. A grep
+  # Comment lines are excluded, and that is the selection rather than tidying. A grep
   # over whole files reads a suite that merely MENTIONS a watcher — "the gate
   # watch-pr.sh applies to .state", explaining where a rule came from — as one that
   # spawns it, and then fails it for not loading two helpers it has no use for. The
@@ -764,7 +764,7 @@ remote_read_calls() {  # <SKILL.md>
 # One sourced definition is what makes that true — spelling the filter inline in
 # either file is the drift, and it is silent (the two just disagree).
 #
-# ⚠️ THE SELECTION PREDICATE IS PINNED, NOT ONLY THE OBJECT SHAPE, AND IT IS THE HALF
+# The selection predicate is pinned, not only the object shape, AND IT IS THE HALF
 # THAT COSTS DATA. `watch-pr.sh` counts what it emits in order to set `activity=1`;
 # a count filtered differently from the emission prints `activity=1` above an EMPTY
 # payload, which a caller now told the payload is the conversation reads as nothing
