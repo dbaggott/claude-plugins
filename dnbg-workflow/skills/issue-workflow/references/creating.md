@@ -26,6 +26,7 @@ The single highest-value section. At creation time there is almost always a clea
 - Include a link only when the linked content is genuinely irreducible (a long proposal doc, a non-trivial PR diff, audit logs). Even then, summarize its key conclusions inline; the link is supplementary.
 - Don't link to recently-merged PRs as a substitute for describing what changed. The resolver shouldn't need to read a diff to understand the issue's context.
 - **Carry conclusions, not the investigation story.** "Inline over links" means each conclusion plus its minimal supporting fact ("Evidence: the retry path drops the dedup key — see `queue.go:112`"), not the session narrative that produced it. The resolver needs what's true and why it matters, not how it was discovered.
+- **Don't argue for the issue's own shape.** Why this is one issue and not three, why it isn't a duplicate — the reader already holds the scoped artifact, so none of it changes what they do. Where such an argument carries a real constraint ("X cannot land before Y"), keep the constraint and attach it to the thing it constrains.
 
 The asymmetry: writing a self-documenting issue costs the creator a few extra minutes once; an issue that requires N link-traversals costs *every* future reader the same N traversals.
 
