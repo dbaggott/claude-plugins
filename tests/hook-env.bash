@@ -7,7 +7,7 @@
 # harness that quietly stopped matching would undercut exactly the property they
 # exist to pin.
 #
-# ⚠️ A PATH CARRYING ONLY THE NAMED BINARIES is the point of `stub_path`, and
+# A path carrying only the named binaries is the point of `stub_path`, and
 # shadowing is not an alternative: the hooks ask `command -v`, which searches
 # PATH for an executable, so the only way to make a binary absent is to build a
 # PATH that genuinely lacks it.
@@ -38,7 +38,7 @@ teardown() { rm -rf "$TMP"; }
 # written by `hook_env_setup`: absent is the broken-install shape, so every suite
 # that says nothing about the stamp exercises the silent-no-op path for free.
 #
-# ⚠️ Moving this into `hook_env_setup` would silently convert the two "the
+# Moving this into `hook_env_setup` would silently convert the two "the
 # manifest is missing" tests in `inject-rules.bats` into tests of a manifest that
 # is present, and each would still pass — the stamp is opt-in, so a run that
 # never sets the option emits nothing either way. A test that cannot fail is

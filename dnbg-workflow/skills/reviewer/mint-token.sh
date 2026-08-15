@@ -67,7 +67,7 @@ done
 # (`stat -f '%Lp'` vs `stat -c '%a'`), and this comparison does not need the
 # number — only whether either write bit is set.
 #
-# ⚠️ `-L`, AND IT IS LOAD-BEARING IN BOTH DIRECTIONS. Without it `find` stats the
+# `-L`, and it is load-bearing in both directions. Without it `find` stats the
 # symlink rather than its target, and a symlink's own mode is `0777` on Linux
 # unconditionally (`symlink()` ignores umask). So every config dir or PEM that a
 # dotfile manager — stow, chezmoi, dotbot — has linked into `~/.config` would be
@@ -133,7 +133,7 @@ elif [ -n "$KEY_COMMAND" ]; then
 elif [ -f "$PEM" ]; then
   refuse_if_writable "$CONFIG_DIR" "the reviewer config directory"
   refuse_if_writable "$PEM" "the reviewer private key"
-  # ⚠️ THE PATH, NOT THE CONTENTS. This route's key is already a file on this
+  # The path, not the contents. This route's key is already a file on this
   # disk, at this mode — so reading it into memory and piping it back to openssl
   # protects nothing, and would make the *default* setup depend on /dev/fd for no
   # gain. Handing openssl the path it already had keeps this route working

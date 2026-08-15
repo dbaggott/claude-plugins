@@ -104,7 +104,7 @@ remote_is_covered() {
 # called. Both resolve here, so the gate that prints a path and the session-start
 # note that announces one can never disagree about what this session is using.
 #
-# ⚠️ THE MANIFEST'S `default` FIELD DOES NOT SUPPLY THESE, and the reference's
+# The manifest's `default` field does not supply these, and the reference's
 # one-line gloss for it ("Value used when the user provides nothing") reads as if
 # it does. It applies when the user clears a field in the configuration dialog —
 # not when the option was never configured at all. An option nobody has touched

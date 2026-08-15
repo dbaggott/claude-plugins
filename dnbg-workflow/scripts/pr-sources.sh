@@ -34,12 +34,12 @@
 # worked" — a caller that ignores them and reports an empty set as "nothing links
 # this issue" is making the claim this contract exists to prevent.
 #
-# ⚠️ ALL THREE CAN ONLY FIND WHAT THE AUTHOR LINKED. A sibling PR whose body never
+# All three can only find what the author linked. A sibling PR whose body never
 # mentions the issue is invisible to every method here — there is nothing to
 # discover. `git-workflow`'s "Multi-repo changes" requires that mention for this
 # reason.
 #
-# ⚠️ RUNS UNDER YOUR OWN AUTH, NOT THE REVIEWER BOT'S. `GH_TOKEN` is unset below.
+# Runs under your own auth, not the reviewer bot's. `GH_TOKEN` is unset below.
 # The reviewer App requests no `issues` scope at all, so a bot token cannot touch
 # a genuine issue: `gh api repos/<repo>/issues/<n>` answers `403 Resource not
 # accessible by integration`. `pull_requests: write` covers conversation comments
@@ -74,13 +74,13 @@ fi
 # 2. Timeline cross-references — anything that MENTIONS the issue, any repo,
 #    keyword or not. Authoritative, and immediate (no search-index lag).
 #
-#    ⚠️ `--slurp` IS LOAD-BEARING. `--paginate` alone emits each page as a
+#    `--slurp` is load-bearing. `--paginate` alone emits each page as a
 #    SEPARATE top-level JSON array, so the concatenation is not valid JSON and jq
 #    rejects the whole thing the moment an issue exceeds one page — the failure
 #    would arrive only on a busy issue, which is exactly where a cross-reference
 #    is most likely to be waiting. Hence `.[][]`.
 #
-#    ⚠️ AND PAGINATION ITSELF IS LOAD-BEARING. The timeline is ordered OLDEST
+#    And pagination itself is load-bearing. The timeline is ordered OLDEST
 #    FIRST with no sort parameter to invert it, so on an issue past 100 events
 #    every new cross-reference lands on the LAST page.
 #
@@ -101,7 +101,7 @@ fi
 # 3. Text search, scoped to the OWNER — catches a sibling before the timeline
 #    event registers, and PRs that reference the issue in prose.
 #
-#    ⚠️ SCOPED TO `--owner`, NEVER `--repo`. The case this source exists for is a
+#    Scoped to `--owner`, never `--repo`. The case this source exists for is a
 #    pair spanning two repos, and `--repo` can only ever return siblings in the
 #    same one — it silently drops the half you most need. Over-inclusion (an
 #    unrelated repo of the same owner mentioning the issue) is the safe

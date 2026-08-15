@@ -26,7 +26,7 @@
 # what an author must NOT use, since a human reviewer's threads block the merge
 # just as surely.
 #
-# ⚠️ MATCH THE BOT ON THE APP `slug`, NOT `bot_login`. GraphQL reports a Bot
+# Match the bot on the App `slug`, not `bot_login`. GraphQL reports a Bot
 # author's `login` WITHOUT the `[bot]` suffix (e.g. `agent-reviewer-<you>`), so
 # matching `…[bot]` never hits and `--mine` silently returns nothing — a filter
 # that finds no outstanding findings looks exactly like having none. Both
@@ -37,7 +37,7 @@
 # selects no thread at all, which reads as "nothing outstanding" — the same
 # silent-blindness shape the watcher's slug guard exists to prevent. Bail instead.
 #
-# ⚠️ RUNS UNDER YOUR OWN AUTH, NOT THE BOT'S. `GH_TOKEN` is unset below.
+# Runs under your own auth, not the bot's. `GH_TOKEN` is unset below.
 # Resolution is not identity-sensitive (anyone with write can resolve), and the
 # reviewer bot deliberately has only `contents: read` — GitHub requires
 # `contents: write` for an *App* token to call `resolveReviewThread`, which a

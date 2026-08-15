@@ -33,7 +33,7 @@ sha40() { printf '%040d' "$1"; }
 # A clock the suite controls: `date +%s` reads an offset file, and `sleep N` advances
 # that file by N and returns at once.
 #
-# ⚠️ THE PAIR IS THE UNIT — neither stub is useful alone, because the offset file is
+# The pair is the unit — neither stub is useful alone, because the offset file is
 # the only thing that moves this clock. Stub `date` alone and time never advances at
 # all; stub `sleep` alone and the naps are still real while `poll_awake` barely moves.
 # Either way no WINDOW ever expires and every test that ends in IDLE hangs.
@@ -575,7 +575,7 @@ EOF
   [[ "$output" == *"result=IDLE"* ]]
 }
 
-# ⚠️ THE SELF-WAKE THE `<bot_slug>` ARGUMENT EXISTS TO PREVENT, reached through the one
+# The self-wake the `<bot_slug>` argument exists to prevent, reached through the one
 # check that ignores `since` — so unlike every other path it cannot age out of it. The
 # reviewer's own approval sits at HEAD for the life of the PR, so an unfiltered check
 # wakes it on its own review on the first tick of every arm.

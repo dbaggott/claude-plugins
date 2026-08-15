@@ -506,13 +506,13 @@ while :; do
     # (an HTML error page, a truncated body, empty output) is caught by the gate.
     closing_urls=$(echo "$J" | jq -r '(.closedByPullRequestsReferences // [])[] | .url // empty')
 
-    # ⚠️ `--slurp` IS LOAD-BEARING, NOT TIDINESS. `--paginate` alone emits each page as a
+    # `--slurp` is load-bearing rather than tidiness. `--paginate` alone emits each page as a
     # SEPARATE top-level JSON array, so the concatenation is not valid JSON and `jq`
     # rejects the whole thing the moment an issue exceeds one page — the failure would
     # arrive only on a busy issue, which is precisely where a cross-reference is most
     # likely to be waiting. `--slurp` wraps the pages into one array, hence `.[][]`.
     #
-    # ⚠️ AND PAGINATION ITSELF IS LOAD-BEARING. The timeline is ordered OLDEST FIRST with
+    # And pagination itself is load-bearing. The timeline is ordered OLDEST FIRST with
     # no sort parameter to invert it, so on an issue past 100 events every new
     # cross-reference lands on the LAST page. Fetching page one only would poll nothing
     # but history: the wake condition could never fire and the watch would idle out
@@ -554,7 +554,7 @@ while :; do
 
     # Union the two sources, then subtract what the caller has already triaged.
     #
-    # ⚠️ THE EXCLUSION LIST IS WHAT KEEPS THE BROADENED CONDITION USABLE. A mention-only
+    # The exclusion list is what keeps the broadened condition usable. A mention-only
     # PR that stays open satisfies the timeline source on EVERY tick, so without it the
     # first triaged-as-irrelevant PR turns the wait into a hot loop that re-wakes the
     # reviewer forever. Keyed by URL rather than number because the whole point of the

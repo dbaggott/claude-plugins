@@ -17,7 +17,7 @@ unmet acceptance criterion as a finding like any other. Honor the same reading
 discipline the body's own labels set (`issue-workflow`): "Related (optional — do
 not read unless blocked)" links stay unread, depth 1 only.
 
-⚠️ **Every `gh issue` command in this file runs under your own auth, not the
+**Every `gh issue` command in this file runs under your own auth, not the
 bot's** — prefix each with `env -u GH_TOKEN`. The reviewer App requests
 `pull_requests`, `contents`, `checks` and `metadata` and **no `issues` scope at
 all** (`reviewer-setup/bootstrap.py`), so a bot token cannot touch a genuine
@@ -77,7 +77,7 @@ queries but not the judgement:
   owner mentioning the issue) is the safe direction — judge relevance from the
   PR, don't narrow the query.
 
-⚠️ **Don't review a discovered PR that is still a draft.** Check `isDraft` on
+**Don't review a discovered PR that is still a draft.** Check `isDraft` on
 each and hold the drafts back. Draft status is the author's signal that the work
 is not yet endorsed for review — `git-workflow` covers why it opens PRs that way.
 A verdict on a draft spends the attention that signal is asking you to withhold,
@@ -99,7 +99,7 @@ Watch a held-back draft rather than dropping it, arming the ready check:
 refuses anything shorter (`result=ERROR reason=bad-args`). Read it; don't reuse
 one you printed for a human.
 
-⚠️ **All three can only find what the author linked.** A sibling PR whose body
+**All three can only find what the author linked.** A sibling PR whose body
 never mentions the issue is invisible to every method here — there is nothing to
 discover. `git-workflow`'s "Multi-repo changes" requires that mention for this
 reason; if you find a set that looks incomplete, check whether a sibling simply
@@ -167,7 +167,7 @@ backoff curve and the same failure counting rather than its own. It returns
 timeout, and `ERROR reason=issue-view` / `ERROR reason=issue-timeline` when one of
 its two sources keeps failing.
 
-⚠️ **The wait polls sources 1 and 2 above, not source 1 alone.** It has to: source
+**The wait polls sources 1 and 2 above, not source 1 alone.** It has to: source
 1 lists only PRs carrying a closing keyword, so a wait built on it is strictly
 narrower than the discovery it exists to trigger, and the shape it misses is the
 one "Multi-repo changes" *mandates* — exactly one sibling closes the issue, the

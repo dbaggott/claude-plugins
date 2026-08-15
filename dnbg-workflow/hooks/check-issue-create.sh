@@ -30,7 +30,7 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 # left alone — that one genuinely separates commands.
 CMD=${CMD//\\$'\n'/ }
 
-# ⚠️ THE PHRASE HAS TO BE A COMMAND, NOT A MENTION OF ONE. Matching it anywhere in
+# The phrase has to be a command, not a mention of one. Matching it anywhere in
 # the string is content-blind: it fires on any command whose *payload* discusses
 # issue creation, and the payloads most likely to do that are the ones written
 # while working on this repo — review bodies, commit messages, issue text.

@@ -44,7 +44,7 @@ The operator can assign you as the reviewer for an **issue** rather than for a
 single PR — "you review issue 74", "be the reviewer on <issue URL>", whether or
 not any PR exists yet.
 
-⚠️ **Read `references/issue-mode.md` before acting on one, and don't improvise
+**Read `references/issue-mode.md` before acting on one, and don't improvise
 from the PR flow below.** That mode discovers the PRs resolving
 the issue from three sources (using fewer silently misses PRs), waits when none
 exist, reviews the whole set against the issue's acceptance criteria, and keeps
@@ -352,7 +352,7 @@ the wrong identity.
    don't believe it — a comment asserting a guard closes a hazard, a race the
    code claims to handle.
 
-   ⚠️ **The trigger is doubt about a specific claim, not a failing check.** The
+   **The trigger is doubt about a specific claim, not a failing check.** The
    most valuable probes are routinely run while CI is green; a rule keyed on red
    CI talks you out of exactly those. Don't read check state to decide.
 
@@ -433,7 +433,7 @@ merge. Anything you would be content to see merged over goes in the review
 **body**: FYIs, "worth noting", wording preferences, alternatives you don't need
 taken.
 
-⚠️ **And never call an open thread non-blocking.** "Merge over it if you'd rather
+**And never call an open thread non-blocking.** "Merge over it if you'd rather
 not spend the round", written in the body while a thread you filed is open, is a
 contradiction the merge box settles against you. If it really is fine to merge
 over, it belongs in the body and the thread should not exist.

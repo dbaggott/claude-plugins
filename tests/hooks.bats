@@ -308,7 +308,7 @@ create --title x')"
 }
 
 @test "a mention inside a heredoc body is not an issue creation" {
-  # ⚠️ THE CASE QUOTE-STRIPPING ALONE DOES NOT COVER, and the most common one here:
+  # The case quote-stripping alone does not cover, and the most common one here:
   # a heredoc body is not quoted, and heredocs are how commit messages and PR
   # bodies get written in this repo. Command-position matching is what catches it.
   run_issue_hook "$(bash_payload 'git commit -F - <<MSG
@@ -325,7 +325,7 @@ MSG')"
 }
 
 @test "an env-prefixed invocation is still gated" {
-  # ⚠️ THE FORM reviewer/references/issue-mode.md MANDATES for every `gh` call once a bot token is
+  # The form reviewer/references/issue-mode.md mandates for every `gh` call once a bot token is
   # exported. Anchoring the match straight to `gh` un-gates it — a hole worse than
   # the over-blocking the anchor was added to fix, because it fails OPEN on the
   # commonest real invocation in this repo.

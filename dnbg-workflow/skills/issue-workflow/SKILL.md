@@ -42,7 +42,7 @@ each lives in its own file. Read the one you are on:
   (and checking it is not already claimed), the freshness probe, the critical
   review of the issue itself, and the link-following discipline.
 
-⚠️ **On pickup, read `references/resolving.md` before touching any file or
+**On pickup, read `references/resolving.md` before touching any file or
 opening a worktree.** Claiming comes first, and an issue already being worked by
 someone else is a stop, not a merge conflict to discover later.
 
