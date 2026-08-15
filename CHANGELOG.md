@@ -9,6 +9,18 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.55 — 2026-08-15
+
+The claim rule in `git-workflow`'s "Writing the PR description" gains a third
+option beside cutting and correcting: where the number *is* the evidence, keep it
+and bound what it supports. A measurement an argument rests on cannot be loosened
+away without taking the argument with it, so state what it does and does not
+establish instead.
+
+The section also drops a sentence about which skill governs issue bodies, which
+told a reader writing a PR description nothing they act on.
+
+
 ## dnbg-workflow 2026.8.54 — 2026-08-15
 
 `git-workflow` now says to claim less in a PR description, not only to claim
