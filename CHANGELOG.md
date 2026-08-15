@@ -9,6 +9,53 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-practices 2026.8.6 — 2026-08-15
+
+The rule against counting a list you are introducing now covers the case where
+the count scopes a *subset*.
+
+"These three carry a handoff" above a list of seven is a count doing two jobs,
+and deleting the number leaves "these" — now claiming all seven. Name the members
+instead: the count goes, the scope stays, and it survives a fourth joining them.
+
+
+## dnbg-workflow 2026.8.52 — 2026-08-15
+
+Split `git-workflow`'s `SKILL.md` along the workflow timeline, the way `reviewer`
+was split. The file now carries the path a change actually walks — check the
+forge, worktree, edit, commit, self-review, push, draft PR, send to review — and
+hands off at the point each reference binds: `references/review-rounds.md` when
+the operator sends the PR to review, and `references/merge.md` once a review
+comes back clean.
+
+The skill drops from about 10,000 words to 2,600. Neither reference is reachable
+until a PR is open and reviewed, so a session that opens a draft and stops there
+no longer loads them.
+
+Post-merge cleanup travels with the merge rather than staying behind: on the
+timeline it binds after the merge, not during the opening flow. `SKILL.md` names
+`references/merge.md` for the cold case — a session told a PR merged that never
+handled a round.
+
+`git-workflow` and `reviewer` are held to `coding-practices`' test for when
+rationale earns its line: a *why* that lets the agent choose correctly in a case
+the instruction doesn't enumerate stays; a *why* that only defends an instruction
+against whoever might change it moves to where that reader looks.
+
+Most of what went was already enforceable somewhere else. `pr-verdict.sh`'s three
+result fields carried a paragraph each explaining why a later simplification must
+not drop them, while `tests/pr-verdict.bats` already pins every case by name and
+the script's header carries the force-push reasoning. The watcher spawn had
+twenty lines of comment around four lines of command, restating `bad-args`
+semantics and `SETTLE` tuning that `watch-pr.sh` states at the code implementing
+them.
+
+`watch-pr.sh`'s emphasis markers drop from 19 to 10. Each remaining one names a
+distinct way the watch reports the wrong thing silently — fail-open exclusion, a
+self-triggering wake, a short SHA that can never match, a blind window over an
+error body. The nine demoted stated a design rationale instead.
+
+
 ## dnbg-workflow 2026.8.51 — 2026-08-14
 
 `watch-pr.sh` now hands the round over instead of half-delivering it.
