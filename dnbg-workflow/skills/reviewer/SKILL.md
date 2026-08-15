@@ -731,6 +731,11 @@ commentary, not a verdict whose content is the verdict.
 - **One back-and-forth max on disagreements.** If you and the author disagree on
   a design point after one exchange, state your position briefly, defer to the
   human(s) on the PR, and stop.
+- **Raise a message-only finding as "cut it", not "correct it".** Where the whole
+  remedy is editing prose that ships — a PR body, a commit message, a changelog
+  fragment — and nobody acts on the detail, say the claim should come out. Both
+  readings are correct and only one ends the exchange: a corrected number drifts
+  again on the next commit, and the round repeats.
 
 ## Style
 
