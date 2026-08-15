@@ -9,6 +9,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.8.58 — 2026-08-15
+
+`issue-workflow` now says not to argue in an issue body for the issue's own
+shape — why it is one issue and not three, why it isn't a duplicate. The
+existing guard covers the investigation story, which is how a finding was
+reached rather than why the artifact is scoped as it is, so scope-defence
+passed it. It also says what to do with the ordering constraints such an
+argument tends to carry: keep them, attached to whatever they constrain.
+
+
 ## dnbg-workflow 2026.8.57 — 2026-08-15
 
 `reviewer`'s end-of-review cleanup is now conditional. A review run entirely
