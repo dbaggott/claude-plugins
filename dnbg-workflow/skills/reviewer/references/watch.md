@@ -24,8 +24,9 @@ verdict together. **Run it first; it is what their handling below reads from.**
   **without** `--was-draft`.
 - **`CLOSED`** — the PR merged or closed. Stop watching, then finish under
   "Report the review, in three sections" below. **Read
-  `references/worktree.md` only if you created a checkout or a scratch
-  directory** — a review run entirely through `gh` has nothing to remove.
+  `references/worktree.md` only if this *review* made a checkout or a scratch
+  directory** — including one an earlier session made and this one resumed. A
+  review run entirely through `gh` has nothing to remove.
 - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
 - **`ERROR reason=<source>`** — that source failed repeatedly and the watch
   cannot see. **Do not re-arm**: unlike `IDLE`, this says nothing about the PR,
