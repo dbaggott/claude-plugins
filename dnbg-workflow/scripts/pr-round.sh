@@ -37,7 +37,7 @@
 # counts as a verdict is pinned across exactly two files by tests/coupling.bats,
 # and the extra `gh pr view` that costs is cheaper than a third copy of the set.
 #
-# ⚠️ THREADS ARE NOT NARROWED TO THE BOT'S. A human reviewer's thread blocks the
+# Threads are not narrowed to the bot's. A human reviewer's thread blocks the
 # merge just as surely; each line carries `author` for a caller that wants only
 # its own. `pr-threads.sh --mine` is the narrowed read, for the resolve loop.
 #

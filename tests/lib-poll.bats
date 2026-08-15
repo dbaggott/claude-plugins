@@ -483,7 +483,7 @@ EOF
 }
 
 @test "tracing is on with no WATCH_LOG set, and lands under TMPDIR" {
-  # ⚠️ THE POINT OF THE WHOLE FEATURE. The failure it catches is intermittent and
+  # The point of the whole feature. The failure it catches is intermittent and
   # unreproducible, so a knob nobody set beforehand captures nothing — the default
   # is what makes the next occurrence diagnosable rather than the one after somebody
   # remembers. This test is what stops it quietly reverting to opt-in.
@@ -546,7 +546,7 @@ EOF
 }
 
 @test "the reaper does kill a process that is still ours" {
-  # ⚠️ THE POSITIVE HALF, and it exists because the negative one cannot fail safely.
+  # The positive half, and it exists because the negative one cannot fail safely.
   # "a stranger survives" passes just as well when the guard matches NOTHING — which
   # is exactly what a width-truncated `ps` produces on a CI runner with no tty. This
   # asserts the guard still recognises a real watch, so truncation fails loudly here

@@ -38,7 +38,7 @@ teardown() { rm -rf "$TMP"; }
 # written by `hook_env_setup`: absent is the broken-install shape, so every suite
 # that says nothing about the stamp exercises the silent-no-op path for free.
 #
-# ⚠️ Moving this into `hook_env_setup` would silently convert the two "the
+# Moving this into `hook_env_setup` would silently convert the two "the
 # manifest is missing" tests in `inject-rules.bats` into tests of a manifest that
 # is present, and each would still pass — the stamp is opt-in, so a run that
 # never sets the option emits nothing either way. A test that cannot fail is

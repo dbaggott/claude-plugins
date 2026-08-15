@@ -575,7 +575,7 @@ EOF
   [[ "$output" == *"result=IDLE"* ]]
 }
 
-# ⚠️ THE SELF-WAKE THE `<bot_slug>` ARGUMENT EXISTS TO PREVENT, reached through the one
+# The self-wake the `<bot_slug>` argument exists to prevent, reached through the one
 # check that ignores `since` — so unlike every other path it cannot age out of it. The
 # reviewer's own approval sits at HEAD for the life of the PR, so an unfiltered check
 # wakes it on its own review on the first tick of every arm.

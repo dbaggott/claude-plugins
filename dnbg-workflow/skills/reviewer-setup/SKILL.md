@@ -191,7 +191,7 @@ it wherever you want and set the command.
   read at creation. Edit the permissions on the App itself, under *Permissions &
   events* at `https://github.com/settings/apps/<slug>`.
 
-  ⚠️ **Then accept the change on every installation, separately.** A permission
+  **Then accept the change on every installation, separately.** A permission
   added to an App stays *pending* until each account it is installed on accepts
   it; until then the granted set is the old one and the failure is unchanged, so
   the edit looks like it did nothing. Personal installs you accept yourself; an

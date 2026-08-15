@@ -44,12 +44,12 @@
 # reachable from the REST endpoint. The date comparison covers both either way —
 # settle it before reaching for the timeline event instead.
 #
-# ⚠️ THE LAST VERDICT, NOT THE LAST APPROVAL. Filtering to `APPROVED` and taking
+# The last verdict, not the last approval. Filtering to `APPROVED` and taking
 # the last one reads an `APPROVED` followed by a `CHANGES_REQUESTED` at the SAME
 # SHA as approved — reachable two ways, a second reviewer objecting over a
 # standing approval and a reviewer reversing itself after a reply.
 #
-# ⚠️ `COMMENTED` IS NOT A VERDICT and must stay out of the set. A reviewer
+# `COMMENTED` is not a verdict and must stay out of the set. A reviewer
 # answering a thread posts one, so counting it would blank the verdict on every
 # exchange. `DISMISSED` is in the set because a dismissal genuinely ends the
 # review it dismissed.

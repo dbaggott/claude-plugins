@@ -467,7 +467,7 @@ verdict_states() {  # <file>
   for f in "$ROOT"/tests/*.bats; do
     grep -v '^[[:space:]]*#' "$f" \
       | grep -q 'watch-pr\.sh\|watch-merge\.sh\|lib-poll\.sh' || continue
-    # ⚠️ SKIP SELF. This file has to name the watcher scripts to select on them, and
+    # Skip self. This file has to name the watcher scripts to select on them, and
     # the pattern above sits on a line the exclusion does not reach — so without this
     # coupling.bats selects itself and fails with "coupling.bats spawns a watch but
     # never loads reap": true of the text, useless as a diagnosis.

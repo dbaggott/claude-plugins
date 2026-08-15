@@ -325,7 +325,7 @@ MSG')"
 }
 
 @test "an env-prefixed invocation is still gated" {
-  # ⚠️ THE FORM reviewer/references/issue-mode.md MANDATES for every `gh` call once a bot token is
+  # The form reviewer/references/issue-mode.md mandates for every `gh` call once a bot token is
   # exported. Anchoring the match straight to `gh` un-gates it — a hole worse than
   # the over-blocking the anchor was added to fix, because it fails OPEN on the
   # commonest real invocation in this repo.

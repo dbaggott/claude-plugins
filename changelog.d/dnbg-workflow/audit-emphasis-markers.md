@@ -1,15 +1,18 @@
 Audited every `⚠️` marker in the repo against the emphasis budget, rather than
 only the one file `watch-pr.sh` was rebalanced in. 91 markers across 25 files;
-61 remain.
+31 remain across 16, none above seven in a file.
 
-Each was kept or demoted on the stated test — does it mark a silent failure of
-the reserved kind — not against a per-file quota. What goes defends a design
-decision ("X is load-bearing, not tidiness"), routes the reader somewhere, or
-warns about something that fails loudly. What stays names a way the system goes
-wrong without saying so: a zero interval turning a watch into a busy loop around
+Each was judged on the stated test — does it mark a silent failure of the
+reserved kind — with doubt resolved toward removing. That threshold retires a
+whole category the earlier pass had kept: a marker whose own text reads "X is
+load-bearing, not tidiness" is addressed to whoever might simplify the line, not
+to anyone the line can hurt, however real the failure behind it.
+
+What survives names a way the system goes wrong without saying so: a trimmed
+exclusion entry failing open, an empty slug waking a watch on its own review, a
+short SHA that can never match HEAD, an error body passing a shape gate and
+blinding a whole window, a zero interval turning a watch into a busy loop around
 `gh`, a foreground nap swallowing SIGTERM, a key reaching `openssl` through a
-temp file, a discovery set that is empty because a source died, a test run
-writing into the developer's real trace directory.
-
-`mint-token.sh` is unchanged. All four of its markers are credential handling,
-which is the category the rule reserves them for.
+temp file, a hook anchor that un-gates every prefixed invocation, a discovery set
+that is empty because a source died, and a test run writing into the developer's
+real trace directory.

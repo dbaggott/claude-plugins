@@ -28,7 +28,7 @@
 # and lands under TMPDIR` then passed with that export deleted — the one assertion it
 # exists to make, silently gone. A distinct name is the whole fix; keep it distinct.
 #
-# ⚠️ CONTAINMENT IS BY ENVIRONMENT INHERITANCE, so anything that strips the environment
+# Containment is by environment inheritance, so anything that strips the environment
 # escapes it. A watch invoked under `env -i` (the shape `tests/hooks.bats` uses for
 # hooks) sees no `TMPDIR`, falls back to `/tmp/dnbg-watch`, and this function is
 # silently doing nothing. Pass `WATCH_LOG` explicitly in that case.
