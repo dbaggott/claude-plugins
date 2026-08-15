@@ -5,7 +5,7 @@ hands off at the point each reference binds: `references/review-rounds.md` when
 the operator sends the PR to review, and `references/merge.md` once a review
 comes back clean.
 
-The skill drops from about 10,000 words to 3,100. Neither reference is reachable
+The skill drops from about 10,000 words to 2,600. Neither reference is reachable
 until a PR is open and reviewed, so a session that opens a draft and stops there
 no longer loads them.
 

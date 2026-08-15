@@ -183,7 +183,7 @@ from not knowing, and point in opposite directions on purpose:
   nothing. Every branch written to catch a bad state is then dead, and the
   permissive branch takes all the traffic.
 
-`git-workflow`'s `UNSTABLE` arm in `references/merge.md` is the same posture
+`git-workflow`'s `UNSTABLE` arm, in that skill's `references/merge.md`, is the same posture
 applied on the author's side.
 
 ## How to do the work

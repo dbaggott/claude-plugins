@@ -272,7 +272,7 @@ EOF
 # assert, and the failure it guards against is unrecoverable.
 @test "the merge watcher never mutates the PR" {
   # Covers the CLI verbs, `-X VERB`, and `--method VERB` — the last of these was
-  # missing, so `gh api .../merge --method PUT` would have passed a test the
-  # skill describes as proving there is no mutating call at all.
+  # missing, so `gh api .../merge --method PUT` would have passed while this test
+  # was the only thing asserting the watcher cannot merge.
   ! grep -qE 'gh (pr )?(merge|close|review|comment|edit)|--merge|(-X|--method) *(POST|PATCH|PUT|DELETE)' "$WATCH"
 }

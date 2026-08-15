@@ -81,17 +81,17 @@ gh api repos/<owner>/<repo> --jq \
 
 Throughout this skill and its references, `<skill-dir>` is the **Base directory** announced when the skill loads — not the directory of the file you are reading. The scripts sit beside the skills rather than inside one, so the same `../../scripts/` reaches them from every skill that shares them.
 
-**Don't read branch protection to find out whether an approval still counts.** `dismiss_stale_reviews` needs admin, so on a repo you only have write on it answers 403 and tells you nothing — and where it does answer, it still doesn't say whether HEAD is approved. Ask that question directly:
+**Don't read branch protection to find out whether an approval still counts.** `dismiss_stale_reviews` needs admin, so on a repo you only have write on it answers 403 or 404 and tells you nothing — and where it does answer, it still doesn't say whether HEAD is approved. Ask that question directly:
 
 ```bash
 "<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
 ```
 
-HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1 reviewed_after_head=1`. Anything less is an approval of a diff nobody is merging — `APPROVED at_head=1` alone included, which a force-push produces over a tree nobody read. Use this wherever the answer matters: before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
+**Read `review_decision` first.** When it carries a value, approvals are *required* on this repo and that field is the answer — it accounts for supersession and for multiple required reviewers, which the comparison below does not model. It prints **empty** when no approval is required, and that is the case the rest of the line decides.
+
+With `review_decision` empty, HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1 reviewed_after_head=1`. Anything less is an approval of a diff nobody is merging — `APPROVED at_head=1` alone included, which a force-push produces over a tree nobody read. Use this wherever the answer matters: before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
 
 These returns need a decision rather than a retry. **`reviewed_after_head=unknown`** is not a `1` and no verdict clears it — surface it and let the operator decide. **`result=ERROR`** means the check could not see; it is not a verdict of "not approved". Any other shortfall resolves itself: `reviewer` re-verdicts unprompted on a HEAD move, so the fresh verdict arrives without prompting.
-
-Where `review_decision` comes back non-null, approvals are *required* on this repo and that field is the primary source — it accounts for supersession and for multiple required reviewers, which the SHA comparison does not model.
 
 **Don't hand-roll the query** — `tests/pr-verdict.bats` pins each case.
 
@@ -149,9 +149,9 @@ Don't offer "or run `gh pr ready` yourself" as an option. The watch and the revi
 
 Full GitHub URLs, always — per the always-on rule "Reference issues and PRs by full URL". The rationale and the memory-file exception live there.
 
-## Told a PR merged, with no round handled here
+## When a PR merges
 
-Go straight to `references/merge.md` for the post-merge cleanup — it runs before any new work. That file is normally reached from `references/review-rounds.md` when a review comes back clean, so this is the entry for a session that never saw the review: a resumed session, or one that only ever opened the PR.
+The post-merge cleanup is in `references/merge.md`, and it runs before any new work. Reach it from `references/review-rounds.md` when a review comes back clean or its watch reports the PR closed, and straight from here when you are simply told a PR merged — a resumed session, or one that only ever opened the PR.
 
 ## After rebase or merge
 
