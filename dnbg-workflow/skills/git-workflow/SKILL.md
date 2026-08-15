@@ -109,11 +109,13 @@ The description reflects the **as-built** state, rewritten after each commit —
 - **Claim only the scope you checked.** The over-claim usually starts one step earlier, as an unexamined assumption written up as fact: that a change generalizes, that it fixes the root cause (not just the symptom you reproduced), that the correlation you saw is the cause, that nothing else is affected. Verify the assumption, or state the scope you actually verified ("fixes the observed case; other inputs unchecked"; "removes the symptom — root cause not confirmed"). An assumption is not a result.
 - **Surface gaps, not just wins.** Known limitations, unverified branches, and deferred follow-ups belong in the body — these are as-built facts about the result, not the development narrative ruled out above; omitting them reads as "all handled," and the next reader inherits the surprise.
 
-`issue-workflow` holds issue bodies to the same bar, and states it there. When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
+When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
 
 **Claim less, rather than more precisely.** The bar above pushes toward accuracy, and accuracy pushes toward checkable detail — a count, a percentage, a file list. Each of those is something a reviewer can verify, and verifying it costs a round whether or not it was worth stating. Ask what they do differently for having it: a number that scopes the diff earns its place; a number that only describes the work does not. Precision about a quantity that moves is the worst case, since it is guaranteed to drift where a true loose claim survives the next commit.
 
 **If the only fix is to correct the message, the message was the defect.** When a finding's whole remedy is editing prose that ships — this description, a commit message, a changelog fragment — and nobody acts on the detail, cut the claim instead of correcting it. Correcting keeps the liability and spends the round again the next time it drifts.
+
+**Where the number *is* the evidence, keep it and bound what it supports.** A measurement an argument rests on cannot be loosened away without taking the argument with it. State what it does and does not establish — "observed once in nine cycles, which is a floor on the rate rather than an estimate of it" — so a reader cannot over-read it and a later count cannot falsify a claim you never made. That is the third option whenever cutting would cost the point.
 
 **If a `## dnbg-workflow <version>` note appeared at session start, end the description with the version stamp it names:**
 
