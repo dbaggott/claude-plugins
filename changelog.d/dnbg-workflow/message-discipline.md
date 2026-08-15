@@ -8,8 +8,7 @@ describes the work does not.
 It also names the terminal fix. Where a finding's whole remedy is editing prose
 that ships — a description, a commit message, a changelog fragment — and nobody
 acts on the detail, cut the claim rather than correcting it; correcting keeps the
-liability for the next time it drifts. `issue-workflow` already points here for
-issue bodies, so they inherit both.
+liability for the next time it drifts.
 
 `reviewer` gains the matching half: raise a message-only finding as "cut it"
 rather than "correct it", since only one of those ends the exchange.
