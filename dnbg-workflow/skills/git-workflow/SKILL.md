@@ -79,7 +79,7 @@ gh api repos/<owner>/<repo> --jq \
 | `allow_squash_merge` / `allow_merge_commit` / `allow_rebase_merge` | which merge flag to hand the operator, and whether the branch tip ends up an ancestor of the base (which decides `-d` vs `-D` locally) |
 | `delete_branch_on_merge` | whether the remote branch still needs deleting after the merge |
 
-Throughout this skill and its references, `<skill-dir>` is the **Base directory** announced when the skill loads — not the directory of the file you are reading. The scripts sit beside the skills rather than inside one, so `../../scripts/` is the same path from either.
+Throughout this skill and its references, `<skill-dir>` is the **Base directory** announced when the skill loads — not the directory of the file you are reading. The scripts sit beside the skills rather than inside one, so the same `../../scripts/` reaches them from every skill that shares them.
 
 **Don't read branch protection to find out whether an approval still counts.** `dismiss_stale_reviews` needs admin, so on a repo you only have write on it answers 403 and tells you nothing — and where it does answer, it still doesn't say whether HEAD is approved. Ask that question directly:
 
