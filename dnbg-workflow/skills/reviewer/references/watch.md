@@ -108,12 +108,16 @@ sibling PR that opens tomorrow goes unreviewed.
 ## Report the review, in three sections
 
 At `CLOSED`, once the cleanup in `references/worktree.md` is done, report the
-review to the operator under exactly these three headings, in this
-order. **All three every time,
-"None" under an empty one, and anything that could go under either of the last
-two goes under Actionable** — an omitted section reads as "nothing there" and
-"never considered" alike, and Observations is the one the operator is invited to
-skim.
+review to the operator under exactly these three headings, in this order.
+**Print all three every time; an empty one says so in a few words** — an omitted
+section reads as "nothing there" and "never considered" alike.
+
+**Actionable is the narrow section, and doubt resolves toward Observations** —
+the one the operator is invited to skim. An item earns Actionable only by naming
+a concrete next step and where. One you already judged as not worth raising
+during the cycle does not earn it here: passing it on hands over the work
+without the judgement that would let the operator size it. A clean cycle
+routinely leaves the section empty.
 
 - **Summary** — what happened. The PR by full URL, how it ended (merged, or
   closed unmerged), the verdicts you posted and the SHAs they sat on, and how

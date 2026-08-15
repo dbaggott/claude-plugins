@@ -118,7 +118,9 @@ When told a PR has been merged (or when the merge watcher above reports `result=
 
 ### Then close the loop, in three sections
 
-Cleanup done, report the cycle to the operator under exactly these three headings, in this order. **All three every time, "None" under an empty one, and anything that could go under either of the last two goes under Actionable** — an omitted section reads as "nothing there" and "never considered" alike, and Observations is the one the operator is invited to skim.
+Cleanup done, report the cycle to the operator under exactly these three headings, in this order. **Print all three every time; an empty one says so in a few words** — an omitted section reads as "nothing there" and "never considered" alike.
+
+**Actionable is the narrow section, and doubt resolves toward Observations** — the one the operator is invited to skim. An item earns Actionable only by naming a concrete next step and where. One you already judged as not worth raising during the cycle does not earn it here: passing it on hands over the work without the judgement that would let the operator size it. A clean cycle routinely leaves the section empty.
 
 - **Summary** — what happened. The PR by full URL, what shipped as-built, and how the cycle went (rounds, verdicts, anything the review changed about the work). Self-contained: the operator may have been away since the handoff.
 - **Observations** — informational, and nothing for them to do. Something surprising in the code you touched, an assumption the change now rests on, a check that passed for a reason worth knowing.
