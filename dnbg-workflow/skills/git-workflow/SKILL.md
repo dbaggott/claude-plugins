@@ -87,9 +87,11 @@ Throughout this skill and its references, `<skill-dir>` is the **Base directory*
 "<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
 ```
 
-**Read `review_decision` first.** When it carries a value, approvals are *required* on this repo and that field is the answer — it accounts for supersession and for multiple required reviewers, which the comparison below does not model. It prints **empty** when no approval is required, and that is the case the rest of the line decides.
+HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1 reviewed_after_head=1` — necessary always, and sufficient only where `review_decision` prints empty, which is where no approval is required.
 
-With `review_decision` empty, HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1 reviewed_after_head=1`. Anything less is an approval of a diff nobody is merging — `APPROVED at_head=1` alone included, which a force-push produces over a tree nobody read. Use this wherever the answer matters: before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
+**Where `review_decision` carries a value, it must read `APPROVED` too.** It says approvals are *required* here, and it models what the comparison cannot: supersession, and more than one required reviewer. Neither field subsumes the other — a repo that requires approvals without dismissing stale ones keeps `review_decision=APPROVED` across a push, which is the state `reviewed_after_head` exists to catch.
+
+Anything less is an approval of a diff nobody is merging — `APPROVED at_head=1` alone included, which a force-push produces over a tree nobody read. Use this wherever the answer matters: before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
 
 These returns need a decision rather than a retry. **`reviewed_after_head=unknown`** is not a `1` and no verdict clears it — surface it and let the operator decide. **`result=ERROR`** means the check could not see; it is not a verdict of "not approved". Any other shortfall resolves itself: `reviewer` re-verdicts unprompted on a HEAD move, so the fresh verdict arrives without prompting.
 
