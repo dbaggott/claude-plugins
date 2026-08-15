@@ -22,9 +22,11 @@ verdict together. **Run it first; it is what their handling below reads from.**
 - **`READY`** (`new_head=…`) — a draft you were holding back was marked ready.
   Review it now, as a first review; re-arm from the reported `new_head`,
   **without** `--was-draft`.
-- **`CLOSED`** — the PR merged or closed. Stop watching, then finish: the
-  cleanup in `references/worktree.md`, then "Report the review, in three
-  sections" below.
+- **`CLOSED`** — the PR merged or closed. Stop watching, then finish under
+  "Report the review, in three sections" below. **Read
+  `references/worktree.md` only if this *review* made a checkout or a scratch
+  directory** — including one an earlier session made and this one resumed. A
+  review run entirely through `gh` has nothing to remove.
 - **`IDLE`** — nothing within the polling window. Re-arm with the same state.
 - **`ERROR reason=<source>`** — that source failed repeatedly and the watch
   cannot see. **Do not re-arm**: unlike `IDLE`, this says nothing about the PR,
@@ -107,10 +109,10 @@ sibling PR that opens tomorrow goes unreviewed.
 
 ## Report the review, in three sections
 
-At `CLOSED`, once the cleanup in `references/worktree.md` is done, report the
-review to the operator under exactly these three headings, in this order.
-**Print all three every time; an empty one says so in a few words** — an omitted
-section reads as "nothing there" and "never considered" alike.
+At `CLOSED`, report the review to the operator under exactly these three
+headings, in this order. **Print all three every time; an empty one says so in a
+few words** — an omitted section reads as "nothing there" and "never considered"
+alike.
 
 **Actionable is the narrow section, and doubt resolves toward Observations** —
 the one the operator is invited to skim. An item earns Actionable only by naming
