@@ -445,7 +445,9 @@ HEAD moves, and a moved HEAD owes a fresh verdict and a fresh CI run. Right pric
 for a real finding, pure loss for a musing. Test each one before it goes in:
 
 - **Could acting on it change a tracked file?** The bar is file-change potential,
-  not interestingness.
+  not interestingness. The PR description is the exception, and for this rule's
+  own reason: editing it costs no push, no CI run and no fresh verdict, so a
+  stale claim there is worth raising precisely because acting on it is free.
 - **Did this diff change it, or make it wrong?** Both clauses count — a flipped
   default leaves a pre-existing documented command wrong in a file the diff never
   touched. Neither, and it belongs to a different PR.
@@ -731,6 +733,11 @@ commentary, not a verdict whose content is the verdict.
 - **One back-and-forth max on disagreements.** If you and the author disagree on
   a design point after one exchange, state your position briefly, defer to the
   human(s) on the PR, and stop.
+- **Raise a message-only finding as "cut it", not "correct it".** Where the whole
+  remedy is editing prose that ships — a PR body, a commit message, a changelog
+  fragment — and nobody acts on the detail, say the claim should come out. Both
+  readings are correct and only one ends the exchange: a corrected number drifts
+  again on the next commit, and the round repeats.
 
 ## Style
 

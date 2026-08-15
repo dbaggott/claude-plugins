@@ -111,6 +111,10 @@ The description reflects the **as-built** state, rewritten after each commit —
 
 `issue-workflow` holds issue bodies to the same bar, and states it there. When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
 
+**Claim less, rather than more precisely.** The bar above pushes toward accuracy, and accuracy pushes toward checkable detail — a count, a percentage, a file list. Each of those is something a reviewer can verify, and verifying it costs a round whether or not it was worth stating. Ask what they do differently for having it: a number that scopes the diff earns its place; a number that only describes the work does not. Precision about a quantity that moves is the worst case, since it is guaranteed to drift where a true loose claim survives the next commit.
+
+**If the only fix is to correct the message, the message was the defect.** When a finding's whole remedy is editing prose that ships — this description, a commit message, a changelog fragment — and nobody acts on the detail, cut the claim instead of correcting it. Correcting keeps the liability and spends the round again the next time it drifts.
+
 **If a `## dnbg-workflow <version>` note appeared at session start, end the description with the version stamp it names:**
 
 ```
