@@ -39,7 +39,7 @@
 # discover. `git-workflow`'s "Multi-repo changes" requires that mention for this
 # reason.
 #
-# ⚠️ RUNS UNDER YOUR OWN AUTH, NOT THE REVIEWER BOT'S. `GH_TOKEN` is unset below.
+# Runs under your own auth, not the reviewer bot's. `GH_TOKEN` is unset below.
 # The reviewer App requests no `issues` scope at all, so a bot token cannot touch
 # a genuine issue: `gh api repos/<repo>/issues/<n>` answers `403 Resource not
 # accessible by integration`. `pull_requests: write` covers conversation comments

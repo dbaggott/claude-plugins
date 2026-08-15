@@ -92,7 +92,7 @@ _poll_die() { echo "watch: $*" >&2; exit 1; }
 # three days. `WATCH_LOG=<path>` redirects it; `WATCH_LOG=off` turns it off, after
 # which every function below is an immediate return and nothing is spent.
 #
-# ⚠️ IT EXISTS BECAUSE A VANISHED WATCH LEAVES NO EVIDENCE ANYWHERE ELSE, which is
+# It exists because a vanished watch leaves no evidence anywhere else, which is
 # not obvious until you go looking for it. A background task reported as killed
 # has an EMPTY output file, because a watch writes its one result line at exit and
 # a watch that was killed never reached it. macOS keeps nothing either: the
@@ -110,7 +110,7 @@ _poll_die() { echo "watch: $*" >&2; exit 1; }
 # earns its place: without one, "the watch died silently" and "the watch was never
 # running" produce identical logs.
 #
-# ⚠️ ON BY DEFAULT, AND THAT IS THE WHOLE POINT — an opt-in knob is off exactly when
+# On by default, and that is the whole point — an opt-in knob is off exactly when
 # it matters. The failure this traces is intermittent and unreproducible: it never
 # occurs on demand, and nobody knows in advance which watch will be the one that
 # dies. A knob somebody has to remember to set BEFORE a random failure captures
@@ -130,7 +130,7 @@ _poll_trace_default() {
   printf '%s/%s-%s.log' "$dir" "$(basename "${0%.sh}")" "$$"
 }
 
-# ⚠️ CAPTURED AT SOURCE TIME, because inside a function `$@` is the FUNCTION's
+# Captured at source time, because inside a function `$@` is the FUNCTION's
 # arguments, not the script's. Sourcing inherits the caller's positional parameters,
 # so this is the only place the watcher's own arguments are reachable.
 #
@@ -154,7 +154,7 @@ elif [ -z "${WATCH_LOG:-}" ]; then
   _poll_trace_defaulted=1
 fi
 
-# ⚠️ THE LIVE PARENT, NOT `$PPID`. Bash captures `$PPID` once at startup and never
+# The live parent, not `$PPID`. Bash captures `$PPID` once at startup and never
 # refreshes it, so after the parent dies it still names the dead one — exactly the
 # case worth detecting. A watch reparented to 1 was ORPHANED, which is a different
 # failure from being killed and is otherwise indistinguishable in the log.
@@ -181,7 +181,7 @@ _poll_on_signal() {
   # would outlive it by up to a whole interval — 300s at the cap. Harmless in
   # itself, but leaving a stray process behind is a poor look for the one code path
   # whose entire job is to make a death legible.
-  # ⚠️ `|| true` IS LOAD-BEARING, NOT TIDINESS. `kill` here follows the final `&&`,
+  # `|| true` is load-bearing rather than tidiness. `kill` here follows the final `&&`,
   # which `set -e` does NOT exempt, and both watchers run under `set -euo pipefail`.
   # The nap child is often already gone — `wait` reaps it a moment before
   # `_poll_napper` is cleared — so the kill fails, the handler aborts before the
@@ -214,7 +214,7 @@ poll_trace_init() {
   # its first tick. That reading is confidently wrong, and the path is typed by
   # hand, at the moment something has just gone wrong, by someone already primed to
   # expect a silent death.
-  # ⚠️ `2>/dev/null` FIRST, BEFORE THE APPEND. Redirections are applied left to right,
+  # `2>/dev/null` goes first, before the append. Redirections are applied left to right,
   # so writing it the other way round attempts `>>` while stderr is still the
   # caller's — bash prints its own `Permission denied` there before the suppression
   # is in effect. Tracing defaults on, so this line is reached by every watch on the
@@ -223,7 +223,7 @@ poll_trace_init() {
   # thing to hand somebody, especially on the one script whose stderr gets read when
   # they are already trying to work out why a watch misbehaved.
   if ! : 2>/dev/null >> "$WATCH_LOG"; then
-    # ⚠️ LOUD FOR A PATH THE CALLER TYPED, SILENT FOR THE DEFAULT, and the asymmetry
+    # Loud for a path the caller typed, silent for the default, and the asymmetry
     # is the point. An explicit path that cannot be written is a caller error, and
     # swallowing it produces the most misleading outcome this feature has: no file at
     # all, which the table above reads as row three. The default path is nobody's
@@ -349,7 +349,7 @@ poll_nap() {
   # Only trapped signals cut `wait` short, and the traps are installed only while
   # tracing — so with WATCH_LOG unset nothing interrupts the wait and this is a
   # plain sleep.
-  # ⚠️ THIS CLOBBERS `$!` FOR THE CALLER. Neither watcher backgrounds anything, so
+  # This clobbers `$!` for the caller. Neither watcher backgrounds anything, so
   # nothing is broken today — but this is a shared library function, so a future
   # caller that backgrounds a job and reads `$!` after a nap would get the sleep.
   # The pid is kept in `_poll_napper` rather than left in `$!` so the signal
