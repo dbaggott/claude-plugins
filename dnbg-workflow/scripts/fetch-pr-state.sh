@@ -120,8 +120,21 @@ OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
              elif ($checks | length) == 0
              then {status:"blocked", cause:"checks_expected"}
              else {status:"blocked", cause:"terminal"} end)
-          elif $m == ""         then {status:"unknown", cause:null}
-          else {status:"unknown", cause:($m | ascii_downcase)} end
+          # Mergeable. GitHub documents it as "mergeable with passing commit
+          # status and pre-receive hooks", so it is CLEAN with a note, not an
+          # unrecognised value — reading it as unknown leaves a mergeable PR
+          # that no caller acts on, on every repo that has hooks.
+          elif $m == "HAS_HOOKS" then {status:"clean", cause:"has_hooks"}
+          # "The state cannot currently be determined" — GitHub recomputes
+          # mergeability asynchronously and answers this while it does. It means
+          # ask again, which every caller here already does on its next tick.
+          elif $m == "UNKNOWN"  then {status:"indeterminate", cause:"recomputing"}
+          elif $m == ""         then {status:"indeterminate", cause:"absent"}
+          # A value GitHub has never documented. Distinct from the two above on
+          # purpose: those are answers, this is the schema having moved, and the
+          # remedy is a person re-running tests/fixtures/capture-enums.sh rather
+          # than another poll.
+          else {status:"unrecognised", cause:($m | ascii_downcase)} end
       ),
       reviews:  ($pr.reviews  // [] | map({author:(.author.login // ""), at:(.submittedAt // ""),
                                            state:(.state // ""), sha:(.commit.oid // ""),

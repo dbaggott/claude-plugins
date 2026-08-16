@@ -32,6 +32,8 @@ Pick the merge-method flag from what the repo actually allows (`--squash`, `--me
 - **same two causes, `allow_auto_merge=false`** — both forms are refused right now (`--auto` needs the repo setting). Give the plain form, but say explicitly that required checks are still outstanding and the command will work once they're green — the browser merge button enables at the same moment.
 - **`status=blocked`, any other cause** — the PR is not actually mergeable. `checks_failing` names a red required check, `review_required` an approval that has not been given, `terminal` something only a human clears. Don't send a ready-to-merge handoff at all; surface the cause and ask.
 - **`status=behind`** — the base moved on and the branch needs an "Update branch" click before it can merge. Say so; under a merge queue it often clears unaided.
+- **`status=indeterminate`** — GitHub is recomputing mergeability and has no answer yet. This is routine right after a push, which is exactly when this stage reads. Wait a few seconds and read again rather than composing a handoff on it.
+- **`status=unrecognised`** — GitHub returned a merge status this mapping has never seen, so the schema moved. Don't guess what it means: say what came back, and re-run `tests/fixtures/capture-enums.sh` to see what changed.
 
 Drop `--delete-branch` when `delete_branch_on_merge` is already on for the repo — it's redundant there, though harmless.
 
@@ -98,9 +100,10 @@ watcher that is running.
 On a bare `result=IDLE` here — six hours of laptop-open time with no merge, and
 no `merge=` field naming a cause — wake **once** and say the PR is still open and
 still needs merging, with the URL and the merge command re-composed. Then stop;
-do not silently re-arm. An `IDLE` that *does* carry `merge=behind` is the
-exception above: it has a cause and a remedy, so it is re-armed rather than
-stopped.
+do not silently re-arm. An `IDLE` carrying a `merge=` field is the exception: it
+names a cause and has a remedy, so it is re-armed rather than stopped —
+`merge=behind` wants an "Update branch" click, and `merge=unrecognised:<value>`
+means the schema moved and wants the enum capture re-run.
 
 Any time the operator says something about the merge — kicking it off
 ("merging", "auto-merge is on", "go ahead") **or asserting it is done**

@@ -1234,3 +1234,23 @@ EOF
   INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
   [[ "${lines[-1]}" == "result=DIRTY "* ]]
 }
+
+# The third `merge=` value, and the one whose whole purpose is to be seen: a
+# status GitHub has never documented means the schema moved, and the remedy is a
+# person re-running the enum capture rather than another poll. Silent is the one
+# thing it must not be, and the other two arms are pinned.
+@test "an undocumented merge status is surfaced on the window's IDLE" {
+  echo NEWLY_INVENTED > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" == *"merge=unrecognised:newly_invented"* ]]
+}
+
+# Scoped to the author, like the rest of the merge block — a reviewer has nothing
+# to do about a merge status, and saying so on its IDLE would be noise.
+@test "the reviewer's IDLE carries no merge field" {
+  echo NEWLY_INVENTED > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" != *"merge="* ]]
+}

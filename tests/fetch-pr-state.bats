@@ -106,10 +106,14 @@ line() { tail -1 <<<"$1"; }
   [ "$(obj "$output" | jq -r '.checks | length')" = 0 ]
 }
 
-@test "an unrecognised merge status is reported as unknown rather than guessed" {
+# `tests/merge-cause.bats` owns the question of which values are documented; this
+# only pins that an undocumented one is carried through by name rather than
+# guessed at. `DRAFT` is a real example — it reads like a merge state and is not
+# one, so a mapping written from memory tends to include it.
+@test "an unrecognised merge status is carried by name rather than guessed" {
   pr DRAFT '[]'
   run "$FETCH" o/r 1
-  [ "$(obj "$output" | jq -r '.merge.status')" = unknown ]
+  [ "$(obj "$output" | jq -r '.merge.status')" = unrecognised ]
   [ "$(obj "$output" | jq -r '.merge.cause')" = draft ]
 }
 
