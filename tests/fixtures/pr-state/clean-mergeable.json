@@ -1,0 +1,48 @@
+{
+  "_captured": {
+    "repo": "dbaggott/dnbg-watch-testbed",
+    "pr": 1,
+    "at": "2026-08-16T16:56:49Z",
+    "protection": {
+      "approvals": 0,
+      "conversation_resolution": true,
+      "required_checks": 1,
+      "strict": true
+    }
+  },
+  "comments": [],
+  "headRefOid": "dc6b87be256631da181c4c203a6f758cf5daff7c",
+  "isDraft": false,
+  "mergeStateStatus": "CLEAN",
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOT6NheM8AAAABJtekOA",
+      "author": {
+        "login": "agent-reviewer-dbaggott"
+      },
+      "authorAssociation": "NONE",
+      "body": "Requesting changes on the one line of prose this PR adds.\n\nThe branch itself is clean, and worth saying so explicitly since the commit list looks otherwise: the tree at `7858c21` is `.github/workflows/ci.yml` and `README.md` only, so the `FAIL` marker added in `a87909b` and removed in `7858c21` left no residue, and nothing on `main` is deleted. The problem is `README.md:28` — see the inline note.\n\nSurfaces checked: full diff, head tree at `7858c21`, `ci.yml`, `README.md` at head, PR commit list, check rollup.\n\n<!-- dnbg-workflow 2026.8.59 -->\n<!-- reviewed-sha: 7858c219db5a5be04dd0cb290f6120cb2eae67f7 -->",
+      "submittedAt": "2026-08-16T16:24:52Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "CHANGES_REQUESTED",
+      "commit": {
+        "oid": "7858c219db5a5be04dd0cb290f6120cb2eae67f7"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-08-16T16:56:06Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/dbaggott/dnbg-watch-testbed/actions/runs/31960068804/job/95196577781",
+      "name": "check",
+      "startedAt": "2026-08-16T16:56:03Z",
+      "status": "COMPLETED",
+      "workflowName": "ci"
+    }
+  ]
+}

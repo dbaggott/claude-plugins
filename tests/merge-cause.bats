@@ -128,6 +128,42 @@ replay() { jq 'del(._captured)' "$STATES/$1.json" > "$PAYLOAD"; }
   [ "$(merge_of | jq -r '.cause')" = recomputing ]
 }
 
+# An unresolved review thread is a real blocker where the repo requires
+# conversations resolved, and it is the one a bot reaches: an App's VERDICT does
+# not move `reviewDecision` (GitHub records the App as `authorAssociation: NONE`
+# and leaves it out of `latestOpinionatedReviews`), but its inline comments open
+# threads, and those gate the merge. Confirmed by isolating it — with approvals
+# not required, checks green and the branch current, resolving the one thread
+# took the same PR from BLOCKED to CLEAN.
+@test "an unresolved conversation is a terminal block" {
+  replay blocked-conversation-unresolved
+  [ "$(merge_of | jq -r '.cause')" = terminal ]
+}
+
+# The same PR one mutation later. Pinned together with the case above because
+# the pair is the evidence: either alone is a state, the two are a mechanism.
+@test "resolving the last thread clears the block" {
+  replay clean-mergeable
+  [ "$(merge_of | jq -r '.status')" = clean ]
+  [ "$(merge_of | jq -r '.cause')" = null ]
+}
+
+# The two decisions no repo here could produce until one was configured to
+# require an approval. Both were taken from a review posted by a GitHub App, and
+# an App's verdict only reaches `reviewDecision` when the App holds
+# `contents: write` — without it GitHub keeps the review out of
+# `latestOpinionatedReviews` entirely, so a caller reading this field sees a
+# verdict that the PR page shows and the merge box ignores.
+@test "changes requested is a review wait, not a terminal block" {
+  replay blocked-changes-requested
+  [ "$(merge_of | jq -r '.cause')" = review_required ]
+}
+
+@test "an approval on a repo that requires one clears the block" {
+  replay clean-bot-approved
+  [ "$(merge_of | jq -r '.status')" = clean ]
+}
+
 # --- the fixtures themselves ----------------------------------------------------
 
 # A fixture nobody can place is a fixture nobody can re-take, and re-taking is
