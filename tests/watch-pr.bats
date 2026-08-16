@@ -671,12 +671,19 @@ EOF
 # leaving both variables empty so the level-triggered check silently stops firing and
 # the watch reports a quiet PR. `commit` as a number breaks that query alone: the
 # shape gate passes, and the activity count above it reads fields that are all there.
-@test "a verdict payload that stops parsing kills the watch instead of reporting quiet" {
+# It used to die here with no result line, because the verdict read had no
+# counter of its own and dying beat reporting quiet. The malformed shape is now
+# caught one layer down, where the payload is parsed at all, so it arrives as a
+# named ERROR the caller can branch on — and it is caught once for every reader
+# rather than by each in turn.
+@test "a review the fetch cannot parse reports ERROR instead of reporting quiet" {
   printf '[{"submittedAt":"1970-01-02T00:00:00Z","author":{"login":"someone"},"state":"APPROVED","commit":5}]' \
     > "$REVIEWS"
-  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
-  [ "$status" -ne 0 ]
-  [[ "$output" != *"result="* ]]
+  INTERVAL=1 WINDOW=30 FAIL_MAX=2 FAIL_MIN_SECONDS=0 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
+  [ "$status" -eq 0 ]
+  [[ "${lines[-1]}" == *"result=ERROR reason=pr-view-shape"* ]]
+  [[ "$output" != *"result=IDLE"* ]]
 }
 
 # --- conditions absorbed from watch-merge.sh --------------------------------

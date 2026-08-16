@@ -241,7 +241,7 @@ while :; do
     [ .reviews[]?
       | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "DISMISSED")
       | select(.author != $slug and .author != ($slug + "[bot]")) ]
-    | (last // {}) | select((.sha // "") == $head) | "\(.sha) \(.state)"' 2>/dev/null || true)
+    | (last // {}) | select((.sha // "") == $head) | "\(.sha) \(.state)"')
 
   changed=0
   if [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = false ] && [ "$saw_ready" = 0 ]; then
