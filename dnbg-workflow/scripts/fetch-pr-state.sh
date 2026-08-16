@@ -34,6 +34,10 @@ fail() { echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0; }
 REPO="${1:-}"; PR="${2:-}"
 case "${REPO}${PR}" in *[!\ ]*) ;; *) fail bad-args ;; esac
 [ -n "$REPO" ] && [ -n "$PR" ] || fail bad-args
+# Refused here rather than left to the forge: a typo'd repo is otherwise
+# FAIL_MAX ticks of "the source is failing", whose documented remedy is checking
+# auth — the one place the answer is not.
+case "$REPO" in */*) ;; *) fail bad-args ;; esac
 case "$PR" in *[!0-9]*) fail bad-args ;; esac
 
 FORGE="${FORGE:-github}"

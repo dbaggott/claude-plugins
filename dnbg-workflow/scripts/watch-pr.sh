@@ -128,7 +128,7 @@ new_head=""; verdict_sha=""; verdict_state=""; checks_now=""
 # told it was handled when it was never reported.
 checks_baseline="$LAST_CHECKS"
 last_json=""
-obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0
+obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0; obs_verdict=""
 settle_until=0; settle_cap=0; holding_draft=0
 J=""; RAWC="[]"
 
@@ -217,8 +217,12 @@ report_burst() {
   watch_rearm "$(rearm_cmd)"
   local ck=""
   [ -n "$saw_checks" ] && ck=" checks=$(shq "$saw_checks")"
+  # A verdict excluded deliberately: CHECKS is documented as "not your finding to
+  # fix, re-arm without acting", and the re-arm marks the verdict handled — so
+  # reducing an unhandled verdict to CHECKS loses it until the IDLE backstop
+  # notices an approval standing at HEAD, a window later.
   if [ -n "$saw_checks" ] && [ "$saw_ready" = 0 ] && [ "$saw_commits" = 0 ] \
-     && [ "$saw_activity" = 0 ]; then
+     && [ "$saw_activity" = 0 ] && [ -z "$verdict_sha" ]; then
     echo "result=CHECKS checks=$(shq "$saw_checks")$(verdict_field) now=$(poll_now_iso)"
     exit 0
   fi
@@ -273,7 +277,13 @@ while :; do
   STATE=$(printf '%s' "$J" | jq -r '.state')
   DRAFT=$(printf '%s' "$J" | jq -r '.draft')
   HEAD=$(printf '%s' "$J" | jq -r '.head')
-  RAWC=$(printf '%s' "$J" | jq -c '.inline')
+  # Guarded like `last_json`: a degraded tick carries `[]` for this half, and
+  # overwriting on one empties the summary for a burst whose activity was inline
+  # comments in the first place.
+  case "$LINE" in
+    *degraded=inline-comments*) ;;
+    *) RAWC=$(printf '%s' "$J" | jq -c '.inline') ;;
+  esac
 
   if [ "$STATE" = MERGED ] || [ "$STATE" = CLOSED ]; then
     echo "result=CLOSED state=$STATE"; exit 0
@@ -346,9 +356,14 @@ while :; do
   fi
   if [ -n "$verdict_line" ]; then
     vsha="${verdict_line%% *}"
-    if [ "$vsha" != "$LAST_VERDICT" ]; then
+    # Two different facts, so two variables. `obs_verdict` stops one standing
+    # verdict from re-triggering the settle on every tick; `LAST_VERDICT` is what
+    # the CALLER has handled, and only a report may advance it. Sharing one hands
+    # back a verdict no run reported, which suppresses it if the head ever
+    # returns to that SHA.
+    if [ "$vsha" != "$LAST_VERDICT" ] && [ "$vsha" != "$obs_verdict" ]; then
       verdict_sha="$vsha"; verdict_state="${verdict_line#* }"; changed=1
-      LAST_VERDICT="$vsha"
+      obs_verdict="$vsha"
     fi
   else
     # No verdict stands at the current head — a push moved past the one seen

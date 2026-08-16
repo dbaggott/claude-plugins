@@ -266,3 +266,11 @@ line() { tail -1 <<<"$1"; }
   run "$FETCH" o/r 1
   [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
 }
+
+# The sibling fetch already refuses this. Left to the forge it costs FAIL_MAX
+# ticks and then reports the source as failing, whose documented remedy is
+# checking auth — the one place the answer is not.
+@test "a repo argument with no owner is refused, like the issue fetch" {
+  run "$FETCH" notarepo 1
+  [[ "$output" == *"reason=bad-args"* ]]
+}

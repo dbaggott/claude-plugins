@@ -63,7 +63,7 @@ setup() {
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
 echo "$(date +%s) $*" >> "$CALLS"
-# One poll is one `pr view`/`issue view`, so that is what counts as a tick — and the
+# One poll is one `pr view`, so that is what counts as a tick — and the
 # stub is the only thing in the test that sees one. Anything a test wants to happen
 # "later in the watch" is scheduled by tick count rather than by backgrounding a
 # `sleep`: with the clock stubbed there is no real time for a background job to wait
@@ -85,24 +85,12 @@ case "$1 $2" in
       "$(cat "$ROLLUP" 2>/dev/null || echo '[]')" \
       "$(cat "$MERGESTATE" 2>/dev/null || echo CLEAN)" \
       "$(cat "$REVIEWDECISION" 2>/dev/null || echo '')" ;;
-  "issue view")
-    [ -f "$FAIL_PRVIEW" ] && exit 1
-    printf '{"state":"OPEN","closedByPullRequestsReferences":%s}' "$(cat "$LINKED" 2>/dev/null || echo '[]')" ;;
   "api "*|"api")
-    # The two endpoints issue mode and PR mode reach for are told apart by path, so a
-    # test can fail one while the other stays healthy — which is the only way to
-    # exercise a source going blind underneath a primary poll that still succeeds.
-    case "$*" in
-      *timeline*)
-        [ -f "$FAIL_TIMELINE" ] && exit 1
-        # `--slurp` shape: an array OF PAGES, each itself an array of events. The
-        # stub emits it because that is what the watcher parses (`.[][]`); a flat
-        # array here would let a `.[]` regression pass.
-        cat "$XREF" 2>/dev/null || echo '[[]]' ;;
-      *)
-        [ -f "$FAIL_COMMENTS" ] && exit 1
-        echo '[]' ;;
-    esac ;;
+    # Inline comments: the one endpoint the PR fetch reaches beyond `pr view`, so
+    # failing it alone is how a source going blind underneath a healthy primary
+    # poll gets exercised.
+    [ -f "$FAIL_COMMENTS" ] && exit 1
+    echo '[]' ;;
   *) exit 1 ;;
 esac
 EOF
@@ -114,10 +102,7 @@ EOF
   export PATH="$STUB:$PATH" CALLS
   export FAIL_PRVIEW="$BATS_TEST_TMPDIR/fail_prview"
   export FAIL_COMMENTS="$BATS_TEST_TMPDIR/fail_comments"
-  export FAIL_TIMELINE="$BATS_TEST_TMPDIR/fail_timeline"
   export HEADCOUNT="$BATS_TEST_TMPDIR/headcount"
-  export LINKED="$BATS_TEST_TMPDIR/linked"
-  export XREF="$BATS_TEST_TMPDIR/xref"
   export REVIEWS="$BATS_TEST_TMPDIR/reviews"
   # NOT `DRAFT`: watch-pr.sh assigns its own `DRAFT` from the payload, and an
   # assignment to an already-exported name keeps the export — so the stub, a
@@ -137,16 +122,6 @@ EOF
 reviews() {  # <state> <commit-sha> <login>
   printf '[{"state":"%s","submittedAt":"1970-01-02T00:00:00Z","author":{"login":"%s"},"commit":{"oid":"%s"}}]' \
     "$1" "$3" "$2"
-}
-
-# One cross-referenced PR, on the page given, in the shape `gh api --paginate --slurp`
-# returns. `pages 2` puts it on the second page — where a real timeline puts anything
-# new, since the endpoint is oldest-first with no way to invert it.
-xref_pages() {  # <page-count> <pr-url>
-  local n="$1" url="$2" i out=""
-  for (( i = 1; i < n; i++ )); do out="$out[],"; done
-  printf '[%s[{"event":"cross-referenced","source":{"issue":{"pull_request":{},"html_url":"%s"}}}]]' \
-    "$out" "$url"
 }
 
 # (a) every poll fails -> exactly one ERROR, and never IDLE.
@@ -1007,4 +982,67 @@ EOF
   local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
   # Nothing was reported, so the next arm must still have no verdict handled.
   [[ "$rearm" == *"--last-verdict= "* ]]
+}
+
+# --- a verdict outranks a red check as the result name -------------------------
+
+# CHECKS is documented as "not your finding to fix — re-arm without acting", and
+# the re-arm marks the verdict handled. So reducing an unhandled verdict to a
+# CHECKS wake loses it until the IDLE backstop notices an approval at HEAD, a
+# whole window later.
+@test "a verdict standing at HEAD is not reduced to a CHECKS wake" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  echo '[{"name":"build","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-verdict=
+  [[ "${lines[-1]}" != result=CHECKS* ]]
+  # The red build still rides along — it is not dropped, only demoted.
+  [[ "${lines[-1]}" == *"checks='build'"* ]]
+  [[ "${lines[-1]}" == *"verdict=APPROVED"* ]]
+}
+
+# --- what the caller has handled is advanced by a report, not by a sighting -----
+
+# A verdict seen, then a push past it: the verdict is withdrawn and nothing is
+# reported, so the next arm must still have no verdict handled. Advancing on
+# sight suppresses that verdict if the head ever returns to the SHA.
+@test "an unreported verdict does not advance what the caller has handled" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  AT_TICK=2 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=9 \
+    INTERVAL=1 SETTLE=2 WINDOW=12 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-verdict=
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"--last-verdict= "* ]]
+}
+
+# --- a degraded source must not empty the summary it feeds ---------------------
+
+# The fetch substitutes `[]` for the inline half when that source fails. Taking
+# it means a burst whose activity WAS inline comments reports `activity=1` over
+# an empty summary.
+@test "a degraded inline fetch does not blank the activity summary" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+echo "$(date +%s) $*" >> "$CALLS"
+if [ "$2" = view ]; then
+  t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+fi
+case "$1 $2" in
+  "pr view")
+    printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[],"statusCheckRollup":[],"mergeStateStatus":"CLEAN","reviewDecision":""}' 0 ;;
+  "api "*|"api")
+    # Answers on tick 1, then goes blind — the degraded case.
+    t=$(cat "$TICKS" 2>/dev/null || echo 0)
+    [ "$t" -ge 2 ] && exit 1
+    echo '[{"user":{"login":"someone"},"created_at":"2026-06-01T00:00:00Z","id":7,"path":"a.sh","line":3,"body":"x"}]' ;;
+  *) exit 1 ;;
+esac
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=1 SETTLE=3 WINDOW=12 FAIL_MAX=99 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  # The summary must still name the inline finding that caused the wake.
+  [[ "$output" == *'"kind":"inline"'* ]]
 }

@@ -50,12 +50,21 @@ role defaults to 30 minutes because that is sized for waiting on a review, where
 silence is suspect. Waiting on a merge is the opposite: the operator may step
 away for hours, and a watch that idles out at 30 minutes leaves the merge
 uncaught and the post-merge cleanup unrun — the exact case this stage exists for.
-So arm it explicitly:
+
+**Take the `── re-arm ──` line the review watch just printed and change
+`WINDOW=` to `21600`.** That line already carries the head it observed, `since`
+set to its own `now`, the verdict it reported and the checks it named — so this
+is a one-token edit:
 
 ```bash
 WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
-  "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "" --role=author --last-verdict=<sha>
+  <the rest of the printed line, unchanged>
 ```
+
+Don't re-assemble it by hand. Reading the clock for `since` drops whatever the
+reviewer posted while you were composing the handoff, and dropping
+`--last-checks` re-fires a red check the caller was already told about on the
+merge watch's first tick.
 
 **Spawn it the moment a review comes back clean**, before telling the operator
 the PR is ready — the claim "I am watching for the merge now" has to be about a
