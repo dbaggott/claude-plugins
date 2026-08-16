@@ -1,17 +1,19 @@
-**The reviewer bot now needs the `contents: write` permission.** Without it a
-review posts and reads correctly but counts for nothing: GitHub does not let it
-move `reviewDecision`, so on a repo that requires an approval the bot can never
-satisfy the gate, and it cannot resolve its own review threads either. Nothing
-reports this — the review simply has no effect.
+Reviews from the `reviewer` bot were not counting. GitHub does not let a review
+from an App that lacks write access to repository contents affect a pull
+request's approval state — so on a repo that requires an approval the bot could
+never satisfy it, and threads it opened could not be resolved. The review
+appeared on the PR, read correctly, and did nothing. It asks for that access
+now, and `reviewer-setup` grants it when it creates an App.
 
-**If you set up your reviewer before this release, you have to grant it by
-hand.** A GitHub App's permissions are fixed when it is created, so re-running
-the setup will not change an existing one. Add *Contents: Read and write* at
-`https://github.com/settings/apps/<your-app>/permissions`, then accept the
-pending request on each installation — the grant does nothing until you do.
-`reviewer-setup`'s **Repair / rotate** section has the steps.
+Setting up a reviewer also checks what the App was actually granted, and says
+what is missing and how to fix it if anything is. An App holding extra
+permissions for other purposes is fine.
 
-**Minting a bot token now checks the permissions it was granted** and tells you
-what is missing, why it matters, and how to fix it. It is silent when nothing is
-missing, and it does not mind an App that holds extra permissions for other
-purposes.
+## Migration
+
+**An App created before this release keeps its old permissions.** GitHub fixes
+them when the App is created, so re-running the setup will not change one. Add
+*Contents: Read and write* under your App's permissions, then accept the pending
+request on each installation — the grant does nothing until you do.
+`reviewer-setup`'s **Repair / rotate** section has the steps. If you skip this,
+the reviewer will tell you the next time it runs.
