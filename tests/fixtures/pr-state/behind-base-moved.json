@@ -1,0 +1,32 @@
+{
+  "_captured": {
+    "repo": "dbaggott/dnbg-watch-testbed",
+    "pr": 1,
+    "at": "2026-08-16T16:22:29Z",
+    "protection": {
+      "approvals": 1,
+      "conversation_resolution": true,
+      "required_checks": 1,
+      "strict": true
+    }
+  },
+  "comments": [],
+  "headRefOid": "7858c219db5a5be04dd0cb290f6120cb2eae67f7",
+  "isDraft": false,
+  "mergeStateStatus": "BEHIND",
+  "reviewDecision": "REVIEW_REQUIRED",
+  "reviews": [],
+  "state": "OPEN",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-08-16T16:07:35Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/dbaggott/dnbg-watch-testbed/actions/runs/31957693070/job/95190743899",
+      "name": "check",
+      "startedAt": "2026-08-16T16:07:31Z",
+      "status": "COMPLETED",
+      "workflowName": "ci"
+    }
+  ]
+}

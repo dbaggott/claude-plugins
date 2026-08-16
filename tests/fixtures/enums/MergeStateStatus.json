@@ -1,0 +1,37 @@
+{
+  "_captured": {
+    "enum": "MergeStateStatus",
+    "at": "2026-08-16T16:09:12Z",
+    "source": "GitHub GraphQL introspection"
+  },
+  "values": [
+    {
+      "description": "The head ref is out of date.",
+      "name": "BEHIND"
+    },
+    {
+      "description": "The merge is blocked.",
+      "name": "BLOCKED"
+    },
+    {
+      "description": "Mergeable and passing commit status.",
+      "name": "CLEAN"
+    },
+    {
+      "description": "The merge commit cannot be cleanly created.",
+      "name": "DIRTY"
+    },
+    {
+      "description": "Mergeable with passing commit status and pre-receive hooks.",
+      "name": "HAS_HOOKS"
+    },
+    {
+      "description": "The state cannot currently be determined.",
+      "name": "UNKNOWN"
+    },
+    {
+      "description": "Mergeable with non-passing commit status.",
+      "name": "UNSTABLE"
+    }
+  ]
+}

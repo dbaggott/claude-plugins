@@ -1,0 +1,21 @@
+{
+  "_captured": {
+    "enum": "PullRequestReviewDecision",
+    "at": "2026-08-16T16:09:12Z",
+    "source": "GitHub GraphQL introspection"
+  },
+  "values": [
+    {
+      "description": "The pull request has received an approving review.",
+      "name": "APPROVED"
+    },
+    {
+      "description": "Changes have been requested on the pull request.",
+      "name": "CHANGES_REQUESTED"
+    },
+    {
+      "description": "A review is required before the pull request can be merged.",
+      "name": "REVIEW_REQUIRED"
+    }
+  ]
+}

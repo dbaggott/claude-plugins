@@ -22,7 +22,7 @@
 #   result=BLOCKED  cause=terminal now=<iso>                # nothing pending will clear it
 #                                                           # — author role WITH --merge-stage only
 #   result=CLOSED   state=MERGED|CLOSED                     # finished — stop watching
-#   result=IDLE     [merge=behind|blocked] now=<iso>        # nothing within the window
+#   result=IDLE     [merge=behind|blocked|unrecognised:<v>] now=<iso>
 #   result=ERROR    reason=<source> now=<iso>               # the watch is broken — do NOT re-arm
 #
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
@@ -415,6 +415,11 @@ while :; do
     # look for why nothing merged.
     idle_merge=""
     [ "$MSTATUS" = behind ] && idle_merge=behind
+    # Surfaced rather than acted on: the remedy is a person re-running
+    # tests/fixtures/capture-enums.sh and deciding what the new value means, so
+    # the watch keeps running and names it on the window it was going to report
+    # anyway. Silent is the one thing it must not be.
+    [ "$MSTATUS" = unrecognised ] && idle_merge="unrecognised:$MCAUSE"
     # A conflict is worth stopping for at any stage — it is never the normal
     # state of a PR, and nothing the reviewer does clears it.
     [ "$MSTATUS" = dirty ] && report_stop DIRTY
