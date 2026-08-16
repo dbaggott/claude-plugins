@@ -28,9 +28,13 @@ a syntax error rather than a command.
 
 `DIRTY` and a terminal block print no re-arm line, joining `CLOSED` and `ERROR`:
 none of the four clears without a human, so re-arming on one wakes on it again
-every tick. A PR merely waiting for its first review is no longer read as a
-terminal block — GitHub reports that as `BLOCKED` too, which would have ended
-every author-side watch on its first tick on any repo that requires an approval.
+every tick.
+
+Which makes what counts as terminal load-bearing, so `BLOCKED` is now split four
+ways. GitHub reports a first review not yet given, a check still running, and a
+red build all as `BLOCKED`; each of those clears on its own, and reading any of
+them as terminal ends the watch. `terminal` is what is left — approved, nothing
+running, nothing red — where only a human moves it.
 
 An issue closing no longer drops activity still settling on the other watched
 issues — both ride one line, the closure as `closed=`. Previously the closure

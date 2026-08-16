@@ -89,25 +89,25 @@ gh pr view <num> --repo <repo> --json state,mergeStateStatus,autoMergeRequest
 
 **`cause=terminal` says the block will not clear on its own. It does not say
 why, and you must never report a cause you have not read off a source.** The
-underlying status is a summary over unrelated conditions — a failed required
-check, an unresolved review thread, a dismissed approval, a branch behind base —
-and guessing has gone wrong in both directions. Read all three before saying
-anything:
+underlying status is a summary over unrelated conditions — an unresolved review
+thread, a dismissed approval, branch protection, a merge queue — and guessing has
+gone wrong in both directions. Read both before saying anything:
 
 ```bash
-# 1. failing checks — both rollup shapes, already normalised by the fetch
-"<skill-dir>/../../scripts/fetch-pr-state.sh" <owner>/<repo> <num> \
-  | head -1 | jq -r '.checks[] | select(.state == "failure") | .name'
-# 2. unresolved review threads — a hard blocker wherever
+# 1. unresolved review threads — a hard blocker wherever
 #    required_conversation_resolution is on
 "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <num>
-# 3. dismissed or missing approval
+# 2. dismissed or missing approval
 "<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
 ```
 
 Surface the specific cause you found and ask. A `null` `review_decision` means
 review is not a merge gate on this repo, so it rules review *out* as the cause —
 it does not mean a review is not wanted.
+
+A red build is not among the causes here: the fetch separates that out, and it
+reaches you as `result=CHECKS` with the failing names, on a watch that keeps
+running. Reading the rollup again after a terminal block finds nothing.
 
 On `result=DIRTY`, surface the conflict and ask; don't resolve it autonomously,
 since which side wins is the operator's call.

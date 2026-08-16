@@ -87,13 +87,16 @@ OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
           elif $m == "DIRTY"    then {status:"dirty",    cause:"conflict"}
           elif $m == "UNSTABLE" then {status:"unstable", cause:"checks_not_passing"}
           elif $m == "BLOCKED"  then
-            # Three different waits arrive as one status. A caller told
-            # "terminal" stops watching, so anything that clears on its own has
-            # to be separated out here: a check still running, and a required
-            # review that has not been given. `terminal` is what is left — an
-            # approval in hand and nothing pending, so only a human moves it.
+            # Four different waits arrive as one status, and a caller told
+            # "terminal" stops watching — so every cause that a push or a review
+            # will clear has to be named here. What is left for `terminal` is a
+            # block with an approval in hand, nothing running and nothing red:
+            # branch protection, a merge queue, an unresolved conversation. Only
+            # those need a human.
             (if ($running | length) > 0
              then {status:"blocked", cause:"checks_running"}
+             elif ($checks | map(select(.state == "failure")) | length) > 0
+             then {status:"blocked", cause:"checks_failing"}
              elif ($pr.reviewDecision // "") == "REVIEW_REQUIRED"
                or ($pr.reviewDecision // "") == "CHANGES_REQUESTED"
              then {status:"blocked", cause:"review_required"}

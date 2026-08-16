@@ -160,7 +160,11 @@ while :; do
       case "$LINE" in
         *missing=*)
           gone="${LINE#*missing=}"; gone="${gone%% *}"
-          seen_missing="$gone"
+          # Appended, not replaced: each number leaves the set permanently, so
+          # a later one overwriting an earlier one means the caller is never told
+          # about the first — the one thing the field exists to prevent.
+          seen_missing=$(printf '%s\n%s\n' "$seen_missing" "$gone" | tr ',' '\n' \
+            | grep -v '^$' | sort -nu | paste -sd, - || true)
           for m in $(printf '%s' "$gone" | tr ',' ' '); do
             NUMS=$(printf '%s' "$NUMS" | tr ' ' '\n' | grep -vx "$m" | tr '\n' ' ')
           done
@@ -177,26 +181,6 @@ while :; do
     [ "$settle_until" != 0 ] && [ "$(date +%s)" -ge "$settle_cap" ] && report_hit
     [ "$settle_until" = 0 ] && poll_timed_out && report_idle
     poll_nap; continue
-  fi
-
-  closed_issues=$(printf '%s' "$J" | jq -r '[.issues[] | select(.state != "OPEN") | .number] | join(",")')
-  if [ -n "$closed_issues" ]; then
-    # The closed ones leave the watch set. Re-arming with them still in it
-    # reports the same closure on the next tick, forever — one model wake per
-    # iteration — and the header tells callers to re-arm from this line.
-    remaining=$(printf '%s' "$J" | jq -r '[.issues[] | select(.state == "OPEN") | .number] | join(" ")')
-
-    # A settle already holding activity on the OTHER watched issues outranks the
-    # bare closure: exiting here would drop it, and the re-arm sets `since` past
-    # it, so it is filtered out for good rather than deferred. The closure rides
-    # out as a field instead, which loses nothing — both are in one line.
-    if [ "$settle_until" != 0 ]; then
-      if [ -n "$remaining" ]; then report_hit "$closed_issues" " $remaining"
-      else                         report_hit "$closed_issues" NONE; fi
-    fi
-
-    [ -n "$remaining" ] && watch_rearm "$(rearm_cmd " $remaining")"
-    echo "result=CLOSED issues=$closed_issues$(missing_field) now=$(poll_now_iso)"; exit 0
   fi
 
   # An exact login match, never a substring — see the header.
@@ -237,6 +221,28 @@ while :; do
       hit_issues="$hit_issues $nums"; hit_kinds="$hit_kinds $kind"
     fi
   done
+
+  closed_issues=$(printf '%s' "$J" | jq -r '[.issues[] | select(.state != "OPEN") | .number] | join(",")')
+  if [ -n "$closed_issues" ]; then
+    # AFTER the hits are computed, not before. A closure and a sibling's first
+    # activity can land in one tick — up to a full poll interval apart in real
+    # time — and answering the closure alone drops that activity: the re-arm sets
+    # `since` past it, so it is filtered out for good rather than deferred.
+    #
+    # The closed ones leave the watch set either way. Re-arming with them still in
+    # it reports the same closure on the next tick, forever, and the header tells
+    # callers to re-arm from the line printed here.
+    remaining=$(printf '%s' "$J" | jq -r '[.issues[] | select(.state == "OPEN") | .number] | join(" ")')
+
+    # Anything in hand rides out as one line, with the closure as a field.
+    if [ -n "$hit_issues" ] || [ "$settle_until" != 0 ]; then
+      if [ -n "$remaining" ]; then report_hit "$closed_issues" " $remaining"
+      else                         report_hit "$closed_issues" NONE; fi
+    fi
+
+    [ -n "$remaining" ] && watch_rearm "$(rearm_cmd " $remaining")"
+    echo "result=CLOSED issues=$closed_issues$(missing_field) now=$(poll_now_iso)"; exit 0
+  fi
 
   # Counted rather than merely present, so a SECOND comment extends the window
   # and the first one does not extend it forever.

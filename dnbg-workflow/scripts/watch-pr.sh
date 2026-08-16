@@ -138,12 +138,18 @@ J=""; RAWC="[]"
 # command, and a result line splits into fields nobody can parse.
 shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 
-rearm_cmd() {
+rearm_cmd() {  # [head] [since] [verdict]
   printf '"%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s' \
-    "$HERE" "$REPO" "$PR" "${new_head:-${obs_head:-\"\"}}" "$(poll_now_iso)" "$SLUG" "$ROLE" \
+    "$HERE" "$REPO" "$PR" "${1:-${new_head:-${obs_head:-\"\"}}}" "${2:-$(poll_now_iso)}" \
+    "$SLUG" "$ROLE" \
     "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)" \
-    "${verdict_sha:-$LAST_VERDICT}" "$(shq "$checks_baseline")"
+    "${3:-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")"
 }
+
+# The arguments this run STARTED with. A run that reports nothing has handled
+# nothing, so that is what it must hand back — advancing `since` past activity it
+# is still holding deletes that activity rather than deferring it.
+ORIG_HEAD="${LAST_HEAD:-\"\"}"; ORIG_SINCE="$SINCE"; ORIG_VERDICT="$LAST_VERDICT"
 
 emit_activity() {
   [ "$saw_activity" = 1 ] || return 0
@@ -162,7 +168,18 @@ verdict_field() {
   [ -n "$verdict_sha" ] && printf ' verdict_sha=%s verdict=%s' "$verdict_sha" "$verdict_state" || true
 }
 
-report_idle() { watch_rearm "$(rearm_cmd)"; echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+# IDLE is reachable with a burst still held: the draft hold gates the release but
+# not the window. Nothing was reported, so the re-arm hands back the state this
+# run was given — the hold survives, and the next run re-observes what this one
+# saw instead of it being filtered out by an advanced `since`.
+report_idle() {
+  if have_burst; then
+    watch_rearm "$(rearm_cmd "$ORIG_HEAD" "$ORIG_SINCE" "$ORIG_VERDICT")"
+  else
+    watch_rearm "$(rearm_cmd)"
+  fi
+  echo "result=IDLE now=$(poll_now_iso)"; exit 0
+}
 
 # Whether anything is still worth waking the caller for. A settle can outlive its
 # own reason — a red check that goes green again while the window holds — and
@@ -325,6 +342,12 @@ while :; do
       verdict_sha="$vsha"; verdict_state="${verdict_line#* }"; changed=1
       LAST_VERDICT="$vsha"
     fi
+  else
+    # No verdict stands at the current head — a push moved past the one seen
+    # earlier in this run. The field means "a verdict stands at HEAD", so
+    # reporting it alongside the push that invalidated it says the new head is
+    # approved when nobody has read it.
+    verdict_sha=""; verdict_state=""
   fi
 
   [ "$saw_ready" = 1 ] && report_burst

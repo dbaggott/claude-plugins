@@ -438,3 +438,51 @@ EOF
   [[ "${lines[-1]}" == "result=ERROR reason=unsupported-forge now="* ]]
   [ "$(grep -o 'now=' <<<"${lines[-1]}" | wc -l | tr -d ' ')" = 1 ]
 }
+
+# A closure and a sibling's FIRST activity can land in one tick — they are up to a
+# poll interval apart in real time. Answering the closure alone drops that
+# activity, and the re-arm sets `since` past it, so no later run reports it
+# either. The earlier-tick case is covered above; this is the same loss by a
+# different route, and only ordering the branches fixes both.
+@test "a closure seen with a sibling's first activity keeps both" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in *"api user"*) echo operator; exit 0 ;; esac
+jq -cn '{data:{repository:{
+  i5:{number:5,state:"CLOSED",lastEditedAt:null,comments:{totalCount:0,nodes:[]},
+      closedByPullRequestsReferences:{nodes:[]},timelineItems:{nodes:[]}},
+  i7:{number:7,state:"OPEN",lastEditedAt:null,
+      comments:{totalCount:1,nodes:[{author:{login:"someone"},
+                createdAt:"2026-06-01T00:00:00Z",url:"u"}]},
+      closedByPullRequestsReferences:{nodes:[]},timelineItems:{nodes:[]}}}}}'
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=1 SETTLE=1 WINDOW=30 \
+    run "$WATCH" o/r 5 7 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" == *"issues=7"* ]]
+  [[ "${lines[-1]}" == *"closed=5"* ]]
+}
+
+# Each missing number leaves the set permanently, so a later one replacing an
+# earlier one in the field means the caller is never told about the first.
+@test "two issues going missing at different times are both named" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in *"api user"*) echo operator; exit 0 ;; esac
+t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+# #9 unresolvable from the start; #10 goes on tick 3.
+if [ "$t" -ge 3 ]; then ten=null; else ten='{"number":10,"state":"OPEN","lastEditedAt":null,
+  "comments":{"totalCount":0,"nodes":[]},
+  "closedByPullRequestsReferences":{"nodes":[]},"timelineItems":{"nodes":[]}}'; fi
+jq -cn --argjson ten "$ten" '{data:{repository:{
+  i9:null, i10:$ten,
+  i11:{number:11,state:"OPEN",lastEditedAt:null,comments:{totalCount:0,nodes:[]},
+       closedByPullRequestsReferences:{nodes:[]},timelineItems:{nodes:[]}}}}}'
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=1 WINDOW=8 \
+    run "$WATCH" o/r 9 10 11 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" == *"missing=9,10"* ]]
+}

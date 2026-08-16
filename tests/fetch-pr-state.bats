@@ -56,18 +56,18 @@ line() { tail -1 <<<"$1"; }
 }
 
 # The distinction the caller cannot make for itself: both arrive as BLOCKED, and
-# one means "wait", the other "a human has to act".
-@test "BLOCKED with everything finished is terminal" {
+# one means "wait for the run to finish", the other "the build is red".
+@test "BLOCKED with everything finished is not a wait" {
   pr BLOCKED '[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]'
   run "$FETCH" o/r 1
-  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_failing ]
 }
 
 @test "a cancelled or timed-out check counts as finished, not as still running" {
   pr BLOCKED '[{"name":"a","status":"COMPLETED","conclusion":"CANCELLED"},
                {"name":"b","status":"COMPLETED","conclusion":"TIMED_OUT"}]'
   run "$FETCH" o/r 1
-  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_failing ]
 }
 
 @test "a neutral check does not make a clean PR look unfinished" {
@@ -209,10 +209,10 @@ line() { tail -1 <<<"$1"; }
 
 # What is left once both self-clearing causes are separated out: an approval in
 # hand, nothing running, and still blocked — so only a human moves it.
-@test "BLOCKED with the approval in hand and nothing pending is terminal" {
+@test "a red check outranks the approval state as the cause" {
   pr BLOCKED '[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]' APPROVED
   run "$FETCH" o/r 1
-  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_failing ]
 }
 
 # A repo requiring no approval answers empty, which must not be read as a wait.
@@ -238,4 +238,31 @@ line() { tail -1 <<<"$1"; }
   run "$FETCH" o/r 1
   [ "${#lines[@]}" -eq 2 ]
   [ "$(printf '%s\n' "$output" | head -1 | jq -r '.checks[] | select(.state=="failure") | .name')" = lint ]
+}
+
+# The fourth wait that arrives as BLOCKED. On a repo with no required-approval
+# protection `reviewDecision` is empty, so a failed required check reached the
+# terminal fallback — and a terminal block prints no re-arm line, so the author's
+# review watch ended permanently the first time CI went red.
+@test "BLOCKED on a failed required check is not terminal" {
+  pr BLOCKED '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' ""
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_failing ]
+}
+
+# A still-running check outranks a failed one: the state is still moving, so the
+# caller has nothing to decide yet.
+@test "a running check outranks a failed one as the cause" {
+  pr BLOCKED '[{"name":"a","status":"COMPLETED","conclusion":"FAILURE"},
+               {"name":"b","status":"IN_PROGRESS","conclusion":""}]' ""
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_running ]
+}
+
+# What is left once every self-clearing cause is named: approved, nothing running,
+# nothing red, still blocked. Branch protection or a merge queue — a human moves it.
+@test "terminal is a block with nothing pending and nothing red" {
+  pr BLOCKED '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' APPROVED
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
 }

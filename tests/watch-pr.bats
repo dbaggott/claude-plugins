@@ -279,9 +279,12 @@ EOF
   [[ "$output" == *"result="* ]]
 }
 
-# issue mode shares the loop; only what it polls differs.
-@test "a valueless --exclude is refused as bad-args, not left to die silently" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" --exclude --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+# An unrecognised flag is refused rather than ignored. Ignoring it means a caller
+# that misspells `--was-draft` or `--last-checks` gets a watch quietly running
+# without that argument's behaviour, and no way to tell from the output.
+@test "an unrecognised flag is refused as bad-args, not silently ignored" {
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 56 "$(sha40 0)" 1970-01-01T00:00:00Z bot \
+    --role=reviewer --last-checkz=ci
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
@@ -408,8 +411,6 @@ EOF
   [[ "$output" != *"bad-args"* ]]
 }
 
-# --issue never reads <last_head>, so validating it there would reject arguments no
-# caller has any reason to make well-formed.
 @test "a verdict posted before the watch was armed still wakes it" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
@@ -724,9 +725,11 @@ EOF
   [[ "${lines[-1]}" == result=IDLE* ]]
 }
 
+# Nothing running, nothing red, the approval in hand — so only a human moves it.
 @test "a block with nothing pending is terminal and reaches the author" {
   echo BLOCKED > "$MERGESTATE"
-  echo '[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"lint","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
   INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
   [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
 }
@@ -923,4 +926,58 @@ EOF
   [[ "${lines[-1]}" == result=IDLE* ]]
   # Four ticks on this curve and window, not twelve.
   [ "$(grep -c 'pr view' "$CALLS")" -le 6 ]
+}
+
+# A red check must not end the watch. `checks_failing` is separated from
+# `terminal` in the fetch precisely so the CHECKS path handles it — a terminal
+# block prints no re-arm line, so reaching it here stops the author's review
+# watch permanently the first time CI goes red.
+@test "a red required check reports CHECKS, not a terminal block" {
+  echo BLOCKED > "$MERGESTATE"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='ci'"* ]]
+  # And the watch stays armable, which a terminal block would not be.
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# --- a run that reports nothing has handled nothing ----------------------------
+
+# The draft hold gates the burst but not the window, so IDLE is reachable with
+# activity in hand. Advancing `since` there deletes it: the next arm filters it
+# out and no run ever reports it.
+@test "an IDLE holding a burst re-arms with the state it was given" {
+  echo true > "$DRAFT_FILE"
+  cat > "$STUB/comments" <<'EOF'
+EOF
+  printf '%s' '[{"state":"COMMENTED","submittedAt":"2026-06-01T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"x"}}]' > "$REVIEWS"
+  INTERVAL=1 SETTLE=30 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=reviewer --was-draft
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  # `since` must be the one passed in, not this run's `now`.
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"2026-01-01T00:00:00Z"* ]]
+}
+
+# A quiet IDLE still advances, which is the whole re-arm contract.
+@test "an IDLE holding nothing advances since as usual" {
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" != *"2026-01-01T00:00:00Z"* ]]
+}
+
+# --- the verdict field means "stands at HEAD" ----------------------------------
+
+# A push moves HEAD past the verdict seen earlier in the same run. Carrying the
+# field onto that push's report says the new head is approved when nobody has
+# read it — the one claim a caller acts on without fetching.
+@test "a verdict is not reported alongside the push that invalidated it" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  AT_TICK=3 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=9 \
+    INTERVAL=1 SETTLE=2 WINDOW=20 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer --last-verdict=
+  [[ "${lines[-1]}" == result=COMMITS* ]]
+  [[ "${lines[-1]}" != *"verdict="* ]]
 }
