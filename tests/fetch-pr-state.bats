@@ -102,15 +102,15 @@ line() { tail -1 <<<"$1"; }
 @test "a PR with no checks at all is not read as having a pending one" {
   pr BLOCKED '[]'
   run "$FETCH" o/r 1
-  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+  [ "$(obj "$output" | jq -r '.merge.cause')" != checks_running ]
   [ "$(obj "$output" | jq -r '.checks | length')" = 0 ]
 }
 
 @test "an unrecognised merge status is reported as unknown rather than guessed" {
-  pr BEHIND '[]'
+  pr DRAFT '[]'
   run "$FETCH" o/r 1
   [ "$(obj "$output" | jq -r '.merge.status')" = unknown ]
-  [ "$(obj "$output" | jq -r '.merge.cause')" = behind ]
+  [ "$(obj "$output" | jq -r '.merge.cause')" = draft ]
 }
 
 # One source failing must not cost the tick every other source answered.
@@ -194,7 +194,7 @@ line() { tail -1 <<<"$1"; }
 # pending either way — and a caller told "terminal" stops watching, which on the
 # author side means exiting before the review it is waiting for can arrive.
 @test "BLOCKED on a review that has not been given is not terminal" {
-  pr BLOCKED '[]' REVIEW_REQUIRED
+  pr BLOCKED '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' REVIEW_REQUIRED
   run "$FETCH" o/r 1
   [ "$(obj "$output" | jq -r '.merge.cause')" = review_required ]
 }
@@ -202,7 +202,7 @@ line() { tail -1 <<<"$1"; }
 # Same status after a findings round: the decision stays CHANGES_REQUESTED until
 # a re-review, so reading it as terminal kills every watch armed after a push.
 @test "BLOCKED on a re-review that has not happened is not terminal" {
-  pr BLOCKED '[]' CHANGES_REQUESTED
+  pr BLOCKED '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' CHANGES_REQUESTED
   run "$FETCH" o/r 1
   [ "$(obj "$output" | jq -r '.merge.cause')" = review_required ]
 }
@@ -217,7 +217,7 @@ line() { tail -1 <<<"$1"; }
 
 # A repo requiring no approval answers empty, which must not be read as a wait.
 @test "BLOCKED on a repo that requires no approval is terminal" {
-  pr BLOCKED '[]' ""
+  pr BLOCKED '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' ""
   run "$FETCH" o/r 1
   [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
 }
@@ -273,4 +273,19 @@ line() { tail -1 <<<"$1"; }
 @test "a repo argument with no owner is refused, like the issue fetch" {
   run "$FETCH" notarepo 1
   [[ "$output" == *"reason=bad-args"* ]]
+}
+
+# The rollup is empty in the window between a push and the first check run, so
+# counting it as "nothing pending" reads a wait as a permanent block.
+@test "BLOCKED with an empty rollup is a wait, not a terminal block" {
+  pr BLOCKED '[]' ""
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_expected ]
+}
+
+@test "BEHIND is named rather than collapsed into unknown" {
+  pr BEHIND '[]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.status')" = behind ]
+  [ "$(obj "$output" | jq -r '.merge.cause')" = base_moved ]
 }

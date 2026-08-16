@@ -857,6 +857,7 @@ EOF
 @test "a block with the approval in hand and nothing pending is still terminal" {
   echo BLOCKED > "$MERGESTATE"
   echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
   INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
   [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
 }
@@ -870,6 +871,7 @@ EOF
   [[ "$output" != *"re-arm"* ]]
 
   echo BLOCKED > "$MERGESTATE"; echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
   INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
   [[ "${lines[-1]}" == result=BLOCKED* ]]
   [[ "$output" != *"re-arm"* ]]
@@ -1045,4 +1047,71 @@ EOF
   [[ "${lines[-1]}" == result=ACTIVITY* ]]
   # The summary must still name the inline finding that caused the wake.
   [[ "$output" == *'"kind":"inline"'* ]]
+}
+
+# --- <last_head> is what the caller HANDLED, not what the run saw --------------
+
+# The author role does not wake on a push. That must not also mean the push is
+# skipped: the re-arm's head is the base of the next round's diff, so advancing it
+# past a commit nobody reported leaves that commit in no diff at all.
+@test "an unreported push does not advance the head the next round diffs from" {
+  AT_TICK=2 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=7 \
+    INTERVAL=1 WINDOW=6 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"o/r 1 $(sha40 0) "* ]]
+}
+
+# The reviewer role reports it, and a reported move IS handled, so there the head
+# advances — otherwise every later round re-diffs from the original base.
+@test "a reported push does advance it" {
+  AT_TICK=2 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=7 \
+    INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=COMMITS* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"o/r 1 $(sha40 7) "* ]]
+}
+
+# --- a block the rollup cannot see yet -----------------------------------------
+
+# The window between a push and the first check run has an EMPTY rollup, so
+# nothing is counted as pending — and a merge watch is armed in exactly that
+# window. Read as terminal it dies on its first tick, with no re-arm line.
+@test "a required check that has not reported yet is not a terminal block" {
+  echo BLOCKED > "$MERGESTATE"
+  echo '[]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# BEHIND is a nameable block with a specific remedy — an "Update branch" click.
+# Collapsed into `unknown` it is acted on by nothing, so the merge wait idles out
+# and reports "still needs merging" without ever naming the blocker.
+@test "a base that moved on is reported, not collapsed into unknown" {
+  echo BEHIND > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=BEHIND* ]]
+  # Only a human clears it, so it carries no re-arm line.
+  [[ "$output" != *"re-arm"* ]]
+}
+
+@test "a base that moved on is not the reviewer's business" {
+  echo BEHIND > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# --- activity= is a count of conversation, not of the burst --------------------
+
+# A verdict is level-triggered, so it can fire with nothing else in the burst.
+# The caller is told to go read comments when this says 1.
+@test "a verdict-only burst does not claim conversation landed" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-verdict=
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" == *"activity=0"* ]]
+  [[ "${lines[-1]}" == *"verdict=APPROVED"* ]]
 }

@@ -90,6 +90,7 @@ OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
         | if   $m == "CLEAN"    then {status:"clean",    cause:null}
           elif $m == "DIRTY"    then {status:"dirty",    cause:"conflict"}
           elif $m == "UNSTABLE" then {status:"unstable", cause:"checks_not_passing"}
+          elif $m == "BEHIND"   then {status:"behind",   cause:"base_moved"}
           elif $m == "BLOCKED"  then
             # Four different waits arrive as one status, and a caller told
             # "terminal" stops watching — so every cause that a push or a review
@@ -97,6 +98,18 @@ OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
             # block with an approval in hand, nothing running and nothing red:
             # branch protection, a merge queue, an unresolved conversation. Only
             # those need a human.
+            # Positive evidence first, guesswork last.
+            #
+            # An empty rollup is the ambiguous one: a required check that has not
+            # reported yet has nothing here to count, and so does a repo with no
+            # CI blocked on something else. GitHub does not distinguish them, so
+            # this reads it as a wait — the failure modes are not symmetric. Read
+            # as terminal, a watch armed in the window between a push and the
+            # first check run dies on its first tick with no re-arm line and no
+            # way back. Read as a wait, a genuinely terminal block on a CI-less
+            # repo surfaces a window later through the author-side `IDLE`, which
+            # already says quiet here is suspect and hands the operator the
+            # `pr-verdict.sh` backstop.
             (if ($running | length) > 0
              then {status:"blocked", cause:"checks_running"}
              elif ($checks | map(select(.state == "failure")) | length) > 0
@@ -104,6 +117,8 @@ OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
              elif ($pr.reviewDecision // "") == "REVIEW_REQUIRED"
                or ($pr.reviewDecision // "") == "CHANGES_REQUESTED"
              then {status:"blocked", cause:"review_required"}
+             elif ($checks | length) == 0
+             then {status:"blocked", cause:"checks_expected"}
              else {status:"blocked", cause:"terminal"} end)
           elif $m == ""         then {status:"unknown", cause:null}
           else {status:"unknown", cause:($m | ascii_downcase)} end

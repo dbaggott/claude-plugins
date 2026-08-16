@@ -18,6 +18,7 @@
 # The value is shell-quoted in both places — forge check names contain spaces.
 #   result=READY    new_head=<sha> activity=0|1 now=<iso>   # draft marked ready — only with --was-draft
 #   result=DIRTY    now=<iso>                               # conflict with base — author role only
+#   result=BEHIND   now=<iso>                               # base moved on — author role only
 #   result=BLOCKED  cause=terminal now=<iso>                # still blocked, nothing pending — author only
 #   result=CLOSED   state=MERGED|CLOSED                     # finished — stop watching
 #   result=IDLE     now=<iso>                               # nothing within the window
@@ -25,8 +26,8 @@
 #
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
 # carrying the next invocation; a burst also carries `── next ──`, the
-# pr-round.sh call that reads it in full. CLOSED, ERROR, DIRTY and BLOCKED carry
-# neither — none of the four clears without a human, so a re-armed watch would
+# pr-round.sh call that reads it in full. CLOSED, ERROR, DIRTY, BEHIND and
+# BLOCKED carry neither — none of them clears without a human, so a re-armed watch would
 # report the same state on its next tick for as long as it kept being re-armed.
 #
 # WHAT --role CHANGES, since it is not a label. An author and a reviewer want
@@ -129,6 +130,12 @@ new_head=""; verdict_sha=""; verdict_state=""; checks_now=""
 checks_baseline="$LAST_CHECKS"
 last_json=""
 obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0; obs_verdict=""
+# What the caller has HANDLED, which only a report advances — as against
+# `obs_head`, what this run has SEEN, which stops it re-detecting one move every
+# tick. Sharing them advances the head past a push the author role never
+# reported, and the next round's diff then starts after that commit: it appears
+# in none of them.
+rearm_head="$LAST_HEAD"
 settle_until=0; settle_cap=0; holding_draft=0
 J=""; RAWC="[]"
 
@@ -148,7 +155,7 @@ shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 # and mark a verdict handled that no run ever reported.
 rearm_cmd() {  # [head] [since] [verdict]
   printf 'WINDOW=%s "%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s' \
-    "$WINDOW" "$HERE" "$REPO" "$PR" "${1:-${new_head:-${obs_head:-\"\"}}}" "${2:-$(poll_now_iso)}" \
+    "$WINDOW" "$HERE" "$REPO" "$PR" "${1:-${rearm_head:-\"\"}}" "${2:-$(poll_now_iso)}" \
     "$SLUG" "$ROLE" \
     "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)" \
     "${3-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")"
@@ -213,6 +220,9 @@ report_error() {
 report_burst() {
   emit_activity
   emit_next
+  # `── next ──` hands the caller a diff spanning from the head this run was
+  # armed with, so reporting is what makes every move up to now handled.
+  rearm_head="$obs_head"
   [ -n "$saw_checks" ] && checks_baseline="$saw_checks"
   watch_rearm "$(rearm_cmd)"
   local ck=""
@@ -231,7 +241,7 @@ report_burst() {
   elif [ "$saw_commits" = 1 ]; then
     echo "result=COMMITS new_head=$new_head activity=$saw_activity$ck$(verdict_field) now=$(poll_now_iso)"
   else
-    echo "result=ACTIVITY activity=1$ck$(verdict_field) now=$(poll_now_iso)"
+    echo "result=ACTIVITY activity=$saw_activity$ck$(verdict_field) now=$(poll_now_iso)"
   fi
   exit 0
 }
@@ -295,6 +305,7 @@ while :; do
     MSTATUS=$(printf '%s' "$J" | jq -r '.merge.status')
     MCAUSE=$(printf '%s' "$J" | jq -r '.merge.cause // ""')
     [ "$MSTATUS" = dirty ] && report_stop DIRTY
+    [ "$MSTATUS" = behind ] && report_stop BEHIND
     if [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
       report_stop BLOCKED "cause=terminal"
     fi
@@ -348,8 +359,8 @@ while :; do
 
   if [ -n "$HEAD" ] && [ "$HEAD" != "$obs_head" ]; then
     # An author's own push is not news to the author.
-    if [ "$ROLE" = reviewer ]; then saw_commits=1; changed=1; fi
-    new_head="$HEAD"; obs_head="$HEAD"
+    if [ "$ROLE" = reviewer ]; then saw_commits=1; changed=1; new_head="$HEAD"; fi
+    obs_head="$HEAD"
   fi
   if [ "$new_reviews" -gt "$obs_new" ] || [ "$new_inline" -gt "$obs_newc" ]; then
     saw_activity=1; changed=1; obs_new="$new_reviews"; obs_newc="$new_inline"

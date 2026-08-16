@@ -60,8 +60,10 @@ verdict together. **Run it first; it is what their handling below reads from.**
   whatever state the watcher last reported. Then re-arm.
   Re-arming is cheap; assuming quiet is not.
 
-**`activity=1` on a `COMMITS` or `READY` result is not decoration — read it.** It
-means comments or replies landed alongside the push. The JSON lines above the
+**`activity=1` on any result is not decoration — read it.** It means comments
+or replies landed alongside whatever the result names. `activity=0` means the
+burst was something else — a verdict, a check — so there is nothing
+conversational to go looking for. The JSON lines above the
 result line say what landed and from whom; **the text is behind the `── next ──`
 command**, which is `pr-round.sh` with its arguments filled in and returns the
 bodies, the unresolved threads and the diff in one call. Run it. The
@@ -87,8 +89,8 @@ by `--last-verdict` — but comments, replies and `COMMENTED` reviews are counte
 against `since`, so anything conversational landing there is dropped
 indistinguishably from silence.
 
-`CLOSED`, `ERROR`, `DIRTY` and `BLOCKED` print no re-arm line, because none of
-the four clears without a human. A killed task prints nothing at all — that is
+`CLOSED`, `ERROR`, `DIRTY`, `BEHIND` and `BLOCKED` print no re-arm line, because
+none of them clears without a human. A killed task prints nothing at all — that is
 the one case where you rebuild the arguments yourself, per the bullet above.
 
 The same applies after a watch is **paused and resumed** — an operator interrupt,
