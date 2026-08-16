@@ -70,14 +70,13 @@ nothing to say: a refactor that shrinks a skill reads as internal and is **Cost*
   internally.
 - **The design argument** — why this shape and not another. Put it in the PR.
 - **What did not change**, unless a reader would fear it did.
-- **Counts of the work** — lines, files, markers, tests. Nobody acts on them, and
-  rounding does not save them.
+- **Counts of the diff** — lines changed, files touched, markers removed, tests
+  added. Nobody acts on how much work it took, and rounding does not save them.
 
 Keep a value the reader acts on: a version floor to check an install against, a
 path to run, a setting to change, the size of something they now load. State it
 loosely enough to survive the next commit — a fragment is written while the
-change is still moving, so an exact count is falsified by a later commit and
-caught by a reviewer spending a round on it.
+change is still moving, so an exact count is falsified by a later one.
 
 ### Migration
 
