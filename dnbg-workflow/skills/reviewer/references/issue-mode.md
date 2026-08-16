@@ -91,7 +91,8 @@ ask before reviewing".
 Watch a held-back draft rather than dropping it, arming the ready check:
 
 ```bash
-"<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> <slug> --was-draft
+"<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> <slug> \
+  --role=reviewer --was-draft
 ```
 
 `<last_head>` is the full 40-character SHA from
@@ -151,21 +152,28 @@ Spawn the wait as a **background** task so the idle polling never enters the
 conversation:
 
 ```bash
-"<skill-dir>/../../scripts/watch-pr.sh" --issue [--exclude=<url,url,...>] \
-  <owner>/<repo> <n> "" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")"
+"<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
+  --role=reviewer --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --slug="$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")" \
+  [--exclude=<url,url,...>]
 ```
+
+It wakes on a comment, a body edit, a linked PR appearing, or the issue closing,
+and names which of those fired on which issue. Several issues cost one call per
+tick, so watching the whole set you were handed is no more expensive than
+watching one.
+
 
 **At most one issue wait at a time, re-armed only on its own return.** A PR
 watcher returning is a trigger to re-discover, not to arm a second wait — two
 waits on one issue each paginate the whole timeline every tick and both report
 the same `CLOSED`.
 
-The same script the PR watch uses, in `--issue` mode — so this wait gets the same
-backoff curve and the same failure counting rather than its own. It returns
-`ACTIVITY` when a linked PR appears, `CLOSED` if the issue closes, `IDLE` on
-timeout, and `ERROR reason=issue-view` / `ERROR reason=issue-timeline` when one of
-its two sources keeps failing.
+`watch-issue.sh`, the issue-side sibling of the PR watch — same backoff curve,
+same failure counting, same re-arm contract. It returns `ACTIVITY` when a comment,
+a body edit or a linked PR lands (`kinds=` says which), `CLOSED` if the issue
+closes, `IDLE` on timeout, and `ERROR reason=issue-query` when its query keeps
+failing.
 
 **The wait polls sources 1 and 2 above, not source 1 alone.** It has to: source
 1 lists only PRs carrying a closing keyword, so a wait built on it is strictly
@@ -178,7 +186,7 @@ fine.
 
 Source 3 is deliberately not polled — it is the one source with index lag, so the
 timeline already sees everything it would, sooner, and a poll gains nothing by
-adding it. `tests/coupling.bats` pins these sources against `watch-pr.sh`'s, so a
+adding it. `tests/coupling.bats` pins these sources against `fetch-issue-state.sh`'s, so a
 fourth one has to be polled or exempted there; its failure message says how.
 
 ⚠️ **`--exclude` is what keeps re-arming from spinning, and it must be carried
@@ -196,24 +204,37 @@ while that watcher is doing the real work.
 On return, dispatch on the result — **including `ERROR`, which must not fall to
 the catch-all**:
 
-- **`ACTIVITY`** — references listed. Back to step 2.
+- **`ACTIVITY`** — something landed. `kinds=` says what: `linked-pr` means
+  references to triage, so go back to step 2; `comment` or `body-edit` means the
+  conversation moved, so read it before deciding whether the assignment changed.
+  `edited=` carries each issue's body-edit stamp, so a comment claiming the body
+  was updated can be checked without a second call.
 - **`CLOSED`** — the work was dropped or resolved without a PR. Say so and stop.
-- **`ERROR reason=issue-view`** — the watch could not see the issue. **Do not
+- **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
   re-arm**, and do **not** report that nothing has landed: you do not know that.
-  Expired auth or a wrong issue number produce exactly this. Check `gh auth
-  status` and that the issue number resolves, then tell the operator.
-- **`ERROR reason=issue-timeline`** / **`issue-timeline-shape`** — same remedy,
-  narrower cause: the issue was visible but its timeline was not, so the watch was
-  blind to precisely the mention-only PRs source 2 exists to catch. **Do not
-  re-arm** and do not report a quiet issue — a partial blindness reported as quiet
-  is the failure the two-source wait was built to remove. The `-shape` variant means
-  the endpoint answered but the payload stopped parsing, which is a schema change
-  rather than an outage: `gh auth status` will look fine, so check the payload.
+  Expired auth, or every issue number resolving to nothing, produces exactly this.
+  Check `gh auth status` and that the numbers resolve, then tell the operator.
+- **`ERROR reason=issue-query-shape`** — same remedy, different cause: the query
+  answered but the payload stopped parsing, so this is a schema change rather than
+  an outage and `gh auth status` will look fine. Check the payload.
+- **`ERROR reason=bad-args`** / **`unsupported-forge`** — the watch refused to
+  start. Nothing failed and nothing is blind: fix the arguments, or accept that the
+  repo is not on a forge this watch supports, and re-spawn.
 - **`IDLE`** — the deadline elapsed with nothing. Re-arm (carrying the exclusion
   list forward), and after the second empty window tell the operator nothing has
   landed rather than waiting silently. Both sources ran, so this genuinely means no
   PR references the issue — **don't reach for "the issue number is probably wrong"
   as the explanation**.
+
+Two fields ride any of those results, and both mean an issue has left the set:
+
+- **`closed=<n,…>`** appears on an `ACTIVITY` line when an issue closed in the
+  same wake as activity on the others. Handle the activity *and* report the
+  closure — treating the line as activity alone leaves you re-discovering PRs for
+  a closed issue. When it was the last watched issue, no re-arm line is printed:
+  there is nothing left to watch, so stop.
+- **`missing=<n,…>`** names numbers that resolve to no issue — a typo, a
+  transfer, or a PR number. Say so rather than assuming those issues are quiet.
 
 The `ERROR` branch is the whole point of using the shared script here. Routing it
 into the `IDLE` catch-all would re-arm into the same failure and then state

@@ -265,13 +265,12 @@ EOF
 # the check.
 #
 # Two of the three sites now CALL `scripts/pr-sources.sh` rather than carrying their
-# own copy, so for them the question is only whether they still invoke it. The third,
-# `watch-pr.sh --issue`, keeps inline queries deliberately (see its own comments: it
-# reads `.state` from the same `gh issue view`, and needs the timeline's fetch and
-# parse failures counted separately with poll_broken's awake-time grace, neither of
-# which survives a CLI boundary). So it is the one site that can still narrow alone —
-# and it is now compared against the script rather than against prose, which is what
-# `covers_discovery` could never do before: real code on both sides.
+# own copy, so for them the question is only whether they still invoke it. The third
+# is `fetch-issue-state.sh`, which asks both sources inside one batched query — it
+# reads `state`, the conversation and the linked PRs together, and splitting the
+# linked-PR half back out to a CLI call would cost a request per tick to buy nothing.
+# So it is the one site that can still narrow alone, and it is compared against the
+# script rather than against prose: real code on both sides.
 
 # Each extractor returns the API surfaces its site queries, one per line, under names
 # shared across the three files so they can be compared as sets. Taking the file as an
@@ -297,8 +296,8 @@ pr_sources() {  # <file>
   # `<n>` in a skill, `$PR` in the watcher, `$ISSUE` in pr-sources.sh: the same
   # endpoint spelled for three audiences, so all of them normalise to `timeline`.
   pr_command_lines "$1" \
-    | grep -oE 'closedByPullRequestsReferences|issues/(<n>|\$PR|\$ISSUE)/timeline|gh search prs' \
-    | sed 's|issues/.*/timeline|timeline|' | sort -u
+    | grep -oE 'closedByPullRequestsReferences|issues/(<n>|\$PR|\$ISSUE)/timeline|timelineItems|gh search prs' \
+    | sed 's|issues/.*/timeline|timeline|; s|timelineItems|timeline|' | sort -u
 }
 
 # A site may decline a source, but only out loud. The marker carries the reason inline,
@@ -350,7 +349,7 @@ EOF
 DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
 
 @test "the issue-scoped wait sees every PR source discovery does" {
-  run covers_discovery "$ROOT/dnbg-workflow/scripts/watch-pr.sh" "$DISCOVERY"
+  run covers_discovery "$ROOT/dnbg-workflow/scripts/fetch-issue-state.sh" "$DISCOVERY"
   echo "$output"
   [ "$status" -eq 0 ]
 }
@@ -466,7 +465,7 @@ verdict_states() {  # <file>
   # above, for the same reason.
   for f in "$ROOT"/tests/*.bats; do
     grep -v '^[[:space:]]*#' "$f" \
-      | grep -q 'watch-pr\.sh\|watch-merge\.sh\|lib-poll\.sh' || continue
+      | grep -q 'watch-pr\.sh\|watch-issue\.sh\|lib-poll\.sh' || continue
     # Skip self. This file has to name the watcher scripts to select on them, and
     # the pattern above sits on a line the exclusion does not reach — so without this
     # coupling.bats selects itself and fails with "coupling.bats spawns a watch but
@@ -819,4 +818,26 @@ remote_read_calls() {  # <SKILL.md>
   local skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
   pr_command_lines "$skill" | grep -q 'fetch-tree\.sh' || {
     echo "reviewer/SKILL.md names no tree fetch — the third access mode is unreachable"; false; }
+}
+
+# A stub is a grandchild of the script under test, so it inherits that script's
+# environment. Assigning to a name the harness exported keeps the export, and the
+# stub then receives the script's internal value in place of the path it expects
+# — `cat`s it, fails, and silently serves its default for the rest of the run.
+# The test still passes, on a payload nobody chose.
+@test "no exported stub variable shares a name a watcher assigns" {
+  local bad=0 f v
+  for f in "$ROOT"/tests/watch-pr.bats "$ROOT"/tests/watch-issue.bats; do
+    [ -f "$f" ] || continue
+    for v in $(grep -oE '^[[:space:]]*export [A-Z_]+=' "$f" \
+                 | sed 's/.*export //; s/=//' | sort -u); do
+      case "$v" in PATH) continue ;; esac
+      grep -lE "^[[:space:]]*$v=" "$ROOT"/dnbg-workflow/scripts/watch-*.sh 2>/dev/null \
+        | while read -r s; do
+            echo "$(basename "$f") exports \$$v, which $(basename "$s") assigns —"
+            echo "  the stub will receive the script's value, not the harness's path"
+          done | grep . && bad=1
+    done
+  done
+  [ "$bad" = 0 ]
 }

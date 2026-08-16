@@ -611,8 +611,19 @@ PR to resume (it re-assesses current state and picks the watch back up).
    # handled, or the watch wakes on it again on its first tick, every time.
    "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> \
      "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")" \
-     --last-verdict=<last_verdict_sha>
+     --role=reviewer [--was-draft] [--last-verdict=<sha>] [--last-checks=<names>]
    ```
+
+   `--role=reviewer` is what makes this the reviewer's watch: the author's pushes
+   are the wake rather than noise, merge state is not your business, `IDLE` is
+   routine, and the window is the long one. The slug is your bot's and must be
+   passed — only the author role can derive its own.
+
+   **Re-arm from the `── re-arm ──` line the watch prints**, not from values you
+   reconstruct. It carries `since` set to that run's own `now`, which is the only
+   value that leaves no gap; a clock reading taken when you re-arm skips whatever
+   landed in between, and activity is counted against `since`, so it is lost
+   rather than deferred.
 
    It reads with your own `gh` auth (so it doesn't expire mid-watch), tolerates
    transient `gh` failures, and excludes the bot's own activity under *both*

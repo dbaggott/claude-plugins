@@ -63,7 +63,7 @@ setup() {
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
 echo "$(date +%s) $*" >> "$CALLS"
-# One poll is one `pr view`/`issue view`, so that is what counts as a tick — and the
+# One poll is one `pr view`, so that is what counts as a tick — and the
 # stub is the only thing in the test that sees one. Anything a test wants to happen
 # "later in the watch" is scheduled by tick count rather than by backgrounding a
 # `sleep`: with the clock stubbed there is no real time for a background job to wait
@@ -78,40 +78,37 @@ case "$1 $2" in
   "pr view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
     n=$(cat "$HEADCOUNT" 2>/dev/null || echo 0)
-    printf '{"state":"OPEN","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":[]}' \
-      "$(cat "$DRAFT" 2>/dev/null || echo false)" "$n" \
-      "$(cat "$REVIEWS" 2>/dev/null || echo '[]')" ;;
-  "issue view")
-    [ -f "$FAIL_PRVIEW" ] && exit 1
-    printf '{"state":"OPEN","closedByPullRequestsReferences":%s}' "$(cat "$LINKED" 2>/dev/null || echo '[]')" ;;
+    printf '{"state":"%s","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":[],"statusCheckRollup":%s,"mergeStateStatus":"%s","reviewDecision":"%s"}' \
+      "$(cat "$PRSTATE" 2>/dev/null || echo OPEN)" \
+      "$(cat "$DRAFT_FILE" 2>/dev/null || echo false)" "$n" \
+      "$(cat "$REVIEWS" 2>/dev/null || echo '[]')" \
+      "$(cat "$ROLLUP" 2>/dev/null || echo '[]')" \
+      "$(cat "$MERGESTATE" 2>/dev/null || echo CLEAN)" \
+      "$(cat "$REVIEWDECISION" 2>/dev/null || echo '')" ;;
   "api "*|"api")
-    # The two endpoints issue mode and PR mode reach for are told apart by path, so a
-    # test can fail one while the other stays healthy — which is the only way to
-    # exercise a source going blind underneath a primary poll that still succeeds.
-    case "$*" in
-      *timeline*)
-        [ -f "$FAIL_TIMELINE" ] && exit 1
-        # `--slurp` shape: an array OF PAGES, each itself an array of events. The
-        # stub emits it because that is what the watcher parses (`.[][]`); a flat
-        # array here would let a `.[]` regression pass.
-        cat "$XREF" 2>/dev/null || echo '[[]]' ;;
-      *)
-        [ -f "$FAIL_COMMENTS" ] && exit 1
-        echo '[]' ;;
-    esac ;;
+    # Inline comments: the one endpoint the PR fetch reaches beyond `pr view`, so
+    # failing it alone is how a source going blind underneath a healthy primary
+    # poll gets exercised.
+    [ -f "$FAIL_COMMENTS" ] && exit 1
+    echo '[]' ;;
   *) exit 1 ;;
 esac
 EOF
   chmod +x "$STUB/gh"
+  export PRSTATE="$BATS_TEST_TMPDIR/prstate"
+  export ROLLUP="$BATS_TEST_TMPDIR/rollup"
+  export MERGESTATE="$BATS_TEST_TMPDIR/mergestate"
+  export REVIEWDECISION="$BATS_TEST_TMPDIR/reviewdecision"
   export PATH="$STUB:$PATH" CALLS
   export FAIL_PRVIEW="$BATS_TEST_TMPDIR/fail_prview"
   export FAIL_COMMENTS="$BATS_TEST_TMPDIR/fail_comments"
-  export FAIL_TIMELINE="$BATS_TEST_TMPDIR/fail_timeline"
   export HEADCOUNT="$BATS_TEST_TMPDIR/headcount"
-  export LINKED="$BATS_TEST_TMPDIR/linked"
-  export XREF="$BATS_TEST_TMPDIR/xref"
   export REVIEWS="$BATS_TEST_TMPDIR/reviews"
-  export DRAFT="$BATS_TEST_TMPDIR/draft"
+  # NOT `DRAFT`: watch-pr.sh assigns its own `DRAFT` from the payload, and an
+  # assignment to an already-exported name keeps the export — so the stub, a
+  # grandchild of the watch, would receive `DRAFT=true` in place of this path,
+  # `cat` it, fail, and report every tick after the first as not-a-draft.
+  export DRAFT_FILE="$BATS_TEST_TMPDIR/draft"
   export TICKS="$BATS_TEST_TMPDIR/ticks"
 }
 
@@ -127,20 +124,10 @@ reviews() {  # <state> <commit-sha> <login>
     "$1" "$3" "$2"
 }
 
-# One cross-referenced PR, on the page given, in the shape `gh api --paginate --slurp`
-# returns. `pages 2` puts it on the second page — where a real timeline puts anything
-# new, since the endpoint is oldest-first with no way to invert it.
-xref_pages() {  # <page-count> <pr-url>
-  local n="$1" url="$2" i out=""
-  for (( i = 1; i < n; i++ )); do out="$out[],"; done
-  printf '[%s[{"event":"cross-referenced","source":{"issue":{"pull_request":{},"html_url":"%s"}}}]]' \
-    "$out" "$url"
-}
-
 # (a) every poll fails -> exactly one ERROR, and never IDLE.
 @test "a source failing FAIL_MAX times reports ERROR, not IDLE" {
   touch "$FAIL_PRVIEW"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [ "$(grep -c '^result=ERROR' <<<"$output")" -eq 1 ]
   [[ "$output" == *"reason=pr-view"* ]]
@@ -159,18 +146,18 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [[ "$output" != *"result=ERROR"* ]]
   [[ "$output" == *"result=IDLE"* ]]
 }
 
 # (c) the insidious one: the primary poll stays healthy, so the watch looks fine
 # while thread replies silently never register.
-@test "a failing comments query reports ERROR naming that source" {
+@test "a failing inline-comments query reports ERROR naming that source" {
   touch "$FAIL_COMMENTS"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [[ "$output" == *"result=ERROR"* ]]
-  [[ "$output" == *"reason=comments"* ]]
+  [[ "$output" == *"reason=inline-comments"* ]]
 }
 
 # (d) the curve: gaps widen while nothing happens, and collapse on a change.
@@ -180,7 +167,7 @@ EOF
 @test "the interval grows while quiet and returns to the floor on a change" {
   AT_TICK=4 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=1 \
   POLL_CURVE="0:1 3:4" SETTLE=1 WINDOW=20 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [[ "$output" == *"result=COMMITS"* ]]
   # Gaps between successive polls: must reach >1s while quiet (grown past the
   # floor), and the last gap must be back at the floor after the change.
@@ -202,7 +189,7 @@ EOF
   # fail — so what follows measures the failure path's own pace, not the ramp's.
   AT_TICK=4 AT_TICK_FILE="$FAIL_PRVIEW" AT_TICK_VALUE=x \
   POLL_CURVE="0:1 2:8" FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   elapsed=$(( $(date +%s) - start ))
   [[ "$output" == *"result=ERROR"* ]]
   # 3 failures at the 1s floor is ~3s after the failures start (~13s in). Without
@@ -226,7 +213,7 @@ EOF
   # The head differs from the armed LAST_HEAD, so a burst starts on tick 1.
   # SETTLE is long enough that it cannot settle on its own before FAIL_MAX trips.
   INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 SETTLE=120 SETTLE_MAX=120 WINDOW=60 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [[ "$output" == *"result=COMMITS"* ]]
   [[ "$output" != *"result=ERROR"* ]]
 }
@@ -244,24 +231,10 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"reason=pr-view-shape"* ]]
   [[ "$output" != *"result=IDLE"* ]]
-}
-
-@test "a persistent shape break in --issue mode reports ERROR" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
-case "$1 $2" in
-  "issue view") echo '<html>an error page</html>' ;;
-  *) echo '[]' ;;
-esac
-EOF
-  chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"reason=issue-view-shape"* ]]
 }
 
 @test "malformed JSON never kills the watch without a result line" {
@@ -276,132 +249,17 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=99 FAIL_MIN_SECONDS=0 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=99 FAIL_MIN_SECONDS=0 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result="* ]]
 }
 
-# issue mode shares the loop; only what it polls differs.
-@test "--issue wakes when a linked PR appears" {
-  AT_TICK=3 AT_TICK_FILE="$LINKED" \
-  AT_TICK_VALUE='[{"number":9,"url":"https://github.com/o/r/pull/9"}]' \
-  INTERVAL=1 WINDOW=20 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ACTIVITY"* ]]
-  grep -q 'issue view' "$CALLS"
-}
-
-# THE REGRESSION THIS MODE WAS BROKEN ON. `closedByPullRequestsReferences` stays empty
-# for the whole watch — the PR references the issue in prose, with no closing keyword,
-# which is the shape git-workflow's multi-repo rule *mandates* for every sibling but
-# the one closer. Polling the keyword source alone, this watch runs its full window and
-# reports IDLE, and the deadline path then blames the issue number.
-@test "--issue wakes on a PR that only cross-references the issue" {
-  AT_TICK=3 AT_TICK_FILE="$XREF" \
-  AT_TICK_VALUE="$(xref_pages 1 https://github.com/o/r/pull/114)" \
-  INTERVAL=1 WINDOW=20 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [ "$(cat "$LINKED" 2>/dev/null || echo '[]')" = '[]' ]
-  [[ "$output" == *"result=ACTIVITY"* ]]
-}
-
-# The timeline is oldest-first, so a new cross-reference lands on the LAST page. This
-# pins `.[][]` over the pages `--slurp` returns; a `.[]` that reads only the outer
-# array finds nothing here and idles out looking healthy.
-@test "--issue wakes on a cross-reference beyond the first page" {
-  printf '%s' "$(xref_pages 3 https://github.com/o/r/pull/114)" > "$XREF"
-  INTERVAL=1 WINDOW=20 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ACTIVITY"* ]]
-}
-
-# Without the exclusion list the broadened condition is unusable: a mention-only PR
-# triaged as not-resolving stays open and satisfies the timeline source on every tick,
-# so the reviewer is re-woken in a hot loop for the life of the issue.
-@test "--issue does not re-wake on an already-triaged PR" {
-  printf '%s' "$(xref_pages 1 https://github.com/o/r/pull/114)" > "$XREF"
-  INTERVAL=1 WINDOW=5 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
-    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=IDLE"* ]]
-  [[ "$output" != *"result=ACTIVITY"* ]]
-}
-
-# ...and the exclusion must not swallow the next PR. Same excluded PR still in the
-# timeline, a second one joins, and the watch has to wake for it.
-@test "--issue still wakes on a fresh PR alongside an excluded one" {
-  printf '%s' "$(xref_pages 1 https://github.com/o/r/pull/114)" > "$XREF"
-  AT_TICK=3 AT_TICK_FILE="$XREF" \
-  AT_TICK_VALUE="$(xref_pages 2 https://github.com/o/r/pull/200)" \
-  INTERVAL=1 WINDOW=20 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
-    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ACTIVITY"* ]]
-}
-
-# Exclusions are URLs, not numbers, because the timeline source spans repos — where PR
-# numbers collide. Excluding `o/r#114` must not silence `other/repo#114`.
-@test "--issue exclusions are scoped by repo, not by bare number" {
-  printf '%s' "$(xref_pages 1 https://github.com/other/repo/pull/114)" > "$XREF"
-  INTERVAL=1 WINDOW=20 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
-    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ACTIVITY"* ]]
-}
-
-@test "--issue reports ERROR when it cannot poll at all" {
-  touch "$FAIL_PRVIEW"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"reason=issue-view"* ]]
-}
-
-# The issue-mode twin of the comments case above, and insidious for the same reason:
-# `gh issue view` keeps succeeding, so the watch looks healthy while the source that
-# catches mention-only PRs sees nothing. Silent partial blindness is what the whole
-# broadening is meant to remove, so it must not be reintroduced as a failure mode.
-@test "a failing timeline query reports ERROR naming that source" {
-  touch "$FAIL_TIMELINE"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ERROR"* ]]
-  [[ "$output" == *"reason=issue-timeline"* ]]
-  [[ "$output" != *"result=IDLE"* ]]
-}
-
-# An agent hand-assembles this CSV across re-arms, so a space after a comma is the
-# likeliest malformation there is. `grep -vxF` is whole-line and literal, so an untrimmed
-# entry can never match and is silently dropped — producing precisely the hot loop the
-# flag exists to prevent, with no diagnostic at all.
-@test "--issue exclusion entries survive whitespace after the comma" {
-  printf '%s' "$(xref_pages 1 https://github.com/o/r/pull/200)" > "$XREF"
-  INTERVAL=1 WINDOW=5 run "$WATCH" \
-    --exclude='https://github.com/o/r/pull/114, https://github.com/o/r/pull/200' \
-    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=IDLE"* ]]
-  [[ "$output" != *"result=ACTIVITY"* ]]
-}
-
-# Nothing on the PR path reads --exclude, so accepting it would take an argument whose
-# whole purpose is suppressing wakes and suppress nothing — and a disregarded exclusion
-# is indistinguishable from a quiet PR at the result line.
-@test "--exclude outside --issue mode is refused rather than ignored" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
-    o/r 77 "$(sha40 0)" 1970-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
-}
-
-# lib-poll.sh:66-69 carves shape breaks out of poll_broken: a payload that stopped
-# parsing will not start on its own, so charging it FAIL_MIN_SECONDS only delays the
-# report. FAIL_MIN_SECONDS is left at its 180s default here on purpose — a folded
-# counter would still be inside the grace window and would idle out instead.
-@test "a timeline payload that stops parsing reports ERROR without the transient grace" {
-  printf '%s' '<html>not json</html>' > "$XREF"
-  INTERVAL=1 FAIL_MAX=3 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ERROR"* ]]
-  [[ "$output" == *"reason=issue-timeline-shape"* ]]
-  [[ "$output" != *"result=IDLE"* ]]
-}
-
-# `--exclude <csv>` (two tokens) would need `shift 2`, which dies under `set -e` with
-# no result line when the value is missing — imitating the killed watch the tracing
-# exists to make legible. Only the `=` form is accepted; the bare one is refused
-# loudly, and bad-args already routes the caller to fix the argument and re-spawn.
-@test "a valueless --exclude is refused as bad-args, not left to die silently" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" --exclude --issue o/r 56 "" 1970-01-01T00:00:00Z bot
+# An unrecognised flag is refused rather than ignored. Ignoring it means a caller
+# that misspells `--was-draft` or `--last-checks` gets a watch quietly running
+# without that argument's behaviour, and no way to tell from the output.
+@test "an unrecognised flag is refused as bad-args, not silently ignored" {
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 56 "$(sha40 0)" 1970-01-01T00:00:00Z bot \
+    --role=reviewer --last-checkz=ci
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
@@ -425,7 +283,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 2000-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 2000-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   # Drop direction=desc and this is result=IDLE with a real reply unseen.
   [[ "$output" == *"result=ACTIVITY"* ]]
@@ -443,7 +301,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=2 FAIL_MIN_SECONDS=0 WINDOW=20 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=2 FAIL_MIN_SECONDS=0 WINDOW=20 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR"* ]]
   [[ "$output" == *"pr-view-shape"* ]]
@@ -456,7 +314,7 @@ EOF
 @test "an empty last_head self-heals instead of going blind to pushes" {
   echo 0 > "$HEADCOUNT"
   AT_TICK=3 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=9 \
-  INTERVAL=1 SETTLE=1 WINDOW=25 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=25 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=COMMITS"* ]]
   [[ "$output" == *"new_head=$(sha40 9)"* ]]
@@ -465,7 +323,7 @@ EOF
 # An empty slug makes `mine` match no login, so the watch wakes on its OWN posts and
 # re-reviews itself — the exact loop the argument exists to prevent, and silent.
 @test "an empty bot slug is refused on the PR path" {
-  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z ""
+  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z "" --role=reviewer
   # A result line, not a silent non-zero exit: callers read a MISSING result as
   # "killed", which is the one diagnosis this script must not fake.
   [ "$status" -eq 0 ]
@@ -478,7 +336,7 @@ EOF
 # 7-character SHAs. A false COMMITS sends `reviewer` to re-review a range that does not
 # exist and tells `git-workflow` the author pushed.
 @test "an abbreviated last_head is refused rather than read as a push" {
-  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 0000000 1970-01-01T00:00:00Z bot
+  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 0000000 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR"* ]]
   [[ "$output" == *"reason=bad-args"* ]]
@@ -490,7 +348,7 @@ EOF
 # returns lowercase, so an uppercase SHA of the right length passes a case-insensitive
 # check and then mismatches on every tick — the same false COMMITS, harder to spot.
 @test "an uppercase last_head is refused" {
-  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot
+  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"reason=bad-args"* ]]
 }
@@ -512,7 +370,7 @@ EOF
   local envf="$BATS_TEST_TMPDIR/asciiranges-off"
   echo 'shopt -u globasciiranges 2>/dev/null || true' > "$envf"
   BASH_ENV="$envf" LC_ALL=en_US.UTF-8 INTERVAL=1 WINDOW=5 \
-    run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot
+    run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"reason=bad-args"* ]]
   [[ "$output" != *"result=COMMITS"* ]]
@@ -522,30 +380,16 @@ EOF
 # SHA polls normally, and an empty one still self-heals (covered above) rather than
 # being refused.
 @test "a full 40-character last_head still polls normally" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
   [[ "$output" != *"bad-args"* ]]
 }
 
-# --issue never reads <last_head>, so validating it there would reject arguments no
-# caller has any reason to make well-formed.
-@test "--issue mode is unaffected by the last_head check" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" --issue o/r 56 0000000 1970-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=IDLE"* ]]
-  [[ "$output" != *"bad-args"* ]]
-}
-
-# THE ASYMMETRY THIS FLAG REMOVES. Commits are detected from state, so a push during a
-# gap in watching is still seen; reviews were counted against `since`, so a verdict that
-# landed before the watch was armed was invisible for the life of the watch and the PR
-# reported IDLE — indistinguishable from one nobody had looked at. Observed live on three
-# PRs in one session, two of them already approved at their then-current HEAD.
 @test "a verdict posted before the watch was armed still wakes it" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   # `since` is past the review, so the edge-triggered count sees nothing: without the
   # level-triggered check this is IDLE.
@@ -560,7 +404,7 @@ EOF
 @test "a verdict the caller has already handled does not wake the watch" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot "--last-verdict=$(sha40 0)"
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot "--last-verdict=$(sha40 0)" --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
   [[ "$output" != *"result=ACTIVITY"* ]]
@@ -568,11 +412,12 @@ EOF
 
 # Omitting the flag has to leave the watch exactly as it was, or every caller that has
 # not been updated changes behaviour on upgrade.
-@test "without --last-verdict a standing verdict is invisible, as before" {
+@test "a standing verdict wakes a first arm, which has handled none" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
-  INTERVAL=1 SETTLE=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=IDLE"* ]]
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
+  [[ "$output" == *"verdict=APPROVED"* ]]
 }
 
 # The self-wake the `<bot_slug>` argument exists to prevent, reached through the one
@@ -582,7 +427,7 @@ EOF
 @test "the watch does not wake on its own verdict" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" bot)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
   [[ "$output" != *"result=ACTIVITY"* ]]
@@ -593,7 +438,7 @@ EOF
 @test "the watch does not wake on its own verdict under the [bot] spelling" {
   printf '%s' "$(reviews CHANGES_REQUESTED "$(sha40 0)" 'bot[bot]')" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
 }
@@ -603,7 +448,7 @@ EOF
 @test "a verdict left behind by a push does not wake the watch" {
   printf '%s' "$(reviews CHANGES_REQUESTED "$(sha40 5)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
   [[ "$output" != *"result=ACTIVITY"* ]]
@@ -615,7 +460,7 @@ EOF
 @test "a COMMENTED review is not a verdict for the level-triggered check" {
   printf '%s' "$(reviews COMMENTED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
 }
@@ -624,7 +469,7 @@ EOF
 # 40-character `commit.oid` GitHub returns, so an abbreviated one can never match and
 # would silently re-wake on a verdict the caller said it handled.
 @test "an abbreviated --last-verdict is refused as bad-args" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict=0000000
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict=0000000 --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
@@ -632,7 +477,7 @@ EOF
 # The valueless form, refused for the reason `--exclude` is: only the `=` spelling can
 # carry a value, and the bare one would otherwise arm the check with no baseline.
 @test "a valueless --last-verdict is refused as bad-args" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
@@ -640,30 +485,16 @@ EOF
 # Nothing in issue mode reads a verdict — no reviews, no HEAD — so accepting the flag
 # there would take an argument whose whole purpose is guaranteeing a wake and guarantee
 # nothing, with the same IDLE either way.
-@test "--last-verdict in --issue mode is refused rather than ignored" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot \
-    "--last-verdict=$(sha40 0)"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
-}
-
-# `--was-draft` used to be read as `${6:-}` alone, so a second trailing flag would have
-# silenced whichever one came last — two wake paths, failing quietly, decided by typing
-# order. Both orders must work, and anything else must be refused.
-#
-# One tick proves both flags parsed, because the PR is already out of draft: the READY
-# line exists only if `--was-draft` was seen, and carries `verdict_sha` only if
-# `--last-verdict` was. The draft transition itself is the test below.
 @test "trailing flags work in either order" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=READY"* ]]
   [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
 
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --was-draft --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --was-draft --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=READY"* ]]
   [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
@@ -673,11 +504,11 @@ EOF
 # without `--was-draft` and the PR is picked up on its next push, or never. A burst
 # accumulating behind the held-back draft has no release short of this transition.
 @test "--was-draft reports a draft being marked ready" {
-  printf true > "$DRAFT"
+  printf true > "$DRAFT_FILE"
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
-  AT_TICK=3 AT_TICK_FILE="$DRAFT" AT_TICK_VALUE=false \
+  AT_TICK=3 AT_TICK_FILE="$DRAFT_FILE" AT_TICK_VALUE=false \
   INTERVAL=1 SETTLE=1 WINDOW=20 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=READY"* ]]
   # The verdict fired on tick 1, was held back with the draft, and rode out on READY
@@ -686,7 +517,7 @@ EOF
 }
 
 @test "an unrecognised trailing argument is refused rather than ignored" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --no-such-flag
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --no-such-flag --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
@@ -696,26 +527,23 @@ EOF
 # a cohort of kills against the PRs they were watching.
 @test "START records the watcher's own arguments" {
   local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home"
-  TMPDIR="$home" INTERVAL=1 WINDOW=3 run "$WATCH" o/r 77 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  TMPDIR="$home" INTERVAL=1 WINDOW=3 run "$WATCH" o/r 77 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   local f; f=$(find "$home/dnbg-watch" -name 'watch-pr-*.log' | head -1)
   [ -n "$f" ]
-  grep -q "args=\[o/r 77 $(sha40 0) 1970-01-01T00:00:00Z bot\]" "$f"
+  grep -q "args=\[o/r 77 $(sha40 0) 1970-01-01T00:00:00Z bot --role=reviewer\]" "$f"
 }
 
-# ...INCLUDING the leading flags, which are shifted away before lib-poll.sh captures
-# `$*`. Left to that capture, an issue watch traces as a bare `o/r 56` — the same line
-# a PR watch on PR 56 writes, so a post-mortem cannot tell which of the two died, and
-# the exclusion list (the argument most likely to be wrong on a re-arm) is absent
-# entirely. The trace is the only evidence a killed watch leaves.
-@test "START records the leading flags, not just what survived the shift" {
+# ...INCLUDING the role, which is what tells two watches on one PR apart. A trace
+# is the only evidence a killed watch leaves, and an author watch and a reviewer
+# watch on the same number are otherwise the same line.
+@test "START records the role, so two watches on one PR are distinguishable" {
   local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home"
-  TMPDIR="$home" INTERVAL=1 WINDOW=2 run "$WATCH" --issue \
-    --exclude=https://github.com/o/r/pull/114 o/r 56 "" 1970-01-01T00:00:00Z bot
+  TMPDIR="$home" INTERVAL=1 WINDOW=2 run "$WATCH" o/r 56 "" 1970-01-01T00:00:00Z bot --role=author
   [ "$status" -eq 0 ]
   local f; f=$(find "$home/dnbg-watch" -name 'watch-pr-*.log' | head -1)
   [ -n "$f" ]
-  grep -q -- "args=\[--issue --exclude=https://github.com/o/r/pull/114 o/r 56 " "$f"
+  grep -q -- "--role=author" "$f"
 }
 
 # The watcher polls the comments it reports on, so reporting only a flag makes the
@@ -725,7 +553,7 @@ EOF
 @test "the activity behind activity=1 is summarised, without the body" {
   printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"four things below","commit":{"oid":"%s"}}]' \
     "$(sha40 0)" > "$REVIEWS"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ACTIVITY"* ]]
   [[ "$output" == *'"kind":"review"'* ]]
@@ -741,7 +569,7 @@ EOF
 @test "a reported round prints the pr-round.sh call with its arguments filled in" {
   printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"x","commit":{"oid":"%s"}}]' \
     "$(sha40 0)" > "$REVIEWS"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"── next ──"* ]]
   [[ "$output" == *"/pr-round.sh\" o/r 1 $(sha40 0) 1970-01-01T00:00:00Z bot"* ]]
@@ -752,7 +580,7 @@ EOF
 @test "a blank last-head prints as an empty-string argument, not a missing one" {
   printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"x","commit":{"oid":"%s"}}]' \
     "$(sha40 0)" > "$REVIEWS"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"/pr-round.sh\" o/r 1 \"\" 1970-01-01T00:00:00Z bot"* ]]
 }
@@ -774,7 +602,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=COMMITS"* ]]
   [[ "$output" == *"activity=1"* ]]
@@ -787,17 +615,21 @@ EOF
 }
 
 # A caller reading the lines above `result=` must not find leftovers on a quiet
-# watch — an empty burst has to look empty.
-@test "a quiet watch prints its result line and nothing else" {
-  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot
-  [ "${#lines[@]}" -eq 1 ]
-  [[ "${lines[0]}" == result=IDLE* ]]
+# watch — an empty burst has to look empty. The re-arm line is not a leftover:
+# IDLE is the result a caller always re-arms from, so it is the one that most
+# needs the next invocation attached.
+@test "a quiet watch carries its re-arm line and no burst content" {
+  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "$output" == *"── re-arm ──"* ]]
+  [[ "$output" != *"── next ──"* ]]
+  [[ "$output" != *'"kind":'* ]]
 }
 
 @test "a verdict wake names the state that stands, not only its SHA" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"verdict=APPROVED"* ]]
   [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
@@ -810,7 +642,7 @@ EOF
            {"state":"CHANGES_REQUESTED","submittedAt":"1970-01-02T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"%s"}}]' \
     "$(sha40 0)" "$(sha40 0)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"verdict=CHANGES_REQUESTED"* ]]
 }
@@ -821,10 +653,584 @@ EOF
 # leaving both variables empty so the level-triggered check silently stops firing and
 # the watch reports a quiet PR. `commit` as a number breaks that query alone: the
 # shape gate passes, and the activity count above it reads fields that are all there.
-@test "a verdict payload that stops parsing kills the watch instead of reporting quiet" {
+# It used to die here with no result line, because the verdict read had no
+# counter of its own and dying beat reporting quiet. The malformed shape is now
+# caught one layer down, where the payload is parsed at all, so it arrives as a
+# named ERROR the caller can branch on — and it is caught once for every reader
+# rather than by each in turn.
+@test "a review the fetch cannot parse reports ERROR instead of reporting quiet" {
   printf '[{"submittedAt":"1970-01-02T00:00:00Z","author":{"login":"someone"},"state":"APPROVED","commit":5}]' \
     > "$REVIEWS"
-  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
-  [ "$status" -ne 0 ]
-  [[ "$output" != *"result="* ]]
+  INTERVAL=1 WINDOW=30 FAIL_MAX=2 FAIL_MIN_SECONDS=0 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
+  [ "$status" -eq 0 ]
+  [[ "${lines[-1]}" == *"result=ERROR reason=pr-view-shape"* ]]
+  [[ "$output" != *"result=IDLE"* ]]
+}
+
+# --- the author role's merge-state results -----------------------------------
+#
+# One arming covers a PR from open to merge, so a caller never swaps watchers
+# after a clean review — the swap is what drops a review posted after an
+# approval, and these cases are what make swapping unnecessary.
+
+@test "a merged PR stops the watch" {
+  echo MERGED > "$PRSTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CLOSED state=MERGED" ]]
+}
+
+@test "a PR closed without merging stops the watch" {
+  echo CLOSED > "$PRSTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CLOSED state=CLOSED" ]]
+}
+
+@test "a conflict with base reports DIRTY to the author" {
+  echo DIRTY > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=DIRTY* ]]
+}
+
+# The reviewer has nothing to do about a conflict with base, so waking them on
+# one is noise they cannot act on.
+@test "a conflict is not the reviewer's business" {
+  echo DIRTY > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# Nothing running, nothing red, the approval in hand — so only a human moves it.
+# `--merge-stage` because a terminal block is an answer only once the review is
+# over; during one it is the ordinary state of a PR with an open thread.
+@test "a block with nothing pending is terminal and reaches the author" {
+  echo BLOCKED > "$MERGESTATE"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"lint","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
+}
+
+# The distinction the old watcher counted pending checks to make, now made in the
+# backend: a required check still running is auto-merge waiting, not a block.
+@test "a block with a check still running keeps waiting" {
+  echo BLOCKED > "$MERGESTATE"
+  echo '[{"name":"e2e","status":"IN_PROGRESS","conclusion":""}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# A watcher is read-only. Nothing it does may write to the PR.
+@test "the watch never mutates the PR" {
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  ! grep -qE " (pr (merge|close|ready|edit|review|comment)|api .*-X (POST|PATCH|PUT|DELETE))" "$CALLS"
+}
+
+# --- the check baseline is what the caller has been TOLD, not the last reading ---
+
+# A recovery has to clear it. Carrying the old list forward means the same check
+# failing a second time compares equal and is never reported again, for the life
+# of the watch chain.
+@test "a recovered check clears the baseline the re-arm carries" {
+  echo '[]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --last-checks=lint
+  [[ "$output" == *"--last-checks=''"* ]]
+  [[ "$output" != *"lint"* ]]
+}
+
+@test "a failure the caller was told about is carried as handled" {
+  echo '[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='lint'"* ]]
+  [[ "$output" == *"--last-checks='lint'"* ]]
+}
+
+# A check going red while a burst is settling must not be dropped in favour of
+# the burst, and must not be marked handled without being reported. Riding along
+# as a field on whatever the burst reports satisfies both: the caller is told,
+# so advancing the baseline is then correct.
+@test "a check going red during a settle rides out on the burst" {
+  printf '%s' "$(reviews COMMENTED "$(sha40 0)" someone)" > "$REVIEWS"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=2 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" == *"checks='ci'"* ]]
+  [[ "$output" == *"--last-checks='ci'"* ]]
+}
+
+# A wake that is only a red build still says so in the result name, so a caller
+# branching on `result=` does not have to read the fields to find it.
+@test "a check failing alone reports CHECKS" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='ci'"* ]]
+}
+
+# The baseline has to advance in-run too. Left un-advanced, the same standing
+# verdict counts as a change on every tick, pushing the settle out faster than
+# the poll floor can reach it — so the burst is only ever released by the cap.
+@test "a standing verdict is reported at the settle, not held to the cap" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=3 SETTLE_MAX=600 WINDOW=60 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-verdict=
+  [[ "$output" == *"verdict=APPROVED"* ]]
+  [ "$(cat "$TICKS")" -lt 20 ]
+}
+
+# --- what a settle may still be holding when it expires -----------------------
+
+# The settle outlives its own reason: a check goes red, the settle starts, and the
+# build is green again before it expires. Reporting the burst anyway names a red
+# check the caller would find green, and then marks it handled — so the same check
+# failing again compares equal to the baseline and is never reported at all.
+@test "a check that recovers inside its own settle is not reported" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  AT_TICK=2 AT_TICK_FILE="$ROLLUP" \
+    AT_TICK_VALUE='[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' \
+    INTERVAL=1 SETTLE=3 WINDOW=12 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" != *"checks="* ]]
+  # The withdrawn failure must not be carried as handled either, or the next
+  # genuine failure of the same check compares equal and is swallowed.
+  [[ "$output" == *"--last-checks=''"* ]]
+}
+
+# The settle emptying must not fall through to the generic branch of the burst,
+# which reports `activity=1` unconditionally.
+@test "an emptied settle does not invent activity" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  AT_TICK=2 AT_TICK_FILE="$ROLLUP" AT_TICK_VALUE='[]' \
+    INTERVAL=1 SETTLE=3 WINDOW=12 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "$output" != *"result=ACTIVITY"* ]]
+}
+
+# --- check names are forge-supplied text ---------------------------------------
+
+# `build (macos-latest)` is what GitHub calls a default matrix job. Unquoted it
+# makes the re-arm line a syntax error rather than a command, and splits the
+# result line into fields a caller cannot parse.
+@test "a check name containing a space keeps the re-arm line runnable" {
+  echo '[{"name":"build (macos-latest)","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='build (macos-latest)'"* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  # The contract is that a caller runs this line verbatim.
+  bash -n <<<"$rearm"
+}
+
+@test "a check name containing a quote is escaped, not merely wrapped" {
+  echo '[{"name":"dans lint","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  printf '%s' '[{"name":"it'"'"'s red","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  bash -n <<<"$rearm"
+  # And it survives the round trip: the name the next arm parses back out has to
+  # equal this one, or the standing failure is reported again forever.
+  [[ "$rearm" == *"--last-checks='it'\\''s red'"* ]]
+}
+
+# --- a block only a human clears is not a state to re-arm on -------------------
+
+# BLOCKED covers "no approval yet" as well as "a required check failed", and the
+# author watch is armed at `gh pr ready` — before any review exists. Read as
+# terminal, the watch exits on its first tick on every repo that requires an
+# approval, which is the watch's entire job.
+@test "a block waiting on a required review is not terminal" {
+  echo BLOCKED > "$MERGESTATE"
+  echo REVIEW_REQUIRED > "$REVIEWDECISION"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# Same shape after a findings round: the decision stays CHANGES_REQUESTED until a
+# re-review, so treating it as terminal kills every watch armed after a push.
+@test "a block waiting on a re-review is not terminal" {
+  echo BLOCKED > "$MERGESTATE"
+  echo CHANGES_REQUESTED > "$REVIEWDECISION"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+@test "a block with the approval in hand and nothing pending is still terminal" {
+  echo BLOCKED > "$MERGESTATE"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
+}
+
+# Neither clears without a human, so a caller that re-arms from the printed line
+# — which is what both skills instruct — wakes on the same state every tick.
+@test "DIRTY and a terminal block carry no re-arm line" {
+  echo DIRTY > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=DIRTY* ]]
+  [[ "$output" != *"re-arm"* ]]
+
+  echo BLOCKED > "$MERGESTATE"; echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == result=BLOCKED* ]]
+  [[ "$output" != *"re-arm"* ]]
+}
+
+# --- the window default is role-dependent, and it is load-bearing --------------
+
+# lib-poll.sh applies its own WINDOW default at source time, so a role default set
+# after the source never fires. Nothing else catches it: every other test in this
+# file passes WINDOW explicitly, and the symptom is a 30-minute author watch
+# silently becoming a 6-hour one.
+@test "the author role gets the short window without being told" {
+  INTERVAL=1000 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# A standing failure is level state: it stays set until reported, so charging it
+# to `changed` on every tick resets the backoff curve on every tick. On a draft
+# hold the burst is never released, so nothing ever clears it and the poll sits
+# at the curve's floor for the whole window — with the default 6h window, tens of
+# times the requests the curve exists to avoid.
+@test "a standing check failure does not pin the poll to the curve floor" {
+  echo true > "$DRAFT_FILE"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  POLL_CURVE="0:1 5:8" WINDOW=12 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --was-draft
+  # The curve must advance past its floor. Pinned, every gap is the floor value.
+  local naps; naps=$(grep -c ' 1$' "$CALLS" || true)
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  # Four ticks on this curve and window, not twelve.
+  [ "$(grep -c 'pr view' "$CALLS")" -le 6 ]
+}
+
+# A red check must not end the watch. `checks_failing` is separated from
+# `terminal` in the fetch precisely so the CHECKS path handles it — a terminal
+# block prints no re-arm line, so reaching it here stops the author's review
+# watch permanently the first time CI goes red.
+@test "a red required check reports CHECKS, not a terminal block" {
+  echo BLOCKED > "$MERGESTATE"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='ci'"* ]]
+  # And the watch stays armable, which a terminal block would not be.
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# --- a run that reports nothing has handled nothing ----------------------------
+
+# The draft hold gates the burst but not the window, so IDLE is reachable with
+# activity in hand. Advancing `since` there deletes it: the next arm filters it
+# out and no run ever reports it.
+@test "an IDLE holding a burst re-arms with the state it was given" {
+  echo true > "$DRAFT_FILE"
+  cat > "$STUB/comments" <<'EOF'
+EOF
+  printf '%s' '[{"state":"COMMENTED","submittedAt":"2026-06-01T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"x"}}]' > "$REVIEWS"
+  INTERVAL=1 SETTLE=30 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=reviewer --was-draft
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  # `since` must be the one passed in, not this run's `now`.
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"2026-01-01T00:00:00Z"* ]]
+}
+
+# A quiet IDLE still advances, which is the whole re-arm contract.
+@test "an IDLE holding nothing advances since as usual" {
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" != *"2026-01-01T00:00:00Z"* ]]
+}
+
+# --- the verdict field means "stands at HEAD" ----------------------------------
+
+# A push moves HEAD past the verdict seen earlier in the same run. Carrying the
+# field onto that push's report says the new head is approved when nobody has
+# read it — the one claim a caller acts on without fetching.
+@test "a verdict is not reported alongside the push that invalidated it" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  AT_TICK=3 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=9 \
+    INTERVAL=1 SETTLE=2 WINDOW=20 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer --last-verdict=
+  [[ "${lines[-1]}" == result=COMMITS* ]]
+  [[ "${lines[-1]}" != *"verdict="* ]]
+}
+
+# --- the re-arm line has to reproduce THIS watch, not a default one -------------
+
+# `merge.md` arms a six-hour wait explicitly and says in bold that the default
+# will not do. A bare command drops that on the first wake, after which the skill
+# reports a thirty-minute idle as six hours with no merge.
+@test "the re-arm line carries the window this run was given" {
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == "WINDOW=4 "* ]]
+  bash -n <<<"$rearm"
+}
+
+# A first arm passes `--last-verdict=` empty, meaning "none handled yet". With
+# `:-` the default fires on that empty value, so a held verdict is handed back as
+# handled and no run ever reports it.
+@test "an IDLE holding a verdict does not hand it back as handled" {
+  echo true > "$DRAFT_FILE"
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=30 WINDOW=8 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer \
+      --was-draft --last-verdict=
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  # Nothing was reported, so the next arm must still have no verdict handled.
+  [[ "$rearm" == *"--last-verdict= "* ]]
+}
+
+# --- a verdict outranks a red check as the result name -------------------------
+
+# CHECKS is documented as "not your finding to fix — re-arm without acting", and
+# the re-arm marks the verdict handled. So reducing an unhandled verdict to a
+# CHECKS wake loses it until the IDLE backstop notices an approval at HEAD, a
+# whole window later.
+@test "a verdict standing at HEAD is not reduced to a CHECKS wake" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  echo '[{"name":"build","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-verdict=
+  [[ "${lines[-1]}" != result=CHECKS* ]]
+  # The red build still rides along — it is not dropped, only demoted.
+  [[ "${lines[-1]}" == *"checks='build'"* ]]
+  [[ "${lines[-1]}" == *"verdict=APPROVED"* ]]
+}
+
+# --- what the caller has handled is advanced by a report, not by a sighting -----
+
+# A verdict seen, then a push past it: the verdict is withdrawn and nothing is
+# reported, so the next arm must still have no verdict handled. Advancing on
+# sight suppresses that verdict if the head ever returns to the SHA.
+@test "an unreported verdict does not advance what the caller has handled" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  AT_TICK=2 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=9 \
+    INTERVAL=1 SETTLE=2 WINDOW=12 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-verdict=
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"--last-verdict= "* ]]
+}
+
+# --- a degraded source must not empty the summary it feeds ---------------------
+
+# The fetch substitutes `[]` for the inline half when that source fails. Taking
+# it means a burst whose activity WAS inline comments reports `activity=1` over
+# an empty summary.
+@test "a degraded inline fetch does not blank the activity summary" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+echo "$(date +%s) $*" >> "$CALLS"
+if [ "$2" = view ]; then
+  t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+fi
+case "$1 $2" in
+  "pr view")
+    printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[],"statusCheckRollup":[],"mergeStateStatus":"CLEAN","reviewDecision":""}' 0 ;;
+  "api "*|"api")
+    # Answers on tick 1, then goes blind — the degraded case.
+    t=$(cat "$TICKS" 2>/dev/null || echo 0)
+    [ "$t" -ge 2 ] && exit 1
+    echo '[{"user":{"login":"someone"},"created_at":"2026-06-01T00:00:00Z","id":7,"path":"a.sh","line":3,"body":"x"}]' ;;
+  *) exit 1 ;;
+esac
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=1 SETTLE=3 WINDOW=12 FAIL_MAX=99 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  # The summary must still name the inline finding that caused the wake.
+  [[ "$output" == *'"kind":"inline"'* ]]
+}
+
+# --- <last_head> is what the caller HANDLED, not what the run saw --------------
+
+# The author role does not wake on a push. That must not also mean the push is
+# skipped: the re-arm's head is the base of the next round's diff, so advancing it
+# past a commit nobody reported leaves that commit in no diff at all.
+@test "an unreported push does not advance the head the next round diffs from" {
+  AT_TICK=2 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=7 \
+    INTERVAL=1 WINDOW=6 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"o/r 1 $(sha40 0) "* ]]
+}
+
+# The reviewer role reports it, and a reported move IS handled, so there the head
+# advances — otherwise every later round re-diffs from the original base.
+@test "a reported push does advance it" {
+  AT_TICK=2 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=7 \
+    INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=COMMITS* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"o/r 1 $(sha40 7) "* ]]
+}
+
+# --- a block the rollup cannot see yet -----------------------------------------
+
+# The window between a push and the first check run has an EMPTY rollup, so
+# nothing is counted as pending — and a merge watch is armed in exactly that
+# window. Read as terminal it dies on its first tick, with no re-arm line.
+@test "a required check that has not reported yet is not a terminal block" {
+  echo BLOCKED > "$MERGESTATE"
+  echo '[]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+@test "a base that moved on is not the reviewer's business" {
+  echo BEHIND > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# --- activity= is a count of conversation, not of the burst --------------------
+
+# A verdict is level-triggered, so it can fire with nothing else in the burst.
+# The caller is told to go read comments when this says 1.
+@test "a verdict-only burst does not claim conversation landed" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-verdict=
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" == *"activity=0"* ]]
+  [[ "${lines[-1]}" == *"verdict=APPROVED"* ]]
+}
+
+# --- a stop must not discard what the tick already held -------------------------
+
+# The merge state is read after the tick's activity, so a comment landing in the
+# same poll interval as a conflict is not answered with a bare DIRTY that carries
+# no re-arm line — the caller would re-spawn off a fresh clock and filter it out.
+@test "a conflict does not discard a comment from the same tick" {
+  echo DIRTY > "$MERGESTATE"
+  printf '%s' '[{"state":"COMMENTED","submittedAt":"2026-06-01T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"x"}}]' > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" == *"merge=DIRTY"* ]]
+  # And it is re-armable, so the next tick delivers the bare stop.
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# With nothing in hand it is still a clean stop.
+@test "a conflict with nothing in hand is still a bare stop" {
+  echo DIRTY > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=DIRTY "* ]]
+  [[ "$output" != *"re-arm"* ]]
+}
+
+# --- a base that moved on is not the end of the merge wait ----------------------
+
+# One "Update branch" click clears it, and under a merge queue often nothing
+# does. Ending the wait on it loses the merge the stage exists to catch.
+@test "a base that moved on does not end the wait" {
+  echo BEHIND > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" == *"merge=behind"* ]]
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# --- the reported set is the set that is actually red ---------------------------
+
+# A partial recovery can bring the failing set back to exactly what the caller was
+# already told. Naming the pre-recovery set reports a check they will find green,
+# and advances the baseline onto a set that never existed — after which the still-
+# red one compares unequal and is reported a second time.
+@test "a partial recovery does not report a check that went green" {
+  echo '[{"name":"a","status":"COMPLETED","conclusion":"FAILURE"},
+         {"name":"b","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  AT_TICK=2 AT_TICK_FILE="$ROLLUP" \
+    AT_TICK_VALUE='[{"name":"a","status":"COMPLETED","conclusion":"FAILURE"},
+                    {"name":"b","status":"COMPLETED","conclusion":"SUCCESS"}]' \
+    INTERVAL=1 SETTLE=3 WINDOW=12 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-checks=a
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "$output" != *"checks='a,b'"* ]]
+  # The baseline stays what the caller was told, so `a` is not re-reported later.
+  [[ "$output" == *"--last-checks='a'"* ]]
+}
+
+# --- a red build is not a round to spend ----------------------------------------
+
+# `── next ──` is a four-request round over the diff, bodies and threads, and both
+# skills say a red build is neither a re-review nor a finding to answer.
+@test "a checks-only wake does not offer a pr-round" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=CHECKS* ]]
+  [[ "$output" != *"next"* ]]
+  # The re-arm line is still there — that is how the watch continues.
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# A burst with conversation in it still gets one.
+@test "a burst with conversation still offers a pr-round" {
+  printf '%s' '[{"state":"COMMENTED","submittedAt":"2026-06-01T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"x"}}]' > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "$output" == *"next"* ]]
+}
+
+# --- a blocked PR is the normal state of one under review ----------------------
+
+# With `required_conversation_resolution` on, one open thread makes GitHub report
+# BLOCKED; with no required approver `reviewDecision` is empty, so the cause falls
+# through to terminal. Stopping there ends the review watch on its first tick,
+# every round, for the ordinary reason that a reviewer has opened a thread.
+@test "a terminal block does not end a review-stage watch" {
+  echo BLOCKED > "$MERGESTATE"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  # Named, not swallowed — the window's own IDLE says why nothing is moving.
+  [[ "${lines[-1]}" == *"merge=blocked"* ]]
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# Once the review is over the same state IS the answer: nothing pending clears it.
+@test "a terminal block does end a merge-stage watch" {
+  echo BLOCKED > "$MERGESTATE"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
+  [[ "$output" != *"re-arm"* ]]
+}
+
+# The stage has to survive the re-arm, or the first wake silently drops the merge
+# wait back to review-stage behaviour and the terminal block never lands.
+@test "the merge stage is carried on the re-arm line" {
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"--merge-stage"* ]]
+  bash -n <<<"$rearm"
+}
+
+# A conflict is never the normal state of a PR and nothing the reviewer does
+# clears it, so it stops at either stage.
+@test "a conflict stops a review-stage watch too" {
+  echo DIRTY > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=DIRTY "* ]]
 }

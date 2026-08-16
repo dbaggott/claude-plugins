@@ -36,7 +36,7 @@ teardown() {
       # signal handler, and the one test that backgrounds a `sleep` lets it expire on
       # its own — while `sleep` is common enough that matching it would put most of
       # the recycled-pid risk straight back.
-      *watch-pr.sh*|*watch-merge.sh*|*lib-poll.sh*) kill "$p" 2>/dev/null ;;
+      *watch-pr.sh*|*watch-issue.sh*|*lib-poll.sh*) kill "$p" 2>/dev/null ;;
     esac
   done < "$BATS_TEST_TMPDIR/pids"
   return 0

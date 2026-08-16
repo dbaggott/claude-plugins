@@ -38,7 +38,7 @@ row "${C_DIM}         assigned:agent-session · claim comment posted${C_OFF}" ""
 beat 1.4
 
 row "${C_TOOL}● Bash${C_OFF}   git worktree add .worktrees/readme-front-page" \
-    "${C_TOOL}● Task${C_OFF}   watch-pr.sh --issue 17 ${C_DIM}(background)${C_OFF}"
+    "${C_TOOL}● Task${C_OFF}   watch-issue.sh 17 --role=reviewer ${C_DIM}(background)${C_OFF}"
 beat 1.3
 row "${C_TOOL}● Edit${C_OFF}   README.md, docs/*.md" ""
 beat 1.0
@@ -102,6 +102,6 @@ row "${C_OK}● APPROVED at 5b52654 — ready to merge.${C_OFF}" \
 beat 0.9
 row "${C_DIM}  gh pr merge 98 --repo dbaggott/claude-plugins --squash${C_OFF}" ""
 beat 0.8
-row "${C_TOOL}● Task${C_OFF}   watch-merge.sh 98 ${C_DIM}(background)${C_OFF}" ""
+row "${C_TOOL}● Task${C_OFF}   watch-pr.sh 98 --role=author ${C_DIM}(background)${C_OFF}" ""
 row "${C_SAY}  Merge whenever — I'll clean up when it lands.${C_OFF}" ""
 beat 5.0
