@@ -1,0 +1,176 @@
+#!/usr/bin/env bats
+#
+# Tests for the per-tick PR fetch. `gh` is stubbed on PATH and serves whatever
+# JSON the test writes, so every branch is reachable without a network.
+#
+# The mapping from GitHub's `mergeStateStatus` to a cause is the reason this
+# script exists rather than the watcher reading the field directly: GitLab names
+# the cause and GitHub overloads one status, so the counting that tells a
+# still-running required check from a failed one is a GitHub detail and must not
+# reach a caller. Every case below is one a caller would otherwise have to make.
+
+FETCH="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/fetch-pr-state.sh"
+
+setup() {
+  STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
+  export PR_JSON="$BATS_TEST_TMPDIR/pr.json"
+  export INLINE_JSON="$BATS_TEST_TMPDIR/inline.json"
+  export FAIL_PR="$BATS_TEST_TMPDIR/fail_pr"
+  export FAIL_INLINE="$BATS_TEST_TMPDIR/fail_inline"
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in
+  *"pr view"*)             [ -f "$FAIL_PR" ] && exit 1;     cat "$PR_JSON" ;;
+  *"pulls/"*"/comments"*)  [ -f "$FAIL_INLINE" ] && exit 1; cat "$INLINE_JSON" ;;
+esac
+EOF
+  chmod +x "$STUB/gh"
+  export PATH="$STUB:$PATH"
+  echo '[]' > "$INLINE_JSON"
+}
+
+# A minimal open PR, with the rollup and merge status the case is about.
+pr() {  # <mergeStateStatus> <rollup-json>
+  jq -cn --arg m "$1" --argjson rollup "$2" \
+    '{state:"OPEN", isDraft:false,
+      headRefOid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      reviews:[], comments:[], statusCheckRollup:$rollup, mergeStateStatus:$m}' > "$PR_JSON"
+}
+
+obj() { sed '$d' <<<"$1"; }        # everything above the result line
+line() { tail -1 <<<"$1"; }
+
+@test "a clean PR reports no cause" {
+  pr CLEAN '[]'
+  run "$FETCH" o/r 1
+  [ "$status" -eq 0 ]
+  [ "$(obj "$output" | jq -r '.merge.status')" = clean ]
+  [ "$(obj "$output" | jq -r '.merge.cause')" = null ]
+}
+
+@test "BLOCKED with a check still running is a transient block, not a terminal one" {
+  pr BLOCKED '[{"name":"e2e","status":"IN_PROGRESS","conclusion":""}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_running ]
+}
+
+# The distinction the caller cannot make for itself: both arrive as BLOCKED, and
+# one means "wait", the other "a human has to act".
+@test "BLOCKED with everything finished is terminal" {
+  pr BLOCKED '[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+}
+
+@test "a cancelled or timed-out check counts as finished, not as still running" {
+  pr BLOCKED '[{"name":"a","status":"COMPLETED","conclusion":"CANCELLED"},
+               {"name":"b","status":"COMPLETED","conclusion":"TIMED_OUT"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+}
+
+@test "a neutral check does not make a clean PR look unfinished" {
+  pr BLOCKED '[{"name":"skipped","status":"COMPLETED","conclusion":"NEUTRAL"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+}
+
+# Two rollup shapes reach the same field. A StatusContext carries no
+# `conclusion` at all, so a reader keying on that alone sees every legacy status
+# as unfinished forever.
+@test "the StatusContext shape is normalised like a CheckRun" {
+  pr BLOCKED '[{"context":"ci/legacy","state":"PENDING"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.checks[0].name')" = "ci/legacy" ]
+  [ "$(obj "$output" | jq -r '.checks[0].state')" = pending ]
+}
+
+@test "a PR with no checks at all is not read as having a pending one" {
+  pr BLOCKED '[]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+  [ "$(obj "$output" | jq -r '.checks | length')" = 0 ]
+}
+
+@test "an unrecognised merge status is reported as unknown rather than guessed" {
+  pr BEHIND '[]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.status')" = unknown ]
+  [ "$(obj "$output" | jq -r '.merge.cause')" = behind ]
+}
+
+# One source failing must not cost the tick every other source answered.
+@test "inline comments failing degrades the object rather than losing it" {
+  pr CLEAN '[]'
+  touch "$FAIL_INLINE"
+  run "$FETCH" o/r 1
+  [[ "$(line "$output")" == "result=OK"*"degraded=inline-comments"* ]]
+  [ "$(obj "$output" | jq -r '.state')" = OPEN ]
+}
+
+@test "a healthy tick reports no degradation" {
+  pr CLEAN '[]'
+  run "$FETCH" o/r 1
+  [[ "$(line "$output")" != *degraded=* ]]
+}
+
+@test "the primary source failing is an error naming it" {
+  pr CLEAN '[]'
+  touch "$FAIL_PR"
+  run "$FETCH" o/r 1
+  [[ "$output" == *"result=ERROR reason=pr-view "* ]]
+}
+
+# An error body is well-formed JSON. Proving the payload parses is not proving
+# the fields are there, and a missing `state` matches neither MERGED nor CLOSED
+# for the life of a watch.
+@test "an error body that parses is a shape error, not a quiet OPEN" {
+  echo '{"message":"Not Found"}' > "$PR_JSON"
+  run "$FETCH" o/r 1
+  [[ "$output" == *"reason=pr-view-shape"* ]]
+}
+
+@test "a missing isDraft is a shape error rather than a null the caller compares" {
+  jq -cn '{state:"OPEN", headRefOid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+           reviews:[], comments:[], statusCheckRollup:[], mergeStateStatus:"CLEAN"}' > "$PR_JSON"
+  run "$FETCH" o/r 1
+  [[ "$output" == *"reason=pr-view-shape"* ]]
+}
+
+@test "unparseable output is a shape error, never a crash without a result line" {
+  echo 'not json at all' > "$PR_JSON"
+  run "$FETCH" o/r 1
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"reason=pr-view-shape"* ]]
+}
+
+@test "a missing or non-numeric pr number is refused" {
+  run "$FETCH" o/r
+  [[ "$output" == *"reason=bad-args"* ]]
+  run "$FETCH" o/r abc
+  [[ "$output" == *"reason=bad-args"* ]]
+}
+
+# The seam https://github.com/dbaggott/claude-plugins/issues/149 widens. It must
+# refuse rather than silently answer as GitHub.
+@test "a forge with no backend is refused rather than assumed" {
+  pr CLEAN '[]'
+  FORGE=gitlab run "$FETCH" o/r 1
+  [[ "$output" == *"reason=unsupported-forge"* ]]
+}
+
+@test "reviews and comments are normalised to forge-neutral names" {
+  jq -cn '{state:"OPEN", isDraft:false, headRefOid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+           reviews:[{author:{login:"r"}, submittedAt:"2026-01-01T00:00:00Z",
+                     state:"APPROVED", commit:{oid:"bbb"}}],
+           comments:[{author:{login:"c"}, createdAt:"2026-01-02T00:00:00Z"}],
+           statusCheckRollup:[], mergeStateStatus:"CLEAN"}' > "$PR_JSON"
+  echo '[{"user":{"login":"i"},"created_at":"2026-01-03T00:00:00Z","id":7,"path":"a.sh","line":3}]' \
+    > "$INLINE_JSON"
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.reviews[0].author')" = r ]
+  [ "$(obj "$output" | jq -r '.reviews[0].sha')" = bbb ]
+  [ "$(obj "$output" | jq -r '.comments[0].author')" = c ]
+  [ "$(obj "$output" | jq -r '.inline[0].id')" = 7 ]
+  [ "$(obj "$output" | jq -r '.inline[0].path')" = a.sh ]
+}
