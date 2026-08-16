@@ -265,13 +265,12 @@ EOF
 # the check.
 #
 # Two of the three sites now CALL `scripts/pr-sources.sh` rather than carrying their
-# own copy, so for them the question is only whether they still invoke it. The third,
-# `watch-pr.sh --issue`, keeps inline queries deliberately (see its own comments: it
-# reads `.state` from the same `gh issue view`, and needs the timeline's fetch and
-# parse failures counted separately with poll_broken's awake-time grace, neither of
-# which survives a CLI boundary). So it is the one site that can still narrow alone —
-# and it is now compared against the script rather than against prose, which is what
-# `covers_discovery` could never do before: real code on both sides.
+# own copy, so for them the question is only whether they still invoke it. The third
+# is `fetch-issue-state.sh`, which asks both sources inside one batched query — it
+# reads `state`, the conversation and the linked PRs together, and splitting the
+# linked-PR half back out to a CLI call would cost a request per tick to buy nothing.
+# So it is the one site that can still narrow alone, and it is compared against the
+# script rather than against prose: real code on both sides.
 
 # Each extractor returns the API surfaces its site queries, one per line, under names
 # shared across the three files so they can be compared as sets. Taking the file as an
@@ -297,8 +296,8 @@ pr_sources() {  # <file>
   # `<n>` in a skill, `$PR` in the watcher, `$ISSUE` in pr-sources.sh: the same
   # endpoint spelled for three audiences, so all of them normalise to `timeline`.
   pr_command_lines "$1" \
-    | grep -oE 'closedByPullRequestsReferences|issues/(<n>|\$PR|\$ISSUE)/timeline|gh search prs' \
-    | sed 's|issues/.*/timeline|timeline|' | sort -u
+    | grep -oE 'closedByPullRequestsReferences|issues/(<n>|\$PR|\$ISSUE)/timeline|timelineItems|gh search prs' \
+    | sed 's|issues/.*/timeline|timeline|; s|timelineItems|timeline|' | sort -u
 }
 
 # A site may decline a source, but only out loud. The marker carries the reason inline,
@@ -350,7 +349,7 @@ EOF
 DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
 
 @test "the issue-scoped wait sees every PR source discovery does" {
-  run covers_discovery "$ROOT/dnbg-workflow/scripts/watch-pr.sh" "$DISCOVERY"
+  run covers_discovery "$ROOT/dnbg-workflow/scripts/fetch-issue-state.sh" "$DISCOVERY"
   echo "$output"
   [ "$status" -eq 0 ]
 }

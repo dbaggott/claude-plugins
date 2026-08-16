@@ -239,7 +239,7 @@ while :; do
 
   verdict_line=$(printf '%s' "$J" | jq -r --arg head "$HEAD" --arg slug "$SLUG" '
     [ .reviews[]?
-      | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED")
+      | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "DISMISSED")
       | select(.author != $slug and .author != ($slug + "[bot]")) ]
     | (last // {}) | select((.sha // "") == $head) | "\(.sha) \(.state)"' 2>/dev/null || true)
 

@@ -91,7 +91,8 @@ ask before reviewing".
 Watch a held-back draft rather than dropping it, arming the ready check:
 
 ```bash
-"<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> <slug> --was-draft
+"<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> <slug> \
+  --role=reviewer --was-draft
 ```
 
 `<last_head>` is the full 40-character SHA from
@@ -151,10 +152,17 @@ Spawn the wait as a **background** task so the idle polling never enters the
 conversation:
 
 ```bash
-"<skill-dir>/../../scripts/watch-pr.sh" --issue [--exclude=<url,url,...>] \
-  <owner>/<repo> <n> "" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")"
+"<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
+  --role=reviewer --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --slug="$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")" \
+  [--exclude=<url,url,...>]
 ```
+
+It wakes on a comment, a body edit, a linked PR appearing, or the issue closing,
+and names which of those fired on which issue. Several issues cost one call per
+tick, so watching the whole set you were handed is no more expensive than
+watching one.
+
 
 **At most one issue wait at a time, re-armed only on its own return.** A PR
 watcher returning is a trigger to re-discover, not to arm a second wait — two
@@ -178,7 +186,7 @@ fine.
 
 Source 3 is deliberately not polled — it is the one source with index lag, so the
 timeline already sees everything it would, sooner, and a poll gains nothing by
-adding it. `tests/coupling.bats` pins these sources against `watch-pr.sh`'s, so a
+adding it. `tests/coupling.bats` pins these sources against `watch-issue.sh`'s, so a
 fourth one has to be polled or exempted there; its failure message says how.
 
 ⚠️ **`--exclude` is what keeps re-arming from spinning, and it must be carried

@@ -6,7 +6,11 @@
 # source's streak being its own, and a name with a dash reaching the same slot
 # every time.
 
+load trace-dir
+load reap
+
 setup() {
+  contain_traces
   LIB="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts"
   # shellcheck source=/dev/null
   source "$LIB/lib-poll.sh"

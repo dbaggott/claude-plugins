@@ -24,6 +24,16 @@
 # wrong: `if RAW=$(gh api …)` discards the issues that answered, and ignoring the
 # status makes the bad alias read as "nothing new".
 #
+# A discovery source this query deliberately does NOT ask declares itself here, in
+# the form tests/coupling.bats reads. Adding a fourth source to the skills'
+# discovery block without either asking it or writing a line like this fails that
+# test — the divergence has to be a decision someone made, not one that accumulated.
+#
+# PR-SOURCE-EXEMPT: gh search prs — it is the only discovery source with index
+# lag, so the timeline connection above already sees everything it would, sooner.
+# Discovery keeps it for the one thing a poll does not need: finding a sibling in
+# a DIFFERENT repo, which a caller re-runs on wake anyway.
+#
 # ⚠️ THE FORGE IS ASSUMED TO BE GITHUB. https://github.com/dbaggott/claude-plugins/issues/149
 # replaces the constant below with host detection; nothing above this line is
 # GitHub-shaped.

@@ -9,24 +9,29 @@ review, before spawning anything. `SKILL.md` carries the flow up to that point;
 When the operator picks "Send to review" in `SKILL.md`'s picker, or otherwise signals the PR is ready (says "ready", "go", "mark it ready", etc.):
 
 1. Run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft.
-2. **Record state**: the current head SHA, a timestamp marking "handled up to here", and the SHA of the verdict you last handled (nothing yet, on a first arm).
+2. **Record the current head SHA.** Everything else the next arm needs comes back on the watch's own `── re-arm ──` line; this is a first arm, so there is nothing yet to carry.
 3. **Spawn `watch-pr.sh`** as a **background** task (Bash `run_in_background: true`). It blocks until something happens, so its idle polling never enters the conversation, and the harness wakes you when it returns.
 
 ```bash
 HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
-ME=$(gh api user --jq .login)
 # A blank value means the `gh` call above failed. Catch it here rather than
 # letting the watcher act on it.
-[ -n "$HEAD" ] && [ -n "$ME" ] || { echo "could not resolve head SHA / login — re-run the watch"; exit 1; }
-# WINDOW and SETTLE override the script's defaults, which are tuned for
-# `reviewer`. watch-pr.sh's header holds the SETTLE measurement and lib-poll.sh
-# holds the WINDOW default; read both before retuning either.
+[ -n "$HEAD" ] || { echo "could not resolve head SHA — re-run the watch"; exit 1; }
+# --role=author is what makes this an author-side watch: it ignores your own
+# login, does not wake on your own pushes, reports DIRTY and a terminal block
+# because you own the merge, and sizes the window for a wait that should be
+# short. The slug is derived from your own account, so it is not passed.
 # --last-verdict= is empty here and only here: it says "no verdict handled yet".
-# On every re-arm pass the SHA of the verdict you last handled, or the watch
-# wakes on that same verdict on its first tick, every time.
-WINDOW=1800 SETTLE=10 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
-  "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ME" --last-verdict=
+"<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
+  "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "" --role=author --last-verdict=
 ```
+
+**Re-arm from the line the watch prints, not from the clock.** Every result you
+re-arm from is preceded by a `── re-arm ──` line carrying the next invocation
+with `since` set to that run's own `now`. Reading the clock instead skips
+whatever landed between the run returning and the next one starting, and
+activity is counted against `since`, so what falls in that gap is filtered out
+for good rather than deferred.
 
 Both watchers trace themselves to `${TMPDIR:-/tmp}/dnbg-watch/<script>-<pid>.log` by default. When a watch returns no result line, that trace says which of three things happened: a `SIGNAL=` line (something stopped it), an `EXIT code=` line (it stopped itself), or a heartbeat and nothing after (an uncatchable kill). It is the only record — a killed watch writes no result, and the task output is empty either way.
 
@@ -39,9 +44,12 @@ The script prints a summary of the activity it saw as one JSON object per line �
 - **`result=CLOSED`** — merged or closed. Stop watching; if `state=MERGED`, run the post-merge cleanup in `references/merge.md`.
 - **`result=ERROR reason=<source>`** — the watch itself is broken: that source failed repeatedly, so it cannot see. **Do not re-arm** — you would poll straight back into the same failure. Check `gh auth status` and the `<num>`/`<repo>` pair, then tell the operator. Unlike `IDLE` this means nothing about the PR; the watch never got a look at it.
 - **`result=ERROR reason=bad-args`** — the same code, the opposite remedy. Nothing failed: the watch refused to start because an argument could not do its job. Fix the argument and re-spawn; don't go near `gh auth status`. The guard on the spawn above catches the blank-`$ME` case before it gets here, so what actually reaches you is a re-arm's argument: an abbreviated `<last_head>` or `--last-verdict` value (see the note below — both take a full 40-character SHA), or a trailing flag that is neither `--was-draft` nor `--last-verdict=<sha>`.
-- **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (`reviewer` treats `IDLE` as routine and re-arms, because a quiet PR is expected on that side. Same script, opposite caller.)
+- **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (The reviewer role treats `IDLE` as routine, which is why the role is an argument rather than a caller convention.)
 
   **Check whether HEAD is already approved before reporting that no review landed** — run `pr-verdict.sh` per `SKILL.md`'s "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it. Reporting "no review has landed" over a standing approval is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands.
+
+- **`result=CHECKS checks=<names>`** — a check on the watched head stopped passing. Read it before telling the reviewer a finding is addressed: a round spent on a red build you pushed is a round nobody needed. Re-arm from the printed line, which carries the failure as handled so a standing one does not wake you again.
+- **`result=DIRTY`** / **`result=BLOCKED cause=terminal`** — a conflict with base, or a block nothing pending will clear. Surface the cause and ask; don't resolve a conflict autonomously.
 
 - **No `result=` line at all** — the task was killed or failed rather than returning. This is the dangerous one, because it looks exactly like a quiet watch while being its opposite: the watcher stopped observing, and anything pushed or posted since is unreported. **Never treat a missing result as "nothing happened."** Re-read `headRefOid` with `gh pr view` and compare against the SHA you last handled, then re-arm from what GitHub says rather than from what the watcher last told you. Traces make this diagnosable after the fact — see the trace note after the spawn block.
 
