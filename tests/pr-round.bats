@@ -34,7 +34,12 @@ setup() {
 echo "$*" >> "$CALLS"
 case "$*" in
   *"--json headRefOid"*)       [ -f "$FAIL_VERDICT" ] && exit 1; cat "$VERDICT_JSON" ;;
-  *"--json reviews,comments"*) [ -f "$FAIL_REVIEWS" ] && exit 1; cat "$REVIEWS_JSON" ;;
+  # The activity now arrives through fetch-pr-state.sh, which asks for the whole
+  # tick and proves state/head/draft present. The fixtures stay about reviews and
+  # comments; the envelope those tests do not care about is supplied here.
+  *"--json state,isDraft"*)    [ -f "$FAIL_REVIEWS" ] && exit 1
+                               jq -c '. + {state:"OPEN", isDraft:false, headRefOid:"bbb"}' \
+                                 "$REVIEWS_JSON" 2>/dev/null || cat "$REVIEWS_JSON" ;;
   *graphql*)                   [ -f "$FAIL_THREADS" ] && exit 1; cat "$THREADS_JSON" ;;
   "pr diff"*|*compare*)        [ -f "$FAIL_DIFF" ]    && exit 1; cat "$DIFF_TXT" ;;
   *pulls/*comments*)           [ -f "$FAIL_INLINE" ]  && exit 1; cat "$INLINE_JSON" ;;
@@ -226,11 +231,18 @@ section() {  # <name> <output>
 
 # A payload that came back and stopped parsing is a different fault from one that
 # never came back, and only one of the two is worth retrying.
-@test "a payload that stops parsing reports shape, not fail" {
+#
+# Both halves come from one tick now, so a primary payload that stops parsing
+# takes the inline findings with it even though their own request succeeded.
+# That is a real loss against fetching the two separately, and it is the price of
+# a tick being one object; what matters is that both sources SAY so rather than
+# reporting an empty round.
+@test "a payload that stops parsing reports shape on both halves, not fail" {
   printf 'not json at all' > "$REVIEWS_JSON"
   run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
   [ "$(field reviews_src "$(result "$output")")" = shape ]
-  [ "$(field activity "$(result "$output")")" = 1 ]
+  [ "$(field inline_src "$(result "$output")")" = shape ]
+  [ "$(field activity "$(result "$output")")" = 0 ]
 }
 
 @test "an unreadable verdict does not silently become no verdict" {

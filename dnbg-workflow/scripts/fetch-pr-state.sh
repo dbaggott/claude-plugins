@@ -89,10 +89,14 @@ OUT=$(jq -n --argjson pr "$RAW" --argjson inline "$INLINE" '
           else {status:"unknown", cause:($m | ascii_downcase)} end
       ),
       reviews:  ($pr.reviews  // [] | map({author:(.author.login // ""), at:(.submittedAt // ""),
-                                           state:(.state // ""), sha:(.commit.oid // "")})),
-      comments: ($pr.comments // [] | map({author:(.author.login // ""), at:(.createdAt // "")})),
+                                           state:(.state // ""), sha:(.commit.oid // ""),
+                                           body:(.body // "")})),
+      comments: ($pr.comments // [] | map({author:(.author.login // ""), at:(.createdAt // ""),
+                                           body:(.body // "")})),
       inline:   ($inline      // [] | map({author:(.user.login // ""), at:(.created_at // ""),
-                                           id:(.id // null), path:(.path // ""), line:(.line // null)}))
+                                           id:(.id // null), path:(.path // ""),
+                                           line:(.line // .original_line // null),
+                                           body:(.body // "")}))
     }' 2>/dev/null) || fail pr-view-shape
 
 # The fields the caller branches on must be present, not merely parseable: an

@@ -5,11 +5,14 @@
 # so a caller reads the same objects whichever produced them.
 #
 # Both take `--arg s <since-iso> --arg slug <login-to-exclude>` and emit one
-# compact object per line with `kind`, `author`, `at` and `body`. Feed
-# ACTIVITY_JQ_REVIEWS the `gh pr view --json reviews,comments` payload and
-# ACTIVITY_JQ_INLINE the `pulls/<n>/comments` one — inline findings appear in
-# neither the other's source. ACTIVITY_JQ_SUMMARY projects either result down to
-# the body-less form watch-pr.sh reports.
+# compact object per line with `kind`, `author`, `at` and `body`. Both read the
+# normalised object fetch-pr-state.sh produces — ACTIVITY_JQ_REVIEWS the whole
+# object, ACTIVITY_JQ_INLINE its `.inline` array, since inline findings appear in
+# neither of the other sources. ACTIVITY_JQ_SUMMARY projects either result down
+# to the body-less form watch-pr.sh reports.
+#
+# Reading a normalised shape rather than two raw payloads is what lets one
+# definition serve a forge these were not written against.
 #
 # `mine` matches both spellings GitHub uses for one bot: GraphQL reports a Bot
 # author's login as `<slug>`, REST as `<slug>[bot]`.
@@ -18,12 +21,10 @@
 # shellcheck disable=SC2016,SC2034  # sourced; the caller reads both.
 ACTIVITY_JQ_REVIEWS='
   def mine: . == $slug or . == ($slug + "[bot]");
-  (.reviews[]?  | select(.submittedAt > $s and (.author.login | mine | not))
-    | {kind: "review", author: (.author.login // ""), state: (.state // ""),
-       at: .submittedAt, body: (.body // "")}),
-  (.comments[]? | select(.createdAt > $s and (.author.login | mine | not))
-    | {kind: "comment", author: (.author.login // ""), at: .createdAt,
-       body: (.body // "")})'
+  (.reviews[]?  | select(.at > $s and (.author | mine | not))
+    | {kind: "review", author, state, at, body}),
+  (.comments[]? | select(.at > $s and (.author | mine | not))
+    | {kind: "comment", author, at, body})'
 
 # `id` is the REST comment id, which replying via `in_reply_to` takes. It is NOT
 # the `PRRT_…` thread id the GraphQL reply mutation takes — that one comes from
@@ -33,10 +34,8 @@ ACTIVITY_JQ_REVIEWS='
 # shellcheck disable=SC2016,SC2034
 ACTIVITY_JQ_INLINE='
   def mine: . == $slug or . == ($slug + "[bot]");
-  .[] | select(.created_at > $s and (.user.login | mine | not))
-  | {kind: "inline", author: (.user.login // ""), path: (.path // ""),
-     line: (.line // .original_line), id: .id, at: .created_at,
-     body: (.body // "")}'
+  .[] | select(.at > $s and (.author | mine | not))
+  | {kind: "inline", author, path, line, id, at, body}'
 
 # The same objects with the body dropped, for a producer that signals rather than
 # delivers. watch-pr.sh emits this; pr-round.sh emits the full objects. Defined

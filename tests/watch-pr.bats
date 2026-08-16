@@ -140,7 +140,7 @@ xref_pages() {  # <page-count> <pr-url>
 # (a) every poll fails -> exactly one ERROR, and never IDLE.
 @test "a source failing FAIL_MAX times reports ERROR, not IDLE" {
   touch "$FAIL_PRVIEW"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [ "$(grep -c '^result=ERROR' <<<"$output")" -eq 1 ]
   [[ "$output" == *"reason=pr-view"* ]]
@@ -159,18 +159,18 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [[ "$output" != *"result=ERROR"* ]]
   [[ "$output" == *"result=IDLE"* ]]
 }
 
 # (c) the insidious one: the primary poll stays healthy, so the watch looks fine
 # while thread replies silently never register.
-@test "a failing comments query reports ERROR naming that source" {
+@test "a failing inline-comments query reports ERROR naming that source" {
   touch "$FAIL_COMMENTS"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [[ "$output" == *"result=ERROR"* ]]
-  [[ "$output" == *"reason=comments"* ]]
+  [[ "$output" == *"reason=inline-comments"* ]]
 }
 
 # (d) the curve: gaps widen while nothing happens, and collapse on a change.
@@ -180,7 +180,7 @@ EOF
 @test "the interval grows while quiet and returns to the floor on a change" {
   AT_TICK=4 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=1 \
   POLL_CURVE="0:1 3:4" SETTLE=1 WINDOW=20 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [[ "$output" == *"result=COMMITS"* ]]
   # Gaps between successive polls: must reach >1s while quiet (grown past the
   # floor), and the last gap must be back at the floor after the change.
@@ -202,7 +202,7 @@ EOF
   # fail — so what follows measures the failure path's own pace, not the ramp's.
   AT_TICK=4 AT_TICK_FILE="$FAIL_PRVIEW" AT_TICK_VALUE=x \
   POLL_CURVE="0:1 2:8" FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   elapsed=$(( $(date +%s) - start ))
   [[ "$output" == *"result=ERROR"* ]]
   # 3 failures at the 1s floor is ~3s after the failures start (~13s in). Without
@@ -226,7 +226,7 @@ EOF
   # The head differs from the armed LAST_HEAD, so a burst starts on tick 1.
   # SETTLE is long enough that it cannot settle on its own before FAIL_MAX trips.
   INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 SETTLE=120 SETTLE_MAX=120 WINDOW=60 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+    run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [[ "$output" == *"result=COMMITS"* ]]
   [[ "$output" != *"result=ERROR"* ]]
 }
@@ -244,24 +244,10 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"reason=pr-view-shape"* ]]
   [[ "$output" != *"result=IDLE"* ]]
-}
-
-@test "a persistent shape break in --issue mode reports ERROR" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
-case "$1 $2" in
-  "issue view") echo '<html>an error page</html>' ;;
-  *) echo '[]' ;;
-esac
-EOF
-  chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"reason=issue-view-shape"* ]]
 }
 
 @test "malformed JSON never kills the watch without a result line" {
@@ -276,130 +262,12 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=99 FAIL_MIN_SECONDS=0 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=99 FAIL_MIN_SECONDS=0 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result="* ]]
 }
 
 # issue mode shares the loop; only what it polls differs.
-@test "--issue wakes when a linked PR appears" {
-  AT_TICK=3 AT_TICK_FILE="$LINKED" \
-  AT_TICK_VALUE='[{"number":9,"url":"https://github.com/o/r/pull/9"}]' \
-  INTERVAL=1 WINDOW=20 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ACTIVITY"* ]]
-  grep -q 'issue view' "$CALLS"
-}
-
-# THE REGRESSION THIS MODE WAS BROKEN ON. `closedByPullRequestsReferences` stays empty
-# for the whole watch — the PR references the issue in prose, with no closing keyword,
-# which is the shape git-workflow's multi-repo rule *mandates* for every sibling but
-# the one closer. Polling the keyword source alone, this watch runs its full window and
-# reports IDLE, and the deadline path then blames the issue number.
-@test "--issue wakes on a PR that only cross-references the issue" {
-  AT_TICK=3 AT_TICK_FILE="$XREF" \
-  AT_TICK_VALUE="$(xref_pages 1 https://github.com/o/r/pull/114)" \
-  INTERVAL=1 WINDOW=20 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [ "$(cat "$LINKED" 2>/dev/null || echo '[]')" = '[]' ]
-  [[ "$output" == *"result=ACTIVITY"* ]]
-}
-
-# The timeline is oldest-first, so a new cross-reference lands on the LAST page. This
-# pins `.[][]` over the pages `--slurp` returns; a `.[]` that reads only the outer
-# array finds nothing here and idles out looking healthy.
-@test "--issue wakes on a cross-reference beyond the first page" {
-  printf '%s' "$(xref_pages 3 https://github.com/o/r/pull/114)" > "$XREF"
-  INTERVAL=1 WINDOW=20 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ACTIVITY"* ]]
-}
-
-# Without the exclusion list the broadened condition is unusable: a mention-only PR
-# triaged as not-resolving stays open and satisfies the timeline source on every tick,
-# so the reviewer is re-woken in a hot loop for the life of the issue.
-@test "--issue does not re-wake on an already-triaged PR" {
-  printf '%s' "$(xref_pages 1 https://github.com/o/r/pull/114)" > "$XREF"
-  INTERVAL=1 WINDOW=5 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
-    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=IDLE"* ]]
-  [[ "$output" != *"result=ACTIVITY"* ]]
-}
-
-# ...and the exclusion must not swallow the next PR. Same excluded PR still in the
-# timeline, a second one joins, and the watch has to wake for it.
-@test "--issue still wakes on a fresh PR alongside an excluded one" {
-  printf '%s' "$(xref_pages 1 https://github.com/o/r/pull/114)" > "$XREF"
-  AT_TICK=3 AT_TICK_FILE="$XREF" \
-  AT_TICK_VALUE="$(xref_pages 2 https://github.com/o/r/pull/200)" \
-  INTERVAL=1 WINDOW=20 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
-    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ACTIVITY"* ]]
-}
-
-# Exclusions are URLs, not numbers, because the timeline source spans repos — where PR
-# numbers collide. Excluding `o/r#114` must not silence `other/repo#114`.
-@test "--issue exclusions are scoped by repo, not by bare number" {
-  printf '%s' "$(xref_pages 1 https://github.com/other/repo/pull/114)" > "$XREF"
-  INTERVAL=1 WINDOW=20 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
-    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ACTIVITY"* ]]
-}
-
-@test "--issue reports ERROR when it cannot poll at all" {
-  touch "$FAIL_PRVIEW"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"reason=issue-view"* ]]
-}
-
-# The issue-mode twin of the comments case above, and insidious for the same reason:
-# `gh issue view` keeps succeeding, so the watch looks healthy while the source that
-# catches mention-only PRs sees nothing. Silent partial blindness is what the whole
-# broadening is meant to remove, so it must not be reintroduced as a failure mode.
-@test "a failing timeline query reports ERROR naming that source" {
-  touch "$FAIL_TIMELINE"
-  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ERROR"* ]]
-  [[ "$output" == *"reason=issue-timeline"* ]]
-  [[ "$output" != *"result=IDLE"* ]]
-}
-
-# An agent hand-assembles this CSV across re-arms, so a space after a comma is the
-# likeliest malformation there is. `grep -vxF` is whole-line and literal, so an untrimmed
-# entry can never match and is silently dropped — producing precisely the hot loop the
-# flag exists to prevent, with no diagnostic at all.
-@test "--issue exclusion entries survive whitespace after the comma" {
-  printf '%s' "$(xref_pages 1 https://github.com/o/r/pull/200)" > "$XREF"
-  INTERVAL=1 WINDOW=5 run "$WATCH" \
-    --exclude='https://github.com/o/r/pull/114, https://github.com/o/r/pull/200' \
-    --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=IDLE"* ]]
-  [[ "$output" != *"result=ACTIVITY"* ]]
-}
-
-# Nothing on the PR path reads --exclude, so accepting it would take an argument whose
-# whole purpose is suppressing wakes and suppress nothing — and a disregarded exclusion
-# is indistinguishable from a quiet PR at the result line.
-@test "--exclude outside --issue mode is refused rather than ignored" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" --exclude=https://github.com/o/r/pull/114 \
-    o/r 77 "$(sha40 0)" 1970-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
-}
-
-# lib-poll.sh:66-69 carves shape breaks out of poll_broken: a payload that stopped
-# parsing will not start on its own, so charging it FAIL_MIN_SECONDS only delays the
-# report. FAIL_MIN_SECONDS is left at its 180s default here on purpose — a folded
-# counter would still be inside the grace window and would idle out instead.
-@test "a timeline payload that stops parsing reports ERROR without the transient grace" {
-  printf '%s' '<html>not json</html>' > "$XREF"
-  INTERVAL=1 FAIL_MAX=3 WINDOW=60 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot
-  [[ "$output" == *"result=ERROR"* ]]
-  [[ "$output" == *"reason=issue-timeline-shape"* ]]
-  [[ "$output" != *"result=IDLE"* ]]
-}
-
-# `--exclude <csv>` (two tokens) would need `shift 2`, which dies under `set -e` with
-# no result line when the value is missing — imitating the killed watch the tracing
-# exists to make legible. Only the `=` form is accepted; the bare one is refused
-# loudly, and bad-args already routes the caller to fix the argument and re-spawn.
 @test "a valueless --exclude is refused as bad-args, not left to die silently" {
   INTERVAL=1 WINDOW=2 run "$WATCH" --exclude --issue o/r 56 "" 1970-01-01T00:00:00Z bot
   [ "$status" -eq 0 ]
@@ -425,7 +293,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 2000-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 2000-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   # Drop direction=desc and this is result=IDLE with a real reply unseen.
   [[ "$output" == *"result=ACTIVITY"* ]]
@@ -443,7 +311,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 FAIL_MAX=2 FAIL_MIN_SECONDS=0 WINDOW=20 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 FAIL_MAX=2 FAIL_MIN_SECONDS=0 WINDOW=20 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR"* ]]
   [[ "$output" == *"pr-view-shape"* ]]
@@ -456,7 +324,7 @@ EOF
 @test "an empty last_head self-heals instead of going blind to pushes" {
   echo 0 > "$HEADCOUNT"
   AT_TICK=3 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=9 \
-  INTERVAL=1 SETTLE=1 WINDOW=25 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=25 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=COMMITS"* ]]
   [[ "$output" == *"new_head=$(sha40 9)"* ]]
@@ -465,7 +333,7 @@ EOF
 # An empty slug makes `mine` match no login, so the watch wakes on its OWN posts and
 # re-reviews itself — the exact loop the argument exists to prevent, and silent.
 @test "an empty bot slug is refused on the PR path" {
-  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z ""
+  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z "" --role=reviewer
   # A result line, not a silent non-zero exit: callers read a MISSING result as
   # "killed", which is the one diagnosis this script must not fake.
   [ "$status" -eq 0 ]
@@ -478,7 +346,7 @@ EOF
 # 7-character SHAs. A false COMMITS sends `reviewer` to re-review a range that does not
 # exist and tells `git-workflow` the author pushed.
 @test "an abbreviated last_head is refused rather than read as a push" {
-  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 0000000 1970-01-01T00:00:00Z bot
+  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 0000000 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR"* ]]
   [[ "$output" == *"reason=bad-args"* ]]
@@ -490,7 +358,7 @@ EOF
 # returns lowercase, so an uppercase SHA of the right length passes a case-insensitive
 # check and then mismatches on every tick — the same false COMMITS, harder to spot.
 @test "an uppercase last_head is refused" {
-  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot
+  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"reason=bad-args"* ]]
 }
@@ -512,7 +380,7 @@ EOF
   local envf="$BATS_TEST_TMPDIR/asciiranges-off"
   echo 'shopt -u globasciiranges 2>/dev/null || true' > "$envf"
   BASH_ENV="$envf" LC_ALL=en_US.UTF-8 INTERVAL=1 WINDOW=5 \
-    run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot
+    run "$WATCH" o/r 1 000000000000000000000000000000000000000A 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"reason=bad-args"* ]]
   [[ "$output" != *"result=COMMITS"* ]]
@@ -522,7 +390,7 @@ EOF
 # SHA polls normally, and an empty one still self-heals (covered above) rather than
 # being refused.
 @test "a full 40-character last_head still polls normally" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
   [[ "$output" != *"bad-args"* ]]
@@ -530,22 +398,10 @@ EOF
 
 # --issue never reads <last_head>, so validating it there would reject arguments no
 # caller has any reason to make well-formed.
-@test "--issue mode is unaffected by the last_head check" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" --issue o/r 56 0000000 1970-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=IDLE"* ]]
-  [[ "$output" != *"bad-args"* ]]
-}
-
-# THE ASYMMETRY THIS FLAG REMOVES. Commits are detected from state, so a push during a
-# gap in watching is still seen; reviews were counted against `since`, so a verdict that
-# landed before the watch was armed was invisible for the life of the watch and the PR
-# reported IDLE — indistinguishable from one nobody had looked at. Observed live on three
-# PRs in one session, two of them already approved at their then-current HEAD.
 @test "a verdict posted before the watch was armed still wakes it" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   # `since` is past the review, so the edge-triggered count sees nothing: without the
   # level-triggered check this is IDLE.
@@ -560,7 +416,7 @@ EOF
 @test "a verdict the caller has already handled does not wake the watch" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot "--last-verdict=$(sha40 0)"
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot "--last-verdict=$(sha40 0)" --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
   [[ "$output" != *"result=ACTIVITY"* ]]
@@ -568,11 +424,12 @@ EOF
 
 # Omitting the flag has to leave the watch exactly as it was, or every caller that has
 # not been updated changes behaviour on upgrade.
-@test "without --last-verdict a standing verdict is invisible, as before" {
+@test "a standing verdict wakes a first arm, which has handled none" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
-  INTERVAL=1 SETTLE=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=IDLE"* ]]
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
+  [[ "$output" == *"verdict=APPROVED"* ]]
 }
 
 # The self-wake the `<bot_slug>` argument exists to prevent, reached through the one
@@ -582,7 +439,7 @@ EOF
 @test "the watch does not wake on its own verdict" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" bot)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
   [[ "$output" != *"result=ACTIVITY"* ]]
@@ -593,7 +450,7 @@ EOF
 @test "the watch does not wake on its own verdict under the [bot] spelling" {
   printf '%s' "$(reviews CHANGES_REQUESTED "$(sha40 0)" 'bot[bot]')" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
 }
@@ -603,7 +460,7 @@ EOF
 @test "a verdict left behind by a push does not wake the watch" {
   printf '%s' "$(reviews CHANGES_REQUESTED "$(sha40 5)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
   [[ "$output" != *"result=ACTIVITY"* ]]
@@ -615,7 +472,7 @@ EOF
 @test "a COMMENTED review is not a verdict for the level-triggered check" {
   printf '%s' "$(reviews COMMENTED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=IDLE"* ]]
 }
@@ -624,7 +481,7 @@ EOF
 # 40-character `commit.oid` GitHub returns, so an abbreviated one can never match and
 # would silently re-wake on a verdict the caller said it handled.
 @test "an abbreviated --last-verdict is refused as bad-args" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict=0000000
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict=0000000 --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
@@ -632,7 +489,7 @@ EOF
 # The valueless form, refused for the reason `--exclude` is: only the `=` spelling can
 # carry a value, and the bare one would otherwise arm the check with no baseline.
 @test "a valueless --last-verdict is refused as bad-args" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --last-verdict --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
@@ -640,30 +497,16 @@ EOF
 # Nothing in issue mode reads a verdict — no reviews, no HEAD — so accepting the flag
 # there would take an argument whose whole purpose is guaranteeing a wake and guarantee
 # nothing, with the same IDLE either way.
-@test "--last-verdict in --issue mode is refused rather than ignored" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" --issue o/r 56 "" 1970-01-01T00:00:00Z bot \
-    "--last-verdict=$(sha40 0)"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"result=ERROR reason=bad-args"* ]]
-}
-
-# `--was-draft` used to be read as `${6:-}` alone, so a second trailing flag would have
-# silenced whichever one came last — two wake paths, failing quietly, decided by typing
-# order. Both orders must work, and anything else must be refused.
-#
-# One tick proves both flags parsed, because the PR is already out of draft: the READY
-# line exists only if `--was-draft` was seen, and carries `verdict_sha` only if
-# `--last-verdict` was. The draft transition itself is the test below.
 @test "trailing flags work in either order" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=READY"* ]]
   [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
 
   INTERVAL=1 SETTLE=1 WINDOW=5 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --was-draft --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --was-draft --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=READY"* ]]
   [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
@@ -677,7 +520,7 @@ EOF
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   AT_TICK=3 AT_TICK_FILE="$DRAFT" AT_TICK_VALUE=false \
   INTERVAL=1 SETTLE=1 WINDOW=20 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=READY"* ]]
   # The verdict fired on tick 1, was held back with the draft, and rode out on READY
@@ -686,7 +529,7 @@ EOF
 }
 
 @test "an unrecognised trailing argument is refused rather than ignored" {
-  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --no-such-flag
+  INTERVAL=1 WINDOW=2 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --no-such-flag --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ERROR reason=bad-args"* ]]
 }
@@ -696,26 +539,23 @@ EOF
 # a cohort of kills against the PRs they were watching.
 @test "START records the watcher's own arguments" {
   local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home"
-  TMPDIR="$home" INTERVAL=1 WINDOW=3 run "$WATCH" o/r 77 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  TMPDIR="$home" INTERVAL=1 WINDOW=3 run "$WATCH" o/r 77 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   local f; f=$(find "$home/dnbg-watch" -name 'watch-pr-*.log' | head -1)
   [ -n "$f" ]
-  grep -q "args=\[o/r 77 $(sha40 0) 1970-01-01T00:00:00Z bot\]" "$f"
+  grep -q "args=\[o/r 77 $(sha40 0) 1970-01-01T00:00:00Z bot --role=reviewer\]" "$f"
 }
 
-# ...INCLUDING the leading flags, which are shifted away before lib-poll.sh captures
-# `$*`. Left to that capture, an issue watch traces as a bare `o/r 56` — the same line
-# a PR watch on PR 56 writes, so a post-mortem cannot tell which of the two died, and
-# the exclusion list (the argument most likely to be wrong on a re-arm) is absent
-# entirely. The trace is the only evidence a killed watch leaves.
-@test "START records the leading flags, not just what survived the shift" {
+# ...INCLUDING the role, which is what tells two watches on one PR apart. A trace
+# is the only evidence a killed watch leaves, and an author watch and a reviewer
+# watch on the same number are otherwise the same line.
+@test "START records the role, so two watches on one PR are distinguishable" {
   local home="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$home"
-  TMPDIR="$home" INTERVAL=1 WINDOW=2 run "$WATCH" --issue \
-    --exclude=https://github.com/o/r/pull/114 o/r 56 "" 1970-01-01T00:00:00Z bot
+  TMPDIR="$home" INTERVAL=1 WINDOW=2 run "$WATCH" o/r 56 "" 1970-01-01T00:00:00Z bot --role=author
   [ "$status" -eq 0 ]
   local f; f=$(find "$home/dnbg-watch" -name 'watch-pr-*.log' | head -1)
   [ -n "$f" ]
-  grep -q -- "args=\[--issue --exclude=https://github.com/o/r/pull/114 o/r 56 " "$f"
+  grep -q -- "--role=author" "$f"
 }
 
 # The watcher polls the comments it reports on, so reporting only a flag makes the
@@ -725,7 +565,7 @@ EOF
 @test "the activity behind activity=1 is summarised, without the body" {
   printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"four things below","commit":{"oid":"%s"}}]' \
     "$(sha40 0)" > "$REVIEWS"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=ACTIVITY"* ]]
   [[ "$output" == *'"kind":"review"'* ]]
@@ -741,7 +581,7 @@ EOF
 @test "a reported round prints the pr-round.sh call with its arguments filled in" {
   printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"x","commit":{"oid":"%s"}}]' \
     "$(sha40 0)" > "$REVIEWS"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"── next ──"* ]]
   [[ "$output" == *"/pr-round.sh\" o/r 1 $(sha40 0) 1970-01-01T00:00:00Z bot"* ]]
@@ -752,7 +592,7 @@ EOF
 @test "a blank last-head prints as an empty-string argument, not a missing one" {
   printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"x","commit":{"oid":"%s"}}]' \
     "$(sha40 0)" > "$REVIEWS"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"/pr-round.sh\" o/r 1 \"\" 1970-01-01T00:00:00Z bot"* ]]
 }
@@ -774,7 +614,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
-  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"result=COMMITS"* ]]
   [[ "$output" == *"activity=1"* ]]
@@ -791,7 +631,7 @@ EOF
 # IDLE is the result a caller always re-arms from, so it is the one that most
 # needs the next invocation attached.
 @test "a quiet watch carries its re-arm line and no burst content" {
-  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot
+  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
   [[ "${lines[-1]}" == result=IDLE* ]]
   [[ "$output" == *"── re-arm ──"* ]]
   [[ "$output" != *"── next ──"* ]]
@@ -801,7 +641,7 @@ EOF
 @test "a verdict wake names the state that stands, not only its SHA" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"verdict=APPROVED"* ]]
   [[ "$output" == *"verdict_sha=$(sha40 0)"* ]]
@@ -814,7 +654,7 @@ EOF
            {"state":"CHANGES_REQUESTED","submittedAt":"1970-01-02T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"%s"}}]' \
     "$(sha40 0)" "$(sha40 0)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -eq 0 ]
   [[ "$output" == *"verdict=CHANGES_REQUESTED"* ]]
 }
@@ -828,7 +668,7 @@ EOF
 @test "a verdict payload that stops parsing kills the watch instead of reporting quiet" {
   printf '[{"submittedAt":"1970-01-02T00:00:00Z","author":{"login":"someone"},"state":"APPROVED","commit":5}]' \
     > "$REVIEWS"
-  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict=
+  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -ne 0 ]
   [[ "$output" != *"result="* ]]
 }

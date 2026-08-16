@@ -114,21 +114,25 @@ fi
 # there at all. Fetch and parse are split at each so a payload that stops parsing
 # is never reported as "nothing new".
 REVS=""; reviews_src=ok
-if J=$(gh pr view "$PR" --repo "$REPO" --json reviews,comments 2>/dev/null); then
-  REVS=$(echo "$J" | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_REVIEWS" \
-    2>/dev/null) || { reviews_src=shape; REVS=""; }
-else
-  reviews_src=fail
-fi
+# Both halves come from one fetch, which is also the tick watch-pr.sh polls, so
+# a caller reads the same objects whichever produced them and the filters below
+# read one shape rather than two raw payloads.
+STATE_OUT=$("$(dirname "$0")/fetch-pr-state.sh" "$REPO" "$PR" 2>/dev/null) || STATE_OUT=""
+STATE_LINE=$(printf '%s\n' "$STATE_OUT" | tail -1)
+STATE_JSON=$(printf '%s\n' "$STATE_OUT" | sed '$d')
 
 INLINE=""; inline_src=ok
-if RAWC=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direction=desc" \
-            2>/dev/null); then
-  INLINE=$(echo "$RAWC" | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_INLINE" \
-    2>/dev/null) || { inline_src=shape; INLINE=""; }
-else
-  inline_src=fail
-fi
+case "$STATE_LINE" in
+  result=OK*)
+    REVS=$(printf '%s' "$STATE_JSON" | jq -c --arg s "$SINCE" --arg slug "$SLUG" \
+             "$ACTIVITY_JQ_REVIEWS" 2>/dev/null) || { reviews_src=shape; REVS=""; }
+    INLINE=$(printf '%s' "$STATE_JSON" | jq -c '.inline' \
+             | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_INLINE" 2>/dev/null) \
+             || { inline_src=shape; INLINE=""; }
+    case "$STATE_LINE" in *degraded=inline-comments*) inline_src=fail ;; esac ;;
+  *reason=*-shape*) reviews_src=shape; inline_src=shape ;;
+  *)                reviews_src=fail;  inline_src=fail ;;
+esac
 
 # 4. Every unresolved thread, via the sibling that already owns the GraphQL. It
 # prints JSONL and then its result line, so the last line is the status and the
