@@ -1,15 +1,15 @@
 {
   "_comment": [
-    "The reviewer App's permission set, declared once. bootstrap.py builds a new",
-    "App's manifest from it, and mint-token.sh audits every minted token against",
-    "it — so a grant that drifts is caught on the next review rather than at the",
-    "next time somebody remembers to run a curl by hand.",
+    "The permissions a reviewer needs, declared once. bootstrap.py builds a new",
+    "App's manifest from it, and mint-token.sh checks every token it mints",
+    "against it.",
     "",
-    "`expected` is exact, not a floor. A permission missing from an install breaks",
-    "a capability; one present that is not listed here is a capability the design",
-    "says the bot must not have, and both are worth a warning."
+    "A MINIMUM, not an exact set. The App may be installed for other purposes and",
+    "hold permissions beyond these; that is the owner's business and not a fault.",
+    "Only a grant that is absent or too weak is reported, since only that costs a",
+    "capability."
   ],
-  "expected": {
+  "required": {
     "pull_requests": "write",
     "contents": "write",
     "checks": "read",
@@ -19,13 +19,18 @@
   },
   "why": {
     "pull_requests": "submit reviews, inline comments, thread replies",
-    "contents": "read the diff; resolve threads; have the verdict counted",
+    "contents": "read the diff; resolve threads; have the verdict counted at all",
     "checks": "check runs",
     "actions": "checkSuite.workflowRun, which the rollup dereferences",
     "statuses": "combined commit status, for CI that posts statuses instead of check runs",
     "metadata": "mandatory"
   },
-  "deliberately_absent": {
-    "issues": "the issue-scoped mode runs under the operator's own auth, so the bot has no reason to reach issues at all"
+  "consequence": {
+    "pull_requests": "reviews and inline comments cannot be posted",
+    "contents": "reviews post but do not count — GitHub leaves a review by an App without this out of latestOpinionatedReviews, so reviewDecision never moves and the merge box ignores the verdict. Resolving a thread also fails.",
+    "checks": "check runs are invisible, so a red build reads as no build",
+    "actions": "the rollup cannot dereference workflow runs",
+    "statuses": "CI that posts commit statuses instead of check runs is invisible",
+    "metadata": "nothing works"
   }
 }

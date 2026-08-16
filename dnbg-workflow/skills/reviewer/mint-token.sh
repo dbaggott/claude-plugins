@@ -218,33 +218,47 @@ elif [ -z "$INSTALLATION_ID" ]; then
   }
 fi
 
-# The mint response already carries the granted set alongside the token, so the
-# audit below costs no request. Without it the two ways this App fails are both
-# quiet: `resolveReviewThread` answers FORBIDDEN, and — worse — a review posted
-# without `contents: write` is left out of `latestOpinionatedReviews`, so
-# `reviewDecision` never moves and a verdict the PR page displays is one the
-# merge box ignores. Nothing else in a review round would say so.
+# The mint response carries the granted permissions alongside the token, so this
+# costs no request. It is silent unless something is missing, which is what lets
+# every caller stay ignorant of the permission set: the happy path says nothing,
+# and the unhappy path prints its own instructions.
+#
+# A minimum, not an exact set — the App may be installed for other purposes and
+# hold more. Only absent or too-weak grants cost a capability.
 MINTED=$(gh_app_api -X POST \
   "https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens")
 
 PERMS_FILE="$(dirname "$0")/../reviewer-setup/permissions.json"
 if [ -r "$PERMS_FILE" ]; then
-  # Exact, not a floor. A grant that is missing costs a capability; one that is
-  # present and unlisted is a capability the design says the bot must not have.
-  DRIFT=$(printf '%s' "$MINTED" | jq -r --slurpfile want "$PERMS_FILE" '
-    ($want[0].expected) as $w
+  SHORTFALL=$(printf '%s' "$MINTED" | jq -r --slurpfile spec "$PERMS_FILE" '
+    {"read":1, "write":2, "admin":3} as $rank
+    | ($spec[0]) as $s
     | (.permissions // {}) as $got
-    | [ ($w   | to_entries[] | select($got[.key] == null)
-          | "missing \(.key)=\(.value)"),
-        ($w   | to_entries[] | select($got[.key] != null and $got[.key] != .value)
-          | "\(.key)=\($got[.key]), want \(.value)"),
-        ($got | to_entries[] | select($w[.key] == null)
-          | "unexpected \(.key)=\(.value)") ]
-    | join("; ")')
-  [ -z "$DRIFT" ] || {
-    echo "reviewer App permissions do not match permissions.json: $DRIFT" >&2
-    echo "  a review may post and still not count — reviewer-setup's Repair section fixes this" >&2
-  }
+    | [ $s.required | to_entries[]
+        | select(($rank[$got[.key] // ""] // 0) < ($rank[.value] // 0))
+        | "  \(.key): need \(.value), " +
+          (if $got[.key] then "have \($got[.key])" else "not granted" end) +
+          "\n      without it, \($s.consequence[.key] // "a capability is lost")" ]
+    | join("\n")')
+
+  if [ -n "$SHORTFALL" ]; then
+    SLUG=$(jq -r '.slug // "<your-app>"' "$CONFIG" 2>/dev/null || echo "<your-app>")
+    cat >&2 <<EOM
+The reviewer App is missing a permission it needs:
+
+$SHORTFALL
+
+  Only the App owner can grant this, so raise it with the operator and ask them to:
+    1. https://github.com/settings/apps/$SLUG/permissions
+       set the permission above, then Save.
+    2. https://github.com/settings/installations
+       accept the pending request on each installation — until then the grant
+       is not in effect and nothing changes.
+
+  Then re-run whatever you were doing. This message appears only while something
+  is missing.
+EOM
+  fi
 fi
 
-printf '%s' "$MINTED" | jq -r '.token' 
+printf '%s' "$MINTED" | jq -r '.token'  

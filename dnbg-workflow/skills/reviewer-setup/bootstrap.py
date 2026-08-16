@@ -72,9 +72,9 @@ def build_manifest(name: str, redirect_url: str, public: bool) -> dict:
         # `statuses` is the one an Actions-only repo never exercises, and is
         # here for repos whose CI posts commit statuses instead of check runs.
         # Read from permissions.json rather than written here, because
-        # mint-token.sh audits every token it mints against the same file. Two
-        # copies would let a grant drift from what the audit expects, which is
-        # the failure the audit exists to catch.
+        # mint-token.sh checks every token it mints against the same file. Two
+        # copies would let the manifest drift from what the check requires,
+        # which is the failure the check exists to catch.
         "default_permissions": _permissions(),
     }
 
@@ -82,7 +82,7 @@ def build_manifest(name: str, redirect_url: str, public: bool) -> dict:
 def _permissions() -> dict:
     """The App's permission set, shared with mint-token.sh's runtime audit."""
     here = pathlib.Path(__file__).resolve().parent
-    return json.loads((here / "permissions.json").read_text())["expected"]
+    return json.loads((here / "permissions.json").read_text())["required"]
 
 
 def convert_manifest(code: str) -> dict:

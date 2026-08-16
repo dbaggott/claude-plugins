@@ -18,16 +18,11 @@ discipline the body's own labels set (`issue-workflow`): "Related (optional — 
 not read unless blocked)" links stay unread, depth 1 only.
 
 **Every `gh issue` command in this file runs under your own auth, not the
-bot's** — prefix each with `env -u GH_TOKEN`. The reviewer App requests
-`pull_requests`, `contents`, `checks` and `metadata` and **no `issues` scope at
-all** (`reviewer-setup/bootstrap.py`), so a bot token cannot touch a genuine
-issue: `gh api repos/<repo>/issues/<n>` answers `403 Resource not accessible by
-integration`, and `gh issue view` fails to resolve it. `pull_requests: write`
-covers conversation comments on a *PR*, which is a different resource — that's
-what makes this look like it should work. Same reasoning, and same fix, as
-**Resolving inline findings** in `SKILL.md`. What it guards is a call that mints
-a bot token and then touches the issue: `SKILL.md` has every `gh` write mint in
-its own tool call, so the token is only ever live inside one. The prefix costs
+bot's** — prefix each with `env -u GH_TOKEN`. The bot reviews; the issue itself
+is the operator's, and nothing here writes to one as the bot. What the prefix
+guards is a call that mints a bot token and then touches the issue: `SKILL.md`
+has every `gh` write mint in its own tool call, so the token is only ever live
+inside one. The prefix costs
 nothing in the calls where none was minted, and is what saves the ones where one
 was. `gh search prs` is unaffected — it works under either identity.
 

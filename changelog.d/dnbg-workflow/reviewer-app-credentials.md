@@ -1,38 +1,17 @@
-The reviewer bot now needs `contents: write`, and acts under its own credentials
-throughout.
+**The reviewer bot now needs the `contents: write` permission.** Without it a
+review posts and reads correctly but counts for nothing: GitHub does not let it
+move `reviewDecision`, so on a repo that requires an approval the bot can never
+satisfy the gate, and it cannot resolve its own review threads either. Nothing
+reports this — the review simply has no effect.
 
-Two things an App cannot do without that permission, both established against a
-live PR rather than reasoned about:
+**If you set up your reviewer before this release, you have to grant it by
+hand.** A GitHub App's permissions are fixed when it is created, so re-running
+the setup will not change an existing one. Add *Contents: Read and write* at
+`https://github.com/settings/apps/<your-app>/permissions`, then accept the
+pending request on each installation — the grant does nothing until you do.
+`reviewer-setup`'s **Repair / rotate** section has the steps.
 
-- **Resolve its own review threads.** `resolveReviewThread` answers
-  `FORBIDDEN: Resource not accessible by integration` to an App token that lacks
-  it. `pr-threads.sh --resolve` used to sidestep this by clearing `GH_TOKEN` and
-  running under the operator's auth; it no longer clears it, so the reviewer
-  resolves as itself.
-- **Have its verdict counted at all.** GitHub leaves a review by an App without
-  `contents: write` out of `latestOpinionatedReviews`, so `reviewDecision` never
-  moves. The review shows on the PR page and the merge box ignores it — on a repo
-  requiring an approval, nothing the bot posts can satisfy the gate. Granting the
-  permission counted the *existing* review retroactively, which is how the
-  mechanism was confirmed: `authorAssociation` stays `NONE` throughout and the
-  installation still reports `push: false`, so neither of those is the signal.
-
-`reviewer/SKILL.md` claimed a bot verdict is what satisfies a required review. It
-is — but only with this permission, which the setup script did not grant. Both
-halves are now true together.
-
-The write is broader than the need: it also permits pushing source. GitHub offers
-no narrower grant for either capability, so the scoping lever is the
-installation's repository list rather than the permission.
-
-**An App created before this change keeps the old permission set** — a manifest
-is read once, at creation. `reviewer-setup`'s verify step compares each
-installation against `bootstrap.py` and now flags it; its **Repair / rotate**
-section covers editing the App and accepting the change per installation.
-
-`mint-token.sh` now audits every token it mints against
-`reviewer-setup/permissions.json` and warns on stderr when the granted set
-drifts, in either direction — a missing grant costs a capability, and an extra
-one is a capability the design says the bot must not have. The mint response
-already carries the granted permissions alongside the token, so the check costs
-no request. `bootstrap.py` builds its manifest from the same file.
+**Minting a bot token now checks the permissions it was granted** and tells you
+what is missing, why it matters, and how to fix it. It is silent when nothing is
+missing, and it does not mind an App that holds extra permissions for other
+purposes.

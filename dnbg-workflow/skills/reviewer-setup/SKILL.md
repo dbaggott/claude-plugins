@@ -56,9 +56,8 @@ a nod before creating, not a real exposure.
 
 ## Run the bootstrap
 
-The helper drives the GitHub App Manifest flow: it builds a least-privilege
-manifest (`pull_requests:write`, `contents:read`, `checks:read`,
-`metadata:read`; **no webhook**), serves a local page that POSTs it to GitHub,
+The helper drives the GitHub App Manifest flow: it builds the manifest from
+`permissions.json` (**no webhook**), serves a local page that POSTs it to GitHub,
 catches the redirect, exchanges the one-time code for the App's credentials, and
 saves the private key + config locally.
 
@@ -119,36 +118,15 @@ skill will use it from here on. If it reports "no installations", the install
 step didn't land; complete it and retry. Treat a minted token like a password —
 don't paste it into chat, logs, or commits.
 
-**Then confirm the permissions actually granted**, per installation. A token
-mints fine on a half-permissioned install, so the step above passes while a
-review still fails partway through — which is exactly how a missing permission
-went unnoticed until it broke `gh pr checks` mid-review:
+**The mint above also checks what was granted.** A token mints fine on a
+half-permissioned install, so a successful mint alone proves nothing — and one
+of the shortfalls it catches is otherwise silent, costing a capability with no
+error anywhere. `mint-token.sh` prints what is missing and what to do about it,
+and says nothing when the set is sufficient, so a quiet run here is the pass.
 
-Reuse the JWT block from `mint-token.sh`, then compare each installation against
-`permissions.json`:
-
-```bash
-curl -fsS -H "Authorization: Bearer $JWT" -H "Accept: application/vnd.github+json" \
-  https://api.github.com/app/installations \
-  | jq -r '.[] | "\(.account.login): \(.permissions | to_entries
-      | map("\(.key)=\(.value)") | sort | join(" "))"'
-```
-
-Every installation must list **every** key in `permissions.json`. A missing
-one is not a setup failure you will see here — it surfaces later as
-`Resource not accessible by integration` on whichever call needed it.
-
-⚠️ **A review by an App without `contents: write` counts for nothing, silently.**
-GitHub leaves it out of `latestOpinionatedReviews`, so `reviewDecision` never
-moves: the review appears on the PR, reads correctly, and the merge box ignores
-it. On a repo requiring an approval the bot can never satisfy the gate.
-
-`mint-token.sh` audits every token it mints against `permissions.json` and warns
-on any drift, so this surfaces on the next review whether or not anyone runs the
-check above.
-
-If they don't match, see **Repair / rotate** below; do not re-run the bootstrap,
-which cannot change an App that already exists.
+Act on that output if there is any; **Repair / rotate** below is where it sends
+you. Do not re-run the bootstrap, which cannot change an App that already
+exists.
 
 ## What got stored
 

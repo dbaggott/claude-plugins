@@ -659,10 +659,8 @@ standing in for it. Everything is already in that packet, so a fan-out across th
 endpoints can only re-fetch what you hold — and with no inline threads of your
 own filed, the first case below cannot fire at all. Respond only when there's
 something substantive to add — never "I agree" filler. An inline object carries
-the `id` the reply below needs as `in_reply_to`. Replies post as the bot (its
-`pull_requests: write` covers reviews, inline comments, thread replies, and
-conversation comments), so each of the commands below wants the guarded mint
-ahead of it, in that same tool call:
+the `id` the reply below needs as `in_reply_to`. Replies post as the bot, so each of the commands
+below wants the guarded mint ahead of it, in that same tool call:
 
 ```bash
 GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
