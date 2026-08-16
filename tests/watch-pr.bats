@@ -78,9 +78,12 @@ case "$1 $2" in
   "pr view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
     n=$(cat "$HEADCOUNT" 2>/dev/null || echo 0)
-    printf '{"state":"OPEN","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":[]}' \
+    printf '{"state":"%s","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":[],"statusCheckRollup":%s,"mergeStateStatus":"%s"}' \
+      "$(cat "$PRSTATE" 2>/dev/null || echo OPEN)" \
       "$(cat "$DRAFT" 2>/dev/null || echo false)" "$n" \
-      "$(cat "$REVIEWS" 2>/dev/null || echo '[]')" ;;
+      "$(cat "$REVIEWS" 2>/dev/null || echo '[]')" \
+      "$(cat "$ROLLUP" 2>/dev/null || echo '[]')" \
+      "$(cat "$MERGESTATE" 2>/dev/null || echo CLEAN)" ;;
   "issue view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
     printf '{"state":"OPEN","closedByPullRequestsReferences":%s}' "$(cat "$LINKED" 2>/dev/null || echo '[]')" ;;
@@ -103,6 +106,9 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$STUB/gh"
+  export PRSTATE="$BATS_TEST_TMPDIR/prstate"
+  export ROLLUP="$BATS_TEST_TMPDIR/rollup"
+  export MERGESTATE="$BATS_TEST_TMPDIR/mergestate"
   export PATH="$STUB:$PATH" CALLS
   export FAIL_PRVIEW="$BATS_TEST_TMPDIR/fail_prview"
   export FAIL_COMMENTS="$BATS_TEST_TMPDIR/fail_comments"
@@ -671,4 +677,58 @@ EOF
   INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --role=reviewer
   [ "$status" -ne 0 ]
   [[ "$output" != *"result="* ]]
+}
+
+# --- conditions absorbed from watch-merge.sh --------------------------------
+#
+# These were a second watcher a caller swapped to after a clean review, and the
+# swap is what lost every review posted after an approval. They are the author
+# role's results now, so one arming covers a PR from open to merge.
+
+@test "a merged PR stops the watch" {
+  echo MERGED > "$PRSTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CLOSED state=MERGED" ]]
+}
+
+@test "a PR closed without merging stops the watch" {
+  echo CLOSED > "$PRSTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CLOSED state=CLOSED" ]]
+}
+
+@test "a conflict with base reports DIRTY to the author" {
+  echo DIRTY > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=DIRTY* ]]
+}
+
+# The reviewer has nothing to do about a conflict with base, so waking them on
+# one is noise they cannot act on.
+@test "a conflict is not the reviewer's business" {
+  echo DIRTY > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+@test "a block with nothing pending is terminal and reaches the author" {
+  echo BLOCKED > "$MERGESTATE"
+  echo '[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
+}
+
+# The distinction the old watcher counted pending checks to make, now made in the
+# backend: a required check still running is auto-merge waiting, not a block.
+@test "a block with a check still running keeps waiting" {
+  echo BLOCKED > "$MERGESTATE"
+  echo '[{"name":"e2e","status":"IN_PROGRESS","conclusion":""}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# A watcher is read-only. Nothing it does may write to the PR.
+@test "the watch never mutates the PR" {
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  ! grep -qE " (pr (merge|close|ready|edit|review|comment)|api .*-X (POST|PATCH|PUT|DELETE))" "$CALLS"
 }

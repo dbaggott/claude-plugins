@@ -57,20 +57,24 @@ INLINE=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direct
 # Two rollup shapes: CheckRun carries .name/.status/.conclusion, StatusContext
 # .context/.state. A check that has not finished carries no conclusion.
 OUT=$(jq -n --argjson pr "$RAW" --argjson inline "$INLINE" '
+  # Four states, rather than whatever vocabulary a forge uses. A CheckRun carries .status and, once
+  # finished, .conclusion; a StatusContext carries .state. Handing those through
+  # raw makes every caller re-derive "is this passing", and a caller that misses
+  # one spelling reads a running check as a failed one.
   def check_state:
-    if (.conclusion // "") != "" then
-      (.conclusion | ascii_downcase)
-    else
-      ((.status // .state // "") | ascii_downcase)
-    end;
+    (if (.conclusion // "") == "" then (.status // .state // "") else .conclusion end
+     | ascii_downcase) as $c
+    | if   $c == "success" then "success"
+      elif $c == "neutral" or $c == "skipped" then "neutral"
+      elif $c == "" or $c == "pending" or $c == "queued" or $c == "in_progress"
+           or $c == "waiting" or $c == "requested" or $c == "expected" then "pending"
+      else "failure" end;
 
   ($pr.statusCheckRollup // []) | map({
       name: (.name // .context // "?"),
       state: check_state
     }) as $checks
-  | ($checks | map(select(.state != "success" and .state != "neutral"))) as $notpassing
-  | ($notpassing | map(select(.state != "failure" and .state != "cancelled"
-                              and .state != "timed_out" and .state != "error"))) as $running
+  | ($checks | map(select(.state == "pending"))) as $running
   | {
       state:  ($pr.state // ""),
       draft:  (if $pr.isDraft == null then null else $pr.isDraft end),

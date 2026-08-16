@@ -75,6 +75,19 @@ line() { tail -1 <<<"$1"; }
   [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
 }
 
+# Four states out, whatever the forge calls them. A running CheckRun and a
+# PENDING StatusContext are the same thing to a caller, and a caller that had to
+# tell them apart would read one of them as failed.
+@test "check states are normalised to success, failure, pending or neutral" {
+  pr BLOCKED '[{"name":"a","status":"COMPLETED","conclusion":"SUCCESS"},
+               {"name":"b","status":"IN_PROGRESS","conclusion":""},
+               {"name":"c","status":"COMPLETED","conclusion":"TIMED_OUT"},
+               {"name":"d","status":"COMPLETED","conclusion":"SKIPPED"},
+               {"context":"e","state":"PENDING"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '[.checks[].state] | join(",")')" = "success,pending,failure,neutral,pending" ]
+}
+
 # Two rollup shapes reach the same field. A StatusContext carries no
 # `conclusion` at all, so a reader keying on that alone sees every legacy status
 # as unfinished forever.

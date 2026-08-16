@@ -224,8 +224,7 @@ while :; do
   # it as an event wakes on one red build forever, and filtering it by `since`
   # loses one that landed while no watch was running.
   checks_now=$(printf '%s' "$J" | jq -r '
-    [ .checks[] | select(.state != "success" and .state != "neutral" and .state != "pending")
-      | .name ] | sort | join(",")')
+    [ .checks[] | select(.state == "failure") | .name ] | sort | join(",")')
   if [ -n "$checks_now" ] && [ "$checks_now" != "$LAST_CHECKS" ] && [ "$settle_until" = 0 ]; then
     report_now CHECKS "checks=$checks_now"
   fi
