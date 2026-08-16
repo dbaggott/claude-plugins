@@ -262,3 +262,23 @@ comment() {  # <login> <iso>
   [[ "$output" == *"── re-arm ──"* ]]
   [[ "$output" == *"--since=20"* ]]
 }
+
+# A comment claiming "fixed" against a body that has never moved is definitionally
+# unsupported, and that check is the reason the stamp rides along: making the
+# caller fetch it separately is the thing one batched query exists to avoid.
+@test "a reported hit carries each issue's body-edit stamp" {
+  repo "$(issue 163 "$(comment human 2026-01-02T00:00:00Z)" '[]' OPEN 2026-01-03T00:00:00Z)"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == *"edited=163:2026-01-03T00:00:00Z"* ]]
+}
+
+# Null is a reading — "the body has not moved" — and a caller comparing it
+# against a timestamp must not take it for missing information, which is exactly
+# the case the check exists to catch.
+@test "a body never edited reports none rather than an empty field" {
+  repo "$(issue 163 "$(comment human 2026-01-02T00:00:00Z)")"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == *"edited=163:none"* ]]
+}

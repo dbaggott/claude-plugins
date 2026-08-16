@@ -7,13 +7,20 @@
 #     [--since=<iso>] [--slug=<login>] [--exclude=<pr-url,…>] [--last-edit=<n:iso,…>]
 #
 # Exactly one result line, then exit 0:
-#   result=ACTIVITY issues=<n,…> kinds=<comment|linked-pr|body-edit,…> now=<iso>
+#   result=ACTIVITY issues=<n,…> kinds=<comment|linked-pr|body-edit,…> \
+#     edited=<n:iso|n:none,…> now=<iso>
 #   result=CLOSED   issues=<n,…> now=<iso>
 #   result=IDLE     now=<iso>
 #   result=ERROR    reason=<source> now=<iso>
 #
 # Results a caller re-arms from carry a `── re-arm ──` line, with `since` set to
 # this run's own `now` and any newly-seen PR folded into `--exclude`.
+#
+# `edited=` carries each watched issue's body-edit stamp, so a caller comparing a
+# comment against whether the body actually moved needs no second call. A body
+# never edited reads `none` — a reading, not a missing field: "the body has not
+# moved" is exactly the answer that check wants, and an empty value would be
+# taken for a failed fetch.
 #
 # WHAT IT WATCHES, AND WHY BOTH IN ONE SCRIPT. A comment, a body edit, a linked
 # PR appearing, and the issue closing are four questions about one thing, and one
@@ -87,7 +94,7 @@ hit_issues=""; hit_kinds=""; closed_issues=""; new_prs=""
 # What has already been accounted for. Without it the same comment satisfies the
 # wake condition on every tick, so the settle window is extended forever and the
 # watch never reports at all.
-obs_sig=""
+obs_sig=""; last_json=""
 settle_until=0; settle_cap=0
 
 rearm_cmd() {
@@ -109,10 +116,12 @@ report_error() {
 
 report_hit() {
   watch_rearm "$(rearm_cmd)"
-  local issues kinds
+  local issues kinds edited
   issues=$(printf '%s\n' "$hit_issues" | tr ' ' '\n' | grep -v '^$' | sort -nu | paste -sd, - || true)
   kinds=$(printf '%s\n' "$hit_kinds" | tr ' ' '\n' | grep -v '^$' | sort -u | paste -sd, - || true)
-  echo "result=ACTIVITY issues=$issues kinds=$kinds now=$(poll_now_iso)"
+  edited=$(printf '%s' "$last_json" | jq -r '
+    [ .issues[] | "\(.number):\(.body_edited // "none")" ] | join(",")' 2>/dev/null || echo "")
+  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited now=$(poll_now_iso)"
   exit 0
 }
 
@@ -121,6 +130,7 @@ while :; do
   OUT=$("$HERE/fetch-issue-state.sh" "$REPO" $NUMS 2>/dev/null) || OUT=""
   LINE=$(printf '%s\n' "$OUT" | tail -1)
   J=$(printf '%s\n' "$OUT" | sed '$d')
+  [ -n "$J" ] && last_json="$J"
 
   case "$LINE" in
     result=OK*) watch_ok issue-query ;;
