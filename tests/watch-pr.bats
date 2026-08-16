@@ -787,11 +787,15 @@ EOF
 }
 
 # A caller reading the lines above `result=` must not find leftovers on a quiet
-# watch — an empty burst has to look empty.
-@test "a quiet watch prints its result line and nothing else" {
+# watch — an empty burst has to look empty. The re-arm line is not a leftover:
+# IDLE is the result a caller always re-arms from, so it is the one that most
+# needs the next invocation attached.
+@test "a quiet watch carries its re-arm line and no burst content" {
   INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot
-  [ "${#lines[@]}" -eq 1 ]
-  [[ "${lines[0]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "$output" == *"── re-arm ──"* ]]
+  [[ "$output" != *"── next ──"* ]]
+  [[ "$output" != *'"kind":'* ]]
 }
 
 @test "a verdict wake names the state that stands, not only its SHA" {

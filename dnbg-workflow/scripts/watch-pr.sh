@@ -58,6 +58,11 @@
 #   result=IDLE now=<iso>                                 # nothing within the window — re-arm
 #   result=ERROR reason=<source> now=<iso>                # the watch itself is broken — do NOT re-arm
 #
+# Every result a caller re-arms from is preceded by a `── re-arm ──` line
+# carrying the next invocation with each argument filled in — `since` set to this
+# run's own `now`, so the two watches abut rather than leaving a gap. CLOSED and
+# ERROR carry none: neither is re-armed.
+#
 # COMMITS, ACTIVITY and READY carry `verdict_sha=<sha> verdict=<state>` before
 # `now=` when the level-triggered check above fired. The SHA is the value to
 # re-arm `--last-verdict` with; absent means that check did not fire, so carry the
@@ -340,12 +345,43 @@ emit_next() {
     "$(cd "$(dirname "$0")" && pwd)" "$REPO" "$PR" "${LAST_HEAD:-\"\"}" "$SINCE" "$SLUG"
 }
 
+# The next watch, with every argument already filled in — the same service
+# emit_next does for pr-round.sh, for the call the caller makes after this one.
+#
+# `since` is this run's own `now`, which is the only value that leaves no gap:
+# a caller reading the clock when it re-arms skips whatever landed between this
+# run returning and that one starting, and reviews are counted against `since`,
+# so what falls in the gap is filtered out for good rather than deferred.
+#
+# The head is the one this run last saw, so a push it already reported is not
+# reported again. `--last-verdict` carries the verdict this run reported when it
+# fired, and the incoming baseline otherwise — passing an empty value after
+# handling a verdict wakes the next watch on that same verdict immediately.
+# IDLE is the one result the caller always re-arms from, and it is emitted from
+# four places. Centralised so a fifth cannot be added without the re-arm line.
+report_idle() {
+  emit_rearm
+  echo "result=IDLE now=$(poll_now_iso)"
+  exit 0
+}
+
+emit_rearm() {
+  printf '── re-arm ──\n'
+  printf '"%s/watch-pr.sh"%s %s %s %s %s %s%s%s\n' \
+    "$(cd "$(dirname "$0")" && pwd)" \
+    "$([ "$ISSUE_MODE" = 1 ] && printf ' --issue' || true)" \
+    "$REPO" "$PR" "${new_head:-${obs_head:-\"\"}}" "$(poll_now_iso)" "$SLUG" \
+    "$([ -n "$EXCLUDE" ] && printf ' --exclude=%s' "$EXCLUDE" || true)" \
+    "$([ "$ISSUE_MODE" = 1 ] && printf '' || printf ' --last-verdict=%s' "${verdict_sha:-$LAST_VERDICT}")"
+}
+
 # Report the accumulated burst. Defined once because two paths reach it — the
 # quiet-period exit below, and the unreachable-gh path at the top of the loop,
 # which must not silently drop a burst it can no longer confirm quiet.
 report_burst() {
   emit_activity
   emit_next
+  emit_rearm
   if [ "$saw_commits" = 1 ]; then
     echo "result=COMMITS new_head=$new_head activity=$saw_activity$(verdict_field) now=$(poll_now_iso)"
   else
@@ -409,7 +445,7 @@ while :; do
     [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
       && [ "$(date +%s)" -ge "$settle_cap" ] && report_burst
     { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out \
-      && { echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+      && report_idle
     poll_nap; continue
   fi
   fails_primary=0
@@ -456,7 +492,7 @@ while :; do
       && report_error "$([ "$ISSUE_MODE" = 1 ] && echo issue-view-shape || echo pr-view-shape)"
     poll_reset
     { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out \
-      && { echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+      && report_idle
     poll_nap; continue
   fi
 
@@ -568,9 +604,17 @@ while :; do
       wake=$(printf '%s\n' "$wake" | grep -vxF "$EXCLUDE_LINES" || true)
     fi
     if [ -n "$wake" ]; then
+      # The PRs that woke this watch join the exclusion the re-arm line carries.
+      # Without that, a mention-only PR that stays open satisfies the timeline
+      # source on every tick, so re-arming verbatim wakes on it again at once —
+      # the hot loop `--exclude` exists to prevent, reintroduced by the very
+      # command that exists to make re-arming safe.
+      EXCLUDE=$(printf '%s\n%s\n' "$EXCLUDE_LINES" "$wake" \
+                  | grep -v '^[[:space:]]*$' | sort -u | paste -sd, - || true)
+      emit_rearm
       echo "result=ACTIVITY activity=1 now=$(poll_now_iso)"; exit 0
     fi
-    poll_timed_out && { echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+    poll_timed_out && report_idle
     poll_nap; continue
   fi
   if [ "$STATE" = MERGED ] || [ "$STATE" = CLOSED ]; then
@@ -762,7 +806,7 @@ while :; do
   # or a burst is accumulating behind a held-back draft, which has no release
   # short of the draft going ready and would otherwise never time out.
   { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out \
-    && { echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+    && report_idle
   # No poll_reset on a quiet tick: the curve is a function of how long it has
   # been since something happened, so quiet is exactly what widens it.
   poll_nap
