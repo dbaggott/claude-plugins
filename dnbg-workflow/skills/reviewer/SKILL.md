@@ -611,7 +611,8 @@ PR to resume (it re-assesses current state and picks the watch back up).
    # handled, or the watch wakes on it again on its first tick, every time.
    "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> \
      "$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")" \
-     --role=reviewer [--was-draft] [--last-verdict=<sha>] [--last-checks=<names>]
+     --role=reviewer [--was-draft] [--last-verdict=<sha>] \
+     [--last-checks=<names>] [--last-checks-head=<sha>]
    ```
 
    `--role=reviewer` is what makes this the reviewer's watch: the author's pushes

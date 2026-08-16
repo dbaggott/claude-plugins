@@ -5,7 +5,7 @@
 #
 #   watch-pr.sh <owner/repo> <pr> [<last_head>] [<since>] [<slug>] \
 #     --role=author|reviewer [--was-draft] [--last-verdict=<sha>] \
-#     [--last-checks=<names>] [--merge-stage]
+#     [--last-checks=<names>] [--last-checks-head=<sha>] [--merge-stage]
 #
 # Exactly one result line, then exit 0:
 #   result=COMMITS  new_head=<sha> activity=0|1 now=<iso>   # someone pushed
@@ -17,6 +17,9 @@
 # set is level-triggered: `--last-checks` is what the caller has been TOLD is
 # failing, which a recovery clears and an unreported failure does not advance.
 # The value is shell-quoted in both places — forge check names contain spaces.
+# `--last-checks-head` is the commit those conclusions ran on, and the pair is
+# the unit: a check runs per-commit, so the same name failing on a later head is
+# a different build, and the set is void anywhere but the head that produced it.
 #   result=READY    new_head=<sha> activity=0|1 now=<iso>   # draft marked ready — only with --was-draft
 #   result=DIRTY    now=<iso>                               # conflict with base — author role only
 #   result=BLOCKED  cause=terminal now=<iso>                # nothing pending will clear it
@@ -56,7 +59,7 @@ unset GH_TOKEN   # use the dev's own (non-expiring) gh auth for the long poll
 _poll_argv="$*"
 
 REPO=""; PR=""; LAST_HEAD=""; SINCE=""; SLUG=""
-ROLE=""; WAS_DRAFT=0; LAST_VERDICT=""; LAST_CHECKS=""; MERGE_STAGE=0
+ROLE=""; WAS_DRAFT=0; LAST_VERDICT=""; LAST_CHECKS=""; LAST_CHECKS_HEAD=""; MERGE_STAGE=0
 bad=0; pos=0
 for arg in "$@"; do
   case "$arg" in
@@ -64,6 +67,7 @@ for arg in "$@"; do
     --was-draft)      WAS_DRAFT=1 ;;
     --last-verdict=*) LAST_VERDICT="${arg#--last-verdict=}" ;;
     --last-checks=*)  LAST_CHECKS="${arg#--last-checks=}" ;;
+    --last-checks-head=*) LAST_CHECKS_HEAD="${arg#--last-checks-head=}" ;;
     --merge-stage)    MERGE_STAGE=1 ;;
     --*)              bad=1 ;;
     *) pos=$(( pos + 1 ))
@@ -105,6 +109,7 @@ case "$ROLE" in author|reviewer) ;; *) bad=1 ;; esac
 case "$PR" in ''|*[!0-9]*) bad=1 ;; esac
 sha_ok "$LAST_HEAD" || bad=1
 sha_ok "$LAST_VERDICT" || bad=1
+sha_ok "$LAST_CHECKS_HEAD" || bad=1
 [ -n "$SINCE" ] || SINCE="1970-01-01T00:00:00Z"
 
 # Only the author's own login is derivable here. A reviewer's is its bot's,
@@ -134,6 +139,10 @@ new_head=""; verdict_sha=""; verdict_state=""; checks_now=""
 # a failure seen but held back by a settle must not advance it or the caller is
 # told it was handled when it was never reported.
 checks_baseline="$LAST_CHECKS"
+# The commit that baseline's conclusions ran on. Without it the set is just
+# names, and names are all a caller re-arming after their own push carries
+# forward — see where it is compared, below.
+checks_head="$LAST_CHECKS_HEAD"
 last_json=""
 obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0; obs_verdict=""
 # What the caller has HANDLED, which only a report advances — as against
@@ -160,11 +169,11 @@ shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 # ("no verdict handled yet"), so `:-` would substitute the mutated state back in
 # and mark a verdict handled that no run ever reported.
 rearm_cmd() {  # [head] [since] [verdict]
-  printf 'WINDOW=%s "%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s' \
+  printf 'WINDOW=%s "%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s --last-checks-head=%s' \
     "$WINDOW" "$HERE" "$REPO" "$PR" "${1:-${rearm_head:-\"\"}}" "${2:-$(poll_now_iso)}" \
     "$SLUG" "$ROLE" \
     "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)$([ "$MERGE_STAGE" = 1 ] && printf ' --merge-stage' || true)" \
-    "${3-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")"
+    "${3-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")" "$checks_head"
 }
 
 # The arguments this run STARTED with. A run that reports nothing has handled
@@ -328,6 +337,16 @@ while :; do
   # loses one that landed while no watch was running.
   checks_now=$(printf '%s' "$J" | jq -r '
     [ .checks[] | select(.state == "failure") | .name ] | sort | join(",")')
+  # A conclusion belongs to the commit it ran on, so a baseline gathered on any
+  # other head says nothing about this one — two builds of the same check share
+  # a name and nothing else. Comparing names alone marks a check that is red on
+  # both sides of a push already-handled, and the caller is never told the new
+  # commit is red. The head has to be carried because it cannot be inferred: an
+  # author re-arming after their own push passes the new head with the old
+  # head's baseline, which is indistinguishable from a re-arm on the same head.
+  if [ -n "$HEAD" ] && [ "$checks_head" != "$HEAD" ]; then
+    checks_baseline=""; checks_head="$HEAD"
+  fi
   # Green clears the baseline; a failure only advances it once it has been
   # reported, which a settle in progress defers. Green also withdraws a failure
   # not yet reported — a check that recovers inside the settle it triggered is
