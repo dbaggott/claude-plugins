@@ -12,7 +12,9 @@ That swap is what this fixes: a reviewer posting findings *after* approving
 landed in the window between the two watchers and was never reported.
 
 Every result a caller re-arms from now carries a `── re-arm ──` line with the
-next invocation filled in, `since` set to the finishing run's own `now`. A caller
+next invocation filled in, `since` set to the finishing run's own `now`, and the
+window this run was given — a bare command would drop an explicitly widened
+window back to the role default on the first wake. A caller
 reading the clock instead skipped whatever landed in between, and activity is
 counted against `since`, so it was filtered out for good rather than deferred.
 

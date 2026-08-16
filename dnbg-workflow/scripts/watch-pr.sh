@@ -138,12 +138,20 @@ J=""; RAWC="[]"
 # command, and a result line splits into fields nobody can parse.
 shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 
+# `WINDOW=` is carried because the line's whole contract is that running it
+# continues THIS watch. merge.md arms a six-hour wait explicitly, and a bare
+# command silently drops it back to the role default on the first wake — after
+# which the skill reports a thirty-minute idle as six hours with no merge.
+#
+# `${3-}` rather than `${3:-}` on the verdict: empty is a deliberate value there
+# ("no verdict handled yet"), so `:-` would substitute the mutated state back in
+# and mark a verdict handled that no run ever reported.
 rearm_cmd() {  # [head] [since] [verdict]
-  printf '"%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s' \
-    "$HERE" "$REPO" "$PR" "${1:-${new_head:-${obs_head:-\"\"}}}" "${2:-$(poll_now_iso)}" \
+  printf 'WINDOW=%s "%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s' \
+    "$WINDOW" "$HERE" "$REPO" "$PR" "${1:-${new_head:-${obs_head:-\"\"}}}" "${2:-$(poll_now_iso)}" \
     "$SLUG" "$ROLE" \
     "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)" \
-    "${3:-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")"
+    "${3-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")"
 }
 
 # The arguments this run STARTED with. A run that reports nothing has handled

@@ -981,3 +981,30 @@ EOF
   [[ "${lines[-1]}" == result=COMMITS* ]]
   [[ "${lines[-1]}" != *"verdict="* ]]
 }
+
+# --- the re-arm line has to reproduce THIS watch, not a default one -------------
+
+# `merge.md` arms a six-hour wait explicitly and says in bold that the default
+# will not do. A bare command drops that on the first wake, after which the skill
+# reports a thirty-minute idle as six hours with no merge.
+@test "the re-arm line carries the window this run was given" {
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == "WINDOW=4 "* ]]
+  bash -n <<<"$rearm"
+}
+
+# A first arm passes `--last-verdict=` empty, meaning "none handled yet". With
+# `:-` the default fires on that empty value, so a held verdict is handed back as
+# handled and no run ever reports it.
+@test "an IDLE holding a verdict does not hand it back as handled" {
+  echo true > "$DRAFT_FILE"
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=30 WINDOW=8 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer \
+      --was-draft --last-verdict=
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  # Nothing was reported, so the next arm must still have no verdict handled.
+  [[ "$rearm" == *"--last-verdict= "* ]]
+}

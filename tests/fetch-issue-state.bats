@@ -10,8 +10,10 @@ setup() {
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   export GQL="$BATS_TEST_TMPDIR/gql.json"
   export GQL_EXIT="$BATS_TEST_TMPDIR/gql_exit"
+  export ARGV="$BATS_TEST_TMPDIR/argv"; : > "$ARGV"
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
+printf '%s\n' "$*" >> "$ARGV"
 cat "$GQL"
 [ -f "$GQL_EXIT" ] && exit 1
 exit 0
@@ -112,4 +114,18 @@ line() { tail -1 <<<"$1"; }
   [[ "$output" == *"reason=bad-args"* ]]
   run "$FETCH" o/r abc
   [[ "$output" == *"reason=bad-args"* ]]
+}
+
+# `-F` types the value, so an all-digit repo or owner is sent as a JSON NUMBER
+# against `String!`. GitHub then refuses the whole query — `owner/2048` errors on
+# every tick, reported as `issue-query` and indistinguishable from an outage, on
+# a repo the watch can see perfectly well. The stub cannot emulate that
+# coercion, so what is pinned is the flag form, which is the thing under control.
+@test "the repo variables are bound untyped, so an all-digit name stays a string" {
+  repo "$(node 1)"
+  run "$FETCH" owner/2048 1
+  grep -q -- '-f owner=' "$ARGV"
+  grep -q -- '-f repo=' "$ARGV"
+  ! grep -q -- '-F owner=' "$ARGV"
+  ! grep -q -- '-F repo=' "$ARGV"
 }

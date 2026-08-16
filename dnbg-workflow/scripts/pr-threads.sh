@@ -110,7 +110,7 @@ if ! RAW=$(gh api graphql \
             }
           }
         }
-      }' -F owner="$OWNER" -F repo="$NAME" -F pr="$PR" 2>/dev/null); then
+      }' -f owner="$OWNER" -f repo="$NAME" -F pr="$PR" 2>/dev/null); then
   echo "result=ERROR reason=graphql"
   exit 0
 fi

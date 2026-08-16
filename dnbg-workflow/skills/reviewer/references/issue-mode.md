@@ -204,7 +204,11 @@ while that watcher is doing the real work.
 On return, dispatch on the result — **including `ERROR`, which must not fall to
 the catch-all**:
 
-- **`ACTIVITY`** — references listed. Back to step 2.
+- **`ACTIVITY`** — something landed. `kinds=` says what: `linked-pr` means
+  references to triage, so go back to step 2; `comment` or `body-edit` means the
+  conversation moved, so read it before deciding whether the assignment changed.
+  `edited=` carries each issue's body-edit stamp, so a comment claiming the body
+  was updated can be checked without a second call.
 - **`CLOSED`** — the work was dropped or resolved without a PR. Say so and stop.
 - **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
   re-arm**, and do **not** report that nothing has landed: you do not know that.
@@ -216,15 +220,21 @@ the catch-all**:
 - **`ERROR reason=bad-args`** / **`unsupported-forge`** — the watch refused to
   start. Nothing failed and nothing is blind: fix the arguments, or accept that the
   repo is not on a forge this watch supports, and re-spawn.
-
-**`missing=<n,…>` on any result** names numbers that resolve to no issue — a
-typo, a transfer, or a PR number. They have already left the watch set, so say so
-rather than assuming those issues are quiet.
 - **`IDLE`** — the deadline elapsed with nothing. Re-arm (carrying the exclusion
   list forward), and after the second empty window tell the operator nothing has
   landed rather than waiting silently. Both sources ran, so this genuinely means no
   PR references the issue — **don't reach for "the issue number is probably wrong"
   as the explanation**.
+
+Two fields ride any of those results, and both mean an issue has left the set:
+
+- **`closed=<n,…>`** appears on an `ACTIVITY` line when an issue closed in the
+  same wake as activity on the others. Handle the activity *and* report the
+  closure — treating the line as activity alone leaves you re-discovering PRs for
+  a closed issue. When it was the last watched issue, no re-arm line is printed:
+  there is nothing left to watch, so stop.
+- **`missing=<n,…>`** names numbers that resolve to no issue — a typo, a
+  transfer, or a PR number. Say so rather than assuming those issues are quiet.
 
 The `ERROR` branch is the whole point of using the shared script here. Routing it
 into the `IDLE` catch-all would re-arm into the same failure and then state

@@ -111,8 +111,8 @@ rearm_cmd() {  # [issues-override]
   local ex nums="${1:-$NUMS}"
   ex=$(printf '%s\n%s\n' "$EXCLUDE_LINES" "$new_prs" \
          | grep -v '^[[:space:]]*$' | sort -u | paste -sd, - || true)
-  printf '"%s/watch-issue.sh" %s%s --role=%s --since=%s --slug=%s%s' \
-    "$HERE" "$REPO" "$nums" "$ROLE" "$(poll_now_iso)" "$SLUG" \
+  printf 'WINDOW=%s "%s/watch-issue.sh" %s%s --role=%s --since=%s --slug=%s%s' \
+    "$WINDOW" "$HERE" "$REPO" "$nums" "$ROLE" "$(poll_now_iso)" "$SLUG" \
     "${ex:+ --exclude=$ex}"
 }
 

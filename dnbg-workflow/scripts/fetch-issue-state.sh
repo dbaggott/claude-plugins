@@ -63,7 +63,7 @@ COMMENT_PAGE=${COMMENT_PAGE:-20}
 # would build a malformed query for the life of the watch, reported as an
 # `issue-query` error indistinguishable from an outage. The issue numbers are
 # built into the string because an ALIAS cannot be a variable.
-# shellcheck disable=SC2016  # GraphQL variables, bound by the -F flags below.
+# shellcheck disable=SC2016  # GraphQL variables, bound by the flags below.
 Q='query($owner:String!, $repo:String!) {
   repository(owner: $owner, name: $repo) {'
 for n in "$@"; do
@@ -84,7 +84,10 @@ Q="$Q
   }
 }"
 
-RAW=$(gh api graphql -f query="$Q" -F owner="$OWNER" -F repo="$NAME" 2>/dev/null) || true
+# `-f`, never `-F`: the typed form coerces an all-digit value to a JSON number,
+# and `owner/2048` would then fail `String!` on every tick — an error
+# indistinguishable from an outage, on a repo the watch can see perfectly well.
+RAW=$(gh api graphql -f query="$Q" -f owner="$OWNER" -f repo="$NAME" 2>/dev/null) || true
 [ -n "$RAW" ] || fail issue-query
 
 OUT=$(printf '%s' "$RAW" | jq -c '
