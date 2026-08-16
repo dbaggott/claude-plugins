@@ -9,7 +9,12 @@
 # Exactly one result line, then exit 0:
 #   result=COMMITS  new_head=<sha> activity=0|1 now=<iso>   # someone pushed
 #   result=ACTIVITY activity=1 now=<iso>                    # review/comment/reply, not the caller's
-#   result=CHECKS   checks=<names> now=<iso>                # a check on this head stopped passing
+#   result=CHECKS   checks=<names> now=<iso>                # only a check stopped passing
+#
+# Any burst also carries `checks=<names>` when a check on the head is failing,
+# so a wake that is primarily something else still says the build is red. The
+# set is level-triggered: `--last-checks` is what the caller has been TOLD is
+# failing, which a recovery clears and an unreported failure does not advance.
 #   result=READY    new_head=<sha> activity=0|1 now=<iso>   # draft marked ready — only with --was-draft
 #   result=DIRTY    now=<iso>                               # conflict with base — author role only
 #   result=BLOCKED  cause=terminal now=<iso>                # still blocked, nothing pending — author only
@@ -110,8 +115,14 @@ SETTLE_MAX=${SETTLE_MAX:-300}
 
 poll_init
 
-saw_commits=0; saw_activity=0; saw_ready=0
+saw_commits=0; saw_activity=0; saw_ready=0; saw_checks=""
 new_head=""; verdict_sha=""; verdict_state=""; checks_now=""
+# What the caller has been told is failing. Not simply the latest reading: a
+# recovery has to clear it or the same check failing twice is reported once, and
+# a failure seen but held back by a settle must not advance it or the caller is
+# told it was handled when it was never reported.
+checks_baseline="$LAST_CHECKS"
+last_json=""
 obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0
 settle_until=0; settle_cap=0; holding_draft=0
 J=""; RAWC="[]"
@@ -120,12 +131,12 @@ rearm_cmd() {
   printf '"%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s' \
     "$HERE" "$REPO" "$PR" "${new_head:-${obs_head:-\"\"}}" "$(poll_now_iso)" "$SLUG" "$ROLE" \
     "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)" \
-    "${verdict_sha:-$LAST_VERDICT}" "${checks_now:-$LAST_CHECKS}"
+    "${verdict_sha:-$LAST_VERDICT}" "$checks_baseline"
 }
 
 emit_activity() {
   [ "$saw_activity" = 1 ] || return 0
-  { printf '%s' "${J:-}"     | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_REVIEWS" 2>/dev/null || true
+  { printf '%s' "${last_json:-}" | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_REVIEWS" 2>/dev/null || true
     printf '%s' "${RAWC:-}"  | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_INLINE"  2>/dev/null || true
   } | jq -c "$ACTIVITY_JQ_SUMMARY" 2>/dev/null || true
 }
@@ -154,13 +165,19 @@ report_error() {
 report_burst() {
   emit_activity
   emit_next
+  [ -n "$saw_checks" ] && checks_baseline="$saw_checks"
   watch_rearm "$(rearm_cmd)"
+  if [ -n "$saw_checks" ] && [ "$saw_ready" = 0 ] && [ "$saw_commits" = 0 ] \
+     && [ "$saw_activity" = 0 ]; then
+    echo "result=CHECKS checks=$saw_checks$(verdict_field) now=$(poll_now_iso)"
+    exit 0
+  fi
   if [ "$saw_ready" = 1 ]; then
-    echo "result=READY new_head=$new_head activity=$saw_activity$(verdict_field) now=$(poll_now_iso)"
+    echo "result=READY new_head=$new_head activity=$saw_activity${saw_checks:+ checks=$saw_checks}$(verdict_field) now=$(poll_now_iso)"
   elif [ "$saw_commits" = 1 ]; then
-    echo "result=COMMITS new_head=$new_head activity=$saw_activity$(verdict_field) now=$(poll_now_iso)"
+    echo "result=COMMITS new_head=$new_head activity=$saw_activity${saw_checks:+ checks=$saw_checks}$(verdict_field) now=$(poll_now_iso)"
   else
-    echo "result=ACTIVITY activity=1$(verdict_field) now=$(poll_now_iso)"
+    echo "result=ACTIVITY activity=1${saw_checks:+ checks=$saw_checks}$(verdict_field) now=$(poll_now_iso)"
   fi
   exit 0
 }
@@ -175,6 +192,7 @@ while :; do
   OUT=$("$HERE/fetch-pr-state.sh" "$REPO" "$PR" 2>/dev/null) || OUT=""
   LINE=$(printf '%s\n' "$OUT" | tail -1)
   J=$(printf '%s\n' "$OUT" | sed '$d')
+  [ -n "$J" ] && last_json="$J"
 
   ok=0
   case "$LINE" in
@@ -225,8 +243,12 @@ while :; do
   # loses one that landed while no watch was running.
   checks_now=$(printf '%s' "$J" | jq -r '
     [ .checks[] | select(.state == "failure") | .name ] | sort | join(",")')
-  if [ -n "$checks_now" ] && [ "$checks_now" != "$LAST_CHECKS" ] && [ "$settle_until" = 0 ]; then
-    report_now CHECKS "checks=$checks_now"
+  # Green clears the baseline; a failure only advances it once it has been
+  # reported, which a settle in progress defers.
+  if [ -z "$checks_now" ]; then
+    checks_baseline=""
+  elif [ "$checks_now" != "$checks_baseline" ]; then
+    saw_checks="$checks_now"
   fi
 
   new_reviews=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
@@ -245,7 +267,7 @@ while :; do
 
   changed=0
   if [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = false ] && [ "$saw_ready" = 0 ]; then
-    saw_ready=1; new_head="$HEAD"; changed=1
+    saw_ready=1; new_head="$HEAD"
   fi
   if [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = true ]; then holding_draft=1; else holding_draft=0; fi
 
@@ -254,6 +276,7 @@ while :; do
     if [ "$ROLE" = reviewer ]; then saw_commits=1; changed=1; fi
     new_head="$HEAD"; obs_head="$HEAD"
   fi
+  [ -n "$saw_checks" ] && changed=1
   if [ "$new_reviews" -gt "$obs_new" ] || [ "$new_inline" -gt "$obs_newc" ]; then
     saw_activity=1; changed=1; obs_new="$new_reviews"; obs_newc="$new_inline"
   fi
@@ -261,8 +284,11 @@ while :; do
     vsha="${verdict_line%% *}"
     if [ "$vsha" != "$LAST_VERDICT" ]; then
       verdict_sha="$vsha"; verdict_state="${verdict_line#* }"; changed=1
+      LAST_VERDICT="$vsha"
     fi
   fi
+
+  [ "$saw_ready" = 1 ] && report_burst
 
   if [ "$changed" = 1 ]; then
     poll_reset

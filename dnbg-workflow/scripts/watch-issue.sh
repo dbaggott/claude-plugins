@@ -4,7 +4,7 @@
 # its re-arm contract.
 #
 #   watch-issue.sh <owner/repo> <n> [n...] --role=author|reviewer \
-#     [--since=<iso>] [--slug=<login>] [--exclude=<pr-url,…>] [--last-edit=<n:iso,…>]
+#     [--since=<iso>] [--slug=<login>] [--exclude=<pr-url,…>]
 #
 # Exactly one result line, then exit 0:
 #   result=ACTIVITY issues=<n,…> kinds=<comment|linked-pr|body-edit,…> \
@@ -97,12 +97,12 @@ hit_issues=""; hit_kinds=""; closed_issues=""; new_prs=""
 obs_sig=""; last_json=""
 settle_until=0; settle_cap=0
 
-rearm_cmd() {
-  local ex
+rearm_cmd() {  # [issues-override]
+  local ex nums="${1:-$NUMS}"
   ex=$(printf '%s\n%s\n' "$EXCLUDE_LINES" "$new_prs" \
          | grep -v '^[[:space:]]*$' | sort -u | paste -sd, - || true)
   printf '"%s/watch-issue.sh" %s%s --role=%s --since=%s --slug=%s%s' \
-    "$HERE" "$REPO" "$NUMS" "$ROLE" "$(poll_now_iso)" "$SLUG" \
+    "$HERE" "$REPO" "$nums" "$ROLE" "$(poll_now_iso)" "$SLUG" \
     "${ex:+ --exclude=$ex}"
 }
 
@@ -148,7 +148,11 @@ while :; do
 
   closed_issues=$(printf '%s' "$J" | jq -r '[.issues[] | select(.state != "OPEN") | .number] | join(",")')
   if [ -n "$closed_issues" ]; then
-    watch_rearm "$(rearm_cmd)"
+    # The closed ones leave the watch set. Re-arming with them still in it
+    # reports the same closure on the next tick, forever — one model wake per
+    # iteration — and the header tells callers to re-arm from this line.
+    remaining=$(printf '%s' "$J" | jq -r '[.issues[] | select(.state == "OPEN") | .number] | join(" ")')
+    [ -n "$remaining" ] && watch_rearm "$(rearm_cmd " $remaining")"
     echo "result=CLOSED issues=$closed_issues now=$(poll_now_iso)"; exit 0
   fi
 
@@ -171,8 +175,10 @@ while :; do
   pr_hits=""
   if [ -n "$all_prs" ]; then
     new_prs="$all_prs"
-    pr_hits=$(printf '%s' "$J" | jq -r --arg u "$(printf '%s' "$all_prs" | head -1)" '
-      [ .issues[] | select([.linked_prs[] | select(. == $u)] | length > 0) | .number ] | join(" ")')
+    pr_hits=$(printf '%s' "$J" | jq -r --arg urls "$all_prs" '
+      ($urls | split("\n")) as $new
+      | [ .issues[] | select([ .linked_prs[] | select(. as $u | $new | index($u)) ] | length > 0)
+          | .number ] | join(" ")')
   fi
 
   for pair in "comment:$comment_hits" "body-edit:$edit_hits" "linked-pr:$pr_hits" "comment:$overflow"; do

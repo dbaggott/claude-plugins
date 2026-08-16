@@ -40,14 +40,30 @@ gh pr merge 48 --repo <owner>/examples --squash --delete-branch
 
 ## Watching for the merge
 
-**The watch you already have covers it.** One `watch-pr.sh --role=author` arming
-runs from open through merge: it reports `MERGED`, `CLOSED`, a conflict as
-`DIRTY`, and a block nothing pending will clear as `BLOCKED cause=terminal`. So
-there is no second watcher to start and no moment to swap at.
+**One script, no swap — but arm it for the longer wait.** `watch-pr.sh
+--role=author` reports everything this stage needs: `CLOSED state=MERGED`, a
+conflict as `DIRTY`, and a block nothing pending will clear as
+`BLOCKED cause=terminal`. There is no merge-specific poller to reach for.
 
-That matters beyond tidiness. A swap leaves a window in which one class of
-activity is unwatched, and the class it lost was reviews — a reviewer that posts
-findings *after* approving lands in exactly that window.
+⚠️ **The window has to be widened, and the default will not do it.** The author
+role defaults to 30 minutes because that is sized for waiting on a review, where
+silence is suspect. Waiting on a merge is the opposite: the operator may step
+away for hours, and a watch that idles out at 30 minutes leaves the merge
+uncaught and the post-merge cleanup unrun — the exact case this stage exists for.
+So arm it explicitly:
+
+```bash
+WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
+  "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "" --role=author --last-verdict=<sha>
+```
+
+**Spawn it the moment a review comes back clean**, before telling the operator
+the PR is ready — the claim "I am watching for the merge now" has to be about a
+watcher that is running.
+
+On `result=IDLE` here — six hours of laptop-open time with no merge — wake
+**once** and say the PR is still open and still needs merging, with the URL and
+the merge command re-composed. Then stop; do not silently re-arm.
 
 Any time the operator says something about the merge — kicking it off
 ("merging", "auto-merge is on", "go ahead") **or asserting it is done**
@@ -64,22 +80,45 @@ gh pr view <num> --repo <repo> --json state,mergeStateStatus,autoMergeRequest
   rather than cleaning up twice.
 - **`state=CLOSED`** without a merge — acknowledge, stop, leave the worktree in
   case they reopen.
-- **`state=OPEN`, `autoMergeRequest` non-null** — auto-merge is scheduled and the
+- **`state=OPEN`, `autoMergeRequest` non-null** — auto-merge is scheduled and a
   running watch will catch it.
 - **`state=OPEN`, nothing scheduled** — either they were being forward-looking or
   it has not merged. Say so; don't start a second watch.
 
-If no watch is running — a resumed session, or one that only ever opened the PR
-— arm one per `references/review-rounds.md` rather than reaching for a
-merge-specific poller. There isn't one.
+### On `result=BLOCKED cause=terminal`
+
+**`cause=terminal` says the block will not clear on its own. It does not say
+why, and you must never report a cause you have not read off a source.** The
+underlying status is a summary over unrelated conditions — a failed required
+check, an unresolved review thread, a dismissed approval, a branch behind base —
+and guessing has gone wrong in both directions. Read all three before saying
+anything:
+
+```bash
+# 1. failing checks — both rollup shapes, already normalised by the fetch
+"<skill-dir>/../../scripts/fetch-pr-state.sh" <owner>/<repo> <num> \
+  | head -1 | jq -r '.checks[] | select(.state == "failure") | .name'
+# 2. unresolved review threads — a hard blocker wherever
+#    required_conversation_resolution is on
+"<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <num>
+# 3. dismissed or missing approval
+"<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
+```
+
+Surface the specific cause you found and ask. A `null` `review_decision` means
+review is not a merge gate on this repo, so it rules review *out* as the cause —
+it does not mean a review is not wanted.
+
+On `result=DIRTY`, surface the conflict and ask; don't resolve it autonomously,
+since which side wins is the operator's call.
 
 ## After a merge
 
-When told a PR has been merged (or when the merge watcher above reports `result=MERGED`), clean up **before starting any new work**, in this order:
+When told a PR has been merged (or when the watch above reports `CLOSED state=MERGED`), clean up **before starting any new work**, in this order:
 
 1. Remove the worktree: `git worktree remove .worktrees/<branch-name>`
 2. `git switch <default-branch> && git pull --ff-only --prune` — make sure the primary checkout is on the default branch (a no-op given the rule at the top of this skill, but cheap defense in depth against the pull silently fast-forwarding the wrong branch), then fast-forward with the merge commit. `--prune` also clears the remote-tracking branch, if the repo already deleted it on merge.
-3. Delete the local branch: `git branch -d <branch-name>`. **On a squash-merge repo this fails**, and that's expected rather than a problem: a squash rewrites the commits, so the feature branch tip is never an ancestor of the base branch, and `-d` walks that ancestry and refuses. Check `allow_squash_merge` from `SKILL.md`'s "Know the repo's merge settings" — where squash is the repo's merge method, go straight to `git branch -D`. The operator's "merged" confirmation (or the watcher's `result=MERGED`) is what authorises the force delete; git's ancestry check can't.
+3. Delete the local branch: `git branch -d <branch-name>`. **On a squash-merge repo this fails**, and that's expected rather than a problem: a squash rewrites the commits, so the feature branch tip is never an ancestor of the base branch, and `-d` walks that ancestry and refuses. Check `allow_squash_merge` from `SKILL.md`'s "Know the repo's merge settings" — where squash is the repo's merge method, go straight to `git branch -D`. The operator's "merged" confirmation (or the watch's `CLOSED state=MERGED`) is what authorises the force delete; git's ancestry check can't.
 4. Delete the remote branch **only if the repo doesn't do it for you**: `delete_branch_on_merge` from the settings read says which. When it's on, GitHub already deleted it and step 2's `--prune` cleared your local view — nothing to do. When it's off, `git push origin --delete <branch-name>`.
 
 ### Then close the loop, in three sections

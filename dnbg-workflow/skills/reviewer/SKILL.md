@@ -623,7 +623,6 @@ PR to resume (it re-assesses current state and picks the watch back up).
    value that leaves no gap; a clock reading taken when you re-arm skips whatever
    landed in between, and activity is counted against `since`, so it is lost
    rather than deferred.
-   ```
 
    It reads with your own `gh` auth (so it doesn't expire mid-watch), tolerates
    transient `gh` failures, and excludes the bot's own activity under *both*

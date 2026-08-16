@@ -282,3 +282,34 @@ comment() {  # <login> <iso>
     run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
   [[ "${lines[-1]}" == *"edited=163:none"* ]]
 }
+
+# The closed issue leaves the watch set. Re-arming with it still in there reports
+# the same closure on the next tick, forever — one model wake per iteration — and
+# the header tells callers to re-arm from this line.
+@test "a closed issue is dropped from the re-arm line" {
+  repo "$(issue 163 '[]' '[]' CLOSED)" "$(issue 164)"
+  INTERVAL=1 WINDOW=4 \
+    run "$WATCH" o/r 163 164 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == "result=CLOSED issues=163"* ]]
+  [[ "$output" == *"── re-arm ──"* ]]
+  [[ "$output" == *"o/r 164 --role"* ]]
+  [[ "$output" != *"o/r 163"* ]]
+}
+
+@test "the last issue closing leaves nothing to re-arm" {
+  repo "$(issue 163 '[]' '[]' CLOSED)"
+  INTERVAL=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == "result=CLOSED issues=163"* ]]
+  [[ "$output" != *"── re-arm ──"* ]]
+}
+
+# Every new PR is folded into the exclusion the re-arm carries, so an issue whose
+# PR went unreported never gets another chance to report it.
+@test "every issue with a new linked PR is reported, not just the first" {
+  repo "$(issue 163 '[]' '["https://github.com/o/r/pull/9"]')" \
+       "$(issue 164 '[]' '["https://github.com/o/r/pull/10"]')"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 164 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == *"issues=163,164"* ]]
+}

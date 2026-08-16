@@ -739,3 +739,55 @@ EOF
   INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
   ! grep -qE " (pr (merge|close|ready|edit|review|comment)|api .*-X (POST|PATCH|PUT|DELETE))" "$CALLS"
 }
+
+# --- the check baseline is what the caller has been TOLD, not the last reading ---
+
+# A recovery has to clear it. Carrying the old list forward means the same check
+# failing a second time compares equal and is never reported again, for the life
+# of the watch chain.
+@test "a recovered check clears the baseline the re-arm carries" {
+  echo '[]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --last-checks=lint
+  [[ "$output" == *"--last-checks="* ]]
+  [[ "$output" != *"--last-checks=lint"* ]]
+}
+
+@test "a failure the caller was told about is carried as handled" {
+  echo '[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks=lint"* ]]
+  [[ "$output" == *"--last-checks=lint"* ]]
+}
+
+# A check going red while a burst is settling must not be dropped in favour of
+# the burst, and must not be marked handled without being reported. Riding along
+# as a field on whatever the burst reports satisfies both: the caller is told,
+# so advancing the baseline is then correct.
+@test "a check going red during a settle rides out on the burst" {
+  printf '%s' "$(reviews COMMENTED "$(sha40 0)" someone)" > "$REVIEWS"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=2 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" == *"checks=ci"* ]]
+  [[ "$output" == *"--last-checks=ci"* ]]
+}
+
+# A wake that is only a red build still says so in the result name, so a caller
+# branching on `result=` does not have to read the fields to find it.
+@test "a check failing alone reports CHECKS" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks=ci"* ]]
+}
+
+# The baseline has to advance in-run too. Left un-advanced, the same standing
+# verdict counts as a change on every tick, pushing the settle out faster than
+# the poll floor can reach it — so the burst is only ever released by the cap.
+@test "a standing verdict is reported at the settle, not held to the cap" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=3 SETTLE_MAX=600 WINDOW=60 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-verdict=
+  [[ "$output" == *"verdict=APPROVED"* ]]
+  [ "$(cat "$TICKS")" -lt 20 ]
+}

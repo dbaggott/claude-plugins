@@ -102,8 +102,11 @@ OUT=$(printf '%s' "$RAW" | jq -c '
 # transferred issue, a deleted one, a typo, or a PR number, since issue(number:)
 # does not resolve a PR. Naming it once and dropping it is the only handling that
 # neither blinds the watch nor counts toward a transient streak.
-ASKED=$(printf '%s\n' "$@" | sort -n)
-GOT=$(printf '%s' "$OUT" | jq -r '.issues[].number' | sort -n)
+ASKED=$(printf '%s\n' "$@" | sort -u)
+# `comm` compares lexicographically, so a numeric sort makes it report issues
+# that answered as missing — 9 against 10 is the smallest case. `-u` because a
+# number repeated in argv is not a missing issue either.
+GOT=$(printf '%s' "$OUT" | jq -r '.issues[].number' | sort -u)
 MISSING=$(comm -23 <(printf '%s\n' "$ASKED") <(printf '%s\n' "$GOT") | tr '\n' ',' | sed 's/,$//')
 
 if [ -n "$MISSING" ]; then

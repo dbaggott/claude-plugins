@@ -86,7 +86,7 @@ Read the review payload and pick one of three responses based on content. Track 
 
 **Read the approving review's body before composing the handoff.** An approval is not always empty — reviewers put CI triage, deferred follow-ups and scope notes in it, and none of that reaches you as a finding. It is already in the packet, as the `"kind":"review"` object; skipping it means re-deriving from scratch what the reviewer has already written down, then reporting it as your own discovery.
 
-With the verdict confirmed and that body read, tell the operator the PR is ready to merge, then **immediately spawn the merge watcher** (see `references/merge.md` → start it proactively) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per `references/merge.md` — hand over exactly one form, the one that will work:
+With the verdict confirmed and that body read, tell the operator the PR is ready to merge, then **immediately re-arm the watch for the merge wait** (see `references/merge.md`, which gives the wider window that stage needs) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per `references/merge.md` — hand over exactly one form, the one that will work:
 
 > Reviewer approved at <commit>. No actionable findings. Ready to merge: <full URL>.
 >
