@@ -68,15 +68,23 @@ silence is suspect. Waiting on a merge is the opposite: the operator may step
 away for hours, and a watch that idles out at 30 minutes leaves the merge
 uncaught and the post-merge cleanup unrun — the exact case this stage exists for.
 
-**Take the `── re-arm ──` line the review watch just printed and change
-`WINDOW=` to `21600`.** That line already carries the head it observed, `since`
-set to its own `now`, the verdict it reported and the checks it named — so this
-is a one-token edit:
+**Take the `── re-arm ──` line the review watch just printed, change `WINDOW=` to
+`21600`, and add `--merge-stage`.** That line already carries the head it
+observed, `since` set to its own `now`, the verdict it reported and the checks it
+named — so this is a two-token edit:
 
 ```bash
 WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
-  <the rest of the printed line, unchanged>
+  <the rest of the printed line, unchanged> --merge-stage
 ```
+
+⚠️ **`--merge-stage` is what makes a terminal block reportable**, and it is why
+this is a different arming rather than the same one with a longer window. While a
+review is running, a blocked PR is the *ordinary* state of a healthy one — with
+`required_conversation_resolution` on, a single open thread is enough — so the
+review watch deliberately does not stop for it. Once the review is clean, that
+same state means the merge will not happen without someone acting. Every later
+re-arm carries the flag forward for you.
 
 Don't re-assemble it by hand. Reading the clock for `since` drops whatever the
 reviewer posted while you were composing the handoff, and dropping
@@ -101,7 +109,7 @@ acting on the words**. Operators use "merged" for both "the button was clicked,
 auto-merge is queued" and "GitHub shows merged"; same phrasing, different states.
 
 ```bash
-gh pr view <num> --repo <repo> --json state,mergeStateStatus,autoMergeRequest
+gh pr view <num> --repo <repo> --json state,autoMergeRequest
 ```
 
 - **`state=MERGED`** — run the post-merge cleanup below. If a watch is still in

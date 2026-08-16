@@ -18,9 +18,10 @@
 # The value is shell-quoted in both places — forge check names contain spaces.
 #   result=READY    new_head=<sha> activity=0|1 now=<iso>   # draft marked ready — only with --was-draft
 #   result=DIRTY    now=<iso>                               # conflict with base — author role only
-#   result=BLOCKED  cause=terminal now=<iso>                # still blocked, nothing pending — author only
+#   result=BLOCKED  cause=terminal now=<iso>                # nothing pending will clear it
+#                                                           # — author role WITH --merge-stage only
 #   result=CLOSED   state=MERGED|CLOSED                     # finished — stop watching
-#   result=IDLE     [merge=behind] now=<iso>                 # nothing within the window
+#   result=IDLE     [merge=behind|blocked] now=<iso>        # nothing within the window
 #   result=ERROR    reason=<source> now=<iso>               # the watch is broken — do NOT re-arm
 #
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
@@ -34,8 +35,12 @@
 # removes the caller's choice of which watcher to run:
 #
 #   author    waits for a verdict. Its own pushes are not news, so COMMITS is not
-#             a wake. It owns the merge, so DIRTY and a terminal BLOCKED are.
-#             Ignores the operator's login. Shorter window — quiet here is suspect.
+#             a wake. It owns the merge, so DIRTY is. Ignores the operator's
+#             login. Shorter window — quiet here is suspect.
+#
+# --merge-stage says the review is over and the wait is now for the merge, which
+# is the only point at which a terminal block is worth stopping for. Before it,
+# a blocked PR is the ordinary state of one under review.
 #   reviewer  waits for a push. COMMITS is the wake; merge state is not its
 #             business. Ignores the bot's login. Longer window — quiet is normal.
 #
@@ -50,7 +55,7 @@ unset GH_TOKEN   # use the dev's own (non-expiring) gh auth for the long poll
 _poll_argv="$*"
 
 REPO=""; PR=""; LAST_HEAD=""; SINCE=""; SLUG=""
-ROLE=""; WAS_DRAFT=0; LAST_VERDICT=""; LAST_CHECKS=""
+ROLE=""; WAS_DRAFT=0; LAST_VERDICT=""; LAST_CHECKS=""; MERGE_STAGE=0
 bad=0; pos=0
 for arg in "$@"; do
   case "$arg" in
@@ -58,6 +63,7 @@ for arg in "$@"; do
     --was-draft)      WAS_DRAFT=1 ;;
     --last-verdict=*) LAST_VERDICT="${arg#--last-verdict=}" ;;
     --last-checks=*)  LAST_CHECKS="${arg#--last-checks=}" ;;
+    --merge-stage)    MERGE_STAGE=1 ;;
     --*)              bad=1 ;;
     *) pos=$(( pos + 1 ))
        case $pos in
@@ -156,7 +162,7 @@ rearm_cmd() {  # [head] [since] [verdict]
   printf 'WINDOW=%s "%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s' \
     "$WINDOW" "$HERE" "$REPO" "$PR" "${1:-${rearm_head:-\"\"}}" "${2:-$(poll_now_iso)}" \
     "$SLUG" "$ROLE" \
-    "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)" \
+    "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)$([ "$MERGE_STAGE" = 1 ] && printf ' --merge-stage' || true)" \
     "${3-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")"
 }
 
@@ -408,10 +414,21 @@ while :; do
     # look for why nothing merged.
     idle_merge=""
     [ "$MSTATUS" = behind ] && idle_merge=behind
+    # A conflict is worth stopping for at any stage — it is never the normal
+    # state of a PR, and nothing the reviewer does clears it.
     [ "$MSTATUS" = dirty ] && report_stop DIRTY
-    if [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
+    # A terminal block is only a stop once the review is over. While a review is
+    # running it is the NORMAL state of a healthy PR: with
+    # `required_conversation_resolution` on, one open thread makes GitHub report
+    # BLOCKED, and with no required approver `reviewDecision` is empty, so the
+    # cause falls through to terminal. Stopping there ends the review watch on
+    # its first tick, every round, for the ordinary reason that a reviewer has
+    # opened a thread. `--merge-stage` is what says the review is done.
+    if [ "$MERGE_STAGE" = 1 ] && [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
       report_stop BLOCKED "cause=terminal"
     fi
+    [ "$MERGE_STAGE" = 0 ] && [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ] \
+      && idle_merge=blocked
   fi
 
   [ "$saw_ready" = 1 ] && report_burst

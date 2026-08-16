@@ -33,7 +33,11 @@ none of the four clears without a human, so re-arming on one wakes on it again
 every tick.
 
 Which makes what counts as terminal load-bearing, so `BLOCKED` is now split five
-ways. A base that has moved on is named on the window's own `IDLE` as
+ways — and reportable only under `--merge-stage`, which `merge.md` adds once a
+review comes back clean. While a review is running, a blocked PR is the ordinary
+state of a healthy one: where the repo requires conversations resolved, a single
+open thread is enough, so stopping there would end the review watch on its first
+tick of every round. A base that has moved on is named on the window's own `IDLE` as
 `merge=behind` rather than collapsing into an unknown nothing acts on — it clears
 with one click, and often with none under a merge queue, so it is not a reason to
 end the wait. A stop that arrives on a tick already holding activity carries that

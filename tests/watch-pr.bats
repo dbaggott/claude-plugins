@@ -701,11 +701,14 @@ EOF
 }
 
 # Nothing running, nothing red, the approval in hand — so only a human moves it.
+# `--merge-stage` because a terminal block is an answer only once the review is
+# over; during one it is the ordinary state of a PR with an open thread.
 @test "a block with nothing pending is terminal and reaches the author" {
   echo BLOCKED > "$MERGESTATE"
   echo APPROVED > "$REVIEWDECISION"
   echo '[{"name":"lint","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
-  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
   [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
 }
 
@@ -858,7 +861,8 @@ EOF
   echo BLOCKED > "$MERGESTATE"
   echo APPROVED > "$REVIEWDECISION"
   echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
-  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
   [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
 }
 
@@ -872,7 +876,8 @@ EOF
 
   echo BLOCKED > "$MERGESTATE"; echo APPROVED > "$REVIEWDECISION"
   echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
-  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
   [[ "${lines[-1]}" == result=BLOCKED* ]]
   [[ "$output" != *"re-arm"* ]]
 }
@@ -1182,4 +1187,50 @@ EOF
     run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=author
   [[ "${lines[-1]}" == result=ACTIVITY* ]]
   [[ "$output" == *"next"* ]]
+}
+
+# --- a blocked PR is the normal state of one under review ----------------------
+
+# With `required_conversation_resolution` on, one open thread makes GitHub report
+# BLOCKED; with no required approver `reviewDecision` is empty, so the cause falls
+# through to terminal. Stopping there ends the review watch on its first tick,
+# every round, for the ordinary reason that a reviewer has opened a thread.
+@test "a terminal block does not end a review-stage watch" {
+  echo BLOCKED > "$MERGESTATE"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  # Named, not swallowed — the window's own IDLE says why nothing is moving.
+  [[ "${lines[-1]}" == *"merge=blocked"* ]]
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# Once the review is over the same state IS the answer: nothing pending clears it.
+@test "a terminal block does end a merge-stage watch" {
+  echo BLOCKED > "$MERGESTATE"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
+  [[ "$output" != *"re-arm"* ]]
+}
+
+# The stage has to survive the re-arm, or the first wake silently drops the merge
+# wait back to review-stage behaviour and the terminal block never lands.
+@test "the merge stage is carried on the re-arm line" {
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"--merge-stage"* ]]
+  bash -n <<<"$rearm"
+}
+
+# A conflict is never the normal state of a PR and nothing the reviewer does
+# clears it, so it stops at either stage.
+@test "a conflict stops a review-stage watch too" {
+  echo DIRTY > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=DIRTY "* ]]
 }
