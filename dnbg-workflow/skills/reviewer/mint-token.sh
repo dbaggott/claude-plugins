@@ -256,4 +256,4 @@ EOM
   fi
 fi
 
-printf '%s' "$MINTED" | jq -r '.token'  
+printf '%s' "$MINTED" | jq -r '.token'

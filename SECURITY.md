@@ -117,14 +117,23 @@ key on your machine. That key is the bot's entire credential: anyone holding it
 can mint installation tokens for every account the App is installed on, without
 your GitHub session and without touching your account.
 
-**What it can do.** The App is created least-privilege
-(`bootstrap.py:77-84`): `pull_requests: write` — submit reviews, inline
-comments, thread replies — plus `contents`, `checks`, `actions`, `statuses` and
-`metadata` at **read**. Deliberately absent: `contents: write` (a reviewer
-should not be able to write source) and `issues` (the issue-scoped review mode
-runs under your own auth instead). So a leaked key reads private source on
-every repo where the App is installed, and writes reviews and comments as the
-bot — it cannot push code, merge, or alter issues.
+**What it can do.** The App is created with the set in
+`dnbg-workflow/skills/reviewer-setup/permissions.json`: `pull_requests: write`
+— submit reviews, inline comments, thread replies — `contents: write`, and
+`checks`, `actions`, `statuses` and `metadata` at **read**.
+
+⚠️ **`contents: write` means a leaked key can write source.** GitHub gates
+creating commits and refs on it, and merging a pull request too, so the blast
+radius is not read-only: on every repo where the App is installed, a leaked key
+reads private source, pushes commits, can merge, and writes reviews and comments
+as the bot. It is granted because GitHub also gates two things the reviewer
+cannot work without on it — resolving a review thread, and having its verdict
+counted at all — and offers no narrower permission for either.
+
+The scoping lever is therefore the installation's repository list, not the
+permission set. `issues` is not requested, so a bot created by this bootstrap
+cannot alter issues; an App you have granted more to for other purposes can do
+whatever you granted.
 
 **Where it lives.** Three sources, first hit wins: the
 `DNBG_REVIEWER_PRIVATE_KEY` environment variable, a command you configure via

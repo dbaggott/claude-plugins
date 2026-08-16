@@ -89,8 +89,12 @@ printed `http://localhost:<port>/` yourself, or forward the port.
 Creation does not install the App — an App with no installation can't mint a
 token. Open the install URL the helper printed
 (`https://github.com/apps/<slug>/installations/new`) and install it on **each
-account whose repos you'll review**, scoped to the repos you want (all repos is
-fine; least-privilege is the permission set, not the repo list):
+account whose repos you'll review**, scoped to the repos you want. ⚠️ **Scope
+this deliberately: the repo list is the only lever you have.** The App needs
+`contents: write` to review at all — GitHub gates resolving a thread and having
+a verdict counted on it, with no narrower grant — so a leaked key can write
+source on every repo the App is installed on. `SECURITY.md` states the full
+blast radius.
 
 - **Your personal account** — for your personal repos. You install it directly.
 - **Each org** — for that org's PRs. An org owner approves the install (you can
@@ -163,21 +167,18 @@ it wherever you want and set the command.
   App's GitHub settings, then re-run the bootstrap to re-save credentials.
 - **Re-install on more repos**: just adjust the installation's repo access in
   GitHub; no re-bootstrap needed.
-- **The permission set changed** (bootstrap.py gained an entry, a review is
-  failing with `Resource not accessible by integration`, or a posted verdict is
-  not moving `reviewDecision`): re-running the
-  bootstrap does **not** fix an App that already exists — the manifest is only
-  read at creation. Edit the permissions on the App itself, under *Permissions &
+- **A permission is missing** (the mint said so, or a call is failing with
+  `Resource not accessible by integration`): re-running the bootstrap does
+  **not** fix an App that already exists — the manifest is only read at
+  creation. Edit the permissions on the App itself, under *Permissions &
   events* at `https://github.com/settings/apps/<slug>`.
 
   **Then accept the change on every installation, separately.** A permission
   added to an App stays *pending* until each account it is installed on accepts
   it; until then the granted set is the old one and the failure is unchanged, so
   the edit looks like it did nothing. Personal installs you accept yourself; an
-  org install needs an org owner. Check what is actually granted — this is the
-  authoritative answer, and it is what the App *declares* that misleads:
+  org install needs an org owner.
 
-  Re-run the `/app/installations` check from **Verify** above and compare each
-  line against `permissions.json`. `GET /app` shows what the
-  App *asks* for, which flips the moment you save the edit — `/app/installations`
-  shows what it actually has.
+  Then mint again. The mint reads what was actually granted, so a quiet run is
+  the confirmation — and the App's own settings page is not, since it shows what
+  the App *asks* for, which flips the moment you save.

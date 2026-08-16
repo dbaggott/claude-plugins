@@ -9,6 +9,12 @@ Setting up a reviewer also checks what the App was actually granted, and says
 what is missing and how to fix it if anything is. An App holding extra
 permissions for other purposes is fine.
 
+**This widens what a leaked reviewer key can do.** It could already read private
+source on every repo the App is installed on; it can now write there too, and
+merge. That is the cost of the bot's reviews counting, and GitHub offers no
+narrower permission for it — so the repo list you install on is the only lever.
+`SECURITY.md` covers it.
+
 ## Migration
 
 **An App created before this release keeps its old permissions.** GitHub fixes

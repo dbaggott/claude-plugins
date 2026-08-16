@@ -4,8 +4,7 @@
 Drives the GitHub App Manifest flow end to end, except the one browser click
 GitHub requires to create any App:
 
-  1. Build an App manifest (pull_requests:write, contents:write,
-     checks:read, metadata:read; no webhook).
+  1. Build an App manifest from `permissions.json` (no webhook).
   2. Serve a local page that POSTs the manifest to GitHub's create-from-manifest
      URL; you click "Create GitHub App" in the browser.
   3. GitHub redirects back to this server with a temporary code.
@@ -28,7 +27,6 @@ import argparse
 import html
 import json
 import os
-import pathlib
 import secrets
 import stat
 import subprocess
@@ -77,7 +75,7 @@ def build_manifest(name: str, redirect_url: str, public: bool) -> dict:
 
 def _permissions() -> dict:
     """The App's permission set, shared with mint-token.sh's runtime audit."""
-    here = pathlib.Path(__file__).resolve().parent
+    here = Path(__file__).resolve().parent
     return json.loads((here / "permissions.json").read_text())["required"]
 
 
