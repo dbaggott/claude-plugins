@@ -102,9 +102,8 @@ no `merge=` field naming a cause — wake **once** and say the PR is still open 
 still needs merging, with the URL and the merge command re-composed. Then stop;
 do not silently re-arm. An `IDLE` carrying a `merge=` field is the exception: it
 names a cause and has a remedy, so it is re-armed rather than stopped —
-`merge=behind` wants an "Update branch" click, `merge=blocked` means something is
-gating that a review has not cleared, and `merge=unrecognised:<value>` means the
-schema moved and wants the enum capture re-run.
+`merge=behind` wants an "Update branch" click, and `merge=unrecognised:<value>`
+means the schema moved and wants the enum capture re-run.
 
 Any time the operator says something about the merge — kicking it off
 ("merging", "auto-merge is on", "go ahead") **or asserting it is done**
