@@ -118,16 +118,6 @@ skill will use it from here on. If it reports "no installations", the install
 step didn't land; complete it and retry. Treat a minted token like a password —
 don't paste it into chat, logs, or commits.
 
-**The mint above also checks what was granted.** A token mints fine on a
-half-permissioned install, so a successful mint alone proves nothing — and one
-of the shortfalls it catches is otherwise silent, costing a capability with no
-error anywhere. `mint-token.sh` prints what is missing and what to do about it,
-and says nothing when the set is sufficient, so a quiet run here is the pass.
-
-Act on that output if there is any; **Repair / rotate** below is where it sends
-you. Do not re-run the bootstrap, which cannot change an App that already
-exists.
-
 ## What got stored
 
 In the config dir (default `~/.config/dnbg/reviewer/`, override with

@@ -218,13 +218,8 @@ elif [ -z "$INSTALLATION_ID" ]; then
   }
 fi
 
-# The mint response carries the granted permissions alongside the token, so this
-# costs no request. It is silent unless something is missing, which is what lets
-# every caller stay ignorant of the permission set: the happy path says nothing,
-# and the unhappy path prints its own instructions.
-#
-# A minimum, not an exact set — the App may be installed for other purposes and
-# hold more. Only absent or too-weak grants cost a capability.
+# The mint response carries the granted permissions alongside the token, so
+# checking them here costs no request.
 MINTED=$(gh_app_api -X POST \
   "https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens")
 

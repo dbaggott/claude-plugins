@@ -71,10 +71,6 @@ def build_manifest(name: str, redirect_url: str, public: bool) -> dict:
         # node it covers. `actions` was confirmed against a live failure;
         # `statuses` is the one an Actions-only repo never exercises, and is
         # here for repos whose CI posts commit statuses instead of check runs.
-        # Read from permissions.json rather than written here, because
-        # mint-token.sh checks every token it mints against the same file. Two
-        # copies would let the manifest drift from what the check requires,
-        # which is the failure the check exists to catch.
         "default_permissions": _permissions(),
     }
 

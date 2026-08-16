@@ -1,13 +1,11 @@
 {
   "_comment": [
     "The permissions a reviewer needs, declared once. bootstrap.py builds a new",
-    "App's manifest from it, and mint-token.sh checks every token it mints",
-    "against it.",
+    "App's manifest from it, and mint-token.sh checks every minted token against",
+    "it.",
     "",
-    "A MINIMUM, not an exact set. The App may be installed for other purposes and",
-    "hold permissions beyond these; that is the owner's business and not a fault.",
-    "Only a grant that is absent or too weak is reported, since only that costs a",
-    "capability."
+    "`consequence` is printed to whoever hits a shortfall, so it is addressed to",
+    "them: what stops working, not why the permission exists."
   ],
   "required": {
     "pull_requests": "write",
@@ -27,7 +25,7 @@
   },
   "consequence": {
     "pull_requests": "reviews and inline comments cannot be posted",
-    "contents": "reviews post but do not count — GitHub leaves a review by an App without this out of latestOpinionatedReviews, so reviewDecision never moves and the merge box ignores the verdict. Resolving a thread also fails.",
+    "contents": "reviews post but do not count \u2014 GitHub leaves a review by an App without this out of latestOpinionatedReviews, so reviewDecision never moves and the merge box ignores the verdict. Resolving a thread also fails.",
     "checks": "check runs are invisible, so a red build reads as no build",
     "actions": "the rollup cannot dereference workflow runs",
     "statuses": "CI that posts commit statuses instead of check runs is invisible",
