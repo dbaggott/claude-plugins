@@ -109,14 +109,12 @@ else
   diff_src="fail"; DIFF=""
 fi
 
-# 3. Activity since `$SINCE`, from two endpoints with two statuses: review bodies
-# and conversation comments come from `gh pr view`, inline findings do not appear
-# there at all. Fetch and parse are split at each so a payload that stops parsing
-# is never reported as "nothing new".
+# 3. Activity since `$SINCE`. Review bodies, conversation comments and inline
+# findings all come from one fetch — the same tick watch-pr.sh polls — so a
+# caller reads the same objects whichever produced them, and the filters below
+# read one shape rather than two raw payloads. Fetch and parse stay split so a
+# payload that stops parsing is never reported as "nothing new".
 REVS=""; reviews_src=ok
-# Both halves come from one fetch, which is also the tick watch-pr.sh polls, so
-# a caller reads the same objects whichever produced them and the filters below
-# read one shape rather than two raw payloads.
 STATE_OUT=$("$(dirname "$0")/fetch-pr-state.sh" "$REPO" "$PR" 2>/dev/null) || STATE_OUT=""
 STATE_LINE=$(printf '%s\n' "$STATE_OUT" | tail -1)
 STATE_JSON=$(printf '%s\n' "$STATE_OUT" | sed '$d')

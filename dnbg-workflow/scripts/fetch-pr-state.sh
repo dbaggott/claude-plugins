@@ -4,7 +4,8 @@
 #
 #   fetch-pr-state.sh <owner/repo> <pr>
 #
-# Prints the object, then exactly one result line, then exits 0:
+# Prints the object on ONE line, then exactly one result line, then exits 0 —
+# two lines total, so a reader takes either with `head -1` / `tail -1`:
 #   {"state":…,"draft":…,"head":…,"merge":{…},"checks":[…],"reviews":[…],"comments":[…],"inline":[…]}
 #   result=OK now=<iso> [degraded=<source>]
 #   result=ERROR reason=bad-args|pr-view|pr-view-shape now=<iso>
@@ -56,7 +57,7 @@ INLINE=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direct
 #
 # Two rollup shapes: CheckRun carries .name/.status/.conclusion, StatusContext
 # .context/.state. A check that has not finished carries no conclusion.
-OUT=$(jq -n --argjson pr "$RAW" --argjson inline "$INLINE" '
+OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
   # Four states, rather than whatever vocabulary a forge uses. A CheckRun carries .status and, once
   # finished, .conclusion; a StatusContext carries .state. Handing those through
   # raw makes every caller re-derive "is this passing", and a caller that misses

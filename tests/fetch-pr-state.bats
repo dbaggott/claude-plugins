@@ -229,3 +229,13 @@ line() { tail -1 <<<"$1"; }
   run "$FETCH" o/r 1
   [ "$(obj "$output" | jq -r '.merge.cause')" = checks_running ]
 }
+
+# The skills' BLOCKED diagnostic reads the object with `head -1`, so a
+# pretty-printed object makes the documented command a jq parse error at exactly
+# the point the doc says never to guess a cause.
+@test "the object is one line, so head -1 yields valid JSON" {
+  pr CLEAN '[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]'
+  run "$FETCH" o/r 1
+  [ "${#lines[@]}" -eq 2 ]
+  [ "$(printf '%s\n' "$output" | head -1 | jq -r '.checks[] | select(.state=="failure") | .name')" = lint ]
+}

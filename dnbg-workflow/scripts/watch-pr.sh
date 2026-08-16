@@ -230,7 +230,7 @@ while :; do
         *)                          watch_ok inline-comments ;;
       esac ;;
     *reason=pr-view-shape*) watch_fail_shape pr-view report_error ;;
-    *reason=bad-args*|*reason=unsupported-forge*) fatal "${LINE#*reason=}" ;;
+    *reason=bad-args*|*reason=unsupported-forge*) fatal "$(r="${LINE#*reason=}"; printf %s "${r%% *}")" ;;
     *reason=*)              watch_fail "$(printf '%s' "$LINE" | sed -n 's/.*reason=\([^ ]*\).*/\1/p')" report_error ;;
     *)                      watch_fail pr-view report_error ;;
   esac
@@ -267,6 +267,10 @@ while :; do
 
   [ -z "$obs_head" ] && [ -n "$HEAD" ] && obs_head="$HEAD"
 
+  # Reset before the first thing that can set it, not after — the checks block
+  # below sets it where the set moves.
+  changed=0
+
   # Level-triggered, like the verdict: a conclusion is current state, so counting
   # it as an event wakes on one red build forever, and filtering it by `since`
   # loses one that landed while no watch was running.
@@ -276,10 +280,16 @@ while :; do
   # reported, which a settle in progress defers. Green also withdraws a failure
   # not yet reported — a check that recovers inside the settle it triggered is
   # not news, and reporting it names a red build the caller would find green.
+  #
+  # `changed` is set where the set MOVES, not while it is non-empty. A standing
+  # failure is level state and stays set until it is reported, so charging it
+  # every tick resets the backoff curve every tick — which on a draft hold, where
+  # the burst is never released, pins the poll at the curve's floor for the whole
+  # window.
   if [ -z "$checks_now" ]; then
     checks_baseline=""; saw_checks=""
-  elif [ "$checks_now" != "$checks_baseline" ]; then
-    saw_checks="$checks_now"
+  elif [ "$checks_now" != "$checks_baseline" ] && [ "$checks_now" != "$saw_checks" ]; then
+    saw_checks="$checks_now"; changed=1
   fi
 
   new_reviews=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
@@ -296,7 +306,6 @@ while :; do
       | select(.author != $slug and .author != ($slug + "[bot]")) ]
     | (last // {}) | select((.sha // "") == $head) | "\(.sha) \(.state)"')
 
-  changed=0
   if [ "$WAS_DRAFT" = 1 ] && [ "$DRAFT" = false ] && [ "$saw_ready" = 0 ]; then
     saw_ready=1; new_head="$HEAD"
   fi
@@ -307,7 +316,6 @@ while :; do
     if [ "$ROLE" = reviewer ]; then saw_commits=1; changed=1; fi
     new_head="$HEAD"; obs_head="$HEAD"
   fi
-  [ -n "$saw_checks" ] && changed=1
   if [ "$new_reviews" -gt "$obs_new" ] || [ "$new_inline" -gt "$obs_newc" ]; then
     saw_activity=1; changed=1; obs_new="$new_reviews"; obs_newc="$new_inline"
   fi

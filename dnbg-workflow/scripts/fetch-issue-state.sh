@@ -58,8 +58,14 @@ OWNER="${REPO%%/*}"; NAME="${REPO##*/}"
 # count is what tells a filtered window from an overflowed one.
 COMMENT_PAGE=${COMMENT_PAGE:-20}
 
-Q="query {
-  repository(owner: \"$OWNER\", name: \"$NAME\") {"
+# Owner and name are bound as variables rather than interpolated: they reach
+# here straight from a caller's argument, and one carrying a quote or a brace
+# would build a malformed query for the life of the watch, reported as an
+# `issue-query` error indistinguishable from an outage. The issue numbers are
+# built into the string because an ALIAS cannot be a variable.
+# shellcheck disable=SC2016  # GraphQL variables, bound by the -F flags below.
+Q='query($owner:String!, $repo:String!) {
+  repository(owner: $owner, name: $repo) {'
 for n in "$@"; do
   Q="$Q
     i${n}: issue(number: ${n}) {
@@ -78,7 +84,7 @@ Q="$Q
   }
 }"
 
-RAW=$(gh api graphql -f query="$Q" 2>/dev/null) || true
+RAW=$(gh api graphql -f query="$Q" -F owner="$OWNER" -F repo="$NAME" 2>/dev/null) || true
 [ -n "$RAW" ] || fail issue-query
 
 OUT=$(printf '%s' "$RAW" | jq -c '

@@ -80,7 +80,7 @@ case "$1 $2" in
     n=$(cat "$HEADCOUNT" 2>/dev/null || echo 0)
     printf '{"state":"%s","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":[],"statusCheckRollup":%s,"mergeStateStatus":"%s","reviewDecision":"%s"}' \
       "$(cat "$PRSTATE" 2>/dev/null || echo OPEN)" \
-      "$(cat "$DRAFT" 2>/dev/null || echo false)" "$n" \
+      "$(cat "$DRAFT_FILE" 2>/dev/null || echo false)" "$n" \
       "$(cat "$REVIEWS" 2>/dev/null || echo '[]')" \
       "$(cat "$ROLLUP" 2>/dev/null || echo '[]')" \
       "$(cat "$MERGESTATE" 2>/dev/null || echo CLEAN)" \
@@ -119,7 +119,11 @@ EOF
   export LINKED="$BATS_TEST_TMPDIR/linked"
   export XREF="$BATS_TEST_TMPDIR/xref"
   export REVIEWS="$BATS_TEST_TMPDIR/reviews"
-  export DRAFT="$BATS_TEST_TMPDIR/draft"
+  # NOT `DRAFT`: watch-pr.sh assigns its own `DRAFT` from the payload, and an
+  # assignment to an already-exported name keeps the export — so the stub, a
+  # grandchild of the watch, would receive `DRAFT=true` in place of this path,
+  # `cat` it, fail, and report every tick after the first as not-a-draft.
+  export DRAFT_FILE="$BATS_TEST_TMPDIR/draft"
   export TICKS="$BATS_TEST_TMPDIR/ticks"
 }
 
@@ -524,9 +528,9 @@ EOF
 # without `--was-draft` and the PR is picked up on its next push, or never. A burst
 # accumulating behind the held-back draft has no release short of this transition.
 @test "--was-draft reports a draft being marked ready" {
-  printf true > "$DRAFT"
+  printf true > "$DRAFT_FILE"
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
-  AT_TICK=3 AT_TICK_FILE="$DRAFT" AT_TICK_VALUE=false \
+  AT_TICK=3 AT_TICK_FILE="$DRAFT_FILE" AT_TICK_VALUE=false \
   INTERVAL=1 SETTLE=1 WINDOW=20 \
     run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --last-verdict= --was-draft --role=reviewer
   [ "$status" -eq 0 ]
@@ -902,4 +906,21 @@ EOF
 @test "the author role gets the short window without being told" {
   INTERVAL=1000 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
   [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# A standing failure is level state: it stays set until reported, so charging it
+# to `changed` on every tick resets the backoff curve on every tick. On a draft
+# hold the burst is never released, so nothing ever clears it and the poll sits
+# at the curve's floor for the whole window — with the default 6h window, tens of
+# times the requests the curve exists to avoid.
+@test "a standing check failure does not pin the poll to the curve floor" {
+  echo true > "$DRAFT_FILE"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  POLL_CURVE="0:1 5:8" WINDOW=12 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --was-draft
+  # The curve must advance past its floor. Pinned, every gap is the floor value.
+  local naps; naps=$(grep -c ' 1$' "$CALLS" || true)
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  # Four ticks on this curve and window, not twelve.
+  [ "$(grep -c 'pr view' "$CALLS")" -le 6 ]
 }

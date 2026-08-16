@@ -375,3 +375,66 @@ comment() {  # <login> <iso>
   INTERVAL=1000 run "$WATCH" o/r 163 --role=author --since=2026-01-01T00:00:00Z --slug=operator
   [[ "${lines[-1]}" == *"result=IDLE"* ]]
 }
+
+# --- a closure must not swallow activity that is still settling ----------------
+
+# The closed-issue check runs before the settle is evaluated, so exiting on it
+# drops activity already accumulated on the OTHER watched issues — and the
+# re-arm sets `since` past that activity, so it is filtered out for good rather
+# than deferred. Both facts ride one line instead.
+@test "an issue closing does not drop a pending burst on its siblings" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in *"api user"*) echo operator; exit 0 ;; esac
+t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+if [ "$t" = 1 ]; then st5=OPEN; else st5=CLOSED; fi
+jq -cn --arg st5 "$st5" '{data:{repository:{
+  i5:{number:5,state:$st5,lastEditedAt:null,comments:{totalCount:0,nodes:[]},
+      closedByPullRequestsReferences:{nodes:[]},timelineItems:{nodes:[]}},
+  i7:{number:7,state:"OPEN",lastEditedAt:null,
+      comments:{totalCount:1,nodes:[{author:{login:"someone"},
+                createdAt:"2026-06-01T00:00:00Z",url:"u"}]},
+      closedByPullRequestsReferences:{nodes:[]},timelineItems:{nodes:[]}}}}}'
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=1 SETTLE=30 WINDOW=60 \
+    run "$WATCH" o/r 5 7 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" == *"issues=7"* ]]
+  [[ "${lines[-1]}" == *"closed=5"* ]]
+  # And the closed one leaves the set, or the next arm reports it forever.
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"o/r 7 --role="* ]]
+}
+
+# Nothing left to watch: the activity is still owed, but a re-arm line would put
+# the watch back on a set that is entirely closed.
+@test "a burst reported alongside the last issue closing carries no re-arm" {
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in *"api user"*) echo operator; exit 0 ;; esac
+t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+if [ "$t" = 1 ]; then st=OPEN; else st=CLOSED; fi
+jq -cn --arg st "$st" '{data:{repository:{
+  i7:{number:7,state:$st,lastEditedAt:null,
+      comments:{totalCount:1,nodes:[{author:{login:"someone"},
+                createdAt:"2026-06-01T00:00:00Z",url:"u"}]},
+      closedByPullRequestsReferences:{nodes:[]},timelineItems:{nodes:[]}}}}}'
+EOF
+  chmod +x "$STUB/gh"
+  INTERVAL=1 SETTLE=30 WINDOW=60 \
+    run "$WATCH" o/r 7 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" == *"closed=7"* ]]
+  [[ "$output" != *"re-arm"* ]]
+}
+
+# --- the ERROR line carries one field per name ---------------------------------
+
+# `reason=` is not the last field on the child's line, so passing everything
+# after it through duplicates `now=`.
+@test "a refused forge reports one now= field, not two" {
+  FORGE=gitlab run "$WATCH" o/r 163 --role=reviewer --slug=bot
+  [[ "${lines[-1]}" == "result=ERROR reason=unsupported-forge now="* ]]
+  [ "$(grep -o 'now=' <<<"${lines[-1]}" | wc -l | tr -d ' ')" = 1 ]
+}

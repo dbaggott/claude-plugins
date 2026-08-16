@@ -819,3 +819,25 @@ remote_read_calls() {  # <SKILL.md>
   pr_command_lines "$skill" | grep -q 'fetch-tree\.sh' || {
     echo "reviewer/SKILL.md names no tree fetch — the third access mode is unreachable"; false; }
 }
+
+# A stub is a grandchild of the script under test, so it inherits that script's
+# environment. Assigning to a name the harness exported keeps the export, and the
+# stub then receives the script's internal value in place of the path it expects
+# — `cat`s it, fails, and silently serves its default for the rest of the run.
+# The test still passes, on a payload nobody chose.
+@test "no exported stub variable shares a name a watcher assigns" {
+  local bad=0 f v
+  for f in "$ROOT"/tests/watch-pr.bats "$ROOT"/tests/watch-issue.bats; do
+    [ -f "$f" ] || continue
+    for v in $(grep -oE '^[[:space:]]*export [A-Z_]+=' "$f" \
+                 | sed 's/.*export //; s/=//' | sort -u); do
+      case "$v" in PATH) continue ;; esac
+      grep -lE "^[[:space:]]*$v=" "$ROOT"/dnbg-workflow/scripts/watch-*.sh 2>/dev/null \
+        | while read -r s; do
+            echo "$(basename "$f") exports \$$v, which $(basename "$s") assigns —"
+            echo "  the stub will receive the script's value, not the harness's path"
+          done | grep . && bad=1
+    done
+  done
+  [ "$bad" = 0 ]
+}

@@ -38,7 +38,7 @@ row "${C_DIM}         assigned:agent-session · claim comment posted${C_OFF}" ""
 beat 1.4
 
 row "${C_TOOL}● Bash${C_OFF}   git worktree add .worktrees/readme-front-page" \
-    "${C_TOOL}● Task${C_OFF}   watch-pr.sh --issue 17 ${C_DIM}(background)${C_OFF}"
+    "${C_TOOL}● Task${C_OFF}   watch-issue.sh 17 --role=reviewer ${C_DIM}(background)${C_OFF}"
 beat 1.3
 row "${C_TOOL}● Edit${C_OFF}   README.md, docs/*.md" ""
 beat 1.0

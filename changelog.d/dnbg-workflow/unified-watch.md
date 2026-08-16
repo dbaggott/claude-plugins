@@ -32,6 +32,10 @@ every tick. A PR merely waiting for its first review is no longer read as a
 terminal block — GitHub reports that as `BLOCKED` too, which would have ended
 every author-side watch on its first tick on any repo that requires an approval.
 
+An issue closing no longer drops activity still settling on the other watched
+issues — both ride one line, the closure as `closed=`. Previously the closure
+won and the re-arm set `since` past the activity, losing it for good.
+
 Under all of it, `fetch-pr-state.sh` and `fetch-issue-state.sh` answer a tick as
 one forge-neutral object, so the GitHub-specific parts — the overloaded merge
 status, the two check-rollup shapes, the two spellings of a bot login — stay in

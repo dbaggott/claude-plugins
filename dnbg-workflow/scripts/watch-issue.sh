@@ -8,7 +8,7 @@
 #
 # Exactly one result line, then exit 0:
 #   result=ACTIVITY issues=<n,…> kinds=<comment|linked-pr|body-edit,…> \
-#     edited=<n:iso|n:none,…> [missing=<n,…>] now=<iso>
+#     edited=<n:iso|n:none,…> [closed=<n,…>] [missing=<n,…>] now=<iso>
 #   result=CLOSED   issues=<n,…> [missing=<n,…>] now=<iso>
 #   result=IDLE     [missing=<n,…>] now=<iso>
 #   result=ERROR    reason=<source> now=<iso>
@@ -19,6 +19,10 @@
 # `missing=` names numbers that resolve to no issue — a typo, a transfer, a PR
 # number. They leave the watch set rather than being re-asked every tick, so the
 # field is how a caller learns one of its issues is no longer being watched.
+#
+# `closed=` appears when an issue closes while activity on the OTHERS is still
+# settling. Both facts ride one line because reporting only the closure would
+# drop that activity for good — the re-arm sets `since` past it.
 #
 # `edited=` carries each watched issue's body-edit stamp, so a caller comparing a
 # comment against whether the body actually moved needs no second call. A body
@@ -127,14 +131,16 @@ report_error() {
   exit 0
 }
 
-report_hit() {
-  watch_rearm "$(rearm_cmd)"
+# `NONE` as the override means every watched issue is gone, so there is nothing
+# to re-arm on and the line is omitted — the same reason CLOSED omits it.
+report_hit() {  # [closed-list] [issues-override|NONE]
+  [ "${2:-}" = NONE ] || watch_rearm "$(rearm_cmd "${2:-}")"
   local issues kinds edited
   issues=$(printf '%s\n' "$hit_issues" | tr ' ' '\n' | grep -v '^$' | sort -nu | paste -sd, - || true)
   kinds=$(printf '%s\n' "$hit_kinds" | tr ' ' '\n' | grep -v '^$' | sort -u | paste -sd, - || true)
   edited=$(printf '%s' "$last_json" | jq -r '
     [ .issues[] | "\(.number):\(.body_edited // "none")" ] | join(",")' 2>/dev/null || echo "")
-  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited$(missing_field) now=$(poll_now_iso)"
+  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited${1:+ closed=$1}$(missing_field) now=$(poll_now_iso)"
   exit 0
 }
 
@@ -162,7 +168,7 @@ while :; do
           ;;
       esac ;;
     *reason=issue-query-shape*) watch_fail_shape issue-query report_error ;;
-    *reason=bad-args*|*reason=unsupported-forge*) fatal "${LINE#*reason=}" ;;
+    *reason=bad-args*|*reason=unsupported-forge*) fatal "$(r="${LINE#*reason=}"; printf %s "${r%% *}")" ;;
     *) watch_fail issue-query report_error ;;
   esac
 
@@ -179,6 +185,16 @@ while :; do
     # reports the same closure on the next tick, forever — one model wake per
     # iteration — and the header tells callers to re-arm from this line.
     remaining=$(printf '%s' "$J" | jq -r '[.issues[] | select(.state == "OPEN") | .number] | join(" ")')
+
+    # A settle already holding activity on the OTHER watched issues outranks the
+    # bare closure: exiting here would drop it, and the re-arm sets `since` past
+    # it, so it is filtered out for good rather than deferred. The closure rides
+    # out as a field instead, which loses nothing — both are in one line.
+    if [ "$settle_until" != 0 ]; then
+      if [ -n "$remaining" ]; then report_hit "$closed_issues" " $remaining"
+      else                         report_hit "$closed_issues" NONE; fi
+    fi
+
     [ -n "$remaining" ] && watch_rearm "$(rearm_cmd " $remaining")"
     echo "result=CLOSED issues=$closed_issues$(missing_field) now=$(poll_now_iso)"; exit 0
   fi
