@@ -1,0 +1,34 @@
+{
+  "_comment": [
+    "The permissions a reviewer needs, declared once. bootstrap.py builds a new",
+    "App's manifest from it, and mint-token.sh checks every minted token against",
+    "it.",
+    "",
+    "`consequence` is printed to whoever hits a shortfall, so it is addressed to",
+    "them: what stops working, not why the permission exists."
+  ],
+  "required": {
+    "pull_requests": "write",
+    "contents": "write",
+    "checks": "read",
+    "actions": "read",
+    "statuses": "read",
+    "metadata": "read"
+  },
+  "why": {
+    "pull_requests": "submit reviews, inline comments, thread replies",
+    "contents": "read the diff; resolve threads; have the verdict counted at all",
+    "checks": "check runs",
+    "actions": "checkSuite.workflowRun, which the rollup dereferences",
+    "statuses": "combined commit status, for CI that posts statuses instead of check runs",
+    "metadata": "mandatory"
+  },
+  "consequence": {
+    "pull_requests": "reviews and inline comments cannot be posted",
+    "contents": "reviews post but do not count \u2014 GitHub leaves a review by an App without this out of latestOpinionatedReviews, so reviewDecision never moves and the merge box ignores the verdict. Resolving a thread also fails.",
+    "checks": "check runs are invisible, so a red build reads as no build",
+    "actions": "the rollup cannot dereference workflow runs",
+    "statuses": "CI that posts commit statuses instead of check runs is invisible",
+    "metadata": "nothing works"
+  }
+}

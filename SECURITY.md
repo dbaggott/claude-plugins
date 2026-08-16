@@ -56,8 +56,8 @@ most sensitive thing either hook touches and so the one most worth stating
 outright. It happens only *after* a command has already matched `gh issue
 create` against a covered repo: the hook takes `transcript_path` from the
 payload and greps that file for a single pattern, to find out whether the
-`issue-workflow` skill was loaded this session
-(`check-issue-create.sh:98-100`). What it learns is one yes/no. The transcript
+`issue-workflow` skill was loaded this session (a single `grep -qE` for the
+skill's name, and nothing else reads the file). What it learns is one yes/no. The transcript
 is not parsed further, and nothing from it is kept, written, or sent.
 
 **The hooks make no network calls, write no files, and hold no credentials.**
@@ -86,7 +86,8 @@ tokens, no diff content. `WATCH_LOG=off` disables it.
 No telemetry. No analytics. Nothing sends your code, prompts, or session
 contents anywhere. No server component, no hosted service, no shared secret,
 no webhook — the reviewer App is created without one deliberately
-(`bootstrap.py:64-66`), so GitHub never calls out to anything. No credential
+(`build_manifest` sets no `hook_attributes`), so GitHub never calls out to
+anything. No credential
 is read from a repository you clone: the reviewer's key sources are your user
 config and environment only, never the working directory.
 
@@ -117,14 +118,23 @@ key on your machine. That key is the bot's entire credential: anyone holding it
 can mint installation tokens for every account the App is installed on, without
 your GitHub session and without touching your account.
 
-**What it can do.** The App is created least-privilege
-(`bootstrap.py:77-84`): `pull_requests: write` — submit reviews, inline
-comments, thread replies — plus `contents`, `checks`, `actions`, `statuses` and
-`metadata` at **read**. Deliberately absent: `contents: write` (a reviewer
-should not be able to write source) and `issues` (the issue-scoped review mode
-runs under your own auth instead). So a leaked key reads private source on
-every repo where the App is installed, and writes reviews and comments as the
-bot — it cannot push code, merge, or alter issues.
+**What it can do.** The App is created with the set in
+`dnbg-workflow/skills/reviewer-setup/permissions.json`: `pull_requests: write`
+— submit reviews, inline comments, thread replies — `contents: write`, and
+`checks`, `actions`, `statuses` and `metadata` at **read**.
+
+⚠️ **`contents: write` means a leaked key can write source.** GitHub gates
+creating commits and refs on it, and merging a pull request too, so the blast
+radius is not read-only: on every repo where the App is installed, a leaked key
+reads private source, pushes commits, can merge, and writes reviews and comments
+as the bot. It is granted because GitHub also gates two things the reviewer
+cannot work without on it — resolving a review thread, and having its verdict
+counted at all — and offers no narrower permission for either.
+
+The scoping lever is therefore the installation's repository list, not the
+permission set. `issues` is not requested, so a bot created by this bootstrap
+cannot alter issues; an App you have granted more to for other purposes can do
+whatever you granted.
 
 **Where it lives.** Three sources, first hit wins: the
 `DNBG_REVIEWER_PRIVATE_KEY` environment variable, a command you configure via
@@ -169,7 +179,8 @@ Do these in order, in your App's settings on GitHub
 If you would rather retire the App than rotate it, deleting it revokes
 everything in one step; re-run `bootstrap.py` to create a fresh one. Note that
 `bootstrap.py` cannot repair an existing App — GitHub returns an App's key
-exactly once, at creation (`bootstrap.py:12-15`), so re-running it always
+exactly once, at creation (`convert_manifest` is the one-shot exchange that
+receives it), so re-running it always
 produces a *new* App with a new identity. Keeping the same bot means generating
 the replacement key in App settings, per step 1.
 

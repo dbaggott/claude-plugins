@@ -21,6 +21,13 @@ setup() {
   unset DNBG_REVIEWER_PRIVATE_KEY DNBG_REVIEWER_PRIVATE_KEY_COMMAND \
         DNBG_REVIEWER_APP_ID DNBG_REVIEWER_INSTALLATION_ID
 
+  # The set permissions.json requires, so the default stub is a healthy install.
+  # A test wanting a shortfall exports STUB_PERMS.
+  export FULL_PERMS
+  FULL_PERMS=$(jq -c '.required' \
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+  unset STUB_PERMS
+
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   CONFDIR="$BATS_TEST_TMPDIR/conf"; mkdir -p "$CONFDIR"; chmod 700 "$CONFDIR"
   KEYFILE="$BATS_TEST_TMPDIR/key.pem"
@@ -37,7 +44,10 @@ setup() {
 #!/usr/bin/env bash
 for a in "$@"; do
   case "$a" in
-    *"/access_tokens") echo '{"token":"ghs_stubbed_token"}'; exit 0 ;;
+    # `permissions` because the real endpoint always returns it, and the script
+    # checks the granted set against permissions.json. A stub that omits it
+    # makes every test look like a half-permissioned install.
+    *"/access_tokens") echo "{\"token\":\"ghs_stubbed_token\",\"permissions\":${STUB_PERMS:-$FULL_PERMS}}"; exit 0 ;;
     *"/app/installations") echo '[{"id":123,"account":{"login":"acme"}}]'; exit 0 ;;
   esac
 done
@@ -309,4 +319,82 @@ EOF
   mint
   [ "$status" -ne 0 ]
   [[ "$output" == *"key command failed"* ]]
+}
+
+# --- the granted set, checked at every mint --------------------------------
+
+# A token mints fine on a half-permissioned install, so a successful mint proves
+# nothing on its own. The check rides the mint response, which carries the
+# granted set alongside the token.
+
+@test "a sufficient install mints in silence" {
+  export DNBG_REVIEWER_APP_ID=42
+  export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
+  mint
+  [ "$status" -eq 0 ]
+  [ "$output" = "ghs_stubbed_token" ]
+}
+
+# A minimum, not an exact set: the App may be installed for other purposes and
+# hold more, which is the owner's business rather than a fault. Reporting it
+# would train the reader to ignore the message.
+@test "extra permissions are not a shortfall" {
+  export STUB_PERMS
+  STUB_PERMS=$(jq -c '.required + {issues: "write", packages: "read"}' \
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+  export DNBG_REVIEWER_APP_ID=42
+  export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
+  mint
+  [ "$output" = "ghs_stubbed_token" ]
+}
+
+@test "a permission granted too weakly is reported, with its consequence" {
+  export STUB_PERMS
+  STUB_PERMS=$(jq -c '.required + {contents: "read"}' \
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+  export DNBG_REVIEWER_APP_ID=42
+  export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
+  mint
+  [[ "$output" == *"contents: need write, have read"* ]]
+  [[ "$output" == *"latestOpinionatedReviews"* ]]
+}
+
+# The case the reader most needs reported is the one an absent key crashes on if
+# the rank lookup is indexed with null.
+@test "a permission not granted at all is reported, not a crash" {
+  export STUB_PERMS
+  STUB_PERMS=$(jq -c '.required | del(.checks)' \
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+  export DNBG_REVIEWER_APP_ID=42
+  export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
+  mint
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"checks: need read, not granted"* ]]
+}
+
+# The caller's contract is the token on stdout. A shortfall is advice to whoever
+# is watching, not a reason to fail a mint that GitHub honoured — and it must not
+# reach the value a caller assigns to GH_TOKEN.
+@test "a shortfall warns without corrupting the token" {
+  export STUB_PERMS
+  STUB_PERMS=$(jq -c '{metadata: "read"}' \
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+  export DNBG_REVIEWER_APP_ID=42
+  export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
+  run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" DNBG_REVIEWER_CONFIG_DIR="$CONFDIR" \
+    bash -c 'bash "$1" acme 2>/dev/null' _ "$MINT"
+  [ "$status" -eq 0 ]
+  [ "$output" = "ghs_stubbed_token" ]
+}
+
+# The manifest a new App is built from and the set every mint is checked against
+# are the same declaration; two copies would drift.
+@test "the manifest is built from the file the check reads" {
+  run python3 -c "
+import sys, json
+sys.path.insert(0, '$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup')
+import bootstrap
+spec = json.load(open('$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json'))
+print('same' if bootstrap._permissions() == spec['required'] else 'DIFFERENT')"
+  [ "$output" = same ]
 }

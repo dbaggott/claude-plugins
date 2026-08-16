@@ -37,18 +37,15 @@
 # selects no thread at all, which reads as "nothing outstanding" — the same
 # silent-blindness shape the watcher's slug guard exists to prevent. Bail instead.
 #
-# Runs under your own auth, not the bot's. `GH_TOKEN` is unset below.
-# Resolution is not identity-sensitive (anyone with write can resolve), and the
-# reviewer bot deliberately has only `contents: read` — GitHub requires
-# `contents: write` for an *App* token to call `resolveReviewThread`, which a
-# reviewer should not have. Unsetting here rather than asking each caller to
-# remember `env -u GH_TOKEN` is the point of the script.
+# `--resolve` runs under whatever `GH_TOKEN` the caller exports, which for the
+# reviewer is its own App token. That needs `contents: write`; without it
+# `resolveReviewThread` answers `FORBIDDEN: Resource not accessible by
+# integration`.
 #
 # Reads the first 100 threads. A PR past that is far outside anything this
 # workflow produces, and the failure would be under-reporting rather than a wrong
 # answer — but it is a cap, so it is stated rather than left to be discovered.
 set -euo pipefail
-unset GH_TOKEN
 
 REPO="${1:-}"; PR="${2:-}"; shift 2 2>/dev/null || true
 

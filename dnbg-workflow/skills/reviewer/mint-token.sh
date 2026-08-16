@@ -218,6 +218,42 @@ elif [ -z "$INSTALLATION_ID" ]; then
   }
 fi
 
-gh_app_api -X POST \
-  "https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens" \
-  | jq -r '.token'
+# The mint response carries the granted permissions alongside the token, so
+# checking them here costs no request.
+MINTED=$(gh_app_api -X POST \
+  "https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens")
+
+PERMS_FILE="$(dirname "$0")/../reviewer-setup/permissions.json"
+if [ -r "$PERMS_FILE" ]; then
+  SHORTFALL=$(printf '%s' "$MINTED" | jq -r --slurpfile spec "$PERMS_FILE" '
+    {"read":1, "write":2, "admin":3} as $rank
+    | ($spec[0]) as $s
+    | (.permissions // {}) as $got
+    | [ $s.required | to_entries[]
+        | select(($rank[$got[.key] // ""] // 0) < ($rank[.value] // 0))
+        | "  \(.key): need \(.value), " +
+          (if $got[.key] then "have \($got[.key])" else "not granted" end) +
+          "\n      without it, \($s.consequence[.key] // "a capability is lost")" ]
+    | join("\n")')
+
+  if [ -n "$SHORTFALL" ]; then
+    SLUG=$(jq -r '.slug // "<your-app>"' "$CONFIG" 2>/dev/null || echo "<your-app>")
+    cat >&2 <<EOM
+The reviewer App is missing a permission it needs:
+
+$SHORTFALL
+
+  Only the App owner can grant this, so raise it with the operator and ask them to:
+    1. https://github.com/settings/apps/$SLUG/permissions
+       set the permission above, then Save.
+    2. https://github.com/settings/installations
+       accept the pending request on each installation — until then the grant
+       is not in effect and nothing changes.
+
+  Then re-run whatever you were doing. This message appears only while something
+  is missing.
+EOM
+  fi
+fi
+
+printf '%s' "$MINTED" | jq -r '.token'

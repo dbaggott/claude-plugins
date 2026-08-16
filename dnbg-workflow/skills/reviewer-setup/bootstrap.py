@@ -4,8 +4,7 @@
 Drives the GitHub App Manifest flow end to end, except the one browser click
 GitHub requires to create any App:
 
-  1. Build an App manifest (least-privilege: pull_requests:write, contents:read,
-     checks:read, metadata:read; no webhook).
+  1. Build an App manifest from `permissions.json` (no webhook).
   2. Serve a local page that POSTs the manifest to GitHub's create-from-manifest
      URL; you click "Create GitHub App" in the browser.
   3. GitHub redirects back to this server with a temporary code.
@@ -70,19 +69,14 @@ def build_manifest(name: str, redirect_url: str, public: bool) -> dict:
         # node it covers. `actions` was confirmed against a live failure;
         # `statuses` is the one an Actions-only repo never exercises, and is
         # here for repos whose CI posts commit statuses instead of check runs.
-        # Deliberately absent: `issues` (the issue-scoped mode
-        # runs under the operator's own auth, so the bot cannot touch issues at
-        # all) and `contents: write` (an App needs it to resolve review threads;
-        # a reviewer should not have write access to source).
-        "default_permissions": {
-            "pull_requests": "write",  # submit reviews, inline comments, thread replies
-            "contents": "read",        # read the diff / changed files
-            "checks": "read",          # check runs
-            "actions": "read",         # checkSuite.workflowRun, which the rollup dereferences
-            "statuses": "read",        # combined commit status, for CI that posts statuses
-            "metadata": "read",        # mandatory
-        },
+        "default_permissions": _permissions(),
     }
+
+
+def _permissions() -> dict:
+    """The App's permission set, shared with mint-token.sh's runtime audit."""
+    here = Path(__file__).resolve().parent
+    return json.loads((here / "permissions.json").read_text())["required"]
 
 
 def convert_manifest(code: str) -> dict:

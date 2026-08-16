@@ -659,10 +659,8 @@ standing in for it. Everything is already in that packet, so a fan-out across th
 endpoints can only re-fetch what you hold — and with no inline threads of your
 own filed, the first case below cannot fire at all. Respond only when there's
 something substantive to add — never "I agree" filler. An inline object carries
-the `id` the reply below needs as `in_reply_to`. Replies post as the bot (its
-`pull_requests: write` covers reviews, inline comments, thread replies, and
-conversation comments), so each of the commands below wants the guarded mint
-ahead of it, in that same tool call:
+the `id` the reply below needs as `in_reply_to`. Replies post as the bot, so each of the commands
+below wants the guarded mint ahead of it, in that same tool call:
 
 ```bash
 GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
@@ -692,14 +690,9 @@ HEAD's diff, the author's clarification, or external evidence (a linked PR, a
 test reference, a verified reply) — resolve the corresponding review thread, so
 the human merging sees there are no outstanding asks.
 
-There's no CLI flag, and three things the live API makes non-obvious are why
-this is a script rather than a block to adapt:
+There's no CLI flag, and what the live API makes non-obvious is why this is a
+script rather than a block to adapt:
 
-- **It runs under your own `gh` auth, not the bot token.** Resolution isn't
-  identity-sensitive (anyone with write can resolve), and the bot deliberately
-  has only `contents: read` — GitHub requires `contents: write` for an *App*
-  token to call `resolveReviewThread`, which a reviewer shouldn't have. The
-  script clears `GH_TOKEN` itself, so this holds in a call that also minted one.
 - **`--mine` matches on the App `slug`, not `bot_login`.** GraphQL reports a Bot
   author's `login` *without* the `[bot]` suffix (e.g. `agent-reviewer-<you>`), so
   matching `bot_login` (`…[bot]`) never hits — and a filter that matches nothing
@@ -713,6 +706,8 @@ this is a script rather than a block to adapt:
 "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --mine
 
 # 2. For each thread whose concern has actually been answered, resolve it.
+GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
+export GH_TOKEN
 "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --resolve <thread_id>
 ```
 
