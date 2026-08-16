@@ -46,21 +46,76 @@ than the label, which would cost a duplicate CI run to apply.
 
 ## Format
 
-Plain Markdown, no front-matter. Write for someone reading release notes, not
-for someone reading the diff.
+Plain Markdown, no front-matter.
+
+**Write an executive summary for someone deciding whether this release affects
+them.** They have not read the diff, do not know the internals, and are reading a
+list of releases rather than this one. Two or three short paragraphs is the
+normal size; one sentence is often right. If a fragment runs past a screen, it is
+almost certainly arguing rather than reporting.
 
 ```markdown
-Renamed the velocity skill to `velocity-tradeoff`.
+Fixed every review posting under your personal GitHub account instead of the
+reviewer bot. The failure was silent, since posting as yourself succeeds on a PR
+you did not write.
+```
 
+### Say what changed for the reader
+
+Every entry answers one of these. If it answers none, the change is a
+`no-changelog` change.
+
+- **New capability** — something you can now do, or a new option and where to set
+  it.
+- **A bug fixed** — what went wrong *from the outside*, and what happens instead
+  now. What you saw, not where the defect was.
+- **Behavior that changes under you** — anything altering what the hooks block or
+  what an always-on rule says. These take effect as soon as the plugin updates,
+  with the user doing nothing.
+- **Cost** — a skill that loads less into the session, or a flow that spends
+  fewer API calls. Prompt size is charged to the user on every run, so a real
+  reduction is a user-facing improvement and belongs here. Say roughly how much.
+- **A guarantee the user can now rely on** — a supported case that used to be
+  undefined.
+
+### Leave out
+
+- **Internal names.** Script filenames, test files, function and variable names,
+  result codes, argument spellings. The reader cannot act on any of them. Name
+  the *skill* or the *user-visible surface* instead — `reviewer`, "the PR watch",
+  "the worktree hook".
+- **The investigation.** How the defect was found, what was tried first, what the
+  root cause turned out to be internally.
+- **The design argument.** Why this shape and not another, what a reviewer
+  objected to, which alternative was rejected. That belongs in the PR, where its
+  reader is.
+- **What did not change**, unless a reader would reasonably fear it did. "None of
+  this changes what a reviewer checks" earns its line after a section about
+  cutting review output; "no behaviour changed" after a docs fix does not.
+- **Counts of the internals** — files touched, markers removed, tests added.
+
+Keeping a specific number is right when the reader acts on it: a size a session
+now costs, a version floor, a path to run. Cut it when it only measures the work.
+
+### Migration
+
+Add a `## Migration` section **only when the user has to do something.** It is
+published verbatim in the release notes, and it is the only mechanism that
+carries author-written migration steps there — so a note there implies an action,
+and one that says "nothing to do" trains readers to skip the section that matters.
+
+A rename inside the plugin, where the skills were updated in the same release, is
+not a migration. Say it in the body if it is worth saying at all.
+
+```markdown
 ## Migration
 Repos opting in via `CLAUDE.md` must change `dnbg-workflow:old-name` to
 `dnbg-workflow:new-name`. The old name silently stops loading.
 ```
 
-Add a `## Migration` section whenever a user has to act. It is published verbatim
-in the release notes, and it is the only mechanism that carries author-written
-migration steps there.
+### Before you commit it
 
-Call out behavior changes explicitly — anything altering what the hooks block or
-what an always-on rule says. Those take effect on an installed machine without
-the user doing anything.
+Read the fragment as someone who has never opened this repo. If a sentence only
+makes sense to someone who has read the diff, cut it — do not rewrite it for
+them. The entry is complete when a reader can tell whether the release affects
+them, not when it accounts for the work.

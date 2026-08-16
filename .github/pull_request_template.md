@@ -13,6 +13,11 @@ If this PR changes anything a user of a plugin would notice, add a fragment:
 
     changelog.d/<plugin-name>/<short-slug>.md
 
+Write it as an executive summary for someone who has not read the diff: the new
+capability, the bug as they experienced it, or what now costs less. No script
+names, no root-cause story, no design argument — those belong in this PR body,
+where their reader is. Two or three short paragraphs at most.
+
 The release workflow folds fragments into CHANGELOG.md and the GitHub Release,
 then deletes them. **A plugin with no fragments is not released at all** — the
 version is Claude Code's update cache key, so without a bump nobody who already
