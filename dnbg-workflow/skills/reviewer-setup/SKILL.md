@@ -125,7 +125,7 @@ review still fails partway through — which is exactly how a missing permission
 went unnoticed until it broke `gh pr checks` mid-review:
 
 Reuse the JWT block from `mint-token.sh`, then compare each installation against
-`default_permissions` in `bootstrap.py`:
+`permissions.json`:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $JWT" -H "Accept: application/vnd.github+json" \
@@ -134,17 +134,18 @@ curl -fsS -H "Authorization: Bearer $JWT" -H "Accept: application/vnd.github+jso
       | map("\(.key)=\(.value)") | sort | join(" "))"'
 ```
 
-Every installation must list **every** key in `default_permissions`. A missing
+Every installation must list **every** key in `permissions.json`. A missing
 one is not a setup failure you will see here — it surfaces later as
 `Resource not accessible by integration` on whichever call needed it.
 
-⚠️ **`contents: write` is the one whose absence is silent.** It fails loudly on
-`resolveReviewThread`, but its other effect makes no sound at all: GitHub leaves
-a review by an App that lacks it out of `latestOpinionatedReviews`, so
-`reviewDecision` never moves. The review appears on the PR, reads correctly, and
-counts for nothing — on a repo requiring an approval, the bot can never satisfy
-the gate and nothing says why. Check it here rather than inferring it from a
-review that looked fine.
+⚠️ **A review by an App without `contents: write` counts for nothing, silently.**
+GitHub leaves it out of `latestOpinionatedReviews`, so `reviewDecision` never
+moves: the review appears on the PR, reads correctly, and the merge box ignores
+it. On a repo requiring an approval the bot can never satisfy the gate.
+
+`mint-token.sh` audits every token it mints against `permissions.json` and warns
+on any drift, so this surfaces on the next review whether or not anyone runs the
+check above.
 
 If they don't match, see **Repair / rotate** below; do not re-run the bootstrap,
 which cannot change an App that already exists.
@@ -209,6 +210,6 @@ it wherever you want and set the command.
   authoritative answer, and it is what the App *declares* that misleads:
 
   Re-run the `/app/installations` check from **Verify** above and compare each
-  line against `default_permissions` in `bootstrap.py`. `GET /app` shows what the
+  line against `permissions.json`. `GET /app` shows what the
   App *asks* for, which flips the moment you save the edit — `/app/installations`
   shows what it actually has.

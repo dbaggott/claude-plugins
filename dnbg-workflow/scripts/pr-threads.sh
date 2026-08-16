@@ -37,14 +37,10 @@
 # selects no thread at all, which reads as "nothing outstanding" — the same
 # silent-blindness shape the watcher's slug guard exists to prevent. Bail instead.
 #
-# Runs under whatever auth the caller provides, and `GH_TOKEN` is deliberately
-# NOT unset here. The reviewer resolves its own threads under its own App
-# credentials, which needs `contents: write` — an App token without it gets
-# `FORBIDDEN: Resource not accessible by integration` from
-# `resolveReviewThread`. `reviewer-setup` grants it.
-#
-# An author reading threads has no `GH_TOKEN` set and falls through to their own
-# `gh` auth, which is the same behaviour they had before.
+# `--resolve` runs under whatever `GH_TOKEN` the caller exports, which for the
+# reviewer is its own App token. That needs `contents: write`; without it
+# `resolveReviewThread` answers `FORBIDDEN: Resource not accessible by
+# integration`.
 #
 # Reads the first 100 threads. A PR past that is far outside anything this
 # workflow produces, and the failure would be under-reporting rather than a wrong

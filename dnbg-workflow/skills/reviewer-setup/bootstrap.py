@@ -28,6 +28,7 @@ import argparse
 import html
 import json
 import os
+import pathlib
 import secrets
 import stat
 import subprocess
@@ -70,29 +71,18 @@ def build_manifest(name: str, redirect_url: str, public: bool) -> dict:
         # node it covers. `actions` was confirmed against a live failure;
         # `statuses` is the one an Actions-only repo never exercises, and is
         # here for repos whose CI posts commit statuses instead of check runs.
-        # `contents: write` buys two things an App cannot do without it, both
-        # verified against a live PR: calling `resolveReviewThread`, and having
-        # its verdict counted at all. Without it GitHub leaves an App's review
-        # out of `latestOpinionatedReviews`, so `reviewDecision` never moves —
-        # the PR page shows a verdict the merge box ignores, and on a repo that
-        # requires an approval nothing the bot posts can satisfy it.
-        #
-        # The write is broader than the need: it also permits pushing source,
-        # which a reviewer has no business doing. GitHub offers no narrower
-        # grant for either capability, so the scoping lever is the installation's
-        # repository list rather than this field.
-        #
-        # Deliberately absent: `issues` — the issue-scoped mode runs under the
-        # operator's own auth, so the bot cannot touch issues at all.
-        "default_permissions": {
-            "pull_requests": "write",  # submit reviews, inline comments, thread replies
-            "contents": "write",       # read the diff; resolve threads; be counted
-            "checks": "read",          # check runs
-            "actions": "read",         # checkSuite.workflowRun, which the rollup dereferences
-            "statuses": "read",        # combined commit status, for CI that posts statuses
-            "metadata": "read",        # mandatory
-        },
+        # Read from permissions.json rather than written here, because
+        # mint-token.sh audits every token it mints against the same file. Two
+        # copies would let a grant drift from what the audit expects, which is
+        # the failure the audit exists to catch.
+        "default_permissions": _permissions(),
     }
+
+
+def _permissions() -> dict:
+    """The App's permission set, shared with mint-token.sh's runtime audit."""
+    here = pathlib.Path(__file__).resolve().parent
+    return json.loads((here / "permissions.json").read_text())["expected"]
 
 
 def convert_manifest(code: str) -> dict:

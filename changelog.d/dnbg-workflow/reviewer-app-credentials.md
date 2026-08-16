@@ -29,3 +29,10 @@ installation's repository list rather than the permission.
 is read once, at creation. `reviewer-setup`'s verify step compares each
 installation against `bootstrap.py` and now flags it; its **Repair / rotate**
 section covers editing the App and accepting the change per installation.
+
+`mint-token.sh` now audits every token it mints against
+`reviewer-setup/permissions.json` and warns on stderr when the granted set
+drifts, in either direction — a missing grant costs a capability, and an extra
+one is a capability the design says the bot must not have. The mint response
+already carries the granted permissions alongside the token, so the check costs
+no request. `bootstrap.py` builds its manifest from the same file.

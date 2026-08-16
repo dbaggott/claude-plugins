@@ -218,6 +218,33 @@ elif [ -z "$INSTALLATION_ID" ]; then
   }
 fi
 
-gh_app_api -X POST \
-  "https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens" \
-  | jq -r '.token'
+# The mint response already carries the granted set alongside the token, so the
+# audit below costs no request. Without it the two ways this App fails are both
+# quiet: `resolveReviewThread` answers FORBIDDEN, and — worse — a review posted
+# without `contents: write` is left out of `latestOpinionatedReviews`, so
+# `reviewDecision` never moves and a verdict the PR page displays is one the
+# merge box ignores. Nothing else in a review round would say so.
+MINTED=$(gh_app_api -X POST \
+  "https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens")
+
+PERMS_FILE="$(dirname "$0")/../reviewer-setup/permissions.json"
+if [ -r "$PERMS_FILE" ]; then
+  # Exact, not a floor. A grant that is missing costs a capability; one that is
+  # present and unlisted is a capability the design says the bot must not have.
+  DRIFT=$(printf '%s' "$MINTED" | jq -r --slurpfile want "$PERMS_FILE" '
+    ($want[0].expected) as $w
+    | (.permissions // {}) as $got
+    | [ ($w   | to_entries[] | select($got[.key] == null)
+          | "missing \(.key)=\(.value)"),
+        ($w   | to_entries[] | select($got[.key] != null and $got[.key] != .value)
+          | "\(.key)=\($got[.key]), want \(.value)"),
+        ($got | to_entries[] | select($w[.key] == null)
+          | "unexpected \(.key)=\(.value)") ]
+    | join("; ")')
+  [ -z "$DRIFT" ] || {
+    echo "reviewer App permissions do not match permissions.json: $DRIFT" >&2
+    echo "  a review may post and still not count — reviewer-setup's Repair section fixes this" >&2
+  }
+fi
+
+printf '%s' "$MINTED" | jq -r '.token' 

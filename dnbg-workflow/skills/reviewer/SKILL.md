@@ -16,12 +16,7 @@ the whole point, and it buys two things nothing else does:
   authored. A distinct App identity is not you, so it can.
 - **A review that reads as independent.** A verdict from a separate identity is
   what a human merger weighs — and, where the repo requires reviews at all, what
-  can satisfy that requirement. ⚠️ **That last part holds only because the App
-  has `contents: write`.** GitHub leaves a review by an App without it out of
-  `latestOpinionatedReviews`, so `reviewDecision` never moves: the verdict shows
-  on the PR page and the merge box ignores it. An App set up before that grant
-  existed reviews into a void on any repo that gates on approvals — see
-  "Repair" below.
+  can satisfy that requirement.
 
 **This skill is GitHub-only, and the repo that decides is the one holding the
 PR** — not your working directory. GitHub Apps have no equivalent on GitLab or
@@ -697,14 +692,9 @@ HEAD's diff, the author's clarification, or external evidence (a linked PR, a
 test reference, a verified reply) — resolve the corresponding review thread, so
 the human merging sees there are no outstanding asks.
 
-There's no CLI flag, and three things the live API makes non-obvious are why
-this is a script rather than a block to adapt:
+There's no CLI flag, and what the live API makes non-obvious is why this is a
+script rather than a block to adapt:
 
-- **It runs under the bot token, like every other write in this skill.** Pass
-  `GH_TOKEN="$(mint-token.sh <owner>)"` as you do for posting the review. An App
-  token without `contents: write` answers `FORBIDDEN: Resource not accessible by
-  integration`; `reviewer-setup` grants it, and "Repair" below covers an App
-  created before it did.
 - **`--mine` matches on the App `slug`, not `bot_login`.** GraphQL reports a Bot
   author's `login` *without* the `[bot]` suffix (e.g. `agent-reviewer-<you>`), so
   matching `bot_login` (`…[bot]`) never hits — and a filter that matches nothing
@@ -718,8 +708,9 @@ this is a script rather than a block to adapt:
 "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --mine
 
 # 2. For each thread whose concern has actually been answered, resolve it.
-GH_TOKEN="$("<skill-dir>/mint-token.sh" <owner>)" \
-  "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --resolve <thread_id>
+GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
+export GH_TOKEN
+"<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --resolve <thread_id>
 ```
 
 Resolve **only** threads where the finding was actually answered. Don't

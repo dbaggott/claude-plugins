@@ -1,0 +1,31 @@
+{
+  "_comment": [
+    "The reviewer App's permission set, declared once. bootstrap.py builds a new",
+    "App's manifest from it, and mint-token.sh audits every minted token against",
+    "it — so a grant that drifts is caught on the next review rather than at the",
+    "next time somebody remembers to run a curl by hand.",
+    "",
+    "`expected` is exact, not a floor. A permission missing from an install breaks",
+    "a capability; one present that is not listed here is a capability the design",
+    "says the bot must not have, and both are worth a warning."
+  ],
+  "expected": {
+    "pull_requests": "write",
+    "contents": "write",
+    "checks": "read",
+    "actions": "read",
+    "statuses": "read",
+    "metadata": "read"
+  },
+  "why": {
+    "pull_requests": "submit reviews, inline comments, thread replies",
+    "contents": "read the diff; resolve threads; have the verdict counted",
+    "checks": "check runs",
+    "actions": "checkSuite.workflowRun, which the rollup dereferences",
+    "statuses": "combined commit status, for CI that posts statuses instead of check runs",
+    "metadata": "mandatory"
+  },
+  "deliberately_absent": {
+    "issues": "the issue-scoped mode runs under the operator's own auth, so the bot has no reason to reach issues at all"
+  }
+}
