@@ -136,9 +136,18 @@ curl -fsS -H "Authorization: Bearer $JWT" -H "Accept: application/vnd.github+jso
 
 Every installation must list **every** key in `default_permissions`. A missing
 one is not a setup failure you will see here — it surfaces later as
-`Resource not accessible by integration` on whichever call needed it. If they
-don't match, see **Repair / rotate** below; do not re-run the bootstrap, which
-cannot change an App that already exists.
+`Resource not accessible by integration` on whichever call needed it.
+
+⚠️ **`contents: write` is the one whose absence is silent.** It fails loudly on
+`resolveReviewThread`, but its other effect makes no sound at all: GitHub leaves
+a review by an App that lacks it out of `latestOpinionatedReviews`, so
+`reviewDecision` never moves. The review appears on the PR, reads correctly, and
+counts for nothing — on a repo requiring an approval, the bot can never satisfy
+the gate and nothing says why. Check it here rather than inferring it from a
+review that looked fine.
+
+If they don't match, see **Repair / rotate** below; do not re-run the bootstrap,
+which cannot change an App that already exists.
 
 ## What got stored
 
@@ -185,8 +194,9 @@ it wherever you want and set the command.
   App's GitHub settings, then re-run the bootstrap to re-save credentials.
 - **Re-install on more repos**: just adjust the installation's repo access in
   GitHub; no re-bootstrap needed.
-- **The permission set changed** (bootstrap.py gained an entry, or a review is
-  failing with `Resource not accessible by integration`): re-running the
+- **The permission set changed** (bootstrap.py gained an entry, a review is
+  failing with `Resource not accessible by integration`, or a posted verdict is
+  not moving `reviewDecision`): re-running the
   bootstrap does **not** fix an App that already exists — the manifest is only
   read at creation. Edit the permissions on the App itself, under *Permissions &
   events* at `https://github.com/settings/apps/<slug>`.

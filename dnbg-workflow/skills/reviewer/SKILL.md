@@ -16,7 +16,12 @@ the whole point, and it buys two things nothing else does:
   authored. A distinct App identity is not you, so it can.
 - **A review that reads as independent.** A verdict from a separate identity is
   what a human merger weighs — and, where the repo requires reviews at all, what
-  can satisfy that requirement.
+  can satisfy that requirement. ⚠️ **That last part holds only because the App
+  has `contents: write`.** GitHub leaves a review by an App without it out of
+  `latestOpinionatedReviews`, so `reviewDecision` never moves: the verdict shows
+  on the PR page and the merge box ignores it. An App set up before that grant
+  existed reviews into a void on any repo that gates on approvals — see
+  "Repair" below.
 
 **This skill is GitHub-only, and the repo that decides is the one holding the
 PR** — not your working directory. GitHub Apps have no equivalent on GitLab or
@@ -695,11 +700,11 @@ the human merging sees there are no outstanding asks.
 There's no CLI flag, and three things the live API makes non-obvious are why
 this is a script rather than a block to adapt:
 
-- **It runs under your own `gh` auth, not the bot token.** Resolution isn't
-  identity-sensitive (anyone with write can resolve), and the bot deliberately
-  has only `contents: read` — GitHub requires `contents: write` for an *App*
-  token to call `resolveReviewThread`, which a reviewer shouldn't have. The
-  script clears `GH_TOKEN` itself, so this holds in a call that also minted one.
+- **It runs under the bot token, like every other write in this skill.** Pass
+  `GH_TOKEN="$(mint-token.sh <owner>)"` as you do for posting the review. An App
+  token without `contents: write` answers `FORBIDDEN: Resource not accessible by
+  integration`; `reviewer-setup` grants it, and "Repair" below covers an App
+  created before it did.
 - **`--mine` matches on the App `slug`, not `bot_login`.** GraphQL reports a Bot
   author's `login` *without* the `[bot]` suffix (e.g. `agent-reviewer-<you>`), so
   matching `bot_login` (`…[bot]`) never hits — and a filter that matches nothing
@@ -713,7 +718,8 @@ this is a script rather than a block to adapt:
 "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --mine
 
 # 2. For each thread whose concern has actually been answered, resolve it.
-"<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --resolve <thread_id>
+GH_TOKEN="$("<skill-dir>/mint-token.sh" <owner>)" \
+  "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --resolve <thread_id>
 ```
 
 Resolve **only** threads where the finding was actually answered. Don't
