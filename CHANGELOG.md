@@ -595,8 +595,9 @@ a repository. Nothing reads config from the working directory.
 ## Migration
 Minting now refuses to run against a group- or world-writable config directory or
 key file, the way `ssh` refuses an over-permissive private key. If yours is loose
-it will stop and tell you; fix with `chmod go-w ~/.config/dnbg/reviewer`. New
-setups are created `0700`.
+it will stop and tell you; fix with `chmod go-w ~/.config/dnbg/reviewer`, or
+re-run the setup, which now tightens the directory to `0700` over an existing
+one.
 
 
 ## dnbg-workflow 2026.8.14 — 2026-08-09
