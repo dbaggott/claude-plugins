@@ -4,7 +4,8 @@
 # caller acts and re-arms with the line this prints.
 #
 #   watch-pr.sh <owner/repo> <pr> [<last_head>] [<since>] [<slug>] \
-#     [--role=author|reviewer] [--was-draft] [--last-verdict=<sha>] [--last-checks=<names>]
+#     --role=author|reviewer [--was-draft] [--last-verdict=<sha>] \
+#     [--last-checks=<names>] [--merge-stage]
 #
 # Exactly one result line, then exit 0:
 #   result=COMMITS  new_head=<sha> activity=0|1 now=<iso>   # someone pushed
