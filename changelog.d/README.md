@@ -62,8 +62,13 @@ you did not write.
 
 ### Say what changed for the reader
 
-Every entry answers one of these. If it answers none, the change is a
-`no-changelog` change.
+Every entry answers one of these. A change that answers none may belong under the
+`no-changelog` label instead — but that label is what stops the release, so read
+"Fragments drive releases" above before reaching for it.
+
+**Trouble writing the entry is not evidence there is nothing to say.** The change
+that most often reads as internal is a refactor that shrinks a skill, and that is
+**Cost**.
 
 - **New capability** — something you can now do, or a new option and where to set
   it.
