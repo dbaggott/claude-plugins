@@ -33,8 +33,11 @@ none of the four clears without a human, so re-arming on one wakes on it again
 every tick.
 
 Which makes what counts as terminal load-bearing, so `BLOCKED` is now split five
-ways, and a base that has moved on is reported as `BEHIND` rather than collapsing
-into an unknown nothing acts on. GitHub reports a first review not yet given, a check still running, and a
+ways. A base that has moved on is named on the window's own `IDLE` as
+`merge=behind` rather than collapsing into an unknown nothing acts on — it clears
+with one click, and often with none under a merge queue, so it is not a reason to
+end the wait. A stop that arrives on a tick already holding activity carries that
+activity out first, as `merge=DIRTY` on the burst. GitHub reports a first review not yet given, a check still running, and a
 red build all as `BLOCKED`; each of those clears on its own, and reading any of
 them as terminal ends the watch. `terminal` is what is left — approved, nothing
 running, nothing red — where only a human moves it.

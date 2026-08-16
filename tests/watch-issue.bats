@@ -486,3 +486,29 @@ EOF
   [[ "${lines[-1]}" == result=IDLE* ]]
   [[ "${lines[-1]}" == *"missing=9,10"* ]]
 }
+
+# A GitHub App posts under `<slug>[bot]`. The PR-side filter and lib-activity
+# both match that spelling; missing it here means the reviewer's own comment
+# satisfies the wake condition on every tick — the self-trigger the header warns
+# about, reached by the other spelling.
+@test "the bot's own comment is excluded under its suffixed login" {
+  jq -cn '{data:{repository:{i163:{number:163,state:"OPEN",lastEditedAt:null,
+     comments:{totalCount:1,nodes:[{author:{login:"reviewbot[bot]"},
+               createdAt:"2026-06-01T00:00:00Z",url:"u"}]},
+     closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}}}}}' > "$GQL"
+  INTERVAL=1 SETTLE=1 WINDOW=8 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=reviewbot
+  [[ "${lines[-1]}" == *"result=IDLE"* ]]
+}
+
+# Someone else's comment still wakes it — the exclusion is two exact spellings,
+# not a prefix match that would swallow a different account.
+@test "a different login that shares the prefix still wakes the watch" {
+  jq -cn '{data:{repository:{i163:{number:163,state:"OPEN",lastEditedAt:null,
+     comments:{totalCount:1,nodes:[{author:{login:"reviewbot-two"},
+               createdAt:"2026-06-01T00:00:00Z",url:"u"}]},
+     closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}}}}}' > "$GQL"
+  INTERVAL=1 SETTLE=1 WINDOW=8 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=reviewbot
+  [[ "${lines[-1]}" == *"result=ACTIVITY"* ]]
+}

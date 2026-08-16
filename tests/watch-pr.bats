@@ -1086,17 +1086,6 @@ EOF
   [[ "${lines[-1]}" == result=IDLE* ]]
 }
 
-# BEHIND is a nameable block with a specific remedy — an "Update branch" click.
-# Collapsed into `unknown` it is acted on by nothing, so the merge wait idles out
-# and reports "still needs merging" without ever naming the blocker.
-@test "a base that moved on is reported, not collapsed into unknown" {
-  echo BEHIND > "$MERGESTATE"
-  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
-  [[ "${lines[-1]}" == result=BEHIND* ]]
-  # Only a human clears it, so it carries no re-arm line.
-  [[ "$output" != *"re-arm"* ]]
-}
-
 @test "a base that moved on is not the reviewer's business" {
   echo BEHIND > "$MERGESTATE"
   INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
@@ -1114,4 +1103,83 @@ EOF
   [[ "${lines[-1]}" == result=ACTIVITY* ]]
   [[ "${lines[-1]}" == *"activity=0"* ]]
   [[ "${lines[-1]}" == *"verdict=APPROVED"* ]]
+}
+
+# --- a stop must not discard what the tick already held -------------------------
+
+# The merge state is read after the tick's activity, so a comment landing in the
+# same poll interval as a conflict is not answered with a bare DIRTY that carries
+# no re-arm line — the caller would re-spawn off a fresh clock and filter it out.
+@test "a conflict does not discard a comment from the same tick" {
+  echo DIRTY > "$MERGESTATE"
+  printf '%s' '[{"state":"COMMENTED","submittedAt":"2026-06-01T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"x"}}]' > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" == *"merge=DIRTY"* ]]
+  # And it is re-armable, so the next tick delivers the bare stop.
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# With nothing in hand it is still a clean stop.
+@test "a conflict with nothing in hand is still a bare stop" {
+  echo DIRTY > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=DIRTY "* ]]
+  [[ "$output" != *"re-arm"* ]]
+}
+
+# --- a base that moved on is not the end of the merge wait ----------------------
+
+# One "Update branch" click clears it, and under a merge queue often nothing
+# does. Ending the wait on it loses the merge the stage exists to catch.
+@test "a base that moved on does not end the wait" {
+  echo BEHIND > "$MERGESTATE"
+  INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" == *"merge=behind"* ]]
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# --- the reported set is the set that is actually red ---------------------------
+
+# A partial recovery can bring the failing set back to exactly what the caller was
+# already told. Naming the pre-recovery set reports a check they will find green,
+# and advances the baseline onto a set that never existed — after which the still-
+# red one compares unequal and is reported a second time.
+@test "a partial recovery does not report a check that went green" {
+  echo '[{"name":"a","status":"COMPLETED","conclusion":"FAILURE"},
+         {"name":"b","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  AT_TICK=2 AT_TICK_FILE="$ROLLUP" \
+    AT_TICK_VALUE='[{"name":"a","status":"COMPLETED","conclusion":"FAILURE"},
+                    {"name":"b","status":"COMPLETED","conclusion":"SUCCESS"}]' \
+    INTERVAL=1 SETTLE=3 WINDOW=12 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-checks=a
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "$output" != *"checks='a,b'"* ]]
+  # The baseline stays what the caller was told, so `a` is not re-reported later.
+  [[ "$output" == *"--last-checks='a'"* ]]
+}
+
+# --- a red build is not a round to spend ----------------------------------------
+
+# `── next ──` is a four-request round over the diff, bodies and threads, and both
+# skills say a red build is neither a re-review nor a finding to answer.
+@test "a checks-only wake does not offer a pr-round" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=CHECKS* ]]
+  [[ "$output" != *"next"* ]]
+  # The re-arm line is still there — that is how the watch continues.
+  [[ "$output" == *"re-arm"* ]]
+}
+
+# A burst with conversation in it still gets one.
+@test "a burst with conversation still offers a pr-round" {
+  printf '%s' '[{"state":"COMMENTED","submittedAt":"2026-06-01T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"x"}}]' > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "$output" == *"next"* ]]
 }

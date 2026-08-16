@@ -18,16 +18,15 @@
 # The value is shell-quoted in both places — forge check names contain spaces.
 #   result=READY    new_head=<sha> activity=0|1 now=<iso>   # draft marked ready — only with --was-draft
 #   result=DIRTY    now=<iso>                               # conflict with base — author role only
-#   result=BEHIND   now=<iso>                               # base moved on — author role only
 #   result=BLOCKED  cause=terminal now=<iso>                # still blocked, nothing pending — author only
 #   result=CLOSED   state=MERGED|CLOSED                     # finished — stop watching
-#   result=IDLE     now=<iso>                               # nothing within the window
+#   result=IDLE     [merge=behind] now=<iso>                 # nothing within the window
 #   result=ERROR    reason=<source> now=<iso>               # the watch is broken — do NOT re-arm
 #
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
 # carrying the next invocation; a burst also carries `── next ──`, the
-# pr-round.sh call that reads it in full. CLOSED, ERROR, DIRTY, BEHIND and
-# BLOCKED carry neither — none of them clears without a human, so a re-armed watch would
+# pr-round.sh call that reads it in full. CLOSED, ERROR, DIRTY and BLOCKED carry
+# neither — none of the four clears without a human, so a re-armed watch would
 # report the same state on its next tick for as long as it kept being re-armed.
 #
 # WHAT --role CHANGES, since it is not a label. An author and a reviewer want
@@ -136,7 +135,7 @@ obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0; obs_verdict=""
 # reported, and the next round's diff then starts after that commit: it appears
 # in none of them.
 rearm_head="$LAST_HEAD"
-settle_until=0; settle_cap=0; holding_draft=0
+settle_until=0; settle_cap=0; holding_draft=0; stop_merge=""; idle_merge=""
 J=""; RAWC="[]"
 
 # A check name is forge-supplied and routinely contains a space — `build
@@ -193,7 +192,7 @@ report_idle() {
   else
     watch_rearm "$(rearm_cmd)"
   fi
-  echo "result=IDLE now=$(poll_now_iso)"; exit 0
+  echo "result=IDLE${idle_merge:+ merge=$idle_merge} now=$(poll_now_iso)"; exit 0
 }
 
 # Whether anything is still worth waking the caller for. A settle can outlive its
@@ -218,30 +217,38 @@ report_error() {
 }
 
 report_burst() {
+  local checks_only=0
+  if [ -n "$saw_checks" ] && [ "$saw_ready" = 0 ] && [ "$saw_commits" = 0 ] \
+     && [ "$saw_activity" = 0 ] && [ -z "$verdict_sha" ]; then checks_only=1; fi
+
   emit_activity
-  emit_next
+  # Withheld for a checks-only wake: `── next ──` is a four-request round over
+  # the diff, the bodies and the threads, and both skills say a red build is
+  # neither a re-review nor a finding to answer. Offering it there invites a
+  # round they are then told not to spend.
+  [ "$checks_only" = 0 ] && emit_next
   # `── next ──` hands the caller a diff spanning from the head this run was
   # armed with, so reporting is what makes every move up to now handled.
   rearm_head="$obs_head"
   [ -n "$saw_checks" ] && checks_baseline="$saw_checks"
   watch_rearm "$(rearm_cmd)"
-  local ck=""
+  local ck="" mg=""
   [ -n "$saw_checks" ] && ck=" checks=$(shq "$saw_checks")"
-  # A verdict excluded deliberately: CHECKS is documented as "not your finding to
-  # fix, re-arm without acting", and the re-arm marks the verdict handled — so
-  # reducing an unhandled verdict to CHECKS loses it until the IDLE backstop
-  # notices an approval standing at HEAD, a window later.
-  if [ -n "$saw_checks" ] && [ "$saw_ready" = 0 ] && [ "$saw_commits" = 0 ] \
-     && [ "$saw_activity" = 0 ] && [ -z "$verdict_sha" ]; then
-    echo "result=CHECKS checks=$(shq "$saw_checks")$(verdict_field) now=$(poll_now_iso)"
+  [ -n "$stop_merge" ] && mg=" merge=$stop_merge"
+  # A verdict excludes this arm deliberately: CHECKS is documented as "not your
+  # finding to fix, re-arm without acting", and the re-arm marks the verdict
+  # handled — so reducing an unhandled verdict to CHECKS loses it until the IDLE
+  # backstop notices an approval standing at HEAD, a window later.
+  if [ "$checks_only" = 1 ]; then
+    echo "result=CHECKS checks=$(shq "$saw_checks")$mg now=$(poll_now_iso)"
     exit 0
   fi
   if [ "$saw_ready" = 1 ]; then
-    echo "result=READY new_head=$new_head activity=$saw_activity$ck$(verdict_field) now=$(poll_now_iso)"
+    echo "result=READY new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) now=$(poll_now_iso)"
   elif [ "$saw_commits" = 1 ]; then
-    echo "result=COMMITS new_head=$new_head activity=$saw_activity$ck$(verdict_field) now=$(poll_now_iso)"
+    echo "result=COMMITS new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) now=$(poll_now_iso)"
   else
-    echo "result=ACTIVITY activity=$saw_activity$ck$(verdict_field) now=$(poll_now_iso)"
+    echo "result=ACTIVITY activity=$saw_activity$ck$mg$(verdict_field) now=$(poll_now_iso)"
   fi
   exit 0
 }
@@ -250,6 +257,10 @@ report_burst() {
 # ERROR carry none: neither clears without a human, so a caller re-arming from
 # one wakes on the same state every tick until someone intervenes.
 report_stop() {  # <result> [extra]
+  # Anything already in hand rides out first, carrying the block as a field. The
+  # caller then re-arms from that line and gets the bare stop on the next tick,
+  # so nothing is lost and the stop still happens.
+  if have_burst; then stop_merge="$1"; report_burst; fi
   echo "result=$1${2:+ $2} now=$(poll_now_iso)"
   exit 0
 }
@@ -299,18 +310,6 @@ while :; do
     echo "result=CLOSED state=$STATE"; exit 0
   fi
 
-  # Merge state is the author's business — they own the merge. A reviewer
-  # watching the same PR has nothing to do about a conflict with base.
-  if [ "$ROLE" = author ] && [ "$settle_until" = 0 ]; then
-    MSTATUS=$(printf '%s' "$J" | jq -r '.merge.status')
-    MCAUSE=$(printf '%s' "$J" | jq -r '.merge.cause // ""')
-    [ "$MSTATUS" = dirty ] && report_stop DIRTY
-    [ "$MSTATUS" = behind ] && report_stop BEHIND
-    if [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
-      report_stop BLOCKED "cause=terminal"
-    fi
-  fi
-
   [ -z "$obs_head" ] && [ -n "$HEAD" ] && obs_head="$HEAD"
 
   # Reset before the first thing that can set it, not after — the checks block
@@ -334,8 +333,15 @@ while :; do
   # window.
   if [ -z "$checks_now" ]; then
     checks_baseline=""; saw_checks=""
-  elif [ "$checks_now" != "$checks_baseline" ] && [ "$checks_now" != "$saw_checks" ]; then
-    saw_checks="$checks_now"; changed=1
+  elif [ "$checks_now" = "$checks_baseline" ]; then
+    # Exactly what the caller was already told is failing, so there is nothing
+    # outstanding — including when a partial recovery brought the set back to it.
+    # Keeping a stale name here reports a check they would find green, and then
+    # advances the baseline onto a set that never existed.
+    saw_checks=""
+  else
+    [ "$checks_now" != "$saw_checks" ] && changed=1
+    saw_checks="$checks_now"
   fi
 
   new_reviews=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
@@ -382,6 +388,30 @@ while :; do
     # reporting it alongside the push that invalidated it says the new head is
     # approved when nobody has read it.
     verdict_sha=""; verdict_state=""
+  fi
+
+  # Merge state is the author's business — they own the merge. A reviewer
+  # watching the same PR has nothing to do about a conflict with base.
+  #
+  # Read AFTER the tick's activity, not before: a comment landing in the same
+  # poll interval as a conflict would otherwise be answered with a bare `DIRTY`
+  # that carries no re-arm line, and the caller re-spawns off a fresh clock —
+  # filtering that comment out for good. `report_stop` folds anything in hand.
+  # `watch-issue.sh` orders its closure branch the same way, for the same reason.
+  if [ "$ROLE" = author ]; then
+    MSTATUS=$(printf '%s' "$J" | jq -r '.merge.status')
+    MCAUSE=$(printf '%s' "$J" | jq -r '.merge.cause // ""')
+    # A base that moved on does NOT stop the watch. It clears with one "Update
+    # branch" click and, under a merge queue, often without one — so ending the
+    # wait on it loses the merge this stage exists to catch. It rides out on the
+    # window's own IDLE instead, which is where the caller is already told to
+    # look for why nothing merged.
+    idle_merge=""
+    [ "$MSTATUS" = behind ] && idle_merge=behind
+    [ "$MSTATUS" = dirty ] && report_stop DIRTY
+    if [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
+      report_stop BLOCKED "cause=terminal"
+    fi
   fi
 
   [ "$saw_ready" = 1 ] && report_burst

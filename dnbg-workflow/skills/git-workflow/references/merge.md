@@ -45,6 +45,15 @@ gh pr merge 48 --repo <owner>/examples --squash --delete-branch
 conflict as `DIRTY`, and a block nothing pending will clear as
 `BLOCKED cause=terminal`. There is no merge-specific poller to reach for.
 
+It can also return `CHECKS` (a build went red), `ACTIVITY` (someone commented
+after the approval) and `IDLE`. Each of those ends the run and prints a re-arm
+line: **run it, or the wait is over and the post-merge cleanup never happens.**
+Only `CLOSED`, `DIRTY` and a terminal `BLOCKED` are meant to end the stage.
+
+An `IDLE` carrying `merge=behind` means the base moved on and the branch needs an
+"Update branch" click. That is not a stop — re-arm and say so, because under a
+merge queue it often clears without anyone doing anything.
+
 ⚠️ **The window has to be widened, and the default will not do it.** The author
 role defaults to 30 minutes because that is sized for waiting on a review, where
 silence is suspect. Waiting on a merge is the opposite: the operator may step
@@ -70,9 +79,12 @@ merge watch's first tick.
 the PR is ready — the claim "I am watching for the merge now" has to be about a
 watcher that is running.
 
-On `result=IDLE` here — six hours of laptop-open time with no merge — wake
-**once** and say the PR is still open and still needs merging, with the URL and
-the merge command re-composed. Then stop; do not silently re-arm.
+On a bare `result=IDLE` here — six hours of laptop-open time with no merge, and
+no `merge=` field naming a cause — wake **once** and say the PR is still open and
+still needs merging, with the URL and the merge command re-composed. Then stop;
+do not silently re-arm. An `IDLE` that *does* carry `merge=behind` is the
+exception above: it has a cause and a remedy, so it is re-armed rather than
+stopped.
 
 Any time the operator says something about the merge — kicking it off
 ("merging", "auto-merge is on", "go ahead") **or asserting it is done**
@@ -115,8 +127,9 @@ review is not a merge gate on this repo, so it rules review *out* as the cause �
 it does not mean a review is not wanted.
 
 A red build is not among the causes here: the fetch separates that out, and it
-reaches you as `result=CHECKS` with the failing names, on a watch that keeps
-running. Reading the rollup again after a terminal block finds nothing.
+reaches you as `result=CHECKS` with the failing names. Like every result, that
+one ends the run — **re-arm from its printed line or the merge wait is over**.
+Reading the rollup again after a terminal block finds nothing.
 
 On `result=DIRTY`, surface the conflict and ask; don't resolve it autonomously,
 since which side wins is the operator's call.

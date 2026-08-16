@@ -35,8 +35,9 @@
 # batched query answers all four for any number of issues. Splitting them would
 # buy separate result vocabularies and cost a request per question per tick.
 #
-# ⚠️ THE EXCLUSION IS AN EXACT LOGIN MATCH, AND THE TWO ROLES EXCLUDE DIFFERENT
-# ONES. A reviewer excludes its bot; an author excludes their own account — and
+# ⚠️ THE EXCLUSION IS AN EXACT LOGIN MATCH — of both spellings, `<slug>` and
+# `<slug>[bot]`, since a GitHub App posts under the suffixed one — AND THE TWO
+# ROLES EXCLUDE DIFFERENT ONES. A reviewer excludes its bot; an author excludes their own account — and
 # the operator's login is a SUBSTRING of the bot's, so a substring match on the
 # author side drops every reviewer comment the watch exists to catch. That
 # failure is silent: the watch reports a quiet issue while seeing everything.
@@ -185,7 +186,7 @@ while :; do
 
   # An exact login match, never a substring — see the header.
   comment_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
-    [ .issues[] | select([ .comments[] | select(.at > $s) | select(.author != $slug) ] | length > 0)
+    [ .issues[] | select([ .comments[] | select(.at > $s) | select(.author != $slug and .author != ($slug + "[bot]")) ] | length > 0)
       | .number ] | join(" ")')
   edit_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" '
     [ .issues[] | select((.body_edited // "") > $s) | .number ] | join(" ")')
@@ -247,7 +248,7 @@ while :; do
   # Counted rather than merely present, so a SECOND comment extends the window
   # and the first one does not extend it forever.
   sig=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
-    [ ([ .issues[].comments[] | select(.at > $s) | select(.author != $slug) ] | length),
+    [ ([ .issues[].comments[] | select(.at > $s) | select(.author != $slug and .author != ($slug + "[bot]")) ] | length),
       ([ .issues[] | select((.body_edited // "") > $s) ] | length),
       ([ .issues[].linked_prs[] ] | length) ] | join("/")')
   changed=0
