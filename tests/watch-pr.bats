@@ -745,6 +745,44 @@ EOF
   INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
   [[ "${lines[-1]}" == "result=CHECKS checks='lint'"* ]]
   [[ "$output" == *"--last-checks='lint'"* ]]
+  # Paired with the head it was read on, or the next arm cannot tell this set
+  # from one belonging to an earlier commit.
+  [[ "$output" == *"--last-checks-head=$(sha40 0)"* ]]
+}
+
+# --- and it is only what they were told about THIS commit ----------------------
+
+# The author's post-push re-arm carries the new head with the previous head's
+# check names. Matched on names alone the second red build compares equal and is
+# swallowed, so the author is never told the commit they just pushed is red.
+@test "a check red on both sides of a push is reported again on the new head" {
+  echo 1 > "$HEADCOUNT"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 1)" 2999-01-01T00:00:00Z bot \
+    --role=author --last-checks=ci --last-checks-head="$(sha40 0)"
+  [[ "${lines[-1]}" == "result=CHECKS checks='ci'"* ]]
+  [[ "$output" == *"--last-checks-head=$(sha40 1)"* ]]
+}
+
+# The inverse, which is the behaviour the pairing must not cost: on the head the
+# names were read on, a standing failure is still handled and does not wake the
+# caller a second time.
+@test "a standing failure on the same head stays suppressed" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --last-checks=ci --last-checks-head="$(sha40 0)"
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" != *"checks="* ]]
+}
+
+# A baseline with no head is one armed by hand or by a caller that predates the
+# pairing. It cannot be placed on any commit, so it is void — a redundant wake,
+# never a silent drop.
+@test "a baseline with no head is not trusted" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --last-checks=ci
+  [[ "${lines[-1]}" == "result=CHECKS checks='ci'"* ]]
 }
 
 # A check going red while a burst is settling must not be dropped in favour of
@@ -1159,7 +1197,8 @@ EOF
     AT_TICK_VALUE='[{"name":"a","status":"COMPLETED","conclusion":"FAILURE"},
                     {"name":"b","status":"COMPLETED","conclusion":"SUCCESS"}]' \
     INTERVAL=1 SETTLE=3 WINDOW=12 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author --last-checks=a
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author \
+      --last-checks=a --last-checks-head="$(sha40 0)"
   [[ "${lines[-1]}" == result=IDLE* ]]
   [[ "$output" != *"checks='a,b'"* ]]
   # The baseline stays what the caller was told, so `a` is not re-reported later.
