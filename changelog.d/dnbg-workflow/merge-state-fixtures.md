@@ -19,7 +19,8 @@ answer:
   while mergeability is recomputed.
 - `unrecognised` is a value GitHub has never documented — the schema moved, and
   the remedy is a person re-running the capture script rather than another poll.
-  A watch surfaces it on its window's `IDLE` rather than acting on it.
+  An author-role watch surfaces it on its window's `IDLE` rather than acting on
+  it; merge state is not a reviewer's business, so that role reports none of it.
 
 `tests/fixtures/capture-pr-state.sh` records real `gh pr view` payloads, each
 carrying the repo, PR and branch protection it came from, and

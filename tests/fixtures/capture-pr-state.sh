@@ -31,7 +31,7 @@ OUT="$HERE/pr-state/$NAME.json"
 mkdir -p "$HERE/pr-state"
 
 # The same field list fetch-pr-state.sh asks for. Kept in step by
-# tests/coupling.bats, so a field added there cannot leave the fixtures behind.
+# tests/merge-cause.bats, so a field added there cannot leave the fixtures behind.
 FIELDS=state,isDraft,headRefOid,reviews,comments,statusCheckRollup,mergeStateStatus,reviewDecision
 
 RAW=$(gh pr view "$PR" --repo "$REPO" --json "$FIELDS")

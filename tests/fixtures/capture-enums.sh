@@ -34,7 +34,10 @@ for e in $ENUMS; do
   printf '%s\n' "$new" | jq --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg e "$e" \
     '{_captured: {enum: $e, at: $at, source: "GitHub GraphQL introspection"}, values: .}' > "$f.new"
   if [ -f "$f" ] && diff -q <(jq -S 'del(._captured)' "$f") <(jq -S 'del(._captured)' "$f.new") >/dev/null; then
-    mv "$f.new" "$f"; echo "$e: unchanged"
+    # Discarded rather than moved: re-stamping `_captured.at` would leave the
+    # file dirty on a run that changed nothing, and the header sends a reader to
+    # `git diff` to find out whether GitHub moved.
+    rm -f "$f.new"; echo "$e: unchanged"
   else
     if [ -f "$f" ]; then
       echo "$e: CHANGED"
