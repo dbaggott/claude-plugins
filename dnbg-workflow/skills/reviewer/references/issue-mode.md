@@ -186,7 +186,7 @@ fine.
 
 Source 3 is deliberately not polled — it is the one source with index lag, so the
 timeline already sees everything it would, sooner, and a poll gains nothing by
-adding it. `tests/coupling.bats` pins these sources against `watch-issue.sh`'s, so a
+adding it. `tests/coupling.bats` pins these sources against `fetch-issue-state.sh`'s, so a
 fourth one has to be polled or exempted there; its failure message says how.
 
 ⚠️ **`--exclude` is what keeps re-arming from spinning, and it must be carried
