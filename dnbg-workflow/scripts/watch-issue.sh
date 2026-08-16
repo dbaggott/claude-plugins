@@ -8,13 +8,17 @@
 #
 # Exactly one result line, then exit 0:
 #   result=ACTIVITY issues=<n,…> kinds=<comment|linked-pr|body-edit,…> \
-#     edited=<n:iso|n:none,…> now=<iso>
-#   result=CLOSED   issues=<n,…> now=<iso>
-#   result=IDLE     now=<iso>
+#     edited=<n:iso|n:none,…> [missing=<n,…>] now=<iso>
+#   result=CLOSED   issues=<n,…> [missing=<n,…>] now=<iso>
+#   result=IDLE     [missing=<n,…>] now=<iso>
 #   result=ERROR    reason=<source> now=<iso>
 #
 # Results a caller re-arms from carry a `── re-arm ──` line, with `since` set to
 # this run's own `now` and any newly-seen PR folded into `--exclude`.
+#
+# `missing=` names numbers that resolve to no issue — a typo, a transfer, a PR
+# number. They leave the watch set rather than being re-asked every tick, so the
+# field is how a caller learns one of its issues is no longer being watched.
 #
 # `edited=` carries each watched issue's body-edit stamp, so a caller comparing a
 # comment against whether the body actually moved needs no second call. A body
@@ -52,6 +56,10 @@ for arg in "$@"; do
   esac
 done
 
+# Before lib-poll.sh, which applies its own `WINDOW` default the moment it is
+# sourced — set after, this never fires and both roles silently get the long one.
+WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
+
 # shellcheck source=./lib-poll.sh
 . "$(dirname "$0")/lib-poll.sh"
 # shellcheck source=./lib-watch.sh
@@ -72,8 +80,6 @@ fi
 [ -n "$SLUG" ] || bad=1
 [ "$bad" = 1 ] && fatal bad-args
 
-WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
-
 # A review round on an issue is a stream — several comments and body edits over
 # a couple of minutes — so a settle sized for one write would report it as a wake
 # per write. SETTLE_MAX caps the hold, since that same stream is what can defer a
@@ -90,7 +96,7 @@ EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' \
 
 poll_init
 
-hit_issues=""; hit_kinds=""; closed_issues=""; new_prs=""
+hit_issues=""; hit_kinds=""; closed_issues=""; new_prs=""; seen_missing=""
 # What has already been accounted for. Without it the same comment satisfies the
 # wake condition on every tick, so the settle window is extended forever and the
 # watch never reports at all.
@@ -106,7 +112,14 @@ rearm_cmd() {  # [issues-override]
     "${ex:+ --exclude=$ex}"
 }
 
-report_idle() { watch_rearm "$(rearm_cmd)"; echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
+# Reported on whatever result the watch reaches, so a number that resolves to
+# nothing is named to the caller rather than silently dropped from the set.
+missing_field() { [ -n "$seen_missing" ] && printf ' missing=%s' "$seen_missing" || true; }
+
+report_idle() {
+  watch_rearm "$(rearm_cmd)"
+  echo "result=IDLE$(missing_field) now=$(poll_now_iso)"; exit 0
+}
 
 report_error() {
   [ "$settle_until" != 0 ] && report_hit
@@ -121,7 +134,7 @@ report_hit() {
   kinds=$(printf '%s\n' "$hit_kinds" | tr ' ' '\n' | grep -v '^$' | sort -u | paste -sd, - || true)
   edited=$(printf '%s' "$last_json" | jq -r '
     [ .issues[] | "\(.number):\(.body_edited // "none")" ] | join(",")' 2>/dev/null || echo "")
-  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited now=$(poll_now_iso)"
+  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited$(missing_field) now=$(poll_now_iso)"
   exit 0
 }
 
@@ -133,7 +146,21 @@ while :; do
   [ -n "$J" ] && last_json="$J"
 
   case "$LINE" in
-    result=OK*) watch_ok issue-query ;;
+    result=OK*)
+      watch_ok issue-query
+      # An unresolvable number is permanent, so it leaves the watch set on the
+      # spot: kept in, it is re-asked every tick for the life of the watch and
+      # the caller is never told which of its issues is not being watched.
+      case "$LINE" in
+        *missing=*)
+          gone="${LINE#*missing=}"; gone="${gone%% *}"
+          seen_missing="$gone"
+          for m in $(printf '%s' "$gone" | tr ',' ' '); do
+            NUMS=$(printf '%s' "$NUMS" | tr ' ' '\n' | grep -vx "$m" | tr '\n' ' ')
+          done
+          NUMS=" $(printf '%s' "$NUMS" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+          ;;
+      esac ;;
     *reason=issue-query-shape*) watch_fail_shape issue-query report_error ;;
     *reason=bad-args*|*reason=unsupported-forge*) fatal "${LINE#*reason=}" ;;
     *) watch_fail issue-query report_error ;;
@@ -153,7 +180,7 @@ while :; do
     # iteration — and the header tells callers to re-arm from this line.
     remaining=$(printf '%s' "$J" | jq -r '[.issues[] | select(.state == "OPEN") | .number] | join(" ")')
     [ -n "$remaining" ] && watch_rearm "$(rearm_cmd " $remaining")"
-    echo "result=CLOSED issues=$closed_issues now=$(poll_now_iso)"; exit 0
+    echo "result=CLOSED issues=$closed_issues$(missing_field) now=$(poll_now_iso)"; exit 0
   fi
 
   # An exact login match, never a substring — see the header.
@@ -163,10 +190,17 @@ while :; do
   edit_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" '
     [ .issues[] | select((.body_edited // "") > $s) | .number ] | join(" ")')
 
-  # A page that overflowed hides its oldest comments, so the count is checked
-  # rather than the window trusted.
-  overflow=$(printf '%s' "$J" | jq -r '
-    [ .issues[] | select(.comments_total > .comments_returned) | .number ] | join(" ")')
+  # A page that overflowed may hide comments inside the window, so the count is
+  # checked rather than the window trusted. Overflow alone is not enough to say
+  # it does: the page holds the NEWEST comments, so one whose oldest entry
+  # predates `since` covers the window whatever the lifetime total is. Waking on
+  # the total instead fires on every tick for any issue that ever passed a page
+  # — a permanent wake loop on exactly the long discussions this watch is for.
+  overflow=$(printf '%s' "$J" | jq -r --arg s "$SINCE" '
+    [ .issues[]
+      | select(.comments_total > .comments_returned)
+      | select((.comments | length) == 0 or (([ .comments[].at ] | min) > $s))
+      | .number ] | join(" ")')
 
   all_prs=$(printf '%s' "$J" | jq -r '[.issues[].linked_prs[]] | unique | join("\n")')
   if [ -n "$all_prs" ] && [ -n "$EXCLUDE_LINES" ]; then

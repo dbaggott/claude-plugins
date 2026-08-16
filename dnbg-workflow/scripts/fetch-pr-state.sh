@@ -43,7 +43,7 @@ FORGE="${FORGE:-github}"
 # `statusCheckRollup` and `mergeStateStatus` ride along with the fields the tick
 # already needed, so covering merge state and checks costs no extra request.
 RAW=$(gh pr view "$PR" --repo "$REPO" \
-        --json state,isDraft,headRefOid,reviews,comments,statusCheckRollup,mergeStateStatus \
+        --json state,isDraft,headRefOid,reviews,comments,statusCheckRollup,mergeStateStatus,reviewDecision \
         2>/dev/null) || fail pr-view
 
 DEGRADED=""
@@ -86,8 +86,16 @@ OUT=$(jq -n --argjson pr "$RAW" --argjson inline "$INLINE" '
           elif $m == "DIRTY"    then {status:"dirty",    cause:"conflict"}
           elif $m == "UNSTABLE" then {status:"unstable", cause:"checks_not_passing"}
           elif $m == "BLOCKED"  then
+            # Three different waits arrive as one status. A caller told
+            # "terminal" stops watching, so anything that clears on its own has
+            # to be separated out here: a check still running, and a required
+            # review that has not been given. `terminal` is what is left — an
+            # approval in hand and nothing pending, so only a human moves it.
             (if ($running | length) > 0
              then {status:"blocked", cause:"checks_running"}
+             elif ($pr.reviewDecision // "") == "REVIEW_REQUIRED"
+               or ($pr.reviewDecision // "") == "CHANGES_REQUESTED"
+             then {status:"blocked", cause:"review_required"}
              else {status:"blocked", cause:"terminal"} end)
           elif $m == ""         then {status:"unknown", cause:null}
           else {status:"unknown", cause:($m | ascii_downcase)} end

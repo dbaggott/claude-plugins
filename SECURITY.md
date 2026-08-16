@@ -76,7 +76,7 @@ credentials, in the session you are watching. The `reviewer` skill is the one
 exception worth reading closely, because it is the only component that holds a
 long-lived secret; it has its own section below.
 
-The watcher scripts (`watch-pr.sh`, `watch-merge.sh`) write a trace log per run
+The watcher scripts (`watch-pr.sh`, `watch-issue.sh`) write a trace log per run
 to `${TMPDIR:-/tmp}/dnbg-watch/`, swept after three days. It records the
 repo, PR number and poll outcomes so a watch that dies can be diagnosed — no
 tokens, no diff content. `WATCH_LOG=off` disables it.

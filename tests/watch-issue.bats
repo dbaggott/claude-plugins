@@ -206,7 +206,8 @@ comment() {  # <login> <iso>
 }
 
 # A page that overflowed hides its oldest comments, so a burst larger than the
-# page would otherwise be reported as nothing at all.
+# page would otherwise be reported as nothing at all. Returning none of them is
+# the case where nothing bounds what is hidden, so the window cannot be cleared.
 @test "a comment page that overflowed is treated as activity" {
   jq -cn '{data:{repository:{i163:{number:163,state:"OPEN",lastEditedAt:null,
      comments:{totalCount:99, nodes:[]},
@@ -312,4 +313,65 @@ comment() {  # <login> <iso>
   INTERVAL=1 SETTLE=1 WINDOW=10 \
     run "$WATCH" o/r 163 164 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
   [[ "${lines[-1]}" == *"issues=163,164"* ]]
+}
+
+# The page holds the NEWEST comments, so its oldest entry bounds what can be
+# hidden: one older than `since` proves the window is fully covered whatever the
+# lifetime total says. Keying on the total alone fires on every tick for any
+# issue that has ever passed a page — and since the printed re-arm line
+# reproduces it, that is a permanent wake loop on exactly the long discussions a
+# reviewer watch is pointed at.
+@test "a long-but-quiet issue is not read as activity every tick" {
+  jq -cn '{data:{repository:{i163:{number:163,state:"OPEN",lastEditedAt:null,
+     comments:{totalCount:25,
+               nodes:[range(20)|{author:{login:"someone"},
+                                 createdAt:"2020-01-01T00:00:00Z",url:"u"}]},
+     closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}}}}}' > "$GQL"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == *"result=IDLE"* ]]
+}
+
+# The other side of the same condition: overflowed, and the oldest comment the
+# page returned is still inside the window, so something older may be hidden.
+@test "an overflowed page whose oldest entry is inside the window is activity" {
+  jq -cn '{data:{repository:{i163:{number:163,state:"OPEN",lastEditedAt:null,
+     comments:{totalCount:25,
+               nodes:[range(20)|{author:{login:"someone"},
+                                 createdAt:"2026-06-01T00:00:00Z",url:"u"}]},
+     closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}}}}}' > "$GQL"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == *"result=ACTIVITY"* ]]
+}
+
+# --- a number that resolves to no issue -----------------------------------------
+
+# The fetch reports it once and the watch has to act on it, or the number is
+# re-asked every tick for the life of the watch and the caller is never told
+# which of its issues stopped being watched.
+@test "an unresolvable issue number is named and leaves the watch set" {
+  jq -cn '{data:{repository:{i163:{number:163,state:"OPEN",lastEditedAt:null,
+     comments:{totalCount:0,nodes:[]},
+     closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}},
+     i999:null}}}' > "$GQL"
+  INTERVAL=1 WINDOW=6 \
+    run "$WATCH" o/r 163 999 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == *"result=IDLE"* ]]
+  [[ "${lines[-1]}" == *"missing=999"* ]]
+  # And the re-arm carries only the issue that still resolves.
+  local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
+  [[ "$rearm" == *"o/r 163 --role="* ]]
+}
+
+# --- the window default is role-dependent --------------------------------------
+
+# lib-poll.sh applies its own WINDOW default at source time, so a role default
+# set after the source never fires and both roles get the long window.
+@test "the author role gets the short window without being told" {
+  jq -cn '{data:{repository:{i163:{number:163,state:"OPEN",lastEditedAt:null,
+     comments:{totalCount:0,nodes:[]},
+     closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}}}}}' > "$GQL"
+  INTERVAL=1000 run "$WATCH" o/r 163 --role=author --since=2026-01-01T00:00:00Z --slug=operator
+  [[ "${lines[-1]}" == *"result=IDLE"* ]]
 }

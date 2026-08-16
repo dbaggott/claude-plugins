@@ -21,8 +21,16 @@ appearing, or the issue closing, across any number of issues for one call per
 tick. `watch-pr.sh --issue`, which polled only for a linked PR, is removed in
 its favour.
 
-A check that stops passing is now a wake (`result=CHECKS`), level-triggered like
-the verdict.
+A check that stops passing is now a wake (`result=CHECKS checks='<names>'`),
+level-triggered like the verdict. Names are shell-quoted, since a default matrix
+job is called `build (macos-latest)` and an unquoted name makes the re-arm line
+a syntax error rather than a command.
+
+`DIRTY` and a terminal block print no re-arm line, joining `CLOSED` and `ERROR`:
+none of the four clears without a human, so re-arming on one wakes on it again
+every tick. A PR merely waiting for its first review is no longer read as a
+terminal block — GitHub reports that as `BLOCKED` too, which would have ended
+every author-side watch on its first tick on any repo that requires an approval.
 
 Under all of it, `fetch-pr-state.sh` and `fetch-issue-state.sh` answer a tick as
 one forge-neutral object, so the GitHub-specific parts — the overloaded merge

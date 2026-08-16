@@ -30,11 +30,12 @@ EOF
 }
 
 # A minimal open PR, with the rollup and merge status the case is about.
-pr() {  # <mergeStateStatus> <rollup-json>
-  jq -cn --arg m "$1" --argjson rollup "$2" \
+pr() {  # <mergeStateStatus> <rollup-json> [reviewDecision]
+  jq -cn --arg m "$1" --argjson rollup "$2" --arg rd "${3:-}" \
     '{state:"OPEN", isDraft:false,
       headRefOid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      reviews:[], comments:[], statusCheckRollup:$rollup, mergeStateStatus:$m}' > "$PR_JSON"
+      reviews:[], comments:[], statusCheckRollup:$rollup, mergeStateStatus:$m,
+      reviewDecision:$rd}' > "$PR_JSON"
 }
 
 obj() { sed '$d' <<<"$1"; }        # everything above the result line
@@ -186,4 +187,45 @@ line() { tail -1 <<<"$1"; }
   [ "$(obj "$output" | jq -r '.comments[0].author')" = c ]
   [ "$(obj "$output" | jq -r '.inline[0].id')" = 7 ]
   [ "$(obj "$output" | jq -r '.inline[0].path')" = a.sh ]
+}
+
+# BLOCKED covers a third wait the caller cannot see: a required review that has
+# not been given. It reads exactly like a failed required check — nothing is
+# pending either way — and a caller told "terminal" stops watching, which on the
+# author side means exiting before the review it is waiting for can arrive.
+@test "BLOCKED on a review that has not been given is not terminal" {
+  pr BLOCKED '[]' REVIEW_REQUIRED
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = review_required ]
+}
+
+# Same status after a findings round: the decision stays CHANGES_REQUESTED until
+# a re-review, so reading it as terminal kills every watch armed after a push.
+@test "BLOCKED on a re-review that has not happened is not terminal" {
+  pr BLOCKED '[]' CHANGES_REQUESTED
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = review_required ]
+}
+
+# What is left once both self-clearing causes are separated out: an approval in
+# hand, nothing running, and still blocked — so only a human moves it.
+@test "BLOCKED with the approval in hand and nothing pending is terminal" {
+  pr BLOCKED '[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]' APPROVED
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+}
+
+# A repo requiring no approval answers empty, which must not be read as a wait.
+@test "BLOCKED on a repo that requires no approval is terminal" {
+  pr BLOCKED '[]' ""
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
+}
+
+# A check still running outranks the review wait: it is the more specific answer
+# and the one that tells a caller the state will move on its own.
+@test "a running check outranks a pending review as the cause" {
+  pr BLOCKED '[{"name":"e2e","status":"IN_PROGRESS","conclusion":""}]' REVIEW_REQUIRED
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_running ]
 }

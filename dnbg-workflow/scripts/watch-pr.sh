@@ -9,12 +9,13 @@
 # Exactly one result line, then exit 0:
 #   result=COMMITS  new_head=<sha> activity=0|1 now=<iso>   # someone pushed
 #   result=ACTIVITY activity=1 now=<iso>                    # review/comment/reply, not the caller's
-#   result=CHECKS   checks=<names> now=<iso>                # only a check stopped passing
+#   result=CHECKS   checks='<names>' now=<iso>              # only a check stopped passing
 #
-# Any burst also carries `checks=<names>` when a check on the head is failing,
+# Any burst also carries `checks='<names>'` when a check on the head is failing,
 # so a wake that is primarily something else still says the build is red. The
 # set is level-triggered: `--last-checks` is what the caller has been TOLD is
 # failing, which a recovery clears and an unreported failure does not advance.
+# The value is shell-quoted in both places — forge check names contain spaces.
 #   result=READY    new_head=<sha> activity=0|1 now=<iso>   # draft marked ready — only with --was-draft
 #   result=DIRTY    now=<iso>                               # conflict with base — author role only
 #   result=BLOCKED  cause=terminal now=<iso>                # still blocked, nothing pending — author only
@@ -24,7 +25,9 @@
 #
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
 # carrying the next invocation; a burst also carries `── next ──`, the
-# pr-round.sh call that reads it in full. CLOSED and ERROR carry neither.
+# pr-round.sh call that reads it in full. CLOSED, ERROR, DIRTY and BLOCKED carry
+# neither — none of the four clears without a human, so a re-armed watch would
+# report the same state on its next tick for as long as it kept being re-armed.
 #
 # WHAT --role CHANGES, since it is not a label. An author and a reviewer want
 # mirror images of each other from one PR, and taking it as an argument is what
@@ -63,6 +66,10 @@ for arg in "$@"; do
        esac ;;
   esac
 done
+
+# Before lib-poll.sh, which applies its own `WINDOW` default the moment it is
+# sourced — set after, this never fires and both roles silently get the long one.
+WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
 
 # shellcheck source=./lib-poll.sh
 . "$(dirname "$0")/lib-poll.sh"
@@ -105,8 +112,6 @@ fi
 # vanished watch the tracing exists to keep legible.
 [ "$bad" = 1 ] && fatal bad-args
 
-WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
-
 # Sized for an author's round, which is a burst — reply to three threads, then
 # push the fix. A reviewer's round is one write, needing only enough to cover
 # skew between sources.
@@ -127,11 +132,17 @@ obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0
 settle_until=0; settle_cap=0; holding_draft=0
 J=""; RAWC="[]"
 
+# A check name is forge-supplied and routinely contains a space — `build
+# (macos-latest)` is what a default matrix job is called — so anywhere a name is
+# printed it is quoted. Unquoted, the re-arm line is a syntax error rather than a
+# command, and a result line splits into fields nobody can parse.
+shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
 rearm_cmd() {
   printf '"%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s' \
     "$HERE" "$REPO" "$PR" "${new_head:-${obs_head:-\"\"}}" "$(poll_now_iso)" "$SLUG" "$ROLE" \
     "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)" \
-    "${verdict_sha:-$LAST_VERDICT}" "$checks_baseline"
+    "${verdict_sha:-$LAST_VERDICT}" "$(shq "$checks_baseline")"
 }
 
 emit_activity() {
@@ -153,11 +164,23 @@ verdict_field() {
 
 report_idle() { watch_rearm "$(rearm_cmd)"; echo "result=IDLE now=$(poll_now_iso)"; exit 0; }
 
+# Whether anything is still worth waking the caller for. A settle can outlive its
+# own reason — a red check that goes green again while the window holds — and
+# reporting an empty burst emits a bare `ACTIVITY activity=1` for activity that
+# never happened. One entry per thing that starts a settle; a verdict counts,
+# since a verdict standing at HEAD is a wake on its own with no flag set.
+have_burst() {
+  [ "$saw_ready" = 1 ] || [ "$saw_commits" = 1 ] || [ "$saw_activity" = 1 ] \
+    || [ -n "$saw_checks" ] || [ -n "$verdict_sha" ]
+}
+
 # A burst in hand outranks ERROR: the activity is real, and reporting ERROR
 # instead sends the caller to re-arm straight back into the failure having
 # silently dropped what was already seen.
 report_error() {
-  [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] && report_burst
+  if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] && have_burst; then
+    report_burst
+  fi
   echo "result=ERROR reason=$1 now=$(poll_now_iso)"
   exit 0
 }
@@ -167,23 +190,27 @@ report_burst() {
   emit_next
   [ -n "$saw_checks" ] && checks_baseline="$saw_checks"
   watch_rearm "$(rearm_cmd)"
+  local ck=""
+  [ -n "$saw_checks" ] && ck=" checks=$(shq "$saw_checks")"
   if [ -n "$saw_checks" ] && [ "$saw_ready" = 0 ] && [ "$saw_commits" = 0 ] \
      && [ "$saw_activity" = 0 ]; then
-    echo "result=CHECKS checks=$saw_checks$(verdict_field) now=$(poll_now_iso)"
+    echo "result=CHECKS checks=$(shq "$saw_checks")$(verdict_field) now=$(poll_now_iso)"
     exit 0
   fi
   if [ "$saw_ready" = 1 ]; then
-    echo "result=READY new_head=$new_head activity=$saw_activity${saw_checks:+ checks=$saw_checks}$(verdict_field) now=$(poll_now_iso)"
+    echo "result=READY new_head=$new_head activity=$saw_activity$ck$(verdict_field) now=$(poll_now_iso)"
   elif [ "$saw_commits" = 1 ]; then
-    echo "result=COMMITS new_head=$new_head activity=$saw_activity${saw_checks:+ checks=$saw_checks}$(verdict_field) now=$(poll_now_iso)"
+    echo "result=COMMITS new_head=$new_head activity=$saw_activity$ck$(verdict_field) now=$(poll_now_iso)"
   else
-    echo "result=ACTIVITY activity=1${saw_checks:+ checks=$saw_checks}$(verdict_field) now=$(poll_now_iso)"
+    echo "result=ACTIVITY activity=1$ck$(verdict_field) now=$(poll_now_iso)"
   fi
   exit 0
 }
 
-report_now() {  # <result> [extra]
-  watch_rearm "$(rearm_cmd)"
+# DIRTY and a terminal block carry no re-arm line, for the reason CLOSED and
+# ERROR carry none: neither clears without a human, so a caller re-arming from
+# one wakes on the same state every tick until someone intervenes.
+report_stop() {  # <result> [extra]
   echo "result=$1${2:+ $2} now=$(poll_now_iso)"
   exit 0
 }
@@ -210,8 +237,10 @@ while :; do
 
   if [ "$ok" = 0 ]; then
     poll_reset
-    [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
-      && [ "$(date +%s)" -ge "$settle_cap" ] && report_burst
+    if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
+       && [ "$(date +%s)" -ge "$settle_cap" ] && have_burst; then
+      report_burst
+    fi
     { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out && report_idle
     poll_nap; continue
   fi
@@ -230,9 +259,9 @@ while :; do
   if [ "$ROLE" = author ] && [ "$settle_until" = 0 ]; then
     MSTATUS=$(printf '%s' "$J" | jq -r '.merge.status')
     MCAUSE=$(printf '%s' "$J" | jq -r '.merge.cause // ""')
-    [ "$MSTATUS" = dirty ] && report_now DIRTY
+    [ "$MSTATUS" = dirty ] && report_stop DIRTY
     if [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
-      report_now BLOCKED "cause=terminal"
+      report_stop BLOCKED "cause=terminal"
     fi
   fi
 
@@ -244,9 +273,11 @@ while :; do
   checks_now=$(printf '%s' "$J" | jq -r '
     [ .checks[] | select(.state == "failure") | .name ] | sort | join(",")')
   # Green clears the baseline; a failure only advances it once it has been
-  # reported, which a settle in progress defers.
+  # reported, which a settle in progress defers. Green also withdraws a failure
+  # not yet reported — a check that recovers inside the settle it triggered is
+  # not news, and reporting it names a red build the caller would find green.
   if [ -z "$checks_now" ]; then
-    checks_baseline=""
+    checks_baseline=""; saw_checks=""
   elif [ "$checks_now" != "$checks_baseline" ]; then
     saw_checks="$checks_now"
   fi
@@ -298,7 +329,13 @@ while :; do
 
   if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
      && { [ "$(date +%s)" -ge "$settle_until" ] || [ "$(date +%s)" -ge "$settle_cap" ]; }; then
-    report_burst
+    if have_burst; then
+      report_burst
+    else
+      # Everything the settle was holding has been withdrawn. Drop back to
+      # watching rather than reporting a burst with nothing in it.
+      settle_until=0; settle_cap=0
+    fi
   fi
 
   { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out && report_idle

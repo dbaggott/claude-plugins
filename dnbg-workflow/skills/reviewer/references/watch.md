@@ -27,7 +27,12 @@ verdict together. **Run it first; it is what their handling below reads from.**
   `references/worktree.md` only if this *review* made a checkout or a scratch
   directory** — including one an earlier session made and this one resumed. A
   review run entirely through `gh` has nothing to remove.
-- **`IDLE`** — nothing within the polling window. Re-arm with the same state.
+- **`CHECKS`** (`checks='<names>'`) — a check on the watched head stopped
+  passing, and nothing else came with it. Not your finding to fix and not a
+  re-review: note it in your next reply if it touches what you asked for,
+  otherwise re-arm. The names are shell-quoted because forge check names
+  contain spaces.
+- **`IDLE`** — nothing within the polling window. Re-arm from the printed line.
 - **`ERROR reason=<source>`** — that source failed repeatedly and the watch
   cannot see. **Do not re-arm**: unlike `IDLE`, this says nothing about the PR,
   so re-arming polls straight back into the same failure while reporting
@@ -36,12 +41,15 @@ verdict together. **Run it first; it is what their handling below reads from.**
   rather than continuing to watch.
 - **`ERROR reason=bad-args`** — the same code, a different cause, and the
   remedy above is the wrong one: nothing failed, the watch refused to start
-  because an argument could not do its job. Fix the argument and re-spawn.
-  Three reach here: an empty `<slug>` (its filter would match no login, so the
-  watch wakes on its own posts), a `<last_head>` or `--last-verdict` value that
-  is neither empty nor a full 40-character lowercase SHA, and a trailing
-  argument that is neither `--was-draft` nor `--last-verdict=<sha>`. Don't send
-  the operator to `gh auth status` for any of them.
+  because an argument could not do its job. Fix the argument and re-spawn: a
+  missing or misspelled `--role` (it is required, and only `author` or
+  `reviewer` are accepted), an empty `<slug>` (its filter would match no login,
+  so the watch wakes on its own posts), a `<last_head>` or `--last-verdict`
+  value that is neither empty nor a full 40-character lowercase SHA, or a
+  trailing argument outside the accepted set. Auth is the one exception to
+  "nothing failed": the author role derives its own slug from `gh api user`, so
+  expired auth arrives here as an empty slug rather than as a source failure.
+  On the reviewer side you pass the slug, so it cannot be that.
 - **No `result=` line at all** — the task was killed or failed rather than
   returning (a session ending, a reload, exit 143). This is the dangerous one,
   because it looks exactly like a quiet PR while being the opposite: the
@@ -66,22 +74,22 @@ which filters out everything already reported. Deferring those replies deletes t
 can tell another reviewer's objection from an approval before fetching anything.
 It is a branching hint; `pr-round.sh` re-reads the verdict when you act on it.
 
-**Re-arm:** update `last_head`/`since_iso` to the values the watcher reported
-(`new_head`, `now`) and spawn it again. Repeat until `CLOSED` or the operator
-says to stop.
+**Re-arm from the `── re-arm ──` line the watch prints, not from values you
+assemble.** It carries the next invocation with every piece of state already
+filled in — the head it observed, `since` set to its own `now`, the verdict it
+reported, the checks it named. Run it as printed.
 
-**Carry the `now` the watcher reported; never substitute a fresh `date`.** The
-interval between the watcher's reading and yours is observed by no watch.
-Commits and verdicts survive it — both are level-triggered, by head SHA and by
-`--last-verdict` — but comments, replies and `COMMENTED` reviews are counted
-against `since_iso`, so anything conversational landing there is dropped
-indistinguishably from silence. `date` is right only for the *first* arm.
+Assembling it yourself is what loses a round: the interval between the
+watcher's reading and yours is observed by no watch, and reading the clock
+instead of carrying the reported `now` filters out anything that landed in that
+gap. Commits and verdicts survive it — both are level-triggered, by head SHA and
+by `--last-verdict` — but comments, replies and `COMMENTED` reviews are counted
+against `since`, so anything conversational landing there is dropped
+indistinguishably from silence.
 
-`verdict_sha` is reported the same way, and is the value to re-arm
-`--last-verdict` with — it appears only when the level-triggered check fired,
-so carry the previous value forward when it is absent. Re-arming with an empty
-`--last-verdict=` while a verdict you have already handled still stands at HEAD
-wakes every subsequent watch on its first tick.
+`CLOSED`, `ERROR`, `DIRTY` and `BLOCKED` print no re-arm line, because none of
+the four clears without a human. A killed task prints nothing at all — that is
+the one case where you rebuild the arguments yourself, per the bullet above.
 
 The same applies after a watch is **paused and resumed** — an operator interrupt,
 a session restart. The gap is invisible from the watcher's side, so re-establish

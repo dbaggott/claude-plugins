@@ -169,11 +169,11 @@ watcher returning is a trigger to re-discover, not to arm a second wait — two
 waits on one issue each paginate the whole timeline every tick and both report
 the same `CLOSED`.
 
-The same script the PR watch uses, in `--issue` mode — so this wait gets the same
-backoff curve and the same failure counting rather than its own. It returns
-`ACTIVITY` when a linked PR appears, `CLOSED` if the issue closes, `IDLE` on
-timeout, and `ERROR reason=issue-view` / `ERROR reason=issue-timeline` when one of
-its two sources keeps failing.
+`watch-issue.sh`, the issue-side sibling of the PR watch — same backoff curve,
+same failure counting, same re-arm contract. It returns `ACTIVITY` when a comment,
+a body edit or a linked PR lands (`kinds=` says which), `CLOSED` if the issue
+closes, `IDLE` on timeout, and `ERROR reason=issue-query` when its query keeps
+failing.
 
 **The wait polls sources 1 and 2 above, not source 1 alone.** It has to: source
 1 lists only PRs carrying a closing keyword, so a wait built on it is strictly
@@ -206,17 +206,20 @@ the catch-all**:
 
 - **`ACTIVITY`** — references listed. Back to step 2.
 - **`CLOSED`** — the work was dropped or resolved without a PR. Say so and stop.
-- **`ERROR reason=issue-view`** — the watch could not see the issue. **Do not
+- **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
   re-arm**, and do **not** report that nothing has landed: you do not know that.
-  Expired auth or a wrong issue number produce exactly this. Check `gh auth
-  status` and that the issue number resolves, then tell the operator.
-- **`ERROR reason=issue-timeline`** / **`issue-timeline-shape`** — same remedy,
-  narrower cause: the issue was visible but its timeline was not, so the watch was
-  blind to precisely the mention-only PRs source 2 exists to catch. **Do not
-  re-arm** and do not report a quiet issue — a partial blindness reported as quiet
-  is the failure the two-source wait was built to remove. The `-shape` variant means
-  the endpoint answered but the payload stopped parsing, which is a schema change
-  rather than an outage: `gh auth status` will look fine, so check the payload.
+  Expired auth, or every issue number resolving to nothing, produces exactly this.
+  Check `gh auth status` and that the numbers resolve, then tell the operator.
+- **`ERROR reason=issue-query-shape`** — same remedy, different cause: the query
+  answered but the payload stopped parsing, so this is a schema change rather than
+  an outage and `gh auth status` will look fine. Check the payload.
+- **`ERROR reason=bad-args`** / **`unsupported-forge`** — the watch refused to
+  start. Nothing failed and nothing is blind: fix the arguments, or accept that the
+  repo is not on a forge this watch supports, and re-spawn.
+
+**`missing=<n,…>` on any result** names numbers that resolve to no issue — a
+typo, a transfer, or a PR number. They have already left the watch set, so say so
+rather than assuming those issues are quiet.
 - **`IDLE`** — the deadline elapsed with nothing. Re-arm (carrying the exclusion
   list forward), and after the second empty window tell the operator nothing has
   landed rather than waiting silently. Both sources ran, so this genuinely means no

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared polling primitives for the watchers in this directory. Sourced, never
-# executed — `watch-pr.sh` and `watch-merge.sh` both `.` this file.
+# executed — `watch-pr.sh` and `watch-issue.sh` both `.` this file.
 #
 # Two things live here because both watchers need them and neither can own them:
 # the poll-interval curve, and the awake clock.

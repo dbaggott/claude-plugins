@@ -88,7 +88,7 @@ row "${C_OK}● APPROVED — ready to merge.${C_OFF}" \
 beat 0.9
 row "${C_DIM}  gh pr merge 104 --repo dbaggott/claude-plugins --squash${C_OFF}" ""
 beat 0.8
-row "${C_TOOL}● Task${C_OFF}   watch-merge.sh 104 ${C_DIM}(background)${C_OFF}" ""
+row "${C_TOOL}● Task${C_OFF}   watch-pr.sh 104 --role=author ${C_DIM}(background)${C_OFF}" ""
 beat 1.8
 
 row "${C_USER}❯ !${C_OFF} gh pr merge 104 --repo dbaggott/claude-plugins --squash"
@@ -109,5 +109,5 @@ row "${C_SAY}  Summary — POLL_CURVE override shipped in pull/104.${C_OFF}" ""
 beat 0.8
 row "${C_SAY}  Observations — the default curve is unchanged.${C_OFF}" ""
 beat 0.8
-row "${C_SAY}  Actionable — watch-merge.sh takes no override.${C_OFF}" ""
+row "${C_SAY}  Actionable — the watcher takes no override.${C_OFF}" ""
 beat 5.0
