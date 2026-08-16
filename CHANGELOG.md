@@ -78,8 +78,7 @@ raises it that way.
 ## dnbg-workflow 2026.8.53 — 2026-08-15
 
 Warning markers across the plugin are down to the ones that mark a genuinely
-silent failure, so the remaining ones carry weight again. Roughly two thirds are
-gone.
+silent failure, so the remaining ones carry weight again.
 
 
 ## dnbg-practices 2026.8.6 — 2026-08-15
@@ -677,9 +676,9 @@ tell a covered repo from any other, and the only reachable "fail closed" would
 block every edit on the machine. The silence was the defect, not the fail-open.
 
 The README gains a **Requirements** section listing the binaries the plugin needs
-and what degrades without each, a documented Claude Code floor, and an honest
-platform statement: macOS and Linux are exercised, Windows/Git Bash is untested
-and not claimed.
+and what degrades without each, a documented Claude Code floor of **v2.1.207**,
+and an honest platform statement: macOS and Linux are exercised, Windows/Git Bash
+is untested and not claimed.
 
 
 ## dnbg-workflow 2026.8.10 — 2026-08-08
@@ -850,9 +849,9 @@ deliberate, since the skills' `gh` usage has not been verified against them.
 
 ## dnbg-workflow 2026.8.3 — 2026-08-07
 
-The plugin no longer updates itself. `update-marketplace.sh` and its session-start
-hook are removed — the plugin now makes no network access at all, and what you
-install is what runs until you update it.
+The plugin no longer updates itself. Its self-update hook is removed, so it now
+makes no network access at all, and what you install is what runs until you
+update it.
 
 Claude Code's own per-marketplace auto-update does the same job and does it
 sooner: it checks after each session starts rather than throttling to once every
