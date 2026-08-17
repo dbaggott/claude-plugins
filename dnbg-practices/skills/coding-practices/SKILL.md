@@ -86,8 +86,9 @@ def payment_token(user): ...
 ```
 
 **When you do write a comment, write the *why*, not a restatement of the code.**
-A short statement of what a block is *for* passes; what fails is echoing the
-mechanism the code already shows.
+A stretch of code with no name of its own — a block of steps inside a function —
+can take a line saying what it is for; a named function already has one, and
+repeating it is the restatement below.
 
 ```python
 # don't — restates the code
@@ -131,10 +132,11 @@ These all fail that bar:
   and PR body.
 - **A restatement of the identifier.** `# the user's email` above `user_email`
   spends a line to say nothing.
-- **A confirmation of what the reader already assumes.** A comment earns its
-  line by naming a *deviation* from what a competent reader expects, never by
-  agreeing with the expectation. "This `types:` list replaces the defaults
-  rather than extending them" is worth writing only if the list *extended* them.
+- **A confirmation of what the reader already assumes.** A comment stating how
+  something behaves earns its line by naming a *deviation* from what a competent
+  reader expects, never by agreeing with the expectation. Against "this `types:`
+  list replaces the defaults rather than extending them", a comment would be
+  worth writing only if the list *extended* them.
 - **A defence against a mistake nobody would make.** Anticipating an implausible
   misreading costs every real reader attention.
 - **A warning about what breaks if the code changes.** State the property the
@@ -143,10 +145,12 @@ These all fail that bar:
   earns its line; "an implementation that assigned unconditionally would leave
   that open" does not.
 
-  **Where a test already fails on the change being warned against, the warning
-  goes regardless of voice** — the comment is a second copy of the test's intent,
-  and it is the copy that rots. Litmus: *if I made the change this warns against,
-  would something go red?* If yes, cut it.
+  **Where a test already fails on the change being warned against, the guard
+  goes** — both the argument for it and the restatement of the behaviour it
+  pins are second copies of what the test holds, and the copies are what rot.
+  Litmus for whether a test pins it: *if I made the change this warns against,
+  would something go red?* What stays either way is why the behaviour matters,
+  which no test carries.
 - **A rationale that belongs on the definition.** When passing a config value at
   a call site, set it plainly — the strategy, the options and why one is chosen
   live on the variable's own `description`. Two copies is one to keep in sync.
