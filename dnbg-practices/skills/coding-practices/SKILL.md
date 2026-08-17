@@ -85,9 +85,9 @@ def payment_token(user): ...
 "dispatch" (hand work to its owner) · "worklist" (the open set of items)
 ```
 
-**When you do write a comment, keep it to a line and write the *why*.** What
-fails is restating the mechanism the code already shows, not a short statement of
-what a block is *for*.
+**When you do write a comment, write the *why*, not a restatement of the code.**
+A short statement of what a block is *for* passes; what fails is echoing the
+mechanism the code already shows.
 
 ```python
 # don't — restates the code
