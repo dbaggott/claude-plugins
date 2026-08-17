@@ -85,7 +85,9 @@ def payment_token(user): ...
 "dispatch" (hand work to its owner) · "worklist" (the open set of items)
 ```
 
-**When you do write a comment, write the *why*, not the *what*.**
+**When you do write a comment, keep it to a line and write the *why*.** What
+fails is restating the mechanism the code already shows, not a short statement of
+what a block is *for*.
 
 ```python
 # don't — restates the code
@@ -129,13 +131,29 @@ These all fail that bar:
   and PR body.
 - **A restatement of the identifier.** `# the user's email` above `user_email`
   spends a line to say nothing.
+- **A confirmation of what the reader already assumes.** A comment earns its
+  line by naming a *deviation* from what a competent reader expects, never by
+  agreeing with the expectation. "This `types:` list replaces the defaults
+  rather than extending them" is worth writing only if the list *extended* them.
 - **A defence against a mistake nobody would make.** Anticipating an implausible
   misreading costs every real reader attention.
+- **A warning about what breaks if the code changes.** State the property the
+  code holds, positively — that is what a reader needs in a case the warning
+  doesn't enumerate. "Re-pointing hands one account's credential to another"
+  earns its line; "an implementation that assigned unconditionally would leave
+  that open" does not.
+
+  **Where a test already fails on the change being warned against, the warning
+  goes regardless of voice** — the comment is a second copy of the test's intent,
+  and it is the copy that rots. Litmus: *if I made the change this warns against,
+  would something go red?* If yes, cut it.
 - **A rationale that belongs on the definition.** When passing a config value at
   a call site, set it plainly — the strategy, the options and why one is chosen
   live on the variable's own `description`. Two copies is one to keep in sync.
   Comment the call site only when the *choice* is surprising in a way the
   definition can't cover: a temporary override, an exception to a convention.
+  The same holds for a comment that would fit at several call sites: make it
+  once, where the thing is defined, rather than pasting it at each.
 - **A specific value the point doesn't rest on.** "The token expires after 1
   hour, so re-mint rather than reusing it" — when the issuer makes it two hours,
   the advice is still right and the comment is now wrong. Nothing forces the fix,
@@ -174,7 +192,9 @@ for. So are provenance markers that change how much a reader should trust a clai
 not its history.
 
 **Prefer an assertion to a prose invariant.** A test fails loudly; a comment rots
-quietly. General form: **enforceable > prose > nothing.**
+quietly. General form: **enforceable > prose > nothing.** Once the assertion
+lands, the prose it displaces goes with it — see *A warning about what breaks if
+the code changes* above.
 
 ## What earns a line in agent-facing prose
 
