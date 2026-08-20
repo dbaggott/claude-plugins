@@ -724,11 +724,6 @@ remote_read_calls() {  # <SKILL.md>
   [ "$bad" -eq 0 ]
 }
 
-# "Review this issue" names two reviews — the body as a spec, and the PRs that
-# resolve it — and each skill can only route the ask it does NOT handle by naming
-# the other. A skill that stops naming its counterpart silently absorbs both asks,
-# which is the failure the pair exists to prevent: it looks like it is working
-# while the other review never happens.
 @test "the two issue reviews each name the other" {
   local spec="$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md"
   local pr="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
@@ -740,20 +735,14 @@ remote_read_calls() {  # <SKILL.md>
     echo "reviewer/SKILL.md no longer names issue-reviewer — a spec review routes nowhere"
     false; }
 
-  # The pointer has to reach the description too. Routing happens before any file
-  # is read, so a counterpart named only in the body is invisible at the moment
-  # the choice is made.
   local desc
   desc=$(sed -n '/^description:/p' "$pr")
   grep -q 'issue-reviewer' <<<"$desc" || {
-    echo "reviewer's description does not name issue-reviewer, so nothing routes away from it"
+    echo "reviewer's description does not name issue-reviewer — routing happens before"
+    echo "  any file is read, so a counterpart named only in the body is never seen"
     false; }
 }
 
-# `issue-workflow`'s paths are reachable only through the pointers SKILL.md
-# carries — nothing else in the plugin names those files, and the claim check above
-# reads resolving.md directly, so dropping a pointer would strand a whole path with
-# the suite green. Same silent direction the reviewer pointer test covers.
 @test "issue-workflow SKILL.md still points at each of its paths" {
   local skill="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" f
   for f in creating resolving spec-review-rounds; do
