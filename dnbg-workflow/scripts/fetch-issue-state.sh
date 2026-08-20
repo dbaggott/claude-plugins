@@ -9,7 +9,7 @@
 #               "comments_total":…,"comments_returned":…,"linked_prs":[…]}],
 #    "missing":[…]}
 #   result=OK now=<iso> [missing=<n,n>]
-#   result=ERROR reason=bad-args|issue-query|issue-query-shape now=<iso>
+#   result=ERROR reason=bad-args|unsupported-forge|issue-query|issue-query-shape now=<iso>
 #
 # One aliased query per tick for any N. The batch is the point: a watch over
 # eight issues costs the same request as one, and state, the body-edit stamp,

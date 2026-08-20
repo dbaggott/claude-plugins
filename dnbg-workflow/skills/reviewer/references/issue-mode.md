@@ -221,6 +221,11 @@ the catch-all**:
   PR references the issue — **don't reach for "the issue number is probably wrong"
   as the explanation**.
 
+**Re-arm from the `── re-arm ──` line the watch prints, never from the clock.** It
+carries `since` set to that run's own `now`, and folds in any newly-seen PR;
+activity is counted against `since`, so anything landing between one run returning
+and the next starting is filtered out for good rather than deferred.
+
 Two fields ride any of those results, and both mean an issue has left the set:
 
 - **`closed=<n,…>`** appears on an `ACTIVITY` line when an issue closed in the

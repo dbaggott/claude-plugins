@@ -1,6 +1,6 @@
 ---
 name: issue-workflow
-description: How to create, maintain, and pick up GitHub issues so context survives the handoff to whoever resolves them cold. Load when about to create a GitHub issue (any `gh issue create`), file follow-up work as an issue, update one after partial progress or a referenced PR closing, label one along the type and `area:*` axes, assign or dispatch one to anyone (person or bot), or pick up an issue named by number or URL ("resolve #245", "do issue 245", "work on <issue URL>") — on pickup load this *before* reading any file or opening a worktree, since claiming the issue comes first. Also load before a PR leaves draft when the implementation departed from the approach the issue described. The pickup trigger is an issue being named, not the user's choice of words. Skip for merely referencing an issue.
+description: How to create, maintain, and pick up GitHub issues so context survives the handoff to whoever resolves them cold. Load when about to create a GitHub issue (any `gh issue create`), file follow-up work as an issue, update one after partial progress or a referenced PR closing, label one along the type and `area:*` axes, assign or dispatch one to anyone (person or bot), or pick up an issue named by number or URL ("resolve #245", "do issue 245", "work on <issue URL>") — on pickup load this *before* reading any file or opening a worktree, since claiming the issue comes first. Also load before a PR leaves draft when the implementation departed from the approach the issue described, and when answering a reviewer's findings on an issue body you wrote. The pickup trigger is an issue being named, not the user's choice of words. Skip for merely referencing an issue, and for reviewing someone's issue body yourself, which is `issue-reviewer`.
 ---
 
 # Issue workflow
@@ -30,14 +30,18 @@ The URL case is the common one, not the exception: the always-on rule requires i
 
 Two cases that are **not** a decline, both reachable only on route 2: a repo with **no `origin`** makes no forge claim either way, so proceed and let the operator direct rather than assuming a host; and where **several remotes** exist, `origin` decides, matching the enforcement hooks.
 
-## Two paths, and they need different things
+## Separate paths, and they need different things
 
-Filing an issue and resolving one are separate tasks with almost no overlap, so
-each lives in its own file. Read the one you are on:
+Filing an issue, defending one under review, and resolving one are separate tasks
+with almost no overlap, so each lives in its own file. Read the one you are on:
 
 - **Creating or updating an issue** → `references/creating.md`. Self-documenting
   bodies, verified anchors, and labels. Keeping a body current as work ships is
-  "Maintaining issues" below, since it fires on both paths.
+  "Maintaining issues" below, since it fires on every path.
+- **Answering a review of the issue body itself** → `references/spec-review-rounds.md`.
+  Responding per finding ID, the edit-then-comment ordering the reviewer reads
+  your state from, and waiting on the next round. The reviewer's side is the
+  `issue-reviewer` skill.
 - **Picking up an issue to resolve it** → `references/resolving.md`. Claiming it
   (and checking it is not already claimed), the freshness probe, the critical
   review of the issue itself, and the link-following discipline.

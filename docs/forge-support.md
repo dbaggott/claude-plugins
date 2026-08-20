@@ -53,19 +53,21 @@ is [the per-forge
 backends'](https://github.com/dbaggott/claude-plugins/issues/149) job rather than
 something to do by halves here.
 
-*What* it checks differs by skill, because the five coupled skills don't all act
-on the repo you're standing in:
+*What* it checks differs by skill, because the coupled skills don't all act on the
+repo you're standing in:
 
 | Skill | Acts on | Declines when |
 | --- | --- | --- |
 | `git-workflow` | the repo whose tracked file you're changing | that repo's `origin` host isn't `github.com` |
 | `issue-workflow` | the repo the issue lives in | the host **in the issue URL** isn't `github.com` — or, for a bare issue number, that repo's `origin` |
+| `issue-reviewer` | the repo the issues under review live in | the host **in the issue URL** isn't `github.com` — or, for a bare issue number, that repo's `origin` |
 | `reviewer` | a pull request you name explicitly | the *named* repo isn't on GitHub |
 | `reviewer-setup` | a GitHub App on your machine | never — no repo is involved |
 | `work-summary` | your GitHub account, via `gh search` | never — no repo is involved |
 
-The last three deliberately ignore your working directory, and so does
-`issue-workflow` whenever the issue is named by full URL — which the always-on
+`reviewer`, `reviewer-setup` and `work-summary` deliberately ignore your working
+directory, and so do `issue-workflow` and `issue-reviewer` whenever the issue is
+named by full URL — which the always-on
 rule requires, so it is the normal case. Asking for a recap of your GitHub week,
 or picking up a GitHub issue, while sitting in a GitLab checkout is a coherent
 request, and gating it on `git remote get-url origin` would refuse a flow that

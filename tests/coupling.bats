@@ -568,7 +568,7 @@ remote_read_calls() {  # <SKILL.md>
 @test "only the repo-scoped skills read the remote to decide whether to run" {
   local f skill plugin bad=0
   while read -r skill plugin; do
-    case "$skill" in git-workflow|issue-workflow) continue ;; esac
+    case "$skill" in git-workflow|issue-workflow|issue-reviewer) continue ;; esac
     f="$ROOT/$plugin/skills/$skill/SKILL.md"
     if remote_read_calls "$f"; then
       echo "$skill is not repo-scoped but reads the origin remote — see docs/forge-support.md 'What happens on an unsupported forge'"
@@ -655,6 +655,26 @@ remote_read_calls() {  # <SKILL.md>
   fi
 }
 
+# Banning an inheriting rule cannot see a row that was never added, which is how a
+# coupled skill reaches the docs with no decline rule stated anywhere. The README's
+# Forge column is the source: a skill it marks GitHub-only declines somewhere, and
+# this is where users look for where.
+@test "every forge-coupled skill has a row in the decline table" {
+  local rows skill plugin forge bad=0
+  rows=$(awk '/^## What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
+      "$ROOT/docs/forge-support.md" | grep -oE '^\| `[a-z-]+`' | tr -d '|` ')
+  [ -n "$rows" ] || { echo "no rows parsed out of the decline table — the extractor broke"; false; }
+
+  while read -r skill plugin forge; do
+    [ "$forge" = coupled ] || continue
+    grep -qx "$skill" <<<"$rows" || {
+      echo "$skill is forge-coupled in README.md but has no row in docs/forge-support.md"
+      echo "  a reader hitting its decline has nowhere to look up what it checks"
+      bad=1; }
+  done < <(readme_skill_rows "$ROOT/README.md")
+  [ "$bad" -eq 0 ]
+}
+
 # Every file under `reviewer/references/` is reachable only through the pointer
 # SKILL.md carries for it — nothing else in the plugin names one, and the discovery
 # check above reads issue-mode.md directly, so dropping a pointer leaves that file
@@ -673,7 +693,7 @@ remote_read_calls() {  # <SKILL.md>
   local s skill f bad=0
   # Every skill with a references/ directory, so a new one is covered by adding its
   # name rather than by copying the loop.
-  for s in reviewer git-workflow; do
+  for s in reviewer issue-reviewer git-workflow; do
     local found=0
     skill="$ROOT/dnbg-workflow/skills/$s/SKILL.md"
     # `nullglob` so an emptied references/ yields no iterations rather than one over
@@ -724,13 +744,62 @@ remote_read_calls() {  # <SKILL.md>
   [ "$bad" -eq 0 ]
 }
 
-# `issue-workflow`'s two halves are reachable only through the pointers SKILL.md
-# carries — nothing else in the plugin names either file, and the claim check above
-# reads resolving.md directly, so dropping a pointer would strand a whole path with
-# the suite green. Same silent direction the reviewer pointer test covers.
-@test "issue-workflow SKILL.md still points at both halves" {
+# An ERROR reason the prose does not name falls into a catch-all, and all three
+# consumers say that must not happen — a watch that could not see gets reported as
+# a quiet issue. The set now lives in four places, so it is pinned to the one that
+# emits it. Only this direction is checked: a reason the script gained and the
+# prose lacks. The reverse needs an extractor over prose, which would be fragile
+# in exactly the way this test is not.
+@test "every watch-issue ERROR reason is documented wherever the watch is dispatched" {
+  local src="$ROOT/dnbg-workflow/scripts/fetch-issue-state.sh"
+  local reasons r f bad=0
+  reasons=$(grep -oE '\bfail [a-z-]+' "$src" | sed 's/^fail //' | sort -u)
+  [ -n "$reasons" ] || { echo "no fail reasons found in $(basename "$src") — the extractor broke"; false; }
+
+  for f in "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md" \
+           "$ROOT/dnbg-workflow/skills/issue-reviewer/references/rounds.md" \
+           "$ROOT/dnbg-workflow/skills/issue-workflow/references/spec-review-rounds.md"; do
+    for r in $reasons; do
+      # Hyphen-aware boundary: without it `issue-query` matches inside
+      # `issue-query-shape` and an undocumented reason reads as covered.
+      grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" "$f" || {
+        echo "${f#"$ROOT"/} does not name ERROR reason '$r' — it would fall to the catch-all"
+        bad=1; }
+    done
+  done
+
+  # The script's own header is a fifth copy, and the one a reader builds a
+  # dispatch table from.
+  for r in $reasons; do
+    sed -n '1,40p' "$src" | grep -q "$r" || {
+      echo "$(basename "$src") emits '$r' but its header does not declare it"
+      bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
+@test "the two issue reviews each name the other" {
+  local spec="$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md"
+  local pr="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
+
+  grep -q 'issue-mode\.md' "$spec" || {
+    echo "issue-reviewer/SKILL.md no longer names issue-mode.md — a resolution review routes nowhere"
+    false; }
+  grep -q 'issue-reviewer' "$pr" || {
+    echo "reviewer/SKILL.md no longer names issue-reviewer — a spec review routes nowhere"
+    false; }
+
+  local desc
+  desc=$(sed -n '/^description:/p' "$pr")
+  grep -q 'issue-reviewer' <<<"$desc" || {
+    echo "reviewer's description does not name issue-reviewer — routing happens before"
+    echo "  any file is read, so a counterpart named only in the body is never seen"
+    false; }
+}
+
+@test "issue-workflow SKILL.md still points at each of its paths" {
   local skill="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" f
-  for f in creating resolving; do
+  for f in creating resolving spec-review-rounds; do
     [ -f "$ROOT/dnbg-workflow/skills/issue-workflow/references/$f.md" ] || {
       echo "references/$f.md is missing"; false; }
     grep -q "references/$f\.md" "$skill" || {
