@@ -640,10 +640,25 @@ remote_read_calls() {  # <SKILL.md>
 # What it does buy is that a rule change has to touch the cell that states it,
 # which is the step that was skipped. Keeping the artifacts honest past that
 # stays a manual step, deliberately.
-# The sibling check below bans an inheriting rule but cannot see a row that was
-# never added, which is how a coupled skill reaches the docs with no decline rule
-# stated anywhere. The README's Forge column is the source: a skill it marks
-# GitHub-only declines somewhere, and this is where users look for where.
+@test "every row of the decline table states its own rule instead of inheriting one" {
+  local offenders
+  # `|| true` because finding nothing is the passing case, and bats runs with
+  # errexit — without it a clean table fails the assignment rather than the test.
+  offenders=$(awk '/^## What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
+      "$ROOT/docs/forge-support.md" \
+    | grep -E '^\| `[a-z-]+` \|' \
+    | grep -iE '\|[[:space:]]*(same|as above|ditto|likewise)[[:space:]]*\|' || true)
+  if [ -n "$offenders" ]; then
+    echo "$offenders"
+    echo "a decline-table row inherits its rule from a neighbour — spell it out, or it cannot go visibly stale"
+    false
+  fi
+}
+
+# Banning an inheriting rule cannot see a row that was never added, which is how a
+# coupled skill reaches the docs with no decline rule stated anywhere. The README's
+# Forge column is the source: a skill it marks GitHub-only declines somewhere, and
+# this is where users look for where.
 @test "every forge-coupled skill has a row in the decline table" {
   local rows skill plugin forge bad=0
   rows=$(awk '/^## What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
@@ -658,21 +673,6 @@ remote_read_calls() {  # <SKILL.md>
       bad=1; }
   done < <(readme_skill_rows "$ROOT/README.md")
   [ "$bad" -eq 0 ]
-}
-
-@test "every row of the decline table states its own rule instead of inheriting one" {
-  local offenders
-  # `|| true` because finding nothing is the passing case, and bats runs with
-  # errexit — without it a clean table fails the assignment rather than the test.
-  offenders=$(awk '/^## What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
-      "$ROOT/docs/forge-support.md" \
-    | grep -E '^\| `[a-z-]+` \|' \
-    | grep -iE '\|[[:space:]]*(same|as above|ditto|likewise)[[:space:]]*\|' || true)
-  if [ -n "$offenders" ]; then
-    echo "$offenders"
-    echo "a decline-table row inherits its rule from a neighbour — spell it out, or it cannot go visibly stale"
-    false
-  fi
 }
 
 # Every file under `reviewer/references/` is reachable only through the pointer

@@ -119,11 +119,6 @@ catch-all**:
 - **`CLOSED`** — the issue was closed rather than answered. Say so and stop.
 - **`IDLE`** — the deadline elapsed. Re-arm; after a second empty window, tell the
   operator nothing has landed rather than waiting silently.
-
-**Re-arm from the `── re-arm ──` line the watch prints, never from the clock.** It
-carries `since` set to that run's own `now`; activity is counted against `since`,
-so anything landing between one run returning and the next starting is filtered
-out for good rather than deferred.
 - **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
   re-arm**, and do not report that the author has not responded: you do not
   know that. Check `gh auth status` and that the numbers resolve, then tell the
@@ -132,6 +127,11 @@ out for good rather than deferred.
   stopped parsing, so auth will look fine. Check the payload.
 - **`ERROR reason=bad-args`** / **`unsupported-forge`** — the watch never started.
   Fix the arguments, or accept the forge, and re-spawn.
+
+**Re-arm from the `── re-arm ──` line the watch prints, never from the clock.** It
+carries `since` set to that run's own `now`; activity is counted against `since`,
+so anything landing between one run returning and the next starting is filtered
+out for good rather than deferred.
 
 `missing=<n,…>` on any result names numbers that resolve to no issue — a typo, a
 transfer, or a PR number. Say so rather than reporting those issues as quiet.
