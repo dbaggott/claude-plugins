@@ -53,6 +53,19 @@ issue named by full URL carries its host in the URL, and only a bare number fall
 back to `git remote get-url origin`. If the host is not `github.com`, say so, name
 what you found, and stop.
 
+**Mint a token before reviewing anything, and throw it away.** The mint audits
+what the App was actually granted and reports any shortfall, so this is what turns
+a missing `issues` permission into a message you get now rather than one that
+arrives with the first post — after a full review has been composed against a set
+of issues:
+
+```bash
+"<skill-dir>/../reviewer/mint-token.sh" >/dev/null || exit 1
+```
+
+A quiet run is the confirmation. The token itself is not reused: an agent harness
+starts a fresh shell per call, so the one that posts mints its own.
+
 **Read every issue in the set before judging any of it.** The set-level findings
 below are the ones no single-issue review can reach, and they are only visible
 once every body is in hand.
@@ -220,8 +233,8 @@ wake a watch that filters the operator's login out.
 
 The App needs `issues: write` for any of this. One created before that permission
 was declared never gains it — a manifest is read once — so an install that
-predates it must go through `reviewer-setup`'s **Repair / rotate** path. The
-shortfall is reported at mint time, by the mint itself.
+predates it goes through `reviewer-setup`'s **Repair / rotate** path, which is
+where the mint's shortfall message points.
 
 ## What the comment is for
 

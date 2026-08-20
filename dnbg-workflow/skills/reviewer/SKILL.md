@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Act as an independent code reviewer on a pushed GitHub PR. Review it, post a real GitHub review under your bot identity carrying exactly one binding verdict, then keep watching in-session — re-reviewing new commits, answering replies, resolving threads — until it merges. Also covers being assigned as the reviewer for an **issue** rather than a PR, reviewing the whole set of PRs that resolve it against its acceptance criteria. Load when asked to review a PR, act as the reviewer, be the reviewer on an issue ("you review issue 74", "review <issue URL>"), watch or keep-reviewing a PR, review a teammate's PR or your own before merge, or re-review after new commits. Requires a one-time `reviewer-setup`. Skip for your own uncommitted/working diff — use `/code-review` for that.
+description: Act as an independent code reviewer on a pushed GitHub PR. Review it, post a real GitHub review under your bot identity carrying exactly one binding verdict, then keep watching in-session — re-reviewing new commits, answering replies, resolving threads — until it merges. Also covers being assigned as the reviewer for an **issue** rather than a PR, reviewing the whole set of PRs that resolve it against its acceptance criteria. Load when asked to review a PR, act as the reviewer, be the reviewer on an issue ("you review issue 74", "watch for PRs on this issue"), watch or keep-reviewing a PR, review a teammate's PR or your own before merge, or re-review after new commits. Requires a one-time `reviewer-setup`. Skip for your own uncommitted/working diff — use `/code-review` for that. Skip for judging an issue's own body as a spec, which is `issue-reviewer`; a bare "review <issue URL>" names neither and is a question for the operator.
 ---
 
 # Reviewer
@@ -42,7 +42,21 @@ to review a PR; use `/code-review` for uncommitted changes.
 
 The operator can assign you as the reviewer for an **issue** rather than for a
 single PR — "you review issue 74", "be the reviewer on <issue URL>", whether or
-not any PR exists yet.
+not any PR exists yet. What you review is the **PRs that resolve it**.
+
+**Judging the issue's own body is a different review, and it is
+`issue-reviewer`.** That one asks whether the body is correct and resolvable
+cold; this one asks whether the work satisfies it. Both are things an operator
+asks for, both are named "review this issue", and picking wrong fails silently in
+either direction — this mode arms an open-ended watch on work nobody has started,
+and that one leaves the PRs unreviewed.
+
+Route on the phrasing rather than on whether any PR exists yet: this mode is
+"be the reviewer on issue N", "watch for PRs on this issue", "review the work
+resolving this". **On any doubt — a bare "review <issue URL>" being the common
+case — ask the operator** with `AskUserQuestion` rather than picking. Unattended,
+with nobody to ask, `issue-reviewer` takes it, because a spec review terminates
+and this one does not.
 
 **Read `references/issue-mode.md` before acting on one, and don't improvise
 from the PR flow below.** That mode discovers the PRs resolving

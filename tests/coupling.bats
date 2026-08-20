@@ -673,7 +673,7 @@ remote_read_calls() {  # <SKILL.md>
   local s skill f bad=0
   # Every skill with a references/ directory, so a new one is covered by adding its
   # name rather than by copying the loop.
-  for s in reviewer git-workflow; do
+  for s in reviewer issue-reviewer git-workflow; do
     local found=0
     skill="$ROOT/dnbg-workflow/skills/$s/SKILL.md"
     # `nullglob` so an emptied references/ yields no iterations rather than one over
@@ -724,13 +724,39 @@ remote_read_calls() {  # <SKILL.md>
   [ "$bad" -eq 0 ]
 }
 
-# `issue-workflow`'s two halves are reachable only through the pointers SKILL.md
-# carries — nothing else in the plugin names either file, and the claim check above
+# "Review this issue" names two reviews — the body as a spec, and the PRs that
+# resolve it — and each skill can only route the ask it does NOT handle by naming
+# the other. A skill that stops naming its counterpart silently absorbs both asks,
+# which is the failure the pair exists to prevent: it looks like it is working
+# while the other review never happens.
+@test "the two issue reviews each name the other" {
+  local spec="$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md"
+  local pr="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
+
+  grep -q 'issue-mode\.md' "$spec" || {
+    echo "issue-reviewer/SKILL.md no longer names issue-mode.md — a resolution review routes nowhere"
+    false; }
+  grep -q 'issue-reviewer' "$pr" || {
+    echo "reviewer/SKILL.md no longer names issue-reviewer — a spec review routes nowhere"
+    false; }
+
+  # The pointer has to reach the description too. Routing happens before any file
+  # is read, so a counterpart named only in the body is invisible at the moment
+  # the choice is made.
+  local desc
+  desc=$(sed -n '/^description:/p' "$pr")
+  grep -q 'issue-reviewer' <<<"$desc" || {
+    echo "reviewer's description does not name issue-reviewer, so nothing routes away from it"
+    false; }
+}
+
+# `issue-workflow`'s paths are reachable only through the pointers SKILL.md
+# carries — nothing else in the plugin names those files, and the claim check above
 # reads resolving.md directly, so dropping a pointer would strand a whole path with
 # the suite green. Same silent direction the reviewer pointer test covers.
-@test "issue-workflow SKILL.md still points at both halves" {
+@test "issue-workflow SKILL.md still points at each of its paths" {
   local skill="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" f
-  for f in creating resolving; do
+  for f in creating resolving spec-review-rounds; do
     [ -f "$ROOT/dnbg-workflow/skills/issue-workflow/references/$f.md" ] || {
       echo "references/$f.md is missing"; false; }
     grep -q "references/$f\.md" "$skill" || {

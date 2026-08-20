@@ -9,6 +9,7 @@
   ],
   "required": {
     "pull_requests": "write",
+    "issues": "write",
     "contents": "write",
     "checks": "read",
     "actions": "read",
@@ -17,6 +18,7 @@
   },
   "why": {
     "pull_requests": "submit reviews, inline comments, thread replies",
+    "issues": "post and minimize the verdict comments of an issue-body review",
     "contents": "read the diff; resolve threads; have the verdict counted at all",
     "checks": "check runs",
     "actions": "checkSuite.workflowRun, which the rollup dereferences",
@@ -25,6 +27,7 @@
   },
   "consequence": {
     "pull_requests": "reviews and inline comments cannot be posted",
+    "issues": "an issue-body review cannot post its verdicts. Falling back to your own account instead deadlocks it silently — the author's watch excludes exactly that login, so it never wakes while both sides report a healthy watch.",
     "contents": "reviews post but do not count \u2014 GitHub leaves a review by an App without this out of latestOpinionatedReviews, so reviewDecision never moves and the merge box ignores the verdict. Resolving a thread also fails.",
     "checks": "check runs are invisible, so a red build reads as no build",
     "actions": "the rollup cannot dereference workflow runs",
