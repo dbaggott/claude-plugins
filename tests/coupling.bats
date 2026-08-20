@@ -724,6 +724,40 @@ remote_read_calls() {  # <SKILL.md>
   [ "$bad" -eq 0 ]
 }
 
+# An ERROR reason the prose does not name falls into a catch-all, and all three
+# consumers say that must not happen — a watch that could not see gets reported as
+# a quiet issue. The set now lives in four places, so it is pinned to the one that
+# emits it. Only this direction is checked: a reason the script gained and the
+# prose lacks. The reverse needs an extractor over prose, which would be fragile
+# in exactly the way this test is not.
+@test "every watch-issue ERROR reason is documented wherever the watch is dispatched" {
+  local src="$ROOT/dnbg-workflow/scripts/fetch-issue-state.sh"
+  local reasons r f bad=0
+  reasons=$(grep -oE '\bfail [a-z-]+' "$src" | sed 's/^fail //' | sort -u)
+  [ -n "$reasons" ] || { echo "no fail reasons found in $(basename "$src") — the extractor broke"; false; }
+
+  for f in "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md" \
+           "$ROOT/dnbg-workflow/skills/issue-reviewer/references/rounds.md" \
+           "$ROOT/dnbg-workflow/skills/issue-workflow/references/spec-review-rounds.md"; do
+    for r in $reasons; do
+      # Hyphen-aware boundary: without it `issue-query` matches inside
+      # `issue-query-shape` and an undocumented reason reads as covered.
+      grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" "$f" || {
+        echo "${f#"$ROOT"/} does not name ERROR reason '$r' — it would fall to the catch-all"
+        bad=1; }
+    done
+  done
+
+  # The script's own header is a fifth copy, and the one a reader builds a
+  # dispatch table from.
+  for r in $reasons; do
+    sed -n '1,40p' "$src" | grep -q "$r" || {
+      echo "$(basename "$src") emits '$r' but its header does not declare it"
+      bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
 @test "the two issue reviews each name the other" {
   local spec="$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md"
   local pr="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
