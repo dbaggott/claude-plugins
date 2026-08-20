@@ -17,8 +17,8 @@ that gap is long enough for the author to move past what you reviewed.
 Before composing the verdict, re-read `lastEditedAt` for every issue in the round
 — one aliased query covers the set, the shape `SKILL.md` snapshots with. Then:
 
-- **Unmoved** — post the verdict you composed.
-- **Moved** — re-read that body and **recompose its verdict** against the new
+- Unmoved — post the verdict you composed.
+- Moved — re-read that body and recompose its verdict against the new
   text. It is re-reviewed, not annotated with a note that it moved.
 
 ⚠️ **The re-validation must be its own call, and its result read before the
@@ -27,9 +27,7 @@ and none of its purpose: the answer arrives after the comment has landed, so
 nothing was gated. Reading the value is not the gate either — comparing it against
 your own read time is.
 
-This narrows the window rather than closing it, since re-validating is never
-atomic with posting. The watermark `SKILL.md` has every verdict publish covers the
-remainder.
+What this cannot close, the watermark `SKILL.md` has every verdict publish covers.
 
 ## Read the delta, not the set again
 
@@ -37,8 +35,8 @@ GitHub will not diff issue bodies for you, so the snapshot you recorded is the
 only "before" that exists. Take a fresh one each round and diff against the stored
 copy rather than re-reading the set cold.
 
-A round reads the **body diff** since your last snapshot and the **response
-comment**, per finding ID. Nothing else: a body that did not move and a finding
+A round reads the body diff since your last snapshot and the response comment,
+per finding ID. Nothing else: a body that did not move and a finding
 with no response are both answers.
 
 ## Ordering, and what a response means
@@ -86,7 +84,7 @@ minimize both its own comments and the author's, which
 `IssueComment.viewerCanMinimize` confirms per comment.
 
 ```bash
-GH_TOKEN="$("<skill-dir>/../reviewer/mint-token.sh")" || exit 1
+GH_TOKEN="$("<skill-dir>/../reviewer/mint-token.sh" <owner>)" || exit 1
 export GH_TOKEN
 gh api graphql -f query='mutation($id: ID!) {
   minimizeComment(input: {subjectId: $id, classifier: RESOLVED}) {
@@ -121,8 +119,13 @@ catch-all**:
 - **`CLOSED`** — the issue was closed rather than answered. Say so and stop.
 - **`IDLE`** — the deadline elapsed. Re-arm; after a second empty window, tell the
   operator nothing has landed rather than waiting silently.
+
+**Re-arm from the `── re-arm ──` line the watch prints, never from the clock.** It
+carries `since` set to that run's own `now`; activity is counted against `since`,
+so anything landing between one run returning and the next starting is filtered
+out for good rather than deferred.
 - **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
-  re-arm**, and do **not** report that the author has not responded: you do not
+  re-arm**, and do not report that the author has not responded: you do not
   know that. Check `gh auth status` and that the numbers resolve, then tell the
   operator.
 - **`ERROR reason=issue-query-shape`** — the query answered but the payload
@@ -150,6 +153,3 @@ rather than in either session.
 **Re-read the bodies when prompted rather than trusting the relay** — a relayed
 summary is the "author claims fixed" case the ordering check exists for, one step
 further removed.
-
-This is the degraded mode: it costs an operator turn per round, and cannot run
-unattended at all.

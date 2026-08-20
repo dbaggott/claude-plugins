@@ -568,7 +568,7 @@ remote_read_calls() {  # <SKILL.md>
 @test "only the repo-scoped skills read the remote to decide whether to run" {
   local f skill plugin bad=0
   while read -r skill plugin; do
-    case "$skill" in git-workflow|issue-workflow) continue ;; esac
+    case "$skill" in git-workflow|issue-workflow|issue-reviewer) continue ;; esac
     f="$ROOT/$plugin/skills/$skill/SKILL.md"
     if remote_read_calls "$f"; then
       echo "$skill is not repo-scoped but reads the origin remote — see docs/forge-support.md 'What happens on an unsupported forge'"
@@ -640,6 +640,26 @@ remote_read_calls() {  # <SKILL.md>
 # What it does buy is that a rule change has to touch the cell that states it,
 # which is the step that was skipped. Keeping the artifacts honest past that
 # stays a manual step, deliberately.
+# The sibling check below bans an inheriting rule but cannot see a row that was
+# never added, which is how a coupled skill reaches the docs with no decline rule
+# stated anywhere. The README's Forge column is the source: a skill it marks
+# GitHub-only declines somewhere, and this is where users look for where.
+@test "every forge-coupled skill has a row in the decline table" {
+  local rows skill plugin forge bad=0
+  rows=$(awk '/^## What happens on an unsupported forge$/{inside=1; next} inside && /^##/{exit} inside' \
+      "$ROOT/docs/forge-support.md" | grep -oE '^\| `[a-z-]+`' | tr -d '|` ')
+  [ -n "$rows" ] || { echo "no rows parsed out of the decline table — the extractor broke"; false; }
+
+  while read -r skill plugin forge; do
+    [ "$forge" = coupled ] || continue
+    grep -qx "$skill" <<<"$rows" || {
+      echo "$skill is forge-coupled in README.md but has no row in docs/forge-support.md"
+      echo "  a reader hitting its decline has nowhere to look up what it checks"
+      bad=1; }
+  done < <(readme_skill_rows "$ROOT/README.md")
+  [ "$bad" -eq 0 ]
+}
+
 @test "every row of the decline table states its own rule instead of inheriting one" {
   local offenders
   # `|| true` because finding nothing is the passing case, and bats runs with

@@ -26,9 +26,7 @@ implementation is a coherent ask, and a resolution review is designed to be arme
 before any work exists.
 
 **On any doubt, ask** with `AskUserQuestion`, offering both readings. A bare
-"review <issue URL>" is the common doubtful case, not the only one. The operator's
-attention is on the request now, and a mode chosen wrong surfaces only after a
-full review has gone to the wrong artifact.
+"review <issue URL>" is the common doubtful case, not the only one.
 
 **Unattended, take the spec review** — this one — and say so in what you post. It
 terminates and a resolution review does not, so guessing this way costs a bounded
@@ -47,11 +45,13 @@ the App was actually granted, so a missing `issues` permission surfaces now rath
 than with the first post — after a full review has been composed:
 
 ```bash
-"<skill-dir>/../reviewer/mint-token.sh" >/dev/null || exit 1
+"<skill-dir>/../reviewer/mint-token.sh" <owner> >/dev/null || exit 1
 ```
 
-A quiet run is the confirmation. `<skill-dir>` is the **Base directory** announced
-when this skill loads; the script lives in `reviewer`, which shares the App.
+Pass the target repo's owner: the bot may be installed on several accounts, and
+the audit grades whichever installation it minted against. A quiet run is the
+confirmation. `<skill-dir>` is the **Base directory** announced when this skill
+loads; the script lives in `reviewer`, which shares the App.
 
 **Read every issue in the set before judging any of it** — the set-level findings
 below are visible only once every body is in hand.
@@ -76,8 +76,8 @@ been edited. Treat it as "has not moved", and use `createdAt` when you need an a
 ## The mechanical pass comes first
 
 Issue bodies have no CI, so stray markup, unresolvable URLs, and cited anchors
-that do not exist all reach the reader intact. They come first because they are
-cheap, countable, and get missed when they share attention with the judgment half.
+that do not exist all reach the reader intact, and get missed when they share
+attention with the judgment half.
 
 Compute these rather than eyeballing them:
 
@@ -92,18 +92,14 @@ Compute these rather than eyeballing them:
   body's argument rests on what sits at it, an observation when the surrounding
   prose still locates the thing.
 
-**Triage every match before reporting it.** A check that cries wolf on quoted
-examples is one a reviewer learns to skim, which costs the pass its whole value
-and fails in the same direction as the miss it exists to prevent. These questions
-settle almost all of it:
+**Triage every match before reporting it** — a check that cries wolf on quoted
+examples is one a reviewer learns to skim. These questions settle almost all of it:
 
 - **Is the match live text, or quoted?** A match inside a fence, inline backticks,
   or a blockquote is a specimen — prose about a markup defect quotes that defect,
   and an issue proposing a command shows the command.
 - **Is the path resolved from the right root?** Repo-relative paths resolve from
   the repository root, not from the directory the issue's subject lives in.
-
-Report what survives triage as findings like any other.
 
 ## The judgment pass
 
@@ -150,8 +146,7 @@ resolved as it stands, it is an observation. A `READY` may carry observations; a
 blocking finding is what `CHANGES REQUESTED` means.
 
 **Every blocking finding names the cost to a cold resolver** — what they would
-build wrong, waste, or miss. Prose review has an unbounded appetite for taste, and
-that clause is the leash: a finding that cannot name the cost is an observation.
+build wrong, waste, or miss. A finding that cannot name one is an observation.
 
 **Findings carry IDs** — `<issue>-B<n>` blocking, `<issue>-O<n>` observations, so
 `155-B1` and `156-O1`. The author responds per ID, and the next round is read
@@ -167,39 +162,29 @@ into a `<details>` block. It carries, in order: the verdict, the `lastEditedAt`
 the review was made against, the blocking findings by ID, then the observations.
 
 **Publishing that `lastEditedAt` is what makes a round that straddled an edit
-detectable afterwards** — the gate in `references/rounds.md` narrows that window
-but cannot close it.
+detectable afterwards.** The gate in `references/rounds.md` narrows that window;
+nothing closes it, because re-validating is never atomic with posting.
 
-Rounds post under the **bot identity**. Mint the token in the same call that
-spends it: an agent harness starts a fresh shell per call, so a mint in an earlier
-call is not in scope for this one and the post silently runs as you.
+Rounds post under the bot identity. Mint the token in the same call that spends
+it: an agent harness starts a fresh shell per call, so a mint in an earlier call
+is not in scope for this one and the post silently runs as you.
 
 ```bash
-GH_TOKEN="$("<skill-dir>/../reviewer/mint-token.sh")" || exit 1
+GH_TOKEN="$("<skill-dir>/../reviewer/mint-token.sh" <owner>)" || exit 1
 export GH_TOKEN
-gh issue comment <n> --repo <repo> --body-file <path>
+gh api repos/<repo>/issues/<n>/comments -F body=@<path> --jq .user.login
 ```
 
-⚠️ **Verify the posting identity on every comment.** A comment landing under the
-operator's login is excluded by the author's own watch, which filters exactly that
-login — so the author never wakes, you wait for a response to a comment nobody was
-told about, and both sides report a healthy watch. One field catches it:
+⚠️ **The printed login is the identity check, and it must be the bot's.** A
+comment landing under the operator's login is excluded by the author's own watch,
+which filters exactly that login — so the author never wakes, you wait for a
+response to a comment nobody was told about, and both sides report a healthy
+watch. Anything else means the token never arrived; fix that before posting the
+rest of the round.
 
-```bash
-gh api repos/<repo>/issues/comments/<comment-id> --jq '{user: .user.login}'
-```
-
-Anything but the bot's login means the token never arrived. Fix that before
-posting the rest of the round.
-
-**Creating and editing issues stays under the operator's credentials**, per
+Creating and editing issues stays under the operator's credentials, per
 `issue-workflow`; only review rounds post as the bot, and only because they must
 wake that watch.
-
-The App needs `issues: write`. One created before that permission was declared
-never gains it — a manifest is read once — so an older install goes through
-`reviewer-setup`'s **Repair / rotate** path, which is where the mint's shortfall
-message points.
 
 **The comment is the record.** Anything you would tell the operator about the
 artifact goes in the comment first; the chat summary points at it rather than

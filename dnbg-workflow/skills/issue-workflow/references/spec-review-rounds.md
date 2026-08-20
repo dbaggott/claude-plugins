@@ -1,7 +1,7 @@
 # Issue workflow: answering a spec review
 
 Part of the `issue-workflow` skill. Read this when a reviewer is reviewing your
-issue **bodies** as specs, posting a verdict per issue per round with findings you
+issue bodies as specs, posting a verdict per issue per round with findings you
 answer. `references/creating.md` covers writing a body in the first place; the
 reviewer's side is the `issue-reviewer` skill.
 
@@ -67,6 +67,11 @@ Dispatch on the result:
   `issue-query-shape` means the payload stopped parsing, so auth will look fine;
   `bad-args` and `unsupported-forge` mean it never started.
 
+**Re-arm from the `── re-arm ──` line the watch prints, never from the clock.** It
+carries `since` set to that run's own `now`; activity is counted against `since`,
+so anything landing between one run returning and the next starting is filtered
+out for good rather than deferred.
+
 **A dead watch is not a quiet review.** The watch lives in this session, so a
 background task returning no result line at all — killed, session ended, reloaded
 — is blindness rather than silence, and looks identical to a round nobody has
@@ -79,6 +84,6 @@ accepts the disposition; the final verdict says so. It can also halt — a round
 that disposes nothing new leaves the remainder as an operator decision.
 
 Fold anything the review established that changes what a resolver should build
-into the **body**, per "Maintaining issues" in `SKILL.md`: a fact living only in a
+into the body, per "Maintaining issues" in `SKILL.md`: a fact living only in a
 comment is invisible to the handoff. Picking the issue up is then
 `references/resolving.md`.
