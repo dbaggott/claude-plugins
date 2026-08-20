@@ -78,7 +78,7 @@ operator rather than to a third exchange.
 **Converged** when every blocking finding is dispositioned and you accept the
 disposition. Post the final verdict and stop.
 
-⚠️ **Cap the unproductive rounds, not the total.** A round that disposes findings
+**Cap the unproductive rounds, not the total.** A round that disposes findings
 and raises new ones from probing the fix is the protocol working — a flat round
 limit ends exactly that round, which is the most productive kind. Halt when a
 round produces no newly-dispositioned finding, or re-litigates one already

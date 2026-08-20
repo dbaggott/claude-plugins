@@ -14,7 +14,7 @@ open-ended watch `reviewer` arms on a PR.
 
 ## Which review is being asked for
 
-Two different things are called "reviewing an issue", both are real requests, and
+"Reviewing an issue" names two different things, both are real requests, and
 choosing wrong fails silently — each mode looks like it is working while the
 other one's job goes undone.
 
@@ -31,7 +31,7 @@ different things at different times, which is worse than being ambiguous
 consistently.
 
 **Route only on phrasing you are sure of. On any doubt, ask** with
-`AskUserQuestion`, offering the two readings above. The operator's attention is
+`AskUserQuestion`, offering both readings above. The operator's attention is
 already on the request, so the question is cheap here and expensive later — a
 mode chosen wrong is discovered after a full review has gone to the wrong
 artifact. A bare "review <issue URL>" or "review issue 155" is the common
@@ -75,8 +75,8 @@ Take the snapshot the round works from in one call, whatever the set's size:
 ```bash
 gh api graphql -f query='{
   repository(owner: "<owner>", name: "<name>") {
-    a: issue(number: <n>) { number title body lastEditedAt updatedAt state }
-    b: issue(number: <n>) { number title body lastEditedAt updatedAt state }
+    a: issue(number: <n>) { number title body lastEditedAt createdAt updatedAt state }
+    b: issue(number: <n>) { number title body lastEditedAt createdAt updatedAt state }
   }
 }'
 ```
@@ -111,7 +111,7 @@ Compute these rather than eyeballing them:
 
 **Triage every match before reporting it.** A check that cries wolf on quoted
 examples is one a reviewer learns to skim, which costs the pass its whole value
-and fails in the same direction as the miss it exists to prevent. Two questions
+and fails in the same direction as the miss it exists to prevent. These questions
 settle almost all of it:
 
 - **Is the match live text, or is it quoted?** A match inside a fence, inline
