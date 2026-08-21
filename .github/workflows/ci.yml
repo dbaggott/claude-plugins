@@ -29,9 +29,7 @@ on:
     # The cost is that any label applied to an open PR spends a full CI run.
     # That is the right trade for a human reaching for the escape hatch, and it
     # is why `release.yml` labels nothing — see the changelog step below.
-    #
-    # `ready_for_review` runs CI when a draft is marked ready; the jobs below skip while it is one.
-    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
@@ -50,7 +48,6 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     # Every step runs on every PR, including the release PR. Gating the cheap
     # steps on "is this the release PR" was measured and does not pay: shellcheck
     # and actionlint are ~4s of a ~27s job that bills a whole minute either way,
@@ -318,10 +315,9 @@ jobs:
     #
     # On `push` every operand is empty or null, so main is unaffected.
     if: >-
-      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-      && !(startsWith(github.head_ref, 'auto-release/')
-           && github.event.pull_request.head.repo.full_name == github.repository
-           && github.event.pull_request.user.login == 'dbaggott-automation[bot]')
+      !(startsWith(github.head_ref, 'auto-release/')
+        && github.event.pull_request.head.repo.full_name == github.repository
+        && github.event.pull_request.user.login == 'dbaggott-automation[bot]')
     steps:
       - uses: actions/checkout@v4
       - name: Run the hook test suite
