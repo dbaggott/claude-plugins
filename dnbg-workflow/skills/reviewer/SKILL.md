@@ -32,11 +32,12 @@ comments go to GitHub in one pass.
 
 ## How this differs from `/code-review`
 
-`/code-review` reviews your *local working diff* under your own account. This
-skill reviews a *pushed PR* end to end and posts a real GitHub **review** with a
-binding verdict — the thing a human merger reads, and the thing a required-review
-gate counts where the repo has one — under the bot identity. Use this when asked
-to review a PR; use `/code-review` for uncommitted changes.
+`/code-review` reviews your *local* changes — the branch and anything
+uncommitted — and reports back to you. This skill reviews a *pushed PR* end to
+end and posts a real GitHub **review** with a binding verdict — the thing a human
+merger reads, and the thing a required-review gate counts where the repo has
+one — under the bot identity. Use this when asked to review a PR; use
+`/code-review` on your own unpushed work, as `git-workflow`'s self-review does.
 
 ## Reviewing an issue
 

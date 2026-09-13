@@ -45,7 +45,11 @@ per plugin.
 4. `git worktree add .worktrees/<branch-name> -b <branch-name> origin/<default-branch>` — the default branch comes from the settings read below; don't assume `main`. If the change spans repos, the branch name is the pairing key; see "Multi-repo changes" below before picking it.
 5. Make changes in the worktree.
 6. Commit.
-7. **Re-read your own diff against the standards** — the set the always-on "Coding standards stack" rule had you load. `git diff origin/<default-branch>...HEAD`, read against those files re-opened rather than recalled: you wrote the diff from memory of them, so memory is what needs checking. Where a standard names something countable, grep the diff for it instead of eyeballing. Fix what you find before pushing.
+7. **Self-review the branch, and address what it finds** — over `origin/<default-branch>...HEAD`, before pushing:
+   - **Against the standards** — the set the always-on "Coding standards stack" rule had you load. `git diff origin/<default-branch>...HEAD`, read against those files re-opened rather than recalled: you wrote the diff from memory of them, so memory is what needs checking. Where a standard names something countable, grep the diff for it instead of eyeballing.
+   - **For defects, with the harness's code-review tool.** In Claude Code that is `/code-review origin/<default-branch>...HEAD`. Name the range rather than relying on the branch's upstream, which stops meaning the base once the branch is pushed. Leave the effort level to whatever the operator last chose, and don't pass `--fix` — findings need triage, not blanket application.
+
+   Fix a finding in this branch by default. Decline one that is wrong or out of scope, with a one-line reason. One pass: the fixes go to the reviewer with everything else rather than back through the tool. Where the harness has no code-review tool, the standards pass is the whole stage — say so when you announce the PR.
 8. Push, and **open the PR as a draft** (`gh pr create --draft ...`).
 9. After each commit, update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description.
 10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker.
@@ -144,7 +148,7 @@ If a change turns multi-repo midway — the first PR is already open when you di
 
 **Before this picker, if you made a substantive design change mid-implementation** — a departure from the approach agreed at pickup (the issue's "Proposed approach", or, for a PR with no issue, whatever you and the operator settled on in chat), a contract/interface change, anything a reviewer would be surprised by — surface that change and its rationale in chat *first*, per `issue-workflow`'s "Surface design changes that emerge mid-implementation". The operator must learn the design moved before review and manual testing run against it, not discover it inside the review. This applies to any PR — without an issue, the agreed design lives in the chat thread instead of an issue body.
 
-Announce the draft PR with its full URL, then call `AskUserQuestion` with two options (the tool auto-appends "Other" for anything else):
+Announce the draft PR with its full URL and the self-review's outcome — what it fixed, in a line, and each finding you declined with its reason, since those are what the operator is deciding to send on. Then call `AskUserQuestion` with two options (the tool auto-appends "Other" for anything else):
 
 1. **"Send to review (Recommended)"** — "Mark the PR ready and watch for the first review."
 2. **"Not yet"** — "Leave it in draft; say 'ready' whenever you want it reviewed."
