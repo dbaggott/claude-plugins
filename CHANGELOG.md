@@ -10,6 +10,17 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.9.1 — 2026-09-13
+
+Before asking whether to send a PR to review, the author now self-reviews the
+branch: alongside re-reading the diff against your coding standards, it runs
+`/code-review` over the branch and fixes what that finds. When it announces the
+draft PR, it tells you which findings it declined and why.
+
+The review runs at whichever `/code-review` effort level you last typed, but
+never `ultra`.
+
+
 ## dnbg-workflow 2026.8.63 — 2026-08-20
 
 A new `issue-reviewer` skill reviews an issue **body** — before anyone picks the
