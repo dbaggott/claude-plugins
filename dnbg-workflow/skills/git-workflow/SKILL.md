@@ -45,9 +45,9 @@ per plugin.
 4. `git worktree add .worktrees/<branch-name> -b <branch-name> origin/<default-branch>` — the default branch comes from the settings read below; don't assume `main`. If the change spans repos, the branch name is the pairing key; see "Multi-repo changes" below before picking it.
 5. Make changes in the worktree.
 6. Commit.
-7. **Self-review the branch, and address what it finds** — over `origin/<default-branch>...HEAD`, before pushing:
+7. **Self-review the branch, and address what it finds** — before pushing:
    - **Against the standards** — the set the always-on "Coding standards stack" rule had you load. `git diff origin/<default-branch>...HEAD`, read against those files re-opened rather than recalled: you wrote the diff from memory of them, so memory is what needs checking. Where a standard names something countable, grep the diff for it instead of eyeballing.
-   - **For defects, with the harness's code-review tool.** In Claude Code that is `/code-review origin/<default-branch>...HEAD`. Name the range rather than relying on the branch's upstream, which stops meaning the base once the branch is pushed. Leave the effort level to whatever the operator last chose, and don't pass `--fix` — findings need triage, not blanket application.
+   - **For defects, with the harness's code-review tool.** In Claude Code that is `/code-review origin/<default-branch>...<branch-name>`. Name both ends: the branch's upstream stops meaning the base once the branch is pushed, and the review may run from a checkout other than the worktree, where `HEAD` is not your branch. Leave the effort level to whatever the operator last chose, and don't pass `--fix` — findings need triage, not blanket application.
 
    Fix a finding in this branch by default. Decline one that is wrong or out of scope, with a one-line reason. One pass: the fixes go to the reviewer with everything else rather than back through the tool. Where the harness has no code-review tool, the standards pass is the whole stage — say so when you announce the PR.
 8. Push, and **open the PR as a draft** (`gh pr create --draft ...`).
