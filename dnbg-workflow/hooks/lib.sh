@@ -100,9 +100,10 @@ remote_is_covered() {
 
 # --- the mechanical opinions --------------------------------------------------
 #
-# Two userConfig knobs move where worktrees live and what the claim label is
-# called. Both resolve here, so the gate that prints a path and the session-start
-# note that announces one can never disagree about what this session is using.
+# Three userConfig knobs move where worktrees live, what the claim label is
+# called, and where retrospectives are written. All three resolve here, so the
+# gate that prints a path and the session-start note that announces one can
+# never disagree about what this session is using.
 #
 # The manifest's `default` field does not supply these, and the reference's
 # one-line gloss for it ("Value used when the user provides nothing") reads as if
@@ -118,6 +119,9 @@ remote_is_covered() {
 # actually gets cannot drift apart.
 DEFAULT_WORKTREE_PATH='.worktrees'
 DEFAULT_CLAIM_LABEL='assigned:agent-session'
+# A literal `~`: it is printed to an agent, which expands it when it writes.
+# shellcheck disable=SC2088
+DEFAULT_RETROSPECTIVE_DIR='~/.claude/dnbg-retrospectives'
 
 # The namespace every claim label has to sit in. `issue-workflow`'s in-progress
 # check matches this prefix rather than an enumerated list, deliberately, so that
@@ -178,6 +182,27 @@ claim_label_rejection() {  # <configured-value>
   esac
 }
 
+# Why a configured retrospective directory cannot be used, same contract as
+# above.
+#
+# Unlike a worktree root this one lives outside every repo, so it has to name a
+# place on its own: absolute, or under `~/`. A relative path would land in
+# whichever checkout the writing agent stands in. The character rule is the
+# worktree one, for the same reason — the value is rendered into the
+# session-start note, and an agent retypes it into `mkdir -p`.
+retrospective_dir_rejection() {  # <configured-value>
+  # The literal `~` the operator typed, as in worktree_path_rejection.
+  # shellcheck disable=SC2088
+  case "${1:-}" in
+    /?* | '~/'?*) ;;
+    *) printf "it is neither an absolute path nor one under \`~/\`"; return ;;
+  esac
+  case "${1#\~}" in
+    *[![:alnum:]._/-]*)
+      printf "it contains a character outside letters, digits and \`.\` \`_\` \`-\` \`/\`" ;;
+  esac
+}
+
 # The worktree root this session uses: the configured value when it is set and
 # usable, the default otherwise. A rejected value falls back rather than failing
 # the hook — `inject-rules.sh` is where the operator is told why, once per
@@ -206,6 +231,19 @@ resolve_claim_label() {
     printf '%s' "$value"
   else
     printf '%s' "$DEFAULT_CLAIM_LABEL"
+  fi
+}
+
+# The retrospective root this session uses. Same fallback contract and the same
+# trailing-slash stripping as the worktree root; files go in
+# `<root>/<owner>/<repo>/`, which the skills append.
+resolve_retrospective_dir() {
+  local value="${CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR:-}"
+  while [ "${value%/}" != "$value" ]; do value="${value%/}"; done
+  if [ -n "$value" ] && [ -z "$(retrospective_dir_rejection "$value")" ]; then
+    printf '%s' "$value"
+  else
+    printf '%s' "$DEFAULT_RETROSPECTIVE_DIR"
   fi
 }
 

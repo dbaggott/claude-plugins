@@ -302,6 +302,32 @@ run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
   [[ "$output" == *'`assigned:my-bot`'* ]]
 }
 
+@test "announces a configured retrospective directory and names it" {
+  stub_path jq git gh
+  run_hook_configured '' '' '~/retros'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"configuration overrides"* ]]
+  [[ "$output" == *'`~/retros/<owner>/<repo>/`'* ]]
+  [[ "$output" != *"claim label is"* ]]
+}
+
+@test "says nothing when the retrospective directory is set to its default" {
+  stub_path jq git gh
+  run_hook_configured '' '' '~/.claude/dnbg-retrospectives/'
+  [ "$output" = "$RULES_TEXT" ]
+}
+
+@test "a rejected retrospective directory is reported with its value, reason and fallback" {
+  stub_path jq git gh
+  run_hook_configured '' '' 'retros'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"INVALID configuration"* ]]
+  [[ "$output" == *'`retros`'* ]]
+  [[ "$output" == *"neither an absolute path"* ]]
+  [[ "$output" == *'`~/.claude/dnbg-retrospectives`'* ]]
+  [[ "$output" != *"configuration overrides"* ]]
+}
+
 @test "announces only the knob that moved" {
   # Both are reported from the same block, so a bug that prints both whenever
   # either is set would be invisible to the two tests above.
