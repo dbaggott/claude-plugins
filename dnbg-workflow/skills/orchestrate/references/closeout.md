@@ -16,7 +16,8 @@ merges. The operator merges the doc PR.
 gh issue view <n> --repo <owner>/<repo> --json comments --jq '
   [.comments[] | select((.author.login | rtrimstr("[bot]")) == "<slug>"
                         and (.body | startswith("**Project review, round")))]
-  | last | {url, createdAt, verdict: (.body | split("\n")[0])}'
+  | last | {url, verdict: (.body | split("\n")[0]),
+           graded: (.body | capture("Graded against body_edited: (?<v>\\S+)").v)}'
 ```
 
 `<skill-dir>` is the **Base directory** announced when this skill loads, or,
@@ -25,12 +26,14 @@ is the reviewer bot's login, from `jq -r .slug` on the reviewer config, at the
 path `reviewer`'s `references/issue-mode.md` reads it from. The verdict is the
 one `reviewer` posts in that file's "A tracking issue" mode.
 
-Proceed only if all three hold:
+A `result=ERROR` from the snapshot means the set was not read, so stop and say
+so. Otherwise, proceed only if all three hold:
 
 - every child's `state` is `CLOSED`;
 - the latest verdict reads `ACCEPTED`;
-- its `createdAt` is later than the parent's `body_edited`. If not, the review
-  graded a body that has changed since, so a new round is owed.
+- its `graded` value equals the snapshot's `body_edited`, where `none` matches
+  `null`. If not, the review graded a body that has changed since, so a new
+  round is owed.
 
 If any check fails, stop and tell the operator which one, with the verdict URL if
 there is one. Closeout never runs ahead of the verdict, and never judges the
@@ -39,14 +42,16 @@ criteria itself.
 ## 2. Dispose of the friction log
 
 Every friction-log entry gets exactly one disposition: a follow-up issue, or
-`Dropped, because <reason>`. Draft them all first, then show the operator the
-table and the exact text of every follow-up before filing any. An entry about a
+`Dropped, because <reason>`. Draft them all first, as a table, then show the
+operator the table and the exact text of every follow-up before filing any. An entry about a
 `dnbg-*` plugin's own tooling is filed upstream under the always-on "When shipped
 tooling doesn't fit, tell the user" rule, and that rule needs the operator's
 approval of the exact text. File the approved follow-ups per `issue-workflow`'s
 `references/creating.md`.
 
-Then replace the friction log's bullets in the parent body with the table:
+Step 4 writes the table into the parent body, in place of the friction log's
+bullets. Edit the body there, not now: a body edit after the verdict makes the
+check in step 1 fail, and step 1 is what a resumed closeout runs first.
 
 ```markdown
 | Entry | Disposition |
@@ -57,9 +62,9 @@ Then replace the friction log's bullets in the parent body with the table:
 
 ## 3. Write the as-built design, through one PR
 
-Write it to `docs/design/<name>.md`, where `<name>` is the parent's title as a
-lowercase-dashed slug. If the repo already keeps designs somewhere else under
-`docs/`, use that location instead. Open the PR per `git-workflow`. Its body
+`<doc path>` is `docs/design/<name>.md`, where `<name>` is the parent's title
+as a lowercase-dashed slug. If the repo already keeps designs somewhere else
+under `docs/`, use that location instead. Open the PR per `git-workflow`. Its body
 links the parent by URL, **without a closing keyword**: the parent closes in
 step 4 with a comment that cites the merged doc, and a keyword would close it at
 merge without that comment.
@@ -86,13 +91,14 @@ The doc is the parent body as built, not as planned:
 ## 4. Close the parent
 
 Once the operator has merged the doc PR, read the merge commit with
-`gh pr view <pr> --repo <owner>/<repo> --json mergeCommit --jq .mergeCommit.oid`
-and close the parent with a comment that cites the doc at that commit and the
+`gh pr view <pr> --repo <owner>/<repo> --json mergeCommit --jq .mergeCommit.oid`.
+Replace the friction log's bullets in the parent body with step 2's table, then
+close the parent with a comment that cites the doc at that commit and the
 verdict:
 
 ```bash
 gh issue close <n> --repo <owner>/<repo> --reason completed --comment "Closed out.
-As-built design: https://github.com/<owner>/<repo>/blob/<merge-sha>/docs/design/<name>.md (<doc PR URL>).
+As-built design: https://github.com/<owner>/<repo>/blob/<merge-sha>/<doc path> (<doc PR URL>).
 Project review: <verdict comment URL>."
 ```
 

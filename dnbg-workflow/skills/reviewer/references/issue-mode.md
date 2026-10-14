@@ -267,25 +267,31 @@ per-child review can see. You post no PR reviews in this mode, except on the
 closeout PR in step 6.
 
 1. **List the children** from the `fetch-issue-set.sh` snapshot above: each
-   one's `url` and `state`. Re-run it at every wake rather than reusing the last
-   one, so a child added mid-project joins the set.
+   one's `url` and `state`. Re-run it on every return of the watch below,
+   `IDLE` included, rather than reusing the last one. A sub-issue added or
+   reopened produces no watch event of its own, so the snapshot is the only
+   place it shows up.
 2. **Hold until every child is closed.** While any is open, wait on the parent
    and the open children in one call, so a comment or body edit on the parent
    also reaches you:
 
    ```bash
    "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <parent> <open child…> \
-     --role=reviewer --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --slug=<slug>
+     --role=reviewer --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --slug=<slug> \
+     [--exclude=<url,url,...>]
    ```
 
-   `<slug>` is read from the reviewer config, as in the wait above, and the
-   dispatch on its result is the same. Go back to step 1 whenever a child
-   closes, whether as `CLOSED` or as `closed=` on an `ACTIVITY` line. The parent
-   closing ends the assignment. A child in another repo of the same owner needs
-   its own watch for that repo, since the script watches one repo.
-3. **Collect the merged PRs.** Run `pr-sources.sh` once per child and once on
-   the parent, then take the union, reading the per-source fields as described
-   above. Check each URL with `gh pr view <url> --json state`. The union is the
+   `<slug>` comes from the reviewer config, as in the wait above. Dispatch
+   `CLOSED`, `ERROR`, `IDLE`, `closed=` and `missing=` the same way, and re-arm
+   from the `── re-arm ──` line, which carries `--exclude` forward. A
+   `linked-pr` wake needs no triage here, since each child's PRs are its own
+   reviewer's. Go back to step 1 whenever a child closes. A child whose URL
+   names another repo of the same owner needs its own watch on that repo,
+   because the script watches one repo.
+3. **Collect the merged PRs.** Run `pr-sources.sh` once per child, taking
+   `<owner>/<repo>` and the number from the child's own `url`, and once on the
+   parent. Take the union, reading the per-source fields as described above.
+   Check each URL with `gh pr view <url> --json state`. The union is the
    `MERGED` ones. An open PR on a closed child is not part of it, so name that
    PR in the verdict.
 4. **Grade every `A#` against that union**, judged on the merged result, not on
@@ -299,28 +305,42 @@ closeout PR in step 6.
 5. **Post one verdict on the parent**, under the bot identity. The verdict is
    what closeout acts on and what the operator weighs, so it carries the same
    independent identity as `issue-reviewer`'s rounds. Mint the token in the same
-   call that posts, and check the printed login is the bot's:
+   call that posts:
 
    ```bash
    GH_TOKEN="$("<skill-dir>/mint-token.sh" <owner>)" || exit 1
    export GH_TOKEN
-   gh api repos/<repo>/issues/<parent>/comments -F body=@<path> --jq .user.login
+   gh api repos/<repo>/issues/<parent>/comments -F body=@<path> --jq '"\(.user.login) \(.id)"'
    ```
 
-   The body opens with `**Project review, round <n>: ACCEPTED**` or
-   `**Project review, round <n>: CHANGES REQUESTED**`. Those are the only two
-   verdicts. Next come the parent's `body_edited` from the snapshot you graded
-   against, and the merged-PR union by URL. Then **one line per `A#`, every one
-   named**: met, with its evidence (a PR, a file at the merged commit, a run's
-   comment), or a finding with the ID `<parent>-B<n>`, or `<parent>-O<n>` for an
-   observation. Any blocking finding makes the verdict `CHANGES REQUESTED`.
-   End with the version stamp, under the same condition as a PR review's in
-   `SKILL.md`.
-6. **Keep watching the parent after the verdict**, with step 2's call on the
-   parent alone. After `CHANGES REQUESTED`, the fix arrives as a new or reopened
-   child, a comment, or a PR linking the parent. Whichever wakes the watch, go
-   back to step 1. The next round re-grades every criterion, not only the ones
-   that failed. After `ACCEPTED`, the next PR to link the parent is the closeout
-   PR (`orchestrate`'s `references/closeout.md`). Review it per `SKILL.md`,
-   asking whether its as-built doc matches the parent body. The assignment ends
-   when the parent closes.
+   The printed login must be the bot's. If it is not, the token never arrived
+   and the verdict is under the operator's name, where closeout will not find
+   it. Delete it with `gh api -X DELETE repos/<repo>/issues/comments/<id>`,
+   then fix the mint and post again.
+
+   The body is, in order:
+
+   - `**Project review, round <n>: ACCEPTED**` or
+     `**Project review, round <n>: CHANGES REQUESTED**`. Those are the only
+     two verdicts.
+   - `Graded against body_edited: <value>`, the parent's `body_edited` from the
+     snapshot you graded, or `none`. Closeout compares it with the current
+     value.
+   - The merged-PR union, by URL.
+   - **One line per `A#`, every one named**: met, with its evidence (a PR, a
+     file at the merged commit, a run's comment), or a finding with the ID
+     `<parent>-B<n>`, or `<parent>-O<n>` for an observation. Any blocking
+     finding makes the verdict `CHANGES REQUESTED`.
+   - The version stamp, under the same condition as a PR review's in
+     `SKILL.md`.
+6. **Keep watching after the verdict**, with step 2's call on the parent alone,
+   and go back to step 1 on every return. Grade a new round when the snapshot
+   differs from the one you graded: a child added or reopened, a new merged PR,
+   or a parent `body_edited` newer than the one the verdict records. A new
+   round re-grades every criterion, not only the ones that failed. A comment
+   alone gets a reply when it asks you something, and otherwise a re-arm. After
+   `ACCEPTED`, the next PR to link the parent is the closeout PR
+   (`orchestrate`'s `references/closeout.md`). Review it per `SKILL.md`,
+   asking whether its as-built doc matches the parent body. Closeout edits the
+   parent body only when it closes the parent, so that edit never asks for a
+   round. The assignment ends when the parent closes.
