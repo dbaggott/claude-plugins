@@ -3,12 +3,13 @@
 # exit. The issue-side sibling of watch-pr.sh, sharing its curve, its clock and
 # its re-arm contract.
 #
-#   watch-issue.sh <owner/repo> <n> [n...] --role=author|reviewer \
+#   watch-issue.sh <owner/repo> <n> [n...] --role=author|reviewer|orchestrator \
 #     [--since=<iso>] [--slug=<login>] [--exclude=<pr-url,…>]
 #
 # Exactly one result line, then exit 0:
 #   result=ACTIVITY issues=<n,…> kinds=<comment|linked-pr|body-edit,…> \
-#     edited=<n:iso|n:none,…> [closed=<n,…>] [missing=<n,…>] now=<iso>
+#     edited=<n:iso|n:none,…> [comments=<login:url,…>] [closed=<n,…>] \
+#     [missing=<n,…>] now=<iso>
 #   result=CLOSED   issues=<n,…> [missing=<n,…>] now=<iso>
 #   result=IDLE     [missing=<n,…>] now=<iso>
 #   result=ERROR    reason=<source> now=<iso>
@@ -34,6 +35,13 @@
 # PR appearing, and the issue closing are four questions about one thing, and one
 # batched query answers all four for any number of issues. Splitting them would
 # buy separate result vocabularies and cost a request per question per tick.
+#
+# The orchestrator role excludes no login and takes no `--slug`: the author it
+# dispatched, the operator and the orchestrator itself all post under one account,
+# so it has to see that account's comments and tell them apart by what they say.
+# `comments=` is for that: every comment inside the window, oldest first, as its
+# author's login and its URL. A comment page that overflowed can hold more than
+# the field lists, so a caller that needs every one reads the thread.
 #
 # ⚠️ THE EXCLUSION IS AN EXACT LOGIN MATCH — of both spellings, `<slug>` and
 # `<slug>[bot]`, since a GitHub App posts under the suffixed one — AND THE TWO
@@ -73,7 +81,7 @@ WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
 HERE="$(cd "$(dirname "$0")" && pwd)"
 fatal() { echo "result=ERROR reason=$1 now=$(poll_now_iso)"; exit 0; }
 
-case "$ROLE" in author|reviewer) ;; *) bad=1 ;; esac
+case "$ROLE" in author|reviewer|orchestrator) ;; *) bad=1 ;; esac
 [ -n "$REPO" ] || bad=1
 case "$REPO" in */*) ;; *) bad=1 ;; esac
 [ -n "$NUMS" ] || bad=1
@@ -82,7 +90,11 @@ case "$REPO" in */*) ;; *) bad=1 ;; esac
 if [ -z "$SLUG" ] && [ "$ROLE" = author ]; then
   SLUG=$(gh api user --jq .login 2>/dev/null) || SLUG=""
 fi
-[ -n "$SLUG" ] || bad=1
+if [ "$ROLE" = orchestrator ]; then
+  [ -z "$SLUG" ] || bad=1
+else
+  [ -n "$SLUG" ] || bad=1
+fi
 [ "$bad" = 1 ] && fatal bad-args
 
 # A review round on an issue is a stream — several comments and body edits over
@@ -112,9 +124,9 @@ rearm_cmd() {  # [issues-override]
   local ex nums="${1:-$NUMS}"
   ex=$(printf '%s\n%s\n' "$EXCLUDE_LINES" "$new_prs" \
          | grep -v '^[[:space:]]*$' | sort -u | paste -sd, - || true)
-  printf 'WINDOW=%s "%s/watch-issue.sh" %s%s --role=%s --since=%s --slug=%s%s' \
-    "$WINDOW" "$HERE" "$REPO" "$nums" "$ROLE" "$(poll_now_iso)" "$SLUG" \
-    "${ex:+ --exclude=$ex}"
+  printf 'WINDOW=%s "%s/watch-issue.sh" %s%s --role=%s --since=%s%s%s' \
+    "$WINDOW" "$HERE" "$REPO" "$nums" "$ROLE" "$(poll_now_iso)" \
+    "${SLUG:+ --slug=$SLUG}" "${ex:+ --exclude=$ex}"
 }
 
 # Reported on whatever result the watch reaches, so a number that resolves to
@@ -136,12 +148,17 @@ report_error() {
 # to re-arm on and the line is omitted — the same reason CLOSED omits it.
 report_hit() {  # [closed-list] [issues-override|NONE]
   [ "${2:-}" = NONE ] || watch_rearm "$(rearm_cmd "${2:-}")"
-  local issues kinds edited
+  local issues kinds edited comments=""
   issues=$(printf '%s\n' "$hit_issues" | tr ' ' '\n' | grep -v '^$' | sort -nu | paste -sd, - || true)
   kinds=$(printf '%s\n' "$hit_kinds" | tr ' ' '\n' | grep -v '^$' | sort -u | paste -sd, - || true)
   edited=$(printf '%s' "$last_json" | jq -r '
     [ .issues[] | "\(.number):\(.body_edited // "none")" ] | join(",")' 2>/dev/null || echo "")
-  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited${1:+ closed=$1}$(missing_field) now=$(poll_now_iso)"
+  if [ "$ROLE" = orchestrator ]; then
+    comments=$(printf '%s' "$last_json" | jq -r --arg s "$SINCE" '
+      [ .issues[].comments[] | select(.at > $s) ] | sort_by(.at)
+      | map("\(.author):\(.url)") | join(",")' 2>/dev/null || echo "")
+  fi
+  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited${comments:+ comments=$comments}${1:+ closed=$1}$(missing_field) now=$(poll_now_iso)"
   exit 0
 }
 
@@ -186,7 +203,7 @@ while :; do
 
   # An exact login match, never a substring — see the header.
   comment_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
-    [ .issues[] | select([ .comments[] | select(.at > $s) | select(.author != $slug and .author != ($slug + "[bot]")) ] | length > 0)
+    [ .issues[] | select([ .comments[] | select(.at > $s) | select($slug == "" or (.author != $slug and .author != ($slug + "[bot]"))) ] | length > 0)
       | .number ] | join(" ")')
   edit_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" '
     [ .issues[] | select((.body_edited // "") > $s) | .number ] | join(" ")')
@@ -248,7 +265,7 @@ while :; do
   # Counted rather than merely present, so a SECOND comment extends the window
   # and the first one does not extend it forever.
   sig=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
-    [ ([ .issues[].comments[] | select(.at > $s) | select(.author != $slug and .author != ($slug + "[bot]")) ] | length),
+    [ ([ .issues[].comments[] | select(.at > $s) | select($slug == "" or (.author != $slug and .author != ($slug + "[bot]"))) ] | length),
       ([ .issues[] | select((.body_edited // "") > $s) ] | length),
       ([ .issues[].linked_prs[] ] | length) ] | join("/")')
   changed=0

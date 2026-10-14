@@ -372,6 +372,19 @@ DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
   done
 }
 
+# Claims have one implementation, so a coder's pickup and an orchestrator's read
+# the same marks the same way.
+@test "the claim sites call claim-issue.sh rather than carrying the gh commands" {
+  local f
+  for f in "$ROOT/dnbg-workflow/skills/issue-workflow/references/resolving.md" \
+           "$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md"; do
+    grep -q 'claim-issue\.sh' "$f" || {
+      echo "$(basename "$f") no longer invokes claim-issue.sh"; false; }
+    ! grep -qE 'gh issue (edit .*--add-label|comment .*Claimed by)' "$f" || {
+      echo "$(basename "$f") carries its own claim commands"; false; }
+  done
+}
+
 # A site file in the shape the extractor expects: commands inside a fence, everything
 # else prose. Shaped as `.md` because that is the harder case — a script has no prose
 # for a mention to hide in.

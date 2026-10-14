@@ -512,3 +512,58 @@ EOF
     run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=reviewbot
   [[ "${lines[-1]}" == *"result=ACTIVITY"* ]]
 }
+
+# The orchestrator's author, the operator and the orchestrator itself all post
+# under one login, so this role excludes none and names each comment's author.
+orch_comment() {  # <login> <iso> <url>
+  jq -cn --arg a "$1" --arg t "$2" --arg u "$3" '{author:{login:$a}, createdAt:$t, url:$u}'
+}
+
+@test "the orchestrator role wakes on the operator's own login" {
+  repo "$(issue 163 "[$(orch_comment operator 2026-01-02T00:00:00Z https://x/c1)]")"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=comment"* ]]
+  [[ "${lines[-1]}" == *" comments=operator:https://x/c1 "* ]]
+}
+
+@test "the orchestrator role wakes on the bot's comment" {
+  repo "$(issue 163 "[$(orch_comment agent-reviewer-operator 2026-01-02T00:00:00Z https://x/c1)]")"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == *" comments=agent-reviewer-operator:https://x/c1 "* ]]
+}
+
+# Its own `Decision log:` row is reported like any comment, with its author, so
+# the caller can recognise and drop it; the script never reads bodies.
+@test "the orchestrator role lists every new comment with its author, oldest first" {
+  repo "$(issue 163 "[$(orch_comment operator 2026-01-03T00:00:00Z https://x/c2),
+    $(orch_comment agent-reviewer-operator 2026-01-02T00:00:00Z https://x/c1),
+    $(orch_comment operator 2025-12-01T00:00:00Z https://x/old)]")"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == *" comments=agent-reviewer-operator:https://x/c1,operator:https://x/c2 "* ]]
+}
+
+@test "the other roles carry no comments field" {
+  repo "$(issue 163 "[$(orch_comment human 2026-01-02T00:00:00Z https://x/c1)]")"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "${lines[-1]}" != *"comments="* ]]
+}
+
+@test "the orchestrator role refuses a slug rather than excluding it" {
+  repo "$(issue 163)"
+  run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z --slug=operator
+  [[ "$output" == *"reason=bad-args"* ]]
+}
+
+@test "the orchestrator role's re-arm line carries no slug" {
+  repo "$(issue 163)"
+  INTERVAL=1 WINDOW=3 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "$output" == *"--role=orchestrator --since=20"* ]]
+  [[ "$output" != *"--slug"* ]]
+}
