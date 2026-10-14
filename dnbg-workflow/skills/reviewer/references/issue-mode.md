@@ -282,11 +282,13 @@ closeout PR in step 6.
    ```
 
    `<slug>` comes from the reviewer config, as in the wait above. Dispatch
-   `CLOSED`, `ERROR`, `IDLE`, `closed=` and `missing=` the same way, and re-arm
-   from the `── re-arm ──` line, which carries `--exclude` forward. A
-   `linked-pr` wake needs no triage here, since each child's PRs are its own
-   reviewer's. Go back to step 1 whenever a child closes. A child whose URL
-   names another repo of the same owner needs its own watch on that repo,
+   `ERROR`, `IDLE` and `missing=` the same way, and re-arm from the
+   `── re-arm ──` line, which carries `--exclude` forward. `CLOSED` and
+   `closed=` split by issue here. When they name only children, that is
+   progress, not an ending: go back to step 1, and re-arm from the printed line
+   only while a child is still open. When they name the parent, the assignment
+   ends. A `linked-pr` wake needs no triage here, since each child's PRs are its
+   own reviewer's. A child whose URL names another repo of the same owner needs its own watch on that repo,
    because the script watches one repo.
 3. **Collect the merged PRs.** Run `pr-sources.sh` once per child, taking
    `<owner>/<repo>` and the number from the child's own `url`, and once on the
