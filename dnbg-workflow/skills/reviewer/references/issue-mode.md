@@ -19,7 +19,8 @@ not read unless blocked)" links stay unread, depth 1 only.
 
 **Every `gh issue` command in this file runs under your own auth, not the
 bot's** — prefix each with `env -u GH_TOKEN`. The bot reviews; the issue itself
-is the operator's, and nothing here writes to one as the bot. What the prefix
+is the operator's, and the only bot write to one is the project verdict under
+"A tracking issue" below, which posts through `gh api`. What the prefix
 guards is a call that mints a bot token and then touches the issue: `SKILL.md`
 has every `gh` write mint in its own tool call, so the token is only ever live
 inside one. The prefix costs
@@ -38,6 +39,19 @@ starting. A reviewer must not produce that signal. Leave a comment instead:
 env -u GH_TOKEN gh issue comment <n> --repo <repo> \
   --body "Claude Code is acting as reviewer on this issue."
 ```
+
+**Then snapshot its sub-issues**, since an issue that has them is reviewed
+differently:
+
+```bash
+"<skill-dir>/../../scripts/fetch-issue-set.sh" <owner>/<repo> <n>
+```
+
+`children: []` means a plain issue, and the rest of this file up to "A tracking
+issue" applies. Any children make it a tracking issue: skip to that section,
+which reuses the discovery and watch below but not the per-PR loop. A
+`result=ERROR` is neither: the set was not read, so say so rather than reviewing
+it as a plain issue.
 
 **Find the PRs that resolve it.** One script, three sources. Each misses
 something the others catch, and the gaps are not hypothetical — a real pair (a
@@ -242,3 +256,71 @@ something false about the issue — a report that nothing has landed, made by a
 watch that never saw it.
 
 Per PR, run `SKILL.md`: mint a token, review, post, and watch.
+
+## A tracking issue: whole-project acceptance
+
+A tracking issue's body is a project's design, and its sub-issues carry the work
+(`issue-workflow`'s `references/tracking-issue.md`). Each child is reviewed in
+its own issue mode. Here you judge whether **the whole was built**, against the
+parent's end-to-end acceptance criteria (`A#`), which no child owns and no
+per-child review can see. You post no PR reviews in this mode, except on the
+closeout PR in step 6.
+
+1. **List the children** from the `fetch-issue-set.sh` snapshot above: each
+   one's `url` and `state`. Re-run it at every wake rather than reusing the last
+   one, so a child added mid-project joins the set.
+2. **Hold until every child is closed.** While any is open, wait on the parent
+   and the open children in one call, so a comment or body edit on the parent
+   also reaches you:
+
+   ```bash
+   "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <parent> <open child…> \
+     --role=reviewer --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --slug=<slug>
+   ```
+
+   `<slug>` is read from the reviewer config, as in the wait above, and the
+   dispatch on its result is the same. Go back to step 1 whenever a child
+   closes, whether as `CLOSED` or as `closed=` on an `ACTIVITY` line. The parent
+   closing ends the assignment. A child in another repo of the same owner needs
+   its own watch for that repo, since the script watches one repo.
+3. **Collect the merged PRs.** Run `pr-sources.sh` once per child and once on
+   the parent, then take the union, reading the per-source fields as described
+   above. Check each URL with `gh pr view <url> --json state`. The union is the
+   `MERGED` ones. An open PR on a closed child is not part of it, so name that
+   PR in the verdict.
+4. **Grade every `A#` against that union**, judged on the merged result, not on
+   each PR alone. A criterion's `Contributes:` line says which children's PRs to
+   read first, but it does not limit what you read. A requirement marked
+   `*(end-to-end: A<n>)*` is graded through its `A<n>`. A criterion that needs a
+   run, such as an eval or a live exercise, is met by a recorded run: a comment
+   or PR section carrying its output, linked from the parent or a child. Don't
+   re-run it yourself. If no run is recorded, that is a blocking finding that
+   names the missing run.
+5. **Post one verdict on the parent**, under the bot identity. The verdict is
+   what closeout acts on and what the operator weighs, so it carries the same
+   independent identity as `issue-reviewer`'s rounds. Mint the token in the same
+   call that posts, and check the printed login is the bot's:
+
+   ```bash
+   GH_TOKEN="$("<skill-dir>/mint-token.sh" <owner>)" || exit 1
+   export GH_TOKEN
+   gh api repos/<repo>/issues/<parent>/comments -F body=@<path> --jq .user.login
+   ```
+
+   The body opens with `**Project review, round <n>: ACCEPTED**` or
+   `**Project review, round <n>: CHANGES REQUESTED**`. Those are the only two
+   verdicts. Next come the parent's `body_edited` from the snapshot you graded
+   against, and the merged-PR union by URL. Then **one line per `A#`, every one
+   named**: met, with its evidence (a PR, a file at the merged commit, a run's
+   comment), or a finding with the ID `<parent>-B<n>`, or `<parent>-O<n>` for an
+   observation. Any blocking finding makes the verdict `CHANGES REQUESTED`.
+   End with the version stamp, under the same condition as a PR review's in
+   `SKILL.md`.
+6. **Keep watching the parent after the verdict**, with step 2's call on the
+   parent alone. After `CHANGES REQUESTED`, the fix arrives as a new or reopened
+   child, a comment, or a PR linking the parent. Whichever wakes the watch, go
+   back to step 1. The next round re-grades every criterion, not only the ones
+   that failed. After `ACCEPTED`, the next PR to link the parent is the closeout
+   PR (`orchestrate`'s `references/closeout.md`). Review it per `SKILL.md`,
+   asking whether its as-built doc matches the parent body. The assignment ends
+   when the parent closes.
