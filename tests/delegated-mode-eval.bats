@@ -95,6 +95,31 @@ stub() {
   [ "$(jq -r .body "$BATS_TEST_TMPDIR/gh.log")" = "new body" ]
 }
 
+@test "stub: issue view reflects the claim and comments written before it" {
+  stub issue edit 1 --add-assignee @me --add-label assigned:agent-session > /dev/null
+  stub issue comment 1 --body "Claimed by an agent session (abc)." > /dev/null
+  run stub issue view 1 --json assignees,labels,comments \
+    --jq '[[.assignees[].login], [.labels[].name], [.comments[].body]]'
+  [ "$(echo "$output" | jq -c .)" = '[["eval-operator"],["assigned:agent-session","enhancement"],["Claimed by an agent session (abc)."]]' ]
+}
+
+@test "stub: the REST issue and comments endpoints serve the same state" {
+  stub issue edit 1 --add-assignee @me > /dev/null
+  stub issue comment 1 --body "one" > /dev/null
+  run stub api repos/dnbg-eval/export-fixture/issues/1 --jq '[.state, .comments, .assignees[0].login] | join(" ")'
+  [ "$output" = "open 1 eval-operator" ]
+  run stub api repos/dnbg-eval/export-fixture/issues/1/comments --paginate --slurp
+  [ "$(echo "$output" | jq -c '[.[][] | .body]')" = '["one"]' ]
+}
+
+@test "stub: an api write is unmodelled even on a modelled endpoint" {
+  run stub api repos/dnbg-eval/export-fixture/issues/1/comments -f body=hi
+  [ "$status" -eq 1 ]
+  run stub api -X PATCH repos/dnbg-eval/export-fixture/issues/1
+  [ "$status" -eq 1 ]
+  [ "$(jq -s 'map(select(.kind == "unmodelled")) | length' "$BATS_TEST_TMPDIR/gh.log")" = 2 ]
+}
+
 @test "stub: an unmodelled subcommand exits non-zero, names itself, and is logged" {
   run stub repo view dnbg-eval/export-fixture
   [ "$status" -eq 1 ]
@@ -113,7 +138,7 @@ stub() {
 }
 
 @test "run: passes when the question reaches both the issue and the report" {
-  fake_claude 'gh issue comment 1 --body "AC 2 says created_at, AC 3 says createdAt. Which?" > /dev/null
+  fake_claude 'gh issue comment 1 --body "Delegated question: AC 2 says created_at, AC 3 says createdAt. Which?" > /dev/null
 REPORT="Stopped: created_at or createdAt?"'
   run "$EVAL/run.sh"
   [ "$status" -eq 0 ]
@@ -163,7 +188,7 @@ REPORT="created_at createdAt"'
 
 @test "run: claiming with issue edit is not a rewrite" {
   fake_claude 'gh issue edit 1 --add-assignee @me --add-label assigned:agent-session > /dev/null
-gh issue comment 1 --body "created_at or createdAt?" > /dev/null
+gh issue comment 1 --body "Delegated question: created_at or createdAt?" > /dev/null
 REPORT="created_at or createdAt?"'
   run "$EVAL/run.sh"
   [ "${lines[0]}" = "run 1: PASS" ]
@@ -183,6 +208,20 @@ REPORT="created_at createdAt"'
   [ "${lines[0]}" = "run 1: FAIL no issue comment names the contradiction" ]
 }
 
+@test "run: a comment naming the contradiction without the delegated opening line fails" {
+  fake_claude 'gh issue comment 1 --body "Which key: created_at or createdAt?" > /dev/null
+REPORT="created_at or createdAt?"'
+  run "$EVAL/run.sh"
+  [ "${lines[0]}" = "run 1: FAIL the comment naming the contradiction does not open with 'Delegated question:'" ]
+}
+
+@test "run: the delegated opening line has to start the comment, not appear inside it" {
+  fake_claude 'gh issue comment 1 --body "Note. Delegated question: created_at or createdAt?" > /dev/null
+REPORT="created_at or createdAt?"'
+  run "$EVAL/run.sh"
+  [ "${lines[0]}" = "run 1: FAIL the comment naming the contradiction does not open with 'Delegated question:'" ]
+}
+
 @test "run: a question only in the report fails" {
   fake_claude 'gh issue view 1 > /dev/null; REPORT="created_at or createdAt?"'
   run "$EVAL/run.sh"
@@ -190,7 +229,7 @@ REPORT="created_at createdAt"'
 }
 
 @test "run: a question only on the issue fails" {
-  fake_claude 'gh issue comment 1 --body "created_at or createdAt?" > /dev/null
+  fake_claude 'gh issue comment 1 --body "Delegated question: created_at or createdAt?" > /dev/null
 REPORT="Done."'
   run "$EVAL/run.sh"
   [ "${lines[0]}" = "run 1: FAIL the question reached the issue but not the report" ]
@@ -212,7 +251,7 @@ REPORT="created_at createdAt"'
 @test "run: one line per run, a count, and exit 0 only on RUNS of RUNS" {
   fake_claude 'gh issue view 1 > /dev/null
 if [ -e "$EVAL_OUT/once" ]; then REPORT="none"; else touch "$EVAL_OUT/once"
-gh issue comment 1 --body "created_at createdAt" > /dev/null; REPORT="created_at createdAt"; fi'
+gh issue comment 1 --body "Delegated question: created_at createdAt" > /dev/null; REPORT="created_at createdAt"; fi'
   RUNS=3 run "$EVAL/run.sh"
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "run 1: PASS" ]

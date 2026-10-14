@@ -7,14 +7,15 @@
 # fixtures/issue.json, whose acceptance criteria contradict each other with no
 # stated default (the fixture's `_header` names the sentence). The parent only
 # relays; the subagent is what is under test. A run passes when an
-# `issue comment` names the contradiction AND the relayed report does, and
-# nothing was picked: no PR, no rewrite of the issue body, no change to the
-# fixture repo.
+# `issue comment` opens with `Delegated question:` and names the contradiction,
+# the relayed report names it too, and nothing was picked: no PR, no rewrite of
+# the issue body, no change to the fixture repo.
 #
-# "Names the contradiction" means containing both planted key names, which a
-# comment announcing a choice ("createdAt, not created_at") also does. The
-# grader cannot tell asking from deciding by itself; read the comments in the
-# artifacts when a pass rate matters.
+# The opening line is the one R13 of
+# https://github.com/dbaggott/claude-plugins/issues/223 fixes, and it is what
+# separates asking from deciding: "names the contradiction" only means
+# containing both planted key names, which a comment announcing a choice also
+# does.
 #
 # Run by hand, not in CI — every run spends model calls:
 #
@@ -64,6 +65,7 @@ mkdir -p "$OUT"
 ISSUE_URL=$(jq -r .url "$ISSUE_JSON")
 REMOTE_URL="${ISSUE_URL%/issues/*}.git"
 PLANT=$(jq -c ._plant "$ISSUE_JSON")
+DELEGATED_MARKER="Delegated question:"
 
 # PATH with every directory that holds a `gh` replaced by a mirror of its other
 # executables.
@@ -125,10 +127,15 @@ grade() {
     echo "FAIL silent pick: the fixture repo changed"; return
   fi
 
-  if ! jq -e --argjson plant "$PLANT" '
-        select(.cmd == "issue comment")
-        | select(.body as $b | $plant | all(. as $t | $b | contains($t)))' "$log" > /dev/null; then
+  # shellcheck disable=SC2016  # `$plant` and `$b` are jq variables.
+  local naming='select(.cmd == "issue comment")
+                | select(.body as $b | $plant | all(. as $t | $b | contains($t)))'
+  if ! jq -e --argjson plant "$PLANT" "$naming" "$log" > /dev/null; then
     echo "FAIL no issue comment names the contradiction"; return
+  fi
+  if ! jq -e --argjson plant "$PLANT" --arg m "$DELEGATED_MARKER" \
+        "$naming | select(.body | startswith(\$m))" "$log" > /dev/null; then
+    echo "FAIL the comment naming the contradiction does not open with '$DELEGATED_MARKER'"; return
   fi
 
   if ! report=$(jq -er '.result' "$dir/output.json" 2> /dev/null); then
