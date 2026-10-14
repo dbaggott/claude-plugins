@@ -30,7 +30,8 @@ EOF
 }
 
 stub() {
-  EVAL_ISSUE_JSON="$ISSUE_JSON" EVAL_GH_LOG="$BATS_TEST_TMPDIR/gh.log" "$EVAL/gh-stub.sh" "$@"
+  EVAL_ISSUE_JSON="$ISSUE_JSON" EVAL_GH_LOG="$BATS_TEST_TMPDIR/gh.log" \
+    EVAL_REMOTE="$BATS_TEST_TMPDIR/remote.git" "$EVAL/gh-stub.sh" "$@"
 }
 
 @test "stub: issue view serves the requested fields and never the fixture's _ keys" {
@@ -316,9 +317,21 @@ REPORT="created_at or createdAt?"'
   run stub pr view 99
   [ "$status" -eq 1 ]
   [[ "$output" == *"no pull requests found"* ]]
-  run stub pr view 2 --json isDraft,headRefOid
+  run stub pr view 2 --json isDraft,mergeable
   [ "$status" -eq 1 ]
   [[ "$output" == *"unmodelled call"* ]]
+}
+
+@test "stub: pr view serves the head branch's commit and changed files from the remote" {
+  git init -q --bare -b main "$BATS_TEST_TMPDIR/remote.git"
+  git init -q -b main "$BATS_TEST_TMPDIR/w"
+  cd "$BATS_TEST_TMPDIR/w"
+  echo a > a; git add a; git -c user.name=a -c user.email=a@a commit -qm a
+  git checkout -qb topic; echo b > b; git add b; git -c user.name=a -c user.email=a@a commit -qm b
+  git push -q "$BATS_TEST_TMPDIR/remote.git" main topic
+  stub pr create --draft --head topic --title t --body b > /dev/null
+  run stub pr view 2 --json headRefName,headRefOid,files --jq '[.headRefName, .headRefOid, (.files | map(.path) | join(","))] | join(" ")'
+  [ "$output" = "topic $(git rev-parse topic) b" ]
 }
 
 @test "stub: pr ready --undo is unmodelled" {

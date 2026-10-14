@@ -246,8 +246,8 @@ for i in $(seq 1 "$RUNS"); do
   repo_state "$dir/repo" > "$dir/repo-state"
   repo_state "$remote" > "$dir/remote-state"
 
-  printf '#!/bin/sh\nEVAL_ISSUE_JSON=%q EVAL_GH_LOG=%q exec %q "$@"\n' \
-    "$ISSUE_JSON" "$dir/gh.log" "$HERE/gh-stub.sh" > "$dir/bin/gh"
+  printf '#!/bin/sh\nEVAL_ISSUE_JSON=%q EVAL_GH_LOG=%q EVAL_REMOTE=%q exec %q "$@"\n' \
+    "$ISSUE_JSON" "$dir/gh.log" "$remote" "$HERE/gh-stub.sh" > "$dir/bin/gh"
   chmod +x "$dir/bin/gh"
 
   run_path="$dir/bin:$MIRROR_PATH"

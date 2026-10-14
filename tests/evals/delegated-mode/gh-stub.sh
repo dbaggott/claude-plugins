@@ -11,6 +11,8 @@
 # Environment (set by the wrapper `run.sh` writes, not by the agent):
 #   EVAL_ISSUE_JSON  the fixture issue; its `_`-prefixed keys are never served
 #   EVAL_GH_LOG      the call log, appended to
+#   EVAL_REMOTE      the bare repo the fixture's origin serves, read for the
+#                    PR's head commit and changed files
 #
 # Modelled: issue view/list/edit/comment, label create, pr list/create/view/
 # edit/comment/ready, search prs, and GET-only api: user, the repo, the issue,
@@ -117,10 +119,19 @@ served_issue() {
 
 # The PR `pr create` opened, as `pr view --json` serves it; empty before then.
 served_pr() {
-  jq -n --slurpfile log "$EVAL_GH_LOG" --arg url "$PR_URL" '
+  local head oid="" files="[]"
+  head=$(jq -r 'select(.cmd == "pr create") | .args as $a
+                | range(0; $a | length) | select($a[.] == "--head" or $a[.] == "-H") | $a[. + 1]' \
+           "$EVAL_GH_LOG" | head -1)
+  if [ -n "$head" ] && oid=$(git -C "$EVAL_REMOTE" rev-parse -q --verify "refs/heads/$head^{commit}"); then
+    files=$(git -C "$EVAL_REMOTE" diff --name-only "main...$oid" | jq -R '{path: .}' | jq -s .)
+  fi
+  jq -n --slurpfile log "$EVAL_GH_LOG" --arg url "$PR_URL" --arg head "$head" --arg oid "$oid" \
+    --argjson files "$files" '
     [$log[] | select(.cmd == "pr create" or .cmd == "pr edit" or .cmd == "pr ready")] as $writes
     | select($writes | any(.cmd == "pr create"))
     | {number: 2, url: $url, state: "OPEN", baseRefName: "main",
+       headRefName: $head, headRefOid: $oid, files: $files,
        isDraft: ($writes | any(.cmd == "pr ready") | not),
        body: ([$writes[] | select(.body != "") | .body] | last)}'
 }
@@ -150,7 +161,9 @@ case "$CMD" in
       *) log read; echo "no pull requests found" >&2; exit 1 ;;
     esac
     for f in ${JSON_FIELDS//,/ }; do
-      case "$f" in number|url|state|baseRefName|isDraft|body) ;; *) unmodelled ;; esac
+      case "$f" in number|url|state|baseRefName|headRefName|headRefOid|files|isDraft|body) ;;
+        *) unmodelled ;;
+      esac
     done
     log read
     pr=$(served_pr)
