@@ -10,6 +10,29 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.5 — 2026-10-14
+
+Skills now know what to do when they need an answer and nobody can give one. An
+agent without `AskUserQuestion`, as in any subagent, posts the question as a
+comment opening with `Delegated question:` on the issue it is working (or the PR,
+when there is no issue) and ends its turn with the question as its report. It no
+longer improvises or picks silently. An answer the dispatcher gave in advance,
+such as "send it to review when done", is used instead of asking.
+
+This replaces the "unattended" branches, which keyed on what the operator had
+said rather than on anything an agent can detect. The reviewer no longer takes
+"wait until ready" on a draft, and `issue-reviewer` no longer takes the spec
+review on an ambiguous request, without being told to.
+
+
+## dnbg-work-summary 2026.10.1 — 2026-10-14
+
+A recap requested by another agent, with no `AskUserQuestion` to ask its
+questions with, now uses the defaults the skill recommends and says which it
+took. Where there is no default (an open audience or format, or no `owners`
+setting), it stops and reports the question instead of guessing.
+
+
 ## dnbg-workflow 2026.10.4 — 2026-10-14
 
 `reviewer` can now review a tracking issue as a whole project. Pointed at an issue with sub-issues, it waits until every child is closed, then grades the merged work against the tracking issue's end-to-end acceptance criteria. It posts one verdict on the tracking issue, `ACCEPTED` or `CHANGES REQUESTED`, which names every criterion.
