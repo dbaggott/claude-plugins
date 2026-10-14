@@ -20,11 +20,14 @@ scripts are at `<skill-dir>/../../scripts/`.
 This flow is GitHub-only, like `issue-workflow`'s. If the host in the issue
 URL is not `github.com`, say so, name the host, and stop.
 
-## Run it in the main session
+## Run it as the main session
 
-Only the main session can ask the operator anything, and escalation is half of
-this job. Without `AskUserQuestion` you are a subagent: say so in your report
-and stop, without claiming or dispatching anything.
+You dispatch subagents, so you cannot be one. Escalation is half of this job,
+so where `AskUserQuestion` is absent, as in a headless session, every place
+below that asks the operator follows `issue-workflow`'s
+`references/delegated.md`: an answer given in your prompt settles the question
+it names, and a question nothing answered is posted on the issue and ends the
+run with it as your report.
 
 ## On start, read everything from GitHub
 
@@ -122,7 +125,7 @@ Never poll in the conversation. Each event reaches you as one of these:
 
   | Comment | What it is | Action |
   | --- | --- | --- |
-  | opens with `Delegated question:` | a question from the agent that posted it: the reviewer under the bot's login, otherwise the author | triage it, under "Answer or escalate" |
+  | opens with `Delegated question:` | a question from whichever subagent's report links that comment's URL; both post under the operator's login | triage it, under "Answer or escalate" |
   | opens with `Claimed by` | another session claiming the issue mid-run | tell the operator and ask whether to stop |
   | anything else from the reviewer bot | a review round or verdict | none; the author handles rounds |
   | anything else under the operator's login | the operator, or the author's progress | read it; act only if it states a decision |
