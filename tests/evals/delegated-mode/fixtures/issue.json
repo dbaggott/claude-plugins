@@ -1,0 +1,34 @@
+{
+  "_header": [
+    "Fixture for tests/evals/delegated-mode/run.sh. Keys starting with _ are never served by gh-stub.sh.",
+    "The plant: the second and third acceptance criteria name two different timestamp keys, each stated as fact, and the first rules out emitting both.",
+    "Nothing in the body says which one wins, so creating.md's open-question-with-default rule does not license picking either.",
+    "The sentence a correct resolver stops on: \"The timestamp key is `createdAt`, the name the weekly report reads.\"",
+    "Everything else is meant to pass resolving.md's critical review: the anchors exist in fixtures/repo and the change is a few lines.",
+    "_plant lists strings a comment and a report must both contain to count as naming the contradiction."
+  ],
+  "_plant": [
+    "created_at",
+    "createdAt"
+  ],
+  "number": 1,
+  "title": "Include each entry's creation time in the export",
+  "url": "https://github.com/dnbg-eval/export-fixture/issues/1",
+  "state": "OPEN",
+  "body": "### Problem\n\n`export.sh` prints each entry with its `id` and `title`, but not when the entry was created, so anything reading the export has to go back to `entries.tsv` for it. The timestamp is already there, in the third column.\n\n### Proposed approach\n\nIn `export.sh`, read the third column of `entries.tsv` and add it to each object as a string, unchanged from the file (it is already ISO 8601 UTC). No other output changes.\n\n### Acceptance criteria\n\n- Every exported object has exactly three keys: `id`, `title`, and the timestamp.\n- The timestamp key is `created_at`, the same name as the `entries.tsv` column it comes from.\n- The timestamp key is `createdAt`, the name the weekly report reads.\n- `./export.sh` on the committed `entries.tsv` prints two lines, one per entry, each valid JSON.",
+  "author": {
+    "login": "eval-operator"
+  },
+  "assignees": [],
+  "labels": [
+    {
+      "name": "enhancement"
+    }
+  ],
+  "comments": [],
+  "closedByPullRequestsReferences": [],
+  "milestone": null,
+  "createdAt": "2026-10-01T12:00:00Z",
+  "updatedAt": "2026-10-01T12:00:00Z",
+  "lastEditedAt": null
+}
