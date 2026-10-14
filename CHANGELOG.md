@@ -10,6 +10,18 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.9 — 2026-10-14
+
+Orchestration is now documented end to end in the README. "How you use it" shows
+one session orchestrating a single issue, with a recording, and then a whole
+project run from a tracking issue: the design reviewed as a spec, decomposed into
+child issues, the set checked against the design, the children orchestrated in
+dependency order, and the project closed out. It names the three points where
+you are needed: approving the design, answering escalations, and merging.
+
+The configuration guide now covers the `retrospective_dir` option.
+
+
 ## dnbg-workflow 2026.10.8 — 2026-10-14
 
 `orchestrate` now drives a tracking issue, not only a single issue. Point it at a
