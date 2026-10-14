@@ -10,6 +10,13 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.4 — 2026-10-14
+
+`reviewer` can now review a tracking issue as a whole project. Pointed at an issue with sub-issues, it waits until every child is closed, then grades the merged work against the tracking issue's end-to-end acceptance criteria. It posts one verdict on the tracking issue, `ACCEPTED` or `CHANGES REQUESTED`, which names every criterion.
+
+New closeout procedure: say "close out <tracking issue URL>" once that verdict is `ACCEPTED`. It writes the as-built design to `docs/design/` through one PR, turns each friction-log entry into a follow-up issue or an explicit drop, and closes the tracking issue with a link to the doc. Until the orchestrate skill ships, give the agent the path `dnbg-workflow/skills/orchestrate/references/closeout.md`.
+
+
 ## dnbg-workflow 2026.10.3 — 2026-10-14
 
 `issue-reviewer` can now review a tracking issue together with its sub-issues. It reads the whole set in one call, and checks it against the design for more problems: a requirement that no child covers and the parent hasn't marked end-to-end or deferred; a child that needs another child's output but isn't marked blocked by it; and a child whose approach contradicts the design section it cites. A finding that the design itself should change goes on the tracking issue. The expected fix is an edit to that issue's body plus a decision-log row, not edits to the children.
