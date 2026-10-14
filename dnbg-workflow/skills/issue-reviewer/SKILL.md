@@ -19,8 +19,15 @@ job goes undone.
 | --- | --- | --- |
 | "review the issue body", "review this issue as a spec", "is this ready to pick up", "review these issues as a set", "review the plan" | the issue itself | here |
 | "be the reviewer on issue N", "you review issue 74", "watch for PRs on this issue", "review the work resolving this" | the PRs that resolve it, against its acceptance criteria | `reviewer`, `references/issue-mode.md` |
+| any ask in the first row, on a body that declares itself a tracking issue | the issue itself, plus what a design has to carry | here, adding `references/design-review.md` |
 
-**Route on the phrasing, not on the repository's state.** "No PRs yet, so they
+**The design row keys on the body, not the phrasing.** Read the body before
+choosing it: "review this issue" on a tracking issue gets the design checks, and
+"review the design" on a plain issue does not. In a set, it applies to the
+tracking issue alone.
+
+**Choosing between the first two rows, route on the phrasing, not on the
+repository's state.** "No PRs yet, so they
 must mean the body" is wrong: a spec review of an issue already under
 implementation is a coherent ask, and a resolution review is designed to be armed
 before any work exists.
