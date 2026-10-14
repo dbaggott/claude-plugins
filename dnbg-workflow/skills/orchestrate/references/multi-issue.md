@@ -60,10 +60,12 @@ closing, a row reaching `applied`, a spec verdict on a child.
    offering the child again, so a child whose claim did not return `result=OK`
    is not dispatched. Then run `SKILL.md`'s steps 3 to 5 on it and dispatch its
    author with `SKILL.md`'s recipe.
-6. **Nothing in flight and nothing ready** means the run cannot progress: a
-   cycle, a blocker outside the project, or a child held for a verdict or by
-   someone else. Report each open child with its `reasons` and blockers, and
-   stop.
+6. **Nothing in flight, nothing ready, and no `decided` row still being
+   applied** means the run cannot progress: a cycle, a blocker outside the
+   project, or a child held for a verdict or by someone else. Report each open
+   child with its `reasons` and blockers, and stop. While a row is still being
+   applied, its re-review's verdict reaches you through the set watch, so wait
+   for it.
 
 A child is **in flight** while it is open and `claim-issue.sh` reads `OWN` on
 it, and after it closes until its author has sent its final report and its
