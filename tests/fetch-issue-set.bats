@@ -118,6 +118,31 @@ line() { tail -1 <<<"$1"; }
   [[ "$output" == "result=ERROR reason=issue-query-shape now="* ]]
 }
 
+@test "a null sub-issue or a null blocker is issue-query-shape, not set-overflow" {
+  answer 1 null
+  jq -c '.data.repository.issue.subIssues.nodes = [null]' "$ANSWER" > "$ANSWER.x" && mv "$ANSWER.x" "$ANSWER"
+  run "$FETCH" o/r 1
+  [[ "$output" == "result=ERROR reason=issue-query-shape now="* ]]
+  answer 1 "$(issue 2 OPEN null | jq -c '.blockedBy = null')"
+  run "$FETCH" o/r 1
+  [[ "$output" == "result=ERROR reason=issue-query-shape now="* ]]
+  answer 1 "$(issue 2 OPEN null 3 | jq -c '.blockedBy.nodes = [null]')"
+  run "$FETCH" o/r 1
+  [[ "$output" == "result=ERROR reason=issue-query-shape now="* ]]
+}
+
+@test "now is the time before the query, not after it" {
+  answer 0
+  cat > "$STUB/date" <<'EOF2'
+#!/usr/bin/env bash
+n=$(cat "$BATS_TEST_TMPDIR/dates" 2>/dev/null || echo 0); echo $((n + 1)) > "$BATS_TEST_TMPDIR/dates"
+echo "2026-10-01T00:00:0${n}Z"
+EOF2
+  chmod +x "$STUB/date"
+  run "$FETCH" o/r 1
+  [[ "$(line "$output")" == "result=OK now=2026-10-01T00:00:00Z children=0" ]]
+}
+
 @test "owner and repo bind as strings and the number as an Int" {
   answer 0
   run "$FETCH" 2048/1999 7

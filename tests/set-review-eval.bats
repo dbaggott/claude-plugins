@@ -50,7 +50,7 @@ line() { tail -1 <<<"$1"; }
 @test "every placeholder is filled, and the parent's table links the children" {
   run "$CREATE" o/r
   run ! grep -l '{{' "$BODIES"/*
-  grep -qF "| [1]($U/2) | Export script | R1 |" "$BODIES/edited-1"
+  grep -qF "| [1]($U/2) | Export script | R0, R1 |" "$BODIES/edited-1"
   grep -qF "| [3]($U/4) | Import script | R3 | 1 |" "$BODIES/edited-1"
   grep -qF "Sub-issue of $U/1" "$BODIES/2"
   grep -qF "**Depends on:** $U/2" "$BODIES/4"
@@ -75,9 +75,14 @@ line() { tail -1 <<<"$1"; }
   run ! grep -q '^issue edit' "$LOG"
 }
 
-@test "a failed link is reported, not printed as a usable set" {
+@test "a failed link is reported with what was filed, not printed as a usable set" {
   FAIL_ON="--add-sub-issue" run "$CREATE" o/r
-  [ "$output" = "result=ERROR reason=link-failed" ]
+  [ "$output" = "result=ERROR reason=link-failed created=$U/1,$U/2,$U/3,$U/4" ]
+}
+
+@test "a create failing partway names the issues already filed" {
+  FAIL_ON="Export checker" run "$CREATE" o/r
+  [ "$output" = "result=ERROR reason=create-failed created=$U/1,$U/2" ]
 }
 
 @test "bad arguments are refused before any call" {

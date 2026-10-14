@@ -153,7 +153,7 @@ Across the set:
 - **Orphaned work** — something the plan implies that no issue owns.
 
 When the set is a tracking issue and its children, the design is in hand, so
-three more become computable:
+these become computable too:
 
 - **Coverage** — every requirement not retired appears in some child's `Covers`
   line, or its line in the parent ends in an `*(end-to-end: A<n>)*` or

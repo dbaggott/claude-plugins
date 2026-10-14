@@ -784,10 +784,18 @@ remote_read_calls() {  # <SKILL.md>
   local reasons r bad=0
   reasons=$(grep -oE '\bfail [a-z-]+' "$src" | sed 's/^fail //' | sort -u)
   [ -n "$reasons" ] || { echo "no fail reasons found in $(basename "$src") — the extractor broke"; false; }
+  # The prose that dispatches on the result: after the call's closing fence, up to
+  # the next fence. A reason named in another section of SKILL.md does not count.
+  local para
+  para=$(awk '/fetch-issue-set\.sh" <owner>/ { call = 1; next }
+              call && /^```/ { if (inside) exit; inside = 1; next }
+              inside' "$skill")
+  [ -n "$para" ] || { echo "SKILL.md no longer calls fetch-issue-set.sh — the extractor broke"; false; }
   for r in $reasons; do
-    grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" "$skill" || {
-      echo "issue-reviewer/SKILL.md does not name ERROR reason '$r'"; bad=1; }
-    sed -n '1,25p' "$src" | grep -q "$r" || {
+    # Hyphen-aware boundary, so `issue-query` is not satisfied by `issue-query-shape`.
+    grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" <<<"$para" || {
+      echo "issue-reviewer/SKILL.md's fetch-issue-set paragraph does not name ERROR reason '$r'"; bad=1; }
+    sed -n '/^# Prints/,/^set -euo/p' "$src" | grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" || {
       echo "$(basename "$src") emits '$r' but its header does not declare it"; bad=1; }
   done
   [ "$bad" -eq 0 ]

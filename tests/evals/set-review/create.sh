@@ -5,10 +5,10 @@
 #
 #   tests/evals/set-review/create.sh [owner/repo]   # default dbaggott/dnbg-watch-testbed
 #
-# Files fixtures/ as a scratch tracking issue with three sub-issues and one
+# Files fixtures/ as a scratch tracking issue with its sub-issues and one
 # blocked-by edge, then prints the parent's URL. Review that URL with
-# `issue-reviewer`. Two defects are planted, and the review passes when its round
-# comments report both, each on the issue SKILL.md's attach rules name:
+# `issue-reviewer`. The review passes when its round comments report each planted
+# defect on the issue SKILL.md's attach rules name:
 #
 #   - Coverage gap, on the parent: R4 is in no child's `Covers` line and carries
 #     no end-to-end or deferred marking.
@@ -24,14 +24,20 @@
 #
 # Prints the parent URL, then one result line, and exits 0:
 #   result=OK parent=<url> children=<url,url,url>
-#   result=ERROR reason=bad-args|create-failed|link-failed
+#   result=ERROR reason=bad-args|create-failed|link-failed [created=<url,…>]
+#
+# `created` names any issues already filed when a later step failed, so they can
+# be closed rather than left open in the testbed.
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 FIX="$HERE/fixtures"
 REPO="${1:-dbaggott/dnbg-watch-testbed}"
 
-fail() { echo "result=ERROR reason=$1"; exit 0; }
+CREATED=""
+fail() { echo "result=ERROR reason=$1${CREATED:+ created=$CREATED}"; exit 0; }
+# <url> -> records it as filed, for `fail`
+filed() { [ -n "$1" ] || return 1; CREATED="${CREATED:+$CREATED,}$1"; }
 
 [ "$#" -le 1 ] || fail bad-args
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
@@ -58,7 +64,7 @@ create() {
 echo "This is a **tracking issue**; its design is written once its children are filed." \
   > "$TMP/parent.md"
 PARENT=$(create "[set-review eval] Notes export" "$TMP/parent.md") || fail create-failed
-[ -n "$PARENT" ] || fail create-failed
+filed "$PARENT" || fail create-failed
 
 # <fixture-name> <title> -> the child's URL. The export child goes first, since
 # the import child cites it.
@@ -66,9 +72,12 @@ child() {
   render "$FIX/child-$1.md" PARENT="$PARENT" CHILD_EXPORT="${EXPORT:-}" > "$TMP/$1.md"
   create "[set-review eval] $2" "$TMP/$1.md"
 }
-EXPORT=$(child export "Export script") && [ -n "$EXPORT" ] || fail create-failed
-CHECK=$(child check "Export checker") && [ -n "$CHECK" ] || fail create-failed
-IMPORT=$(child import "Import script") && [ -n "$IMPORT" ] || fail create-failed
+EXPORT=$(child export "Export script") || fail create-failed
+filed "$EXPORT" || fail create-failed
+CHECK=$(child check "Export checker") || fail create-failed
+filed "$CHECK" || fail create-failed
+IMPORT=$(child import "Import script") || fail create-failed
+filed "$IMPORT" || fail create-failed
 
 render "$FIX/parent.md" DATE="$DATE" CHILD_EXPORT="$EXPORT" CHILD_CHECK="$CHECK" \
   CHILD_IMPORT="$IMPORT" > "$TMP/parent.md"

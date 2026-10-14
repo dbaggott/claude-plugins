@@ -17,7 +17,11 @@
 #
 # `set-overflow` means a page came back short of its total — more sub-issues, or
 # more blockers on one child, than one query asks for — so the snapshot would
-# silently omit part of the set.
+# silently omit part of the set. A null node, such as an issue the token cannot
+# see, is `issue-query-shape`: the set was not fully read either way.
+#
+# `now` is stamped before the query, so an edit landing while it runs carries a
+# later `body_edited` than `now` and reads as moved.
 #
 # ⚠️ THE FORGE IS ASSUMED TO BE GITHUB. https://github.com/dbaggott/claude-plugins/issues/149
 # replaces the constant below with host detection; the output above is not
@@ -55,6 +59,7 @@ query($owner:String!, $repo:String!, $n:Int!) {
   }
 }'
 
+NOW=$(now_iso)
 # `-F` for the number, which must reach GraphQL as an Int; `-f` for the owner and
 # repo, so an all-digit name stays a String.
 RAW=$(gh api graphql -f query="$Q" -f owner="$OWNER" -f repo="$NAME" -F n="$N" 2>/dev/null) || true
@@ -69,23 +74,24 @@ if [ -z "$ISSUE" ]; then
   fail issue-query
 fi
 
+# Shape first, so a payload that stopped parsing is never reported as a set too
+# large to read.
+printf '%s' "$ISSUE" | jq -e '
+  def page: (.totalCount | type) == "number" and (.nodes | type) == "array"
+            and all(.nodes[]; type == "object");
+  (.subIssues | page) and all(.subIssues.nodes[]; .blockedBy | page)' \
+  >/dev/null 2>&1 || fail issue-query-shape
 printf '%s' "$ISSUE" | jq -e '
   (.subIssues.nodes | length) == .subIssues.totalCount
   and all(.subIssues.nodes[]; (.blockedBy.nodes | length) == .blockedBy.totalCount)' \
-  >/dev/null 2>&1 || {
-    # A false answer is the overflow; anything else is a payload that stopped
-    # parsing, which must not be reported as a set too large to read.
-    printf '%s' "$ISSUE" | jq -e '.subIssues.nodes | type == "array"' >/dev/null 2>&1 \
-      && fail set-overflow
-    fail issue-query-shape
-  }
+  >/dev/null 2>&1 || fail set-overflow
 
 OUT=$(printf '%s' "$ISSUE" | jq -c '
   def fields: {url, number, title, body, state, created: .createdAt,
-               body_edited: (.lastEditedAt // null)};
+               body_edited: .lastEditedAt};
   { parent: fields,
     children: [ .subIssues.nodes[] | fields + {blocked_by: [.blockedBy.nodes[].url]} ] }' \
   2>/dev/null) || fail issue-query-shape
 
 echo "$OUT"
-echo "result=OK now=$(now_iso) children=$(printf '%s' "$OUT" | jq '.children | length')"
+echo "result=OK now=$NOW children=$(printf '%s' "$OUT" | jq '.children | length')"
