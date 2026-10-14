@@ -5,11 +5,15 @@
 #   fetch-issue-state.sh <owner/repo> <n> [n...]
 #
 # Prints the object, then exactly one result line, then exits 0:
-#   {"issues":[{"number":…,"state":…,"body_edited":…,"comments":[…],
+#   {"issues":[{"number":…,"state":…,"body_edited":…,
+#               "comments":[{"author":…,"at":…,"url":…,"head":…}],
 #               "comments_total":…,"comments_returned":…,"linked_prs":[…]}],
 #    "missing":[…]}
 #   result=OK now=<iso> [missing=<n,n>]
 #   result=ERROR reason=bad-args|unsupported-forge|issue-query|issue-query-shape now=<iso>
+#
+# A comment's `head` is its first line, which is all a caller classifying
+# comments needs, without carrying whole bodies through every tick.
 #
 # One aliased query per tick for any N. The batch is the point: a watch over
 # eight issues costs the same request as one, and state, the body-edit stamp,
@@ -72,7 +76,7 @@ for n in "$@"; do
       number state lastEditedAt
       comments(last: ${COMMENT_PAGE}) {
         totalCount
-        nodes { author { login } createdAt url }
+        nodes { author { login } createdAt url body }
       }
       closedByPullRequestsReferences(first: 20, includeClosedPrs: true) { nodes { url } }
       timelineItems(last: 50, itemTypes: [CROSS_REFERENCED_EVENT]) {
@@ -99,7 +103,8 @@ OUT=$(printf '%s' "$RAW" | jq -c '
         comments_total:    (.comments.totalCount // 0),
         comments_returned: ((.comments.nodes // []) | length),
         comments: ((.comments.nodes // []) | map({
-            author: (.author.login // ""), at: .createdAt, url: .url })),
+            author: (.author.login // ""), at: .createdAt, url: .url,
+            head: ((.body // "") | split("\n") | (.[0] // "") | sub("\r$"; "")) })),
         linked_prs: (
           (((.closedByPullRequestsReferences.nodes // []) | map(.url))
            + ((.timelineItems.nodes // []) | map(.source.url // empty)))

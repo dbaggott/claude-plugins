@@ -3,12 +3,13 @@
 # exit. The issue-side sibling of watch-pr.sh, sharing its curve, its clock and
 # its re-arm contract.
 #
-#   watch-issue.sh <owner/repo> <n> [n...] --role=author|reviewer \
+#   watch-issue.sh <owner/repo> <n> [n...] --role=author|reviewer|orchestrator \
 #     [--since=<iso>] [--slug=<login>] [--exclude=<pr-url,…>]
 #
 # Exactly one result line, then exit 0:
 #   result=ACTIVITY issues=<n,…> kinds=<comment|linked-pr|body-edit,…> \
-#     edited=<n:iso|n:none,…> [closed=<n,…>] [missing=<n,…>] now=<iso>
+#     edited=<n:iso|n:none,…> [comments=<login:url,…>] [overflowed=<n,…>] \
+#     [closed=<n,…>] [missing=<n,…>] now=<iso>
 #   result=CLOSED   issues=<n,…> [missing=<n,…>] now=<iso>
 #   result=IDLE     [missing=<n,…>] now=<iso>
 #   result=ERROR    reason=<source> now=<iso>
@@ -34,6 +35,18 @@
 # PR appearing, and the issue closing are four questions about one thing, and one
 # batched query answers all four for any number of issues. Splitting them would
 # buy separate result vocabularies and cost a request per question per tick.
+#
+# The orchestrator role excludes no login and takes no `--slug`: the author it
+# dispatched, the operator and the orchestrator itself all post under one account,
+# so it tells comments apart by their first line instead. It never wakes on what
+# only the orchestrator's own bookkeeping produces: a body edit, a comment opening
+# `Decision log:`, a `Claimed by` comment carrying this session's id
+# (`${CLAUDE_CODE_SESSION_ID:0:8}`), or the reviewer's `Claude Code is acting as
+# reviewer` note. A `Claimed by` with any other id is a sibling claiming the issue,
+# and wakes it. `comments=` lists every other comment inside the window, oldest
+# first, as its author's login and its URL. `overflowed=` names issues whose page
+# of comments may not reach back to `since`, so `comments=` can be missing some;
+# the caller reads those threads in full.
 #
 # ⚠️ THE EXCLUSION IS AN EXACT LOGIN MATCH — of both spellings, `<slug>` and
 # `<slug>[bot]`, since a GitHub App posts under the suffixed one — AND THE TWO
@@ -73,7 +86,7 @@ WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
 HERE="$(cd "$(dirname "$0")" && pwd)"
 fatal() { echo "result=ERROR reason=$1 now=$(poll_now_iso)"; exit 0; }
 
-case "$ROLE" in author|reviewer) ;; *) bad=1 ;; esac
+case "$ROLE" in author|reviewer|orchestrator) ;; *) bad=1 ;; esac
 [ -n "$REPO" ] || bad=1
 case "$REPO" in */*) ;; *) bad=1 ;; esac
 [ -n "$NUMS" ] || bad=1
@@ -82,7 +95,11 @@ case "$REPO" in */*) ;; *) bad=1 ;; esac
 if [ -z "$SLUG" ] && [ "$ROLE" = author ]; then
   SLUG=$(gh api user --jq .login 2>/dev/null) || SLUG=""
 fi
-[ -n "$SLUG" ] || bad=1
+if [ "$ROLE" = orchestrator ]; then
+  [ -z "$SLUG" ] || bad=1
+else
+  [ -n "$SLUG" ] || bad=1
+fi
 [ "$bad" = 1 ] && fatal bad-args
 
 # A review round on an issue is a stream — several comments and body edits over
@@ -101,7 +118,17 @@ EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' \
 
 poll_init
 
-hit_issues=""; hit_kinds=""; closed_issues=""; new_prs=""; seen_missing=""
+SID="${CLAUDE_CODE_SESSION_ID:-}"; SID="${SID:0:8}"
+# Which comments count, as a jq function over one comment.
+# shellcheck disable=SC2016  # jq variables, bound by each caller's --arg flags.
+KEEP='def keep: if $role == "orchestrator" then
+    (.head // "") as $h
+    | ($h | startswith("Decision log:")
+        or startswith("Claude Code is acting as reviewer")
+        or (test("^claimed by"; "i") and $sid != "" and contains("(" + $sid + ")"))) | not
+  else .author != $slug and .author != ($slug + "[bot]") end;'
+
+hit_issues=""; hit_kinds=""; hit_overflow=""; closed_issues=""; new_prs=""; seen_missing=""
 # What has already been accounted for. Without it the same comment satisfies the
 # wake condition on every tick, so the settle window is extended forever and the
 # watch never reports at all.
@@ -112,9 +139,9 @@ rearm_cmd() {  # [issues-override]
   local ex nums="${1:-$NUMS}"
   ex=$(printf '%s\n%s\n' "$EXCLUDE_LINES" "$new_prs" \
          | grep -v '^[[:space:]]*$' | sort -u | paste -sd, - || true)
-  printf 'WINDOW=%s "%s/watch-issue.sh" %s%s --role=%s --since=%s --slug=%s%s' \
-    "$WINDOW" "$HERE" "$REPO" "$nums" "$ROLE" "$(poll_now_iso)" "$SLUG" \
-    "${ex:+ --exclude=$ex}"
+  printf 'WINDOW=%s "%s/watch-issue.sh" %s%s --role=%s --since=%s%s%s' \
+    "$WINDOW" "$HERE" "$REPO" "$nums" "$ROLE" "$(poll_now_iso)" \
+    "${SLUG:+ --slug=$SLUG}" "${ex:+ --exclude=$ex}"
 }
 
 # Reported on whatever result the watch reaches, so a number that resolves to
@@ -136,12 +163,18 @@ report_error() {
 # to re-arm on and the line is omitted — the same reason CLOSED omits it.
 report_hit() {  # [closed-list] [issues-override|NONE]
   [ "${2:-}" = NONE ] || watch_rearm "$(rearm_cmd "${2:-}")"
-  local issues kinds edited
+  local issues kinds edited comments="" overflowed=""
   issues=$(printf '%s\n' "$hit_issues" | tr ' ' '\n' | grep -v '^$' | sort -nu | paste -sd, - || true)
   kinds=$(printf '%s\n' "$hit_kinds" | tr ' ' '\n' | grep -v '^$' | sort -u | paste -sd, - || true)
   edited=$(printf '%s' "$last_json" | jq -r '
     [ .issues[] | "\(.number):\(.body_edited // "none")" ] | join(",")' 2>/dev/null || echo "")
-  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited${1:+ closed=$1}$(missing_field) now=$(poll_now_iso)"
+  if [ "$ROLE" = orchestrator ]; then
+    comments=$(printf '%s' "$last_json" | jq -r --arg s "$SINCE" --arg slug "" --arg role "$ROLE" --arg sid "$SID" "$KEEP"'
+      [ .issues[].comments[] | select(.at > $s) | select(keep) ] | sort_by(.at)
+      | map("\(.author):\(.url)") | join(",")' 2>/dev/null || echo "")
+    overflowed=$(printf '%s\n' "$hit_overflow" | tr ' ' '\n' | grep -v '^$' | sort -nu | paste -sd, - || true)
+  fi
+  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited${comments:+ comments=$comments}${overflowed:+ overflowed=$overflowed}${1:+ closed=$1}$(missing_field) now=$(poll_now_iso)"
   exit 0
 }
 
@@ -185,11 +218,11 @@ while :; do
   fi
 
   # An exact login match, never a substring — see the header.
-  comment_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
-    [ .issues[] | select([ .comments[] | select(.at > $s) | select(.author != $slug and .author != ($slug + "[bot]")) ] | length > 0)
+  comment_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" --arg role "$ROLE" --arg sid "$SID" "$KEEP"'
+    [ .issues[] | select([ .comments[] | select(.at > $s) | select(keep) ] | length > 0)
       | .number ] | join(" ")')
-  edit_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" '
-    [ .issues[] | select((.body_edited // "") > $s) | .number ] | join(" ")')
+  edit_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg role "$ROLE" '
+    [ .issues[] | select($role != "orchestrator" and (.body_edited // "") > $s) | .number ] | join(" ")')
 
   # A page that overflowed may hide comments inside the window, so the count is
   # checked rather than the window trusted. Overflow alone is not enough to say
@@ -202,6 +235,7 @@ while :; do
       | select(.comments_total > .comments_returned)
       | select((.comments | length) == 0 or (([ .comments[].at ] | min) > $s))
       | .number ] | join(" ")')
+  [ -z "$overflow" ] || hit_overflow="$hit_overflow $overflow"
 
   all_prs=$(printf '%s' "$J" | jq -r '[.issues[].linked_prs[]] | unique | join("\n")')
   if [ -n "$all_prs" ] && [ -n "$EXCLUDE_LINES" ]; then
@@ -247,9 +281,9 @@ while :; do
 
   # Counted rather than merely present, so a SECOND comment extends the window
   # and the first one does not extend it forever.
-  sig=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
-    [ ([ .issues[].comments[] | select(.at > $s) | select(.author != $slug and .author != ($slug + "[bot]")) ] | length),
-      ([ .issues[] | select((.body_edited // "") > $s) ] | length),
+  sig=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" --arg role "$ROLE" --arg sid "$SID" "$KEEP"'
+    [ ([ .issues[].comments[] | select(.at > $s) | select(keep) ] | length),
+      ([ .issues[] | select($role != "orchestrator" and (.body_edited // "") > $s) ] | length),
       ([ .issues[].linked_prs[] ] | length) ] | join("/")')
   changed=0
   if [ -n "$hit_issues" ] && [ "$sig" != "$obs_sig" ]; then changed=1; obs_sig="$sig"; fi

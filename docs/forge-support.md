@@ -61,6 +61,7 @@ repo you're standing in:
 | `git-workflow` | the repo whose tracked file you're changing | that repo's `origin` host isn't `github.com` |
 | `issue-workflow` | the repo the issue lives in | the host **in the issue URL** isn't `github.com` — or, for a bare issue number, that repo's `origin` |
 | `issue-reviewer` | the repo the issues under review live in | the host **in the issue URL** isn't `github.com` — or, for a bare issue number, that repo's `origin` |
+| `orchestrate` | the repo the issue lives in | the host **in the issue URL** isn't `github.com` |
 | `reviewer` | a pull request you name explicitly | the *named* repo isn't on GitHub |
 | `reviewer-setup` | a GitHub App on your machine | never — no repo is involved |
 | `work-summary` | your GitHub account, via `gh search` | never — no repo is involved |

@@ -372,6 +372,33 @@ DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
   done
 }
 
+# Claims have one implementation, so a coder's pickup and an orchestrator's read
+# the same marks the same way.
+@test "the claim sites call claim-issue.sh rather than carrying the gh commands" {
+  local f
+  for f in "$ROOT/dnbg-workflow/skills/issue-workflow/references/resolving.md" \
+           "$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md"; do
+    grep -q 'claim-issue\.sh' "$f" || {
+      echo "$(basename "$f") no longer invokes claim-issue.sh"; false; }
+    ! grep -qE 'gh issue (edit .*--add-label|comment .*Claimed by)' "$f" || {
+      echo "$(basename "$f") carries its own claim commands"; false; }
+  done
+}
+
+# The orchestrator's issue watch drops comments by their first line, so each
+# prefix it drops has to be the one its writer actually posts. A writer that
+# rewords its line turns a dropped comment into a wake per write.
+@test "the prefixes the orchestrator watch drops match what their writers post" {
+  local w="$ROOT/dnbg-workflow/scripts/watch-issue.sh"
+  grep -q 'BODY="Claimed by an agent session (' "$ROOT/dnbg-workflow/scripts/claim-issue.sh"
+  grep -q 'test("^claimed by"; "i")' "$w"
+  grep -q -- '--body "Claude Code is acting as reviewer on this issue."' \
+    "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md"
+  grep -q 'startswith("Claude Code is acting as reviewer")' "$w"
+  grep -q '^Decision log: <ID> — <state>$' "$ROOT/dnbg-workflow/skills/orchestrate/references/triage.md"
+  grep -q 'startswith("Decision log:")' "$w"
+}
+
 # A site file in the shape the extractor expects: commands inside a fence, everything
 # else prose. Shaped as `.md` because that is the harder case — a script has no prose
 # for a mention to hide in.
