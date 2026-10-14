@@ -21,7 +21,8 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
    this run: leave the child alone, and it waits like a blocker outside the
    project. For each child you hold, run `SKILL.md`'s steps 3 to 5 on it, then
    dispatch a fresh author, and a reviewer when its PR is out of draft.
-3. **Read the parent's log.** In its decision-log table, a `proposed` row is an
+3. **Read the parent's log**: its decision-log table, and the
+   `Decision log: archived rows` comment if it has one. A `proposed` row is an
    escalation still waiting, and a `decided` row is work to finish before any
    dispatch (`references/design-change.md`). Read every comment on the parent
    newer than the last row for decisions the operator gave there.
@@ -43,8 +44,10 @@ closing, a row reaching `applied`, a spec verdict on a child.
    ```
 
    `ready` is what may be dispatched, in the parent's order. `waiting` gives each
-   held child's `reasons`: `blocked` (with the open `blocked_by` URLs),
-   `claimed`, or `no-ready-verdict` when `parent.spec_review` is true. A
+   held child's `reasons`: `blocked` (with the `blocked_by` URLs, which include
+   a blocker closed as not planned), `claimed`, and, when `parent.spec_review`
+   is true, `no-ready-verdict` or `design-not-ready`, the parent's own latest
+   verdict not reading `READY`. A
    `result=ERROR` (`bad-args`, `unsupported-forge`, `not-found`, `issue-query`,
    `issue-query-shape`, or `set-overflow`) means the set was not read: dispatch
    nothing, say so, and stop.
@@ -93,7 +96,8 @@ Classify comments with `SKILL.md`'s table, and add these:
 
 Triage against the parent's body first, its decisions with their rationale,
 then the child's own body. `references/triage.md`'s allowlist applies, and a
-decision the parent's log already holds is applied, citing its row.
+decision the parent's log already holds, in its table or its archived rows, is
+applied, citing its row.
 
 Every row is written twice: the `Decision log:` comment on the child, as
 `references/triage.md` gives it, and a row in the parent's decision-log table,
@@ -105,12 +109,14 @@ You are the parent body's only writer. Edit it by reading the body, changing
 it, and writing it back with `gh issue edit <parent> --body-file <file>`, and
 re-read it just before each write.
 
-**An escalation** blocks only the child that asked. Ask with
-`AskUserQuestion`. Without it, post the question on the parent per
+**An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
+the loop pauses until they answer, and the events that arrived meanwhile are
+handled after. Without it, post the question on the parent per
 `issue-workflow`'s `references/delegated.md` and end the turn with it as your
-report, leaving every watch armed, so the rest of the loop keeps moving. The
-operator answers in a comment on the parent, which the set watch delivers.
-Your own question's comment wakes the watch once. You know its URL, so skip it.
+report, leaving every watch armed. Only the child that asked waits; the rest of
+the loop keeps moving, and the operator's answer arrives as a comment on the
+parent through the set watch. Your own question's comment wakes the watch once.
+You know its URL, so skip it.
 
 ## Systemic problems
 

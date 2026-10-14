@@ -32,19 +32,24 @@ child() {
      assignees: {totalCount: 0, nodes: []}, labels: {totalCount: 0, nodes: []},
      blockedBy: {totalCount: 0, nodes: []}, comments: {nodes: []}}'
 }
-blocked_by() {  # <node> <n> <state> -> the node with one more blocker
-  jq -c --argjson n "$2" --arg s "$3" --arg u "$U" '
-    .blockedBy.nodes += [{url: "\($u)/\($n)", state: $s}]
+blocked_by() {  # <node> <n> <state> [stateReason] -> the node with one more blocker
+  jq -c --argjson n "$2" --arg s "$3" --arg r "${4:-}" --arg u "$U" '
+    .blockedBy.nodes += [{url: "\($u)/\($n)", state: $s,
+                          stateReason: (if $r == "" then null else $r end)}]
     | .blockedBy.totalCount += 1' <<<"$1"
 }
 comment() {  # <node> <login> <body> -> the node with one more comment, newest last
   jq -c --arg l "$2" --arg b "$3" '.comments.nodes += [{author: {login: $l}, body: $b}]' <<<"$1"
 }
-# [child-node...] -> the answer for parent 1, whose comments come from $PARENT_COMMENTS
+# [child-node...] -> the answer for parent 1. Its comments come from
+# $PARENT_COMMENTS, all of them on both pages unless $PARENT_NEWEST and
+# $PARENT_TOTAL say otherwise.
 answer() {
-  printf '%s\n' "$@" | jq -cs --arg u "$U" --argjson pc "${PARENT_COMMENTS:-[]}" '
+  printf '%s\n' "$@" | jq -cs --arg u "$U" --argjson pc "${PARENT_COMMENTS:-[]}" \
+      --argjson pn "${PARENT_NEWEST:-null}" --argjson pt "${PARENT_TOTAL:-null}" '
     {data: {repository: {issue: {
-      url: "\($u)/1", number: 1, comments: {nodes: $pc},
+      url: "\($u)/1", number: 1, oldest: {nodes: $pc},
+      newest: {totalCount: ($pt // ($pn // $pc | length)), nodes: ($pn // $pc)},
       subIssues: {totalCount: length, nodes: .}}}}}' > "$ANSWER"
 }
 spec_reviewed() {  # the parent carries a design review verdict from the bot
@@ -62,7 +67,7 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   [[ "$(line "$output")" =~ ^result=OK\ now=[0-9T:Z-]+\ children=2\ open=1\ ready=1$ ]]
   [ "$(object "$output" | jq -c '.ready')" = "[{\"url\":\"$U/2\",\"number\":2,\"title\":\"t2\"}]" ]
   [ "$(numbers "$output" waiting)" = '[]' ]
-  [ "$(object "$output" | jq -c .parent)" = "{\"url\":\"$U/1\",\"number\":1,\"spec_review\":false}" ]
+  [ "$(object "$output" | jq -c .parent)" = "{\"url\":\"$U/1\",\"number\":1,\"spec_review\":false,\"verdict\":null}" ]
 }
 
 @test "a closed blocker does not hold a child; an open one does, and is named" {
@@ -72,6 +77,16 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   [ "$(numbers "$output" ready)" = '[2]' ]
   [ "$(object "$output" | jq -c '.waiting[0] | {number, reasons, blocked_by}')" \
     = "{\"number\":3,\"reasons\":[\"blocked\"],\"blocked_by\":[\"$U/2\"]}" ]
+}
+
+@test "a blocker closed as not planned or as a duplicate still holds; one closed before reasons existed does not" {
+  answer "$(blocked_by "$(child 2)" 7 CLOSED NOT_PLANNED)" \
+         "$(blocked_by "$(child 3)" 8 CLOSED DUPLICATE)" \
+         "$(blocked_by "$(blocked_by "$(child 4)" 9 CLOSED COMPLETED)" 10 CLOSED)"
+  run "$READY" o/r 1 --slug=$BOT
+  [ "$(numbers "$output" ready)" = '[4]' ]
+  [ "$(object "$output" | jq -c '[.waiting[] | [.number, .reasons, .blocked_by]]')" \
+    = "[[2,[\"blocked\"],[\"$U/7\"]],[3,[\"blocked\"],[\"$U/8\"]]]" ]
 }
 
 @test "an assignee or any assigned:* label is a claim" {
@@ -103,6 +118,41 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   [ "$(numbers "$output" ready)" = '[2]' ]
   [ "$(object "$output" | jq -c '[.waiting[] | [.number, .reasons]]')" \
     = '[[3,["no-ready-verdict"]],[4,["no-ready-verdict"]]]' ]
+}
+
+@test "under spec review, a parent whose latest verdict is not READY holds every child" {
+  PARENT_COMMENTS=$(jq -cn --arg l "${BOT}[bot]" '[
+    {author: {login: $l}, body: "**Spec review (design mode), round 1: READY**"},
+    {author: {login: $l}, body: "**Set review, round 1: CHANGES REQUESTED**"}]')
+  answer "$(comment "$(child 2)" "${BOT}[bot]" "**Set review, round 1: READY**")"
+  run "$READY" o/r 1 --slug=$BOT
+  [ "$(object "$output" | jq -c .parent.verdict)" = '"CHANGES REQUESTED"' ]
+  [ "$(numbers "$output" ready)" = '[]' ]
+  [ "$(object "$output" | jq -c '.waiting[0].reasons')" = '["design-not-ready"]' ]
+}
+
+@test "the parent's latest verdict comes from its newest comments when they hold one" {
+  PARENT_COMMENTS=$(jq -cn --arg l "${BOT}[bot]" \
+    '[{author: {login: $l}, body: "**Spec review (design mode), round 1: CHANGES REQUESTED**"}]')
+  PARENT_NEWEST=$(jq -cn --arg l "${BOT}[bot]" \
+    '[{author: {login: $l}, body: "**Spec review (design mode), round 2: READY**"}]')
+  PARENT_TOTAL=500
+  answer "$(comment "$(child 2)" "${BOT}[bot]" "**Set review, round 1: READY**")"
+  run "$READY" o/r 1 --slug=$BOT
+  [ "$(object "$output" | jq -c .parent.verdict)" = '"READY"' ]
+  [ "$(numbers "$output" ready)" = '[2]' ]
+}
+
+@test "verdicts only among the parent's oldest comments, with a gap after them, is set-overflow" {
+  spec_reviewed
+  PARENT_NEWEST='[]'; PARENT_TOTAL=201
+  answer "$(child 2)"
+  run "$READY" o/r 1 --slug=$BOT
+  [[ "$output" == "result=ERROR reason=set-overflow now="* ]]
+  PARENT_TOTAL=200
+  answer "$(child 2)"
+  run "$READY" o/r 1 --slug=$BOT
+  [[ "$(line "$output")" == result=OK* ]]
 }
 
 @test "a verdict counts only from the slug, under either spelling, and only in the first line" {
@@ -138,7 +188,7 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   answer "$(blocked_by "$(child 2)" 3 OPEN)" "$(child 4)"
   run "$READY" o/r 1 --slug=$BOT
   [ "$(object "$output" | jq -c '[paths | map(strings) | .[]] | unique')" \
-    = '["assignees","blocked_by","claim_labels","number","parent","ready","reasons","spec_review","title","url","waiting"]' ]
+    = '["assignees","blocked_by","claim_labels","number","parent","ready","reasons","spec_review","title","url","verdict","waiting"]' ]
 }
 
 @test "a parent with no sub-issues is an empty set, not an error" {

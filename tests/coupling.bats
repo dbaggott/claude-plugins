@@ -906,8 +906,8 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
   cat "$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md" \
       "$ROOT/dnbg-workflow/skills/issue-reviewer/references/design-review.md" \
     | tr '\n' ' ' \
-    | grep -oE '`(\*\*)?(Spec|Set) review[^`]*, round *<n>: *(<verdict>|READY)(\*\*)?`' \
-    | tr -d '`' | sed -E 's/ +/ /g; s/<n>/1/; s/<verdict>/READY/; s/^([^*])/**\1/; s/([^*])$/\1**/'
+    | grep -oE '`[^`]*(Spec|Set) review[^`]*, round *<n>: *(<verdict>|READY)[^`]*`' \
+    | tr -d '`' | sed -E 's/ +/ /g; s/<n>/1/; s/<verdict>/READY/'
   # Set review is named by word only, as a substitution into the spec form.
   grep -q '`Set review` in a set' "$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md" \
     && echo '**Set review, round 1: READY**'
@@ -923,7 +923,7 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
     n=$((n + 1))
     jq -cn --arg v "$line" '
       def c: {nodes: [{author: {login: "bot[bot]"}, body: $v}]};
-      {data: {repository: {issue: {url: "u/1", number: 1, comments: c,
+      {data: {repository: {issue: {url: "u/1", number: 1, oldest: c, newest: (c + {totalCount: 1}),
         subIssues: {totalCount: 1, nodes: [{url: "u/2", number: 2, title: "t", state: "OPEN",
           assignees: {totalCount: 0, nodes: []}, labels: {totalCount: 0, nodes: []},
           blockedBy: {totalCount: 0, nodes: []}, comments: c}]}}}}}' > "$BATS_TEST_TMPDIR/a.json"

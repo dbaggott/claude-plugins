@@ -47,7 +47,8 @@ section their `Covers` line cites. The rest are not re-reviewed.
 > orchestrator, so follow `issue-workflow`'s `references/delegated.md`
 > wherever a skill asks the operator something.
 
-Answer its rounds as the bodies' writer, per `issue-workflow`'s
+A child whose latest verdict is newer than your edit in step 3 has had its
+re-review. Answer the rounds as the bodies' writer, per `issue-workflow`'s
 `references/spec-review-rounds.md`. A finding that asks for a design change is
 an escalation. A re-reviewed child is not dispatched until its latest verdict
 reads `READY`.

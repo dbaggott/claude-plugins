@@ -53,8 +53,8 @@ posting. This adds checks to each pass, and changes what the round comment says.
 
 ## The round comment
 
-Name the mode in the comment's first line — `Spec review (design mode), round
-<n>: READY` — so the author and the next reader know which checks ran.
+Name the mode in the comment's first line — `**Spec review (design mode), round
+<n>: READY**` — so the author and the next reader know which checks ran.
 
 List every check above in the comment, each with its outcome — the findings it
 produced by ID, or `none`. A `READY` that names no checks cannot be told apart
