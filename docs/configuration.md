@@ -105,17 +105,18 @@ reason.** Worktrees outside the repo are not covered by `.gitignore` and the
 skills' cleanup steps stop resolving against them; a path carrying a space, a
 leading dash, or a shell metacharacter renders a `git worktree add` that cannot
 run as printed, and the printed command is the whole point of the block message.
-A retrospective directory is the reverse case, outside every repo by design, so
-it has to name a place on its own: a relative path would land in whichever
-checkout the writing agent happened to stand in.
-A claim label outside
-`assigned:` is worse, because it fails silently in *both* directions: the check
+A claim label outside `assigned:` is worse, because it fails silently in *both*
+directions: the check
 for an existing claim matches the whole `assigned:` namespace deliberately, so
 that any claimant — another agent, a bot, a teammate's tooling — is visible
 without this plugin knowing their name. Step outside it and your claims stop
 being seen by them while theirs stop being seen by you, which puts two workers on
-one issue. Where a value is rejected, the session-start note names the value, the
-reason, and the default it fell back to.
+one issue. A retrospective directory is the reverse of a worktree root, outside
+every repo by design, so it has to name a place on its own: a relative path
+would land in whichever checkout the writing agent happened to stand in. Its
+character rule is the worktree one, because an agent retypes the value into the
+command that creates it. Where a value is rejected, the session-start note
+names the value, the reason, and the default it fell back to.
 
 What is deliberately **not** configurable: PRs always open as drafts, the
 send-to-review picker and its fixed option order, the `[<branch-name>]` sibling

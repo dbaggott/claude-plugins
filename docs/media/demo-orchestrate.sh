@@ -12,7 +12,7 @@ set -euo pipefail
 
 say() { printf '%s\n' "$1"; }
 
-U="https://github.com/dbaggott/claude-plugins/issues/42"
+U="https://github.com/acme/api/issues/42"
 
 say "${C_USER}❯${C_OFF} orchestrate the resolution of $U"
 beat 1.4
@@ -25,7 +25,7 @@ beat 1.3
 say "${C_SAY}● Read the body and its comments. Its approach holds up, so I'll dispatch.${C_OFF}"
 beat 1.4
 say "${C_TOOL}● Agent${C_OFF}  author: resolve #42, send it to review, auto-handle rounds ${C_DIM}(background)${C_OFF}"
-say "${C_TOOL}● Bash${C_OFF}   watch-issue.sh 42 --role=orchestrator ${C_DIM}(background)${C_OFF}"
+say "${C_TOOL}● Bash${C_OFF}   watch-issue.sh acme/api 42 --role=orchestrator --since=… ${C_DIM}(background)${C_OFF}"
 beat 1.6
 
 say "${C_DIM}  ← author: Delegated question: retry the fetch, or fail fast?${C_OFF}"
@@ -34,6 +34,7 @@ say "${C_SAY}● The body's open question states a default — fail fast — so 
 say "${C_SAY}  answered without you.${C_OFF}"
 beat 1.4
 say "${C_TOOL}● Bash${C_OFF}   gh issue comment 42 ${C_DIM}— Decision log: 42-D1 — decided${C_OFF}"
+say "${C_TOOL}● Bash${C_OFF}   gh issue edit 42 ${C_DIM}— decision promoted into the body${C_OFF}"
 say "${C_TOOL}● SendMessage${C_OFF} author: fail fast, per the row"
 beat 1.6
 
@@ -61,21 +62,23 @@ beat 1.6
 say "${C_DIM}  ← watch-pr.sh 118: ACTIVITY — CHANGES_REQUESTED; the author is on it${C_OFF}"
 beat 1.2
 say "${C_DIM}  ← watch-pr.sh 118: ACTIVITY — APPROVED${C_OFF}"
-say "${C_TOOL}● Bash${C_OFF}   pr-verdict.sh 118"
+say "${C_TOOL}● Bash${C_OFF}   pr-verdict.sh acme/api 118"
 say "${C_DIM}  ⎿ verdict=APPROVED at_head=1 reviewed_after_head=1${C_OFF}"
 say "${C_OK}● pull/118 is approved at its head and ready for you to merge.${C_OFF}"
 beat 2.2
 
-say "${C_DIM}  ← watch-pr.sh 118: CLOSED state=MERGED${C_OFF}"
+say "${C_DIM}  ← watch-pr.sh 118: CLOSED state=MERGED · issue 42 closed${C_OFF}"
 say "${C_DIM}  ← author: cleaned up · retrospective written${C_OFF}"
 say "${C_DIM}  ← reviewer: review ended · retrospective written${C_OFF}"
+say "${C_TOOL}● Write${C_OFF}  ~/.claude/dnbg-retrospectives/acme/api/ ${C_DIM}— the orchestrator's own${C_OFF}"
 beat 1.4
 
 printf '\n'
 say "${C_USER}Summary${C_OFF}"
-say "  pull/118 merged. Two questions: one answered from the body, one escalated."
+say "  pull/118 merged. One escalation: --help lists the flag (42-D2, you chose yes)."
 say "${C_USER}Observations${C_OFF}"
-say "  Three retrospectives written: author, reviewer, orchestrator."
+say "  One question answered from the body (42-D1). Retrospectives, under"
+say "  ~/.claude/dnbg-retrospectives/acme/api/: author, reviewer, orchestrator."
 say "${C_USER}Actionable${C_OFF}"
 say "  Nothing outstanding."
 beat 5.0

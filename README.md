@@ -74,11 +74,13 @@ so the issues implementing it can cite its requirements and decisions by ID.
    project's friction log into follow-up issues (filing none whose text you
    haven't approved), and closes the tracking issue.
 
-You are needed at three points: approving the design, answering escalations,
-and merging. You don't read or approve the children; the set review's verdict
-on each one is that gate. The project that built this flow ran under it, so
-https://github.com/dbaggott/claude-plugins/issues/223 is a worked example —
-its body, its children, and its decision log.
+While it runs, you are needed at three points: approving the design, answering
+escalations, and merging. You don't read or approve the children; the set
+review's verdict on each one is that gate. Closeout is the one step you start
+yourself, and its follow-up issues wait on your approval of their text. The
+project that built this flow ran under it, so its tracking issue,
+https://github.com/dbaggott/claude-plugins/issues/223, is a worked example of a
+design, its children, and its decision log.
 
 **Two sessions on one task -- one for interactive development, one reviewing
 the work.** Here the operator works something out conversationally and it goes

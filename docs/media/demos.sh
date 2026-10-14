@@ -14,7 +14,7 @@ DEMOS=(
   "file-issue:82:32"
   "work-summary:80:45"
   "vibe-review:127:52"
-  "orchestrate:90:44"
+  "orchestrate:86:47"
 )
 
 # Both consumers ask this, so the encoding above keeps a single reader.
