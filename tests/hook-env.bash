@@ -73,9 +73,10 @@ run_hook_at() {  # <hook> [plugin-root]
   run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="${2-$ROOT}" "$1"
 }
 
-run_hook_configured_at() {  # <hook> <worktree-path> <claim-label>
+run_hook_configured_at() {  # <hook> <worktree-path> <claim-label> [retrospective-dir]
   run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="$ROOT" \
-    CLAUDE_PLUGIN_OPTION_WORKTREE_PATH="$2" CLAUDE_PLUGIN_OPTION_CLAIM_LABEL="$3" "$1"
+    CLAUDE_PLUGIN_OPTION_WORKTREE_PATH="$2" CLAUDE_PLUGIN_OPTION_CLAIM_LABEL="$3" \
+    CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR="${4-}" "$1"
 }
 
 # The stamp is opt-in, so every test that expects one has to ask for it — which

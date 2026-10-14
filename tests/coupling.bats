@@ -195,9 +195,15 @@ EOF
     echo "claim_label default disagrees: manifest '$from_manifest', lib.sh '$DEFAULT_CLAIM_LABEL'"
     false
   }
+
+  from_manifest=$(jq -r '.userConfig.retrospective_dir.default' "$manifest")
+  [ "$from_manifest" = "$DEFAULT_RETROSPECTIVE_DIR" ] || {
+    echo "retrospective_dir default disagrees: manifest '$from_manifest', lib.sh '$DEFAULT_RETROSPECTIVE_DIR'"
+    false
+  }
 }
 
-# `version_stamp` is pinned separately rather than as a third arm above, because
+# `version_stamp` is pinned separately rather than as another arm above, because
 # it has no lib.sh constant to compare against: it is a gate, and what an
 # unconfigured session does is decided by how `version_stamp_enabled` reads an
 # unset variable. A constant nothing consults would pin nothing.
@@ -241,10 +247,10 @@ EOF
 # above writes onto a PR title people read, and stays an opinion because it is
 # there to be read. "The operator might prefer otherwise" is not a ground either,
 # or every behavioral choice above qualifies.
-@test "the plugin exposes exactly the four intended configuration keys" {
+@test "the plugin exposes exactly the five intended configuration keys" {
   local keys
   keys=$(jq -r '.userConfig | keys_unsorted[]' "$ROOT/dnbg-workflow/.claude-plugin/plugin.json" | sort | tr '\n' ' ')
-  [ "$keys" = "claim_label owners version_stamp worktree_path " ] || {
+  [ "$keys" = "claim_label owners retrospective_dir version_stamp worktree_path " ] || {
     echo "userConfig keys are: $keys"
     echo "adding one means deciding it is mechanical, or that it governs what gets published — see docs/configuration.md"
     false
@@ -720,7 +726,7 @@ remote_read_calls() {  # <SKILL.md>
   local s skill f bad=0
   # Every skill with a references/ directory, so a new one is covered by adding its
   # name rather than by copying the loop.
-  for s in reviewer issue-reviewer git-workflow; do
+  for s in reviewer issue-reviewer git-workflow orchestrate; do
     local found=0
     skill="$ROOT/dnbg-workflow/skills/$s/SKILL.md"
     # `nullglob` so an emptied references/ yields no iterations rather than one over
@@ -739,6 +745,46 @@ remote_read_calls() {  # <SKILL.md>
     [ "$found" -gt 0 ] || { echo "$s/references/ has no .md files at all"; bad=1; }
   done
   [ "$bad" -eq 0 ]
+}
+
+# `process-review` groups by the retrospective's headings, so a heading the
+# writer spells one way and the reader another is a whole section that never
+# joins a pattern. The template in retrospective.md is the one spelling; the
+# fixture batch process-review is exercised on has to match it too.
+retrospective_headings() {  # <file> -> the `## ` headings, in order
+  grep '^## ' "$1"
+}
+
+@test "every retrospective fixture carries the template's headings and frontmatter" {
+  local tmpl="$ROOT/dnbg-workflow/skills/orchestrate/references/retrospective.md"
+  local want f n=0 bad=0
+  want=$(awk '/^```markdown$/{inside=1; next} /^```$/{inside=0} inside' "$tmpl" | grep '^## ')
+  [ "$(printf '%s\n' "$want" | wc -l)" -eq 4 ] || {
+    echo "retrospective.md's template does not carry four headings:"; echo "$want"; false; }
+  for f in "$ROOT"/tests/fixtures/retrospectives/*/*/*.md; do
+    n=$((n + 1))
+    [ "$(retrospective_headings "$f")" = "$want" ] || {
+      echo "$(basename "$f") headings differ from the template"; bad=1; }
+    local field
+    for field in tags role issue plugin_version date; do
+      sed -n '2,/^---$/p' "$f" | grep -q "^$field:" || {
+        echo "$(basename "$f") has no $field in its frontmatter"; bad=1; }
+    done
+  done
+  [ "$n" -ge 3 ] || { echo "fewer than three retrospective fixtures"; bad=1; }
+  [ "$bad" -eq 0 ]
+}
+
+# Without the session-start note, a retrospective's version comes from the
+# manifest path retrospective.md gives relative to the skill's base directory. A
+# path that no longer resolves leaves every default install writing `none`.
+@test "the manifest path retrospective.md reads plugin_version from resolves" {
+  local tmpl="$ROOT/dnbg-workflow/skills/orchestrate/references/retrospective.md"
+  local rel
+  rel=$(grep -oE '"<skill-dir>/[^"]*plugin\.json"' "$tmpl" | tr -d '"' | sed 's|^<skill-dir>/||')
+  [ -n "$rel" ] || { echo "retrospective.md names no manifest path"; false; }
+  jq -e '.version | length > 0' "$ROOT/dnbg-workflow/skills/orchestrate/$rel" >/dev/null || {
+    echo "<skill-dir>/$rel does not resolve to a manifest with a version"; false; }
 }
 
 # A `description:` whose value contains an unquoted `: ` is not a description with

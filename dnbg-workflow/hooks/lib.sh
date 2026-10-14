@@ -100,9 +100,10 @@ remote_is_covered() {
 
 # --- the mechanical opinions --------------------------------------------------
 #
-# Two userConfig knobs move where worktrees live and what the claim label is
-# called. Both resolve here, so the gate that prints a path and the session-start
-# note that announces one can never disagree about what this session is using.
+# Three userConfig knobs move where worktrees live, what the claim label is
+# called, and where retrospectives are written. All three resolve here, so the
+# gate that prints a path and the session-start note that announces one can
+# never disagree about what this session is using.
 #
 # The manifest's `default` field does not supply these, and the reference's
 # one-line gloss for it ("Value used when the user provides nothing") reads as if
@@ -118,6 +119,9 @@ remote_is_covered() {
 # actually gets cannot drift apart.
 DEFAULT_WORKTREE_PATH='.worktrees'
 DEFAULT_CLAIM_LABEL='assigned:agent-session'
+# A literal `~`: it is printed to an agent, which expands it when it writes.
+# shellcheck disable=SC2088
+DEFAULT_RETROSPECTIVE_DIR='~/.claude/dnbg-retrospectives'
 
 # The namespace every claim label has to sit in. `issue-workflow`'s in-progress
 # check matches this prefix rather than an enumerated list, deliberately, so that
@@ -156,6 +160,14 @@ worktree_path_rejection() {  # <configured-value>
     '~' | '~/'*) printf 'it is a home-relative path' ;;
     '..' | '../'* | *'/..' | *'/../'*) printf "it contains a \`..\` segment that escapes the repo" ;;
     -*) printf 'it starts with a dash, which git reads as an option rather than a path' ;;
+    *) path_charset_rejection "$1" ;;
+  esac
+}
+
+# The character rule both configured paths share: they are rendered into text
+# an agent retypes as a shell command.
+path_charset_rejection() {  # <path>
+  case "${1:-}" in
     # POSIX classes rather than `A-Za-z0-9` ranges: range endpoints are
     # collation-dependent, which tests/watch-pr.bats already has a case for
     # elsewhere in this repo.
@@ -176,6 +188,28 @@ claim_label_rejection() {  # <configured-value>
     "$CLAIM_LABEL_NAMESPACE"*) ;;
     *) printf "it is outside the \`%s\` namespace" "$CLAIM_LABEL_NAMESPACE" ;;
   esac
+}
+
+# Why a configured retrospective directory cannot be used, same contract as
+# above.
+#
+# Unlike a worktree root this one lives outside every repo, so it has to name a
+# place on its own: absolute, or under `~/`. A relative path would land in
+# whichever checkout the writing agent stands in. The character rule is the
+# worktree one, for the same reason — the value is rendered into the
+# session-start note, and an agent retypes it into `mkdir -p`.
+retrospective_dir_rejection() {  # <configured-value>
+  # Judged as resolve_retrospective_dir will use it, so `~//` is rejected here
+  # rather than passing and then silently falling back there.
+  local value="${1:-}"
+  while [ "${value%/}" != "$value" ]; do value="${value%/}"; done
+  # The literal `~` the operator typed, as in worktree_path_rejection.
+  # shellcheck disable=SC2088
+  case "$value" in
+    /?* | '~/'?*) ;;
+    *) printf "it is neither an absolute path nor one under \`~/\`"; return ;;
+  esac
+  path_charset_rejection "${value#\~}"
 }
 
 # The worktree root this session uses: the configured value when it is set and
@@ -209,9 +243,22 @@ resolve_claim_label() {
   fi
 }
 
+# The retrospective root this session uses. Same fallback contract and the same
+# trailing-slash stripping as the worktree root; files go in
+# `<root>/<owner>/<repo>/`, which the skills append.
+resolve_retrospective_dir() {
+  local value="${CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR:-}"
+  while [ "${value%/}" != "$value" ]; do value="${value%/}"; done
+  if [ -n "$value" ] && [ -z "$(retrospective_dir_rejection "$value")" ]; then
+    printf '%s' "$value"
+  else
+    printf '%s' "$DEFAULT_RETROSPECTIVE_DIR"
+  fi
+}
+
 # Has the operator asked for the version stamp?
 #
-# Unlike the two knobs above this is a gate rather than a value, so it matches
+# Unlike the knobs above this is a gate rather than a value, so it matches
 # the *affirmative* and everything else — unset, empty, `false`, a typo — leaves
 # the stamp off. The stamp lands on PR descriptions, review bodies and issue
 # comments that other people read, so a value this hook cannot make sense of has

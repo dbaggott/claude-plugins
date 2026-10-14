@@ -29,6 +29,12 @@
       "description": "Label applied when an agent session claims a GitHub issue. Must start with 'assigned:' — the check for someone else's claim matches that whole namespace, so a label outside it makes your claims invisible to other tools and theirs invisible to you. Leave empty for 'assigned:agent-session'.",
       "default": "assigned:agent-session"
     },
+    "retrospective_dir": {
+      "type": "string",
+      "title": "Where retrospectives are written",
+      "description": "Directory the orchestrate skill's agents write their retrospectives under, one subdirectory per repo (<dir>/<owner>/<repo>/); process-review reads them from there. Must be an absolute path or one under '~/', using only letters, digits and '. _ - /'; anything else is rejected and the default used instead. Leave empty for '~/.claude/dnbg-retrospectives'.",
+      "default": "~/.claude/dnbg-retrospectives"
+    },
     "version_stamp": {
       "type": "boolean",
       "title": "Stamp published PRs, reviews and issue claims with the plugin version",

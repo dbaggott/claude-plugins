@@ -12,7 +12,8 @@ every answer on the issue. The operator's attention goes only to escalations and
 the merge.
 
 Closing out a finished tracking issue is a separate entry, in
-`references/closeout.md`.
+`references/closeout.md`. Every agent in a run, you included, ends its part with
+a retrospective, per `references/retrospective.md`; read it before dispatching.
 
 `<skill-dir>` is the **Base directory** announced when this skill loads. The
 scripts are at `<skill-dir>/../../scripts/`.
@@ -84,9 +85,13 @@ already the author's: a subagent shares your session id, so its pickup reads
 > the operator something. The issue is already claimed under your session id.
 > [Continue `<PR URL>`, which is already open for it.] When you send the PR to
 > review, end your turn with its URL. When it merges, finish the post-merge
-> cleanup and report under Summary, Observations, and Actionable.
+> cleanup, write a retrospective per
+> `<skill-dir>/references/retrospective.md`, and report under Summary,
+> Observations, Actionable, and Retrospective, the last giving the file's path.
 
-The bracketed line goes in only when step 3 found an open PR.
+The bracketed line goes in only when step 3 found an open PR. In both recipes,
+`<skill-dir>` is written out as the absolute path, since the agent has not
+loaded this skill.
 
 **The reviewer**, when the PR leaves draft (the PR watch's `READY`), or at once
 when step 3 found the PR already out of draft. Skip it when the operator said
@@ -94,7 +99,10 @@ they will review the PR themselves.
 
 > Act as the reviewer on `<issue URL>`, in `reviewer`'s issue mode. You were
 > dispatched by an orchestrator, so follow `issue-workflow`'s
-> `references/delegated.md` wherever a skill asks the operator something.
+> `references/delegated.md` wherever a skill asks the operator something. When
+> your review ends, write a retrospective per
+> `<skill-dir>/references/retrospective.md`, and end your final report with a
+> **Retrospective** section giving the file's path.
 
 ## Wait on three sources
 
@@ -196,11 +204,14 @@ without reading the log.
 
 Stop when the PR has merged and the issue is closed. Wait for the author's final
 report, since its post-merge cleanup is part of the run, and for the reviewer to
-end. Then report the cycle under three headings:
+end. Collect both agents' retrospectives, write your own, and fold the
+project-level items into the parent, all per `references/retrospective.md`. Then
+report the cycle under three headings:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the
-  operator, and anything that recurred.
+  operator, and anything that recurred. Give each retrospective's path, and name
+  any role that left none.
 - **Actionable** — what the operator may want to do, including any author or
   reviewer report item that needs them.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# The two mechanical knobs and the version-stamp gate, at the level where they
+# The three mechanical knobs and the version-stamp gate, at the level where they
 # resolve: lib.sh.
 #
 # What makes these worth pinning is that the fallback is *ours*. The manifest's
@@ -17,7 +17,7 @@ setup() {
   # shellcheck source=../dnbg-workflow/hooks/lib.sh
   . "$LIB"
   unset CLAUDE_PLUGIN_OPTION_WORKTREE_PATH CLAUDE_PLUGIN_OPTION_CLAIM_LABEL \
-    CLAUDE_PLUGIN_OPTION_VERSION_STAMP
+    CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR CLAUDE_PLUGIN_OPTION_VERSION_STAMP
 }
 
 # Each resolve runs in a subshell with the option set, so a configured value can
@@ -33,6 +33,10 @@ with_claim_label() {  # <value>
   ( export CLAUDE_PLUGIN_OPTION_CLAIM_LABEL="$1"; resolve_claim_label )
 }
 
+with_retrospective_dir() {  # <value>
+  ( export CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR="$1"; resolve_retrospective_dir )
+}
+
 # Same subshell discipline, but the answer is an exit status rather than output,
 # so this prints one of two words for a `[ ... = ... ]` to compare. A bare
 # `with_version_stamp x` under `[ ... ]` would test the *string*, which is
@@ -44,11 +48,12 @@ with_version_stamp() {  # <value>
 
 # --- defaults ----------------------------------------------------------------
 
-@test "an unconfigured session resolves both knobs to the documented defaults" {
+@test "an unconfigured session resolves every knob to the documented defaults" {
   # The whole zero-config contract in one test: behavior identical to the plugin
   # before the knobs existed.
   [ "$(resolve_worktree_path)" = ".worktrees" ]
   [ "$(resolve_claim_label)" = "assigned:agent-session" ]
+  [ "$(resolve_retrospective_dir)" = "~/.claude/dnbg-retrospectives" ]
 }
 
 @test "an empty value is the same as unset" {
@@ -56,6 +61,7 @@ with_version_stamp() {  # <value>
   # than removing the key, so this is a state a real install reaches.
   [ "$(with_worktree_path '')" = ".worktrees" ]
   [ "$(with_claim_label '')" = "assigned:agent-session" ]
+  [ "$(with_retrospective_dir '')" = "~/.claude/dnbg-retrospectives" ]
 }
 
 @test "the claim label default is the one issue-workflow claims with" {
@@ -188,6 +194,42 @@ with_version_stamp() {  # <value>
   [[ "$(worktree_path_rejection '/tmp/wt')" == *"absolute"* ]]
   [[ "$(worktree_path_rejection '../wt')" == *".."* ]]
   [[ "$(claim_label_rejection 'in-progress')" == *"assigned:"* ]]
+}
+
+# --- retrospective directory -------------------------------------------------
+
+@test "a configured absolute or home-relative retrospective directory is used" {
+  [ "$(with_retrospective_dir '/var/retros')" = "/var/retros" ]
+  [ "$(with_retrospective_dir '~/notes/retros')" = "~/notes/retros" ]
+  [ "$(with_retrospective_dir '~/notes/retros/')" = "~/notes/retros" ]
+}
+
+@test "a retrospective directory that names no place of its own is rejected" {
+  # It lives outside every repo, so a relative path would land in whichever
+  # checkout the writing agent happens to stand in.
+  [ -n "$(retrospective_dir_rejection 'retros')" ]
+  [ -n "$(retrospective_dir_rejection './retros')" ]
+  [ -n "$(retrospective_dir_rejection '~')" ]
+  [ -n "$(retrospective_dir_rejection '~other/retros')" ]
+  [ "$(with_retrospective_dir 'retros')" = "~/.claude/dnbg-retrospectives" ]
+  [ "$(with_retrospective_dir '/')" = "~/.claude/dnbg-retrospectives" ]
+  [ "$(with_retrospective_dir '~/')" = "~/.claude/dnbg-retrospectives" ]
+  # Rejected as resolved, so the session-start note reports it instead of the
+  # value falling back unannounced.
+  [ -n "$(retrospective_dir_rejection '~//')" ]
+  [ -n "$(retrospective_dir_rejection '//')" ]
+}
+
+@test "a retrospective directory that would render an unrunnable command is rejected" {
+  [ -n "$(retrospective_dir_rejection '/my retros')" ]
+  [ -n "$(retrospective_dir_rejection '~/r;rm -rf x')" ]
+  [ -n "$(retrospective_dir_rejection '/r$(id)')" ]
+  [ -n "$(retrospective_dir_rejection '/a/~b')" ]
+  [ "$(with_retrospective_dir '/my retros')" = "~/.claude/dnbg-retrospectives" ]
+}
+
+@test "the retrospective default passes its own rule" {
+  [ -z "$(retrospective_dir_rejection "$DEFAULT_RETROSPECTIVE_DIR")" ]
 }
 
 # --- the version stamp -------------------------------------------------------
