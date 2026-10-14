@@ -18,8 +18,9 @@
 #   4. Watches the parent with watch-issue.sh and, on the body edit that shows
 #      both the new value in the design and a row for the decision, kills the
 #      orchestrator and every process under it.
-#   5. Starts a fresh orchestrator on the parent's URL, in the same clone, with
-#      Q9's confirmation that the predecessor is gone given in its prompt.
+#   5. Starts a fresh orchestrator on the parent's URL, in a clone of its own,
+#      so nothing it resumes from can be local state, with Q9's confirmation
+#      that the predecessor is gone given in its prompt.
 #   6. Passes when child B's body carries the new value, every row for the
 #      decision reads `applied`, and both children carry the fresh orchestrator's
 #      claim.
@@ -30,7 +31,7 @@
 # and tested nothing; it is reported as INCONCLUSIVE, not as a pass or a fail.
 #
 # A row is "for the decision" when it carries the new value, the decision
-# comment's id, or the ID R2. The parent's initial row is none of those.
+# comment's id, or the ID R2.
 #
 # Run by hand, not in CI. Every run spends model calls on two orchestrators and
 # the authors and reviewers they dispatch, and writes issues, comments, branches
@@ -62,13 +63,8 @@ TREE=$(cd "$HERE/../../.." && pwd)
 SCRIPTS="$TREE/dnbg-workflow/scripts"
 REPO=${REPO:-dbaggott/dnbg-watch-testbed}
 
-# <file> <KEY=value>... -> the fixture with each {{KEY}} replaced
-render() {
-  local f="$1" out kv; shift
-  out=$(cat "$f")
-  for kv in "$@"; do out=${out//"{{${kv%%=*}}}"/${kv#*=}}; done
-  printf '%s\n' "$out"
-}
+# shellcheck source=../render.sh
+. "$HERE/../render.sh"
 
 # <body> -> the lines above the decision log: the design, without the rows
 design_text() {
@@ -139,7 +135,8 @@ resume_missing() {
 }
 
 # <pid> -> stops it and everything under it. Each process is stopped before its
-# children are listed, so none can spawn past the sweep, and killed after them.
+# children are listed, so none can spawn a process the kill misses, and is
+# killed after them.
 kill_tree() {
   local child
   kill -STOP "$1" 2> /dev/null || return 0
@@ -191,13 +188,16 @@ file_issue() {
   echo "$url" | tee "$1"
 }
 
-# <run-dir> <name> <session-uuid> <prompt> -> starts an orchestrator in the
-# background, in <run-dir>/clone, and sets ORCH_PID to its pid. Not called in a
-# command substitution, so the orchestrator stays this shell's child.
+# <run-dir> <name> <session-uuid> <prompt> -> clones REPO to <run-dir>/<name>,
+# starts an orchestrator there in the background, and sets ORCH_PID to its pid.
+# Not called in a command substitution, so the orchestrator stays this shell's
+# child.
 start_orchestrator() {
   local dir=$1 name=$2
+  ORCH_PID=""
+  gh repo clone "$REPO" "$dir/$name" -- -q 2> /dev/null || return 1
   (
-    cd "$dir/clone"
+    cd "$dir/$name"
     exec env -u CLAUDE_CODE_SESSION_ID "$CLAUDE" -p --session-id "$3" \
       --output-format stream-json --verbose --setting-sources "" \
       --plugin-dir "$TREE/dnbg-workflow" --permission-mode bypassPermissions \
@@ -206,6 +206,14 @@ start_orchestrator() {
   ) &
   ORCH_PID=$!
   echo "$ORCH_PID" > "$dir/$name.pid"
+}
+
+# <iso> <seconds> -> the UTC time that many seconds before <iso>, as an iso
+iso_before() {
+  local t
+  t=$(TZ=UTC date -j -f %Y-%m-%dT%H:%M:%SZ "$1" +%s 2> /dev/null || date -u -d "$1" +%s)
+  t=$(( t - $2 ))
+  date -u -r "$t" +%Y-%m-%dT%H:%M:%SZ 2> /dev/null || date -u -d "@$t" +%Y-%m-%dT%H:%M:%SZ
 }
 
 # <deadline> -> 0 while it is still ahead
@@ -251,12 +259,15 @@ await_kill_point() {
     result=$(grep '^result=' "$dir/watch.out" | tail -1)
     case "$result" in
       result=ACTIVITY*) ;;
-      result=IDLE*) break ;;
+      result=IDLE*) kill_due "$(body_of "$parent")" "$5" "$6" && return 0; break ;;
+      result=CLOSED*) echo "the parent was closed before the decision reached it"; return 1 ;;
       *) echo "the parent's watch failed: ${result:-no result}"; return 1 ;;
     esac
-    # Read after the watch's `now`, so the body holds every edit stamped before
-    # the next watch's `since`.
-    since=${result##* now=}
+    # The next watch looks back past this one's `now`, since an edit GitHub
+    # stamps in the same second as `now`, or behind it by clock skew, would
+    # otherwise never wake it. The body is read after `now`, so an edit seen
+    # twice is only read twice.
+    since=$(iso_before "${result##* now=}" 5)
     # The PRs it has reported, so a linked PR wakes it once rather than every poll.
     exclude=$(grep -o -- '--exclude=[^ ]*' "$dir/watch.out" | tail -1 || true)
     exclude=${exclude#--exclude=}
@@ -269,11 +280,13 @@ await_kill_point() {
 # <run-dir> <pid> <session-uuid> <value> <comment-id> -> 0 once resume_missing
 # is empty; prints what is still missing otherwise
 await_resume() {
-  local dir=$1 deadline=$(( $(date +%s) + ${RESUME_TIMEOUT:-2700} )) todo=""
+  local dir=$1 deadline=$(( $(date +%s) + ${RESUME_TIMEOUT:-2700} )) todo="" parent_body b_body
   while before "$deadline"; do
-    todo=$(resume_missing "$(body_of "$(cat "$dir/parent")")" "$(body_of "$(cat "$dir/b")")" \
-      "$4" "$5" "$(claim_of "$(cat "$dir/a")" "$3")" "$(claim_of "$(cat "$dir/b")" "$3")")
-    [ -z "$todo" ] && return 0
+    if parent_body=$(body_of "$(cat "$dir/parent")") && b_body=$(body_of "$(cat "$dir/b")"); then
+      todo=$(resume_missing "$parent_body" "$b_body" "$4" "$5" \
+        "$(claim_of "$(cat "$dir/a")" "$3")" "$(claim_of "$(cat "$dir/b")" "$3")")
+      [ -z "$todo" ] && return 0
+    fi
     kill -0 "$2" 2> /dev/null || { echo "the fresh orchestrator exited with: $todo"; return 1; }
     sleep 20
   done
@@ -305,9 +318,9 @@ run_once() {
 
   file_fixture "$dir" "$run" || { echo "FAIL the fixture could not be filed"; return; }
   parent=$(cat "$dir/parent")
-  gh repo clone "$REPO" "$dir/clone" -- -q 2> /dev/null || { echo "FAIL $REPO could not be cloned"; return; }
 
-  start_orchestrator "$dir" first "$first" "Orchestrate the resolution of $parent."
+  start_orchestrator "$dir" first "$first" "Orchestrate the resolution of $parent." \
+    || { echo "FAIL $REPO could not be cloned"; return; }
   pid=$ORCH_PID
   if ! why=$(await_claims "$dir" "$pid" "$first"); then stop_orchestrator "$pid"; echo "FAIL $why"; return; fi
 
@@ -321,11 +334,16 @@ run_once() {
   fi
   stop_orchestrator "$pid"
 
-  why=$(swept_before_kill "$(body_of "$parent")" "$(body_of "$(cat "$dir/b")")" "$value" "$cid")
+  local parent_body b_body
+  if ! parent_body=$(body_of "$parent") || ! b_body=$(body_of "$(cat "$dir/b")"); then
+    echo "FAIL the bodies could not be read after the kill"; return
+  fi
+  why=$(swept_before_kill "$parent_body" "$b_body" "$value" "$cid")
   if [ -n "$why" ]; then echo "INCONCLUSIVE sweep completed before kill: $why"; return; fi
 
   start_orchestrator "$dir" second "$second" \
-    "Orchestrate the resolution of $parent. This is a restart: the previous orchestrator, session ${first:0:8}, was killed, and it and all its subagents are gone. That answers the question of whether its claims have been let go: take them over."
+    "Orchestrate the resolution of $parent. This is a restart: the previous orchestrator, session ${first:0:8}, was killed, and it and all its subagents are gone. That answers the question of whether its claims have been let go: take them over." \
+    || { echo "FAIL $REPO could not be cloned"; return; }
   pid=$ORCH_PID
   if ! why=$(await_resume "$dir" "$pid" "$second" "$value" "$cid"); then stop_orchestrator "$pid"; echo "FAIL $why"; return; fi
   stop_orchestrator "$pid"
@@ -349,7 +367,11 @@ main() {
     # Through a file, not a command substitution, so the orchestrators stay
     # children of this shell; anything else run_once prints lands above the
     # verdict, which is its last line.
+    # An interrupt stops the orchestrator in flight, which would otherwise keep
+    # spending and writing to REPO, and still cleans up.
+    trap 'stop_orchestrator "${ORCH_PID:-}"; [ "${KEEP:-}" = 1 ] || clean_up "$dir"; exit 130' INT TERM
     run_once "$dir" "$stamp-$i" "$login" > "$dir/verdict"
+    trap - INT TERM
     verdict=$(tail -1 "$dir/verdict")
     echo "run $i: $verdict ($(cat "$dir/parent" 2> /dev/null || echo "no parent filed"))"
     case "$verdict" in

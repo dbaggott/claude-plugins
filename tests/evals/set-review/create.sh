@@ -45,14 +45,8 @@ case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 DATE=$(date -u +%Y-%m-%d)
 
-# <file> <url-var=url>... -> the fixture with each {{VAR}} replaced
-render() {
-  local f="$1" out; shift
-  out=$(cat "$f")
-  local kv
-  for kv in "$@"; do out=${out//"{{${kv%%=*}}}"/${kv#*=}}; done
-  printf '%s\n' "$out"
-}
+# shellcheck source=../render.sh
+. "$HERE/../render.sh"
 
 # <title> <body-file> -> the new issue's URL
 create() {

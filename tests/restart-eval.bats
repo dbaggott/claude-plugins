@@ -119,8 +119,17 @@ decided_parent() {  # <r2: new|old> <row-state|"">
   run ! kill_due "$(decided_parent new "")" "$VALUE" "$CID"
 }
 
-@test "kill_due does not take the value written only in the log for the design" {
-  run ! kill_due "$(decided_parent old decided)" "$VALUE" "$CID"
+@test "kill_due does not take the value written below the log for the design" {
+  run ! kill_due "$(decided_parent old decided; echo "- 2026-10-14: $VALUE")" "$VALUE" "$CID"
+}
+
+@test "iso_before steps back across a minute" {
+  [ "$(iso_before 2026-10-14T21:30:02Z 5)" = 2026-10-14T21:29:57Z ]
+}
+
+@test "render takes a value literally, & and backslashes included" {
+  printf 'a {{K}} b\n' > "$BATS_TEST_TMPDIR/f"
+  [ "$(render "$BATS_TEST_TMPDIR/f" 'K=x&y\\z')" = 'a x&y\\z b' ]
 }
 
 @test "swept_before_kill: quiet while the row is decided and child B is untouched" {
@@ -169,7 +178,7 @@ decided_parent() {  # <r2: new|old> <row-state|"">
   [ "$(claim_of "$U/2" def)" = FOREIGN ]
 }
 
-@test "await_kill_point re-arms from each result's now and exclude, and returns once kill_due holds" {
+@test "await_kill_point re-arms from just before each result's now, with its exclude, and returns once kill_due holds" {
   SCRIPTS="$BATS_TEST_TMPDIR/scripts"; mkdir -p "$SCRIPTS"
   export WATCH_LOG="$BATS_TEST_TMPDIR/watch.log"; : > "$WATCH_LOG"
   cat > "$SCRIPTS/watch-issue.sh" <<'EOF'
@@ -178,7 +187,7 @@ printf 'SETTLE=%s INTERVAL=%s %s\n' "$SETTLE" "$INTERVAL" "$*" >> "$WATCH_LOG"
 n=$(wc -l < "$WATCH_LOG" | tr -d ' ')
 echo "── re-arm ──"
 echo "WINDOW=9 watch-issue.sh o/r 1 --role=author --since=T$n --slug=me --exclude=https://x/pull/$n"
-echo "result=ACTIVITY issues=1 kinds=body-edit edited=1:x now=T$n"
+echo "result=ACTIVITY issues=1 kinds=body-edit edited=1:x now=2026-10-14T21:30:0${n}Z"
 EOF
   chmod +x "$SCRIPTS/watch-issue.sh"
   echo "$U/1" > "$DIR/parent"
@@ -192,7 +201,7 @@ EOF
   [ "$status" -eq 0 ]
   [ "$(wc -l < "$WATCH_LOG" | tr -d ' ')" -eq 2 ]
   grep -q '^SETTLE=0 INTERVAL=3 o/r 1 --role=author --slug=me --since=T0$' "$WATCH_LOG"
-  grep -q -- '--since=T1 --exclude=https://x/pull/1$' "$WATCH_LOG"
+  grep -q -- '--since=2026-10-14T21:29:56Z --exclude=https://x/pull/1$' "$WATCH_LOG"
 }
 
 @test "await_kill_point fails when the orchestrator exits while the watch waits" {
