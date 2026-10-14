@@ -34,9 +34,10 @@ EOF
 # <parent-url|""> [blocker-url...] -> the child's current relationships.
 current() {
   local parent="$1"; shift
-  printf '%s\n' "$@" | jq -Rcs --arg p "$parent" '
-    {parent: (if $p == "" then null else {url: $p} end),
-     blockedBy: {nodes: [split("\n")[] | select(. != "") | {url: .}]}}' > "$VIEW"
+  printf '%s\n' "$@" | jq -Rcs --arg p "$parent" --arg self "$(url 7)" '
+    [split("\n")[] | select(. != "") | {url: .}] as $nodes
+    | {url: $self, parent: (if $p == "" then null else {url: $p} end),
+       blockedBy: {nodes: $nodes, totalCount: ($nodes | length)}}' > "$VIEW"
 }
 url() { echo "https://github.com/o/r/issues/$1"; }
 
@@ -71,9 +72,9 @@ url() { echo "https://github.com/o/r/issues/$1"; }
   [ "$(cat "$EDITS")" = "issue edit 7 --repo o/r --add-blocked-by 4" ]
 }
 
-@test "relationships match case-insensitively on the repository" {
-  current "https://github.com/O/R/issues/1" "https://github.com/O/R/issues/3"
-  run "$SET" o/r 7 --parent=1 --blocked-by=3
+@test "relationships match on the child's canonical repository, not the name passed" {
+  current "$(url 1)" "$(url 3)"
+  run "$SET" O/old-name 7 --parent=1 --blocked-by=3
   [ "$output" = "result=OK parent=1 blocked_by=3" ]
   [ ! -s "$EDITS" ]
 }
@@ -110,6 +111,15 @@ url() { echo "https://github.com/o/r/issues/$1"; }
   [[ "$stderr" == *"stub rejection"* ]]
 }
 
+@test "a blocker list read only in part is refused, not taken as complete" {
+  current "$(url 1)" "$(url 3)"
+  jq '.blockedBy.totalCount = 101' "$VIEW" > "$VIEW.tmp" && mv "$VIEW.tmp" "$VIEW"
+  run --separate-stderr "$SET" o/r 7 --parent=1 --blocked-by=4
+  [[ "$output" == "result=ERROR reason=issue-query now="* ]]
+  [[ "$stderr" == *"not read in full"* ]]
+  [ ! -s "$EDITS" ]
+}
+
 @test "a child that cannot be read is an issue-query error, with nothing written" {
   run --separate-stderr "$SET" o/r 7 --parent=1
   [[ "$output" == "result=ERROR reason=issue-query now="* ]]
@@ -123,6 +133,8 @@ url() { echo "https://github.com/o/r/issues/$1"; }
               "o/r 7 --parent=1 --parent=2" "o/r 7 --parent=1 --blocked-by=" \
               "o/r 7 --parent=1 --blocked-by=3,x" "o/r 7 --parent=1 --blocked-by=7" \
               "o/r 7 --parent=1 --blocked-by=3,,4" "o/r 7 --parent=1 --blocked-by=3,3" \
+              "o/r 7 --parent=1 --blocked-by=3," "o/r 7 --parent=1 --blocked-by=,3" \
+              "o/r 07 --parent=1" "o/r 7 --parent=01" "o/r 7 --parent=1 --blocked-by=3,03" \
               "o/r 7 --parent=1 --blocked-by=3 --blocked-by=4" "o/r 7 --parent=1 --other"; do
     # shellcheck disable=SC2086  # each case is a word list by design
     run "$SET" $args

@@ -30,7 +30,8 @@ REPO="${1:-}"; CHILD="${2:-}"
 [ "$#" -ge 2 ] || fail bad-args
 shift 2
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
-is_number() { case "$1" in ''|*[!0-9]*) return 1 ;; esac; }
+# No leading zero, so two spellings of one issue cannot compare unequal.
+is_number() { case "$1" in ''|0*|*[!0-9]*) return 1 ;; esac; }
 is_number "$CHILD" || fail bad-args
 
 PARENT=""; BLOCKED_BY=""; SEEN_BLOCKED_BY=0
@@ -39,7 +40,8 @@ for a in "$@"; do
     --parent=*) [ -z "$PARENT" ] || fail bad-args; PARENT="${a#--parent=}" ;;
     --blocked-by=*)
       [ "$SEEN_BLOCKED_BY" = 0 ] || fail bad-args; SEEN_BLOCKED_BY=1
-      BLOCKED_BY="${a#--blocked-by=}" ;;
+      BLOCKED_BY="${a#--blocked-by=}"
+      case "$BLOCKED_BY" in ''|,*|*,|*,,*) fail bad-args ;; esac ;;
     *) fail bad-args ;;
   esac
 done
@@ -48,7 +50,6 @@ is_number "$PARENT" || fail bad-args
 BLOCKERS=()
 if [ "$SEEN_BLOCKED_BY" = 1 ]; then
   IFS=, read -r -a BLOCKERS <<<"$BLOCKED_BY"
-  [ "${#BLOCKERS[@]}" -gt 0 ] || fail bad-args
   for b in "${BLOCKERS[@]}"; do
     is_number "$b" && [ "$b" != "$CHILD" ] || fail bad-args
   done
@@ -58,12 +59,17 @@ fi
 FORGE="${FORGE:-github}"
 [ "$FORGE" = github ] || fail unsupported-forge
 
-# Relationships are compared by URL, since a parent or blocker may live in
-# another repository and its number alone would then match the wrong issue.
-url_of() { echo "https://github.com/$REPO/issues/$1" | tr '[:upper:]' '[:lower:]'; }
+CURRENT=$(gh issue view "$CHILD" --repo "$REPO" --json url,parent,blockedBy) || fail issue-query
+jq -e '.url and (.blockedBy.nodes | length) == .blockedBy.totalCount' <<<"$CURRENT" >/dev/null 2>&1 \
+  || { echo "issue $CHILD: blockers not read in full" >&2; fail issue-query; }
 
-CURRENT=$(gh issue view "$CHILD" --repo "$REPO" --json parent,blockedBy) || fail issue-query
-HAS=$(jq -r '.parent.url // "" | ascii_downcase' <<<"$CURRENT" 2>/dev/null) || fail issue-query
+# Relationships are compared by URL, a number being ambiguous once one lives in
+# another repository. The prefix comes from the child's own URL rather than from
+# <owner/repo>, which may be a renamed repository's old name or differ in case.
+PREFIX=$(jq -r '.url | sub("[0-9]+$"; "")' <<<"$CURRENT")
+url_of() { echo "$PREFIX$1"; }
+
+HAS=$(jq -r '.parent.url // ""' <<<"$CURRENT")
 if [ -z "$HAS" ]; then
   gh issue edit "$CHILD" --repo "$REPO" --parent "$PARENT" >/dev/null || fail parent-rejected
 elif [ "$HAS" != "$(url_of "$PARENT")" ]; then
@@ -73,7 +79,7 @@ fi
 
 MISSING=()
 for b in ${BLOCKERS[@]+"${BLOCKERS[@]}"}; do
-  jq -e --arg u "$(url_of "$b")" 'any(.blockedBy.nodes[]?; (.url | ascii_downcase) == $u)' \
+  jq -e --arg u "$(url_of "$b")" 'any(.blockedBy.nodes[]; .url == $u)' \
        <<<"$CURRENT" >/dev/null || MISSING+=("$b")
 done
 if [ "${#MISSING[@]}" -gt 0 ]; then

@@ -28,7 +28,9 @@ design author's first guess:
 - **Every dependency is explicit.** Child B depends on child A when B's work or
   B's acceptance criteria use something A introduces. Read each requirement and
   decision for what it needs to exist first; a dependency left implicit is
-  found when B's criteria will not run.
+  found when B's criteria will not run. Two children that each need the other
+  are one child, or a third holds what they share: the dependencies form no
+  cycle.
 
 ## 2. Write each child's body
 
@@ -78,8 +80,9 @@ URLs. Children live in the parent's repository. For each, file it per
 - **`reason=parent-rejected`** or **`reason=blocked-by-rejected`** — the forge
   refused. Its message is on stderr. Fix the cause and run the same call again;
   a re-run writes only what is still missing.
-- **`reason=issue-query`** — the child could not be read, so nothing was
-  written.
+- **`reason=issue-query`** — the child could not be read in full, so nothing
+  was written.
+- **Any other `reason`** — the call itself is wrong. Stop and surface it.
 
 ## 5. Bring the parent up to date
 
