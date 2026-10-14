@@ -374,6 +374,14 @@ REPORT="Opened a draft."'
   [ "${lines[0]}" = "run 1: FAIL no issue comment opening with 'Delegated question:' asks about review after the PR" ]
 }
 
+@test "send-to-review: a question only on the issue fails" {
+  fake_claude 'gh pr create --draft --title t --body b > /dev/null
+gh issue comment 1 --body "Delegated question: send to review?" > /dev/null
+REPORT="Done."'
+  FIXTURE=send-to-review run "$EVAL/run.sh"
+  [ "${lines[0]}" = "run 1: FAIL the question reached the issue but not the report" ]
+}
+
 @test "send-to-review: stopping before any PR fails" {
   fake_claude 'gh issue comment 1 --body "Delegated question: anything?" > /dev/null
 REPORT="Stopped."'

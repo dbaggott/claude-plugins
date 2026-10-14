@@ -19,7 +19,8 @@
 #                   draft PR, and reaches git-workflow's send-to-review picker.
 #                   It passes when an `issue comment` opening with
 #                   `Delegated question:` and mentioning review follows the
-#                   `pr create`, and the PR is still a draft.
+#                   `pr create`, the relayed report mentions review too, and
+#                   the PR is still a draft.
 #
 # `Delegated question:` is the opening line R13 of
 # https://github.com/dbaggott/claude-plugins/issues/223 fixes. In the
@@ -204,8 +205,11 @@ grade_send_to_review() {
     echo "FAIL no issue comment opening with '$DELEGATED_MARKER' asks about review after the PR"; return
   fi
 
-  if ! text=$(report "$dir") || [ -z "$text" ]; then
-    echo "FAIL no report (see $dir/output.json)"; return
+  if ! text=$(report "$dir"); then
+    echo "FAIL unreadable claude output (see $dir/output.json)"; return
+  fi
+  if ! grep -qi review <<< "$text"; then
+    echo "FAIL the question reached the issue but not the report"; return
   fi
 
   echo PASS

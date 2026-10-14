@@ -81,7 +81,8 @@ PRs that nobody recaps — and say you dropped them.
       zone. Don't guess it from the user's email domain, name, or locale — that once put
       a day boundary 7 hours off by labeling an `America/Los_Angeles` machine "Eastern".
       If the user may be working away from the machine's set zone (travel), ask;
-      otherwise the machine's zone is the working zone.
+      otherwise the machine's zone is the working zone. Without `AskUserQuestion`,
+      use the machine's zone and say so in the recap.
     - **Bound the day at a pre-dawn cutoff, not midnight.** `gh search`'s `merged:` /
       `created:` qualifiers match in **UTC**, so a bare `--merged-at 2026-06-11` is the
       UTC calendar day — which clips the local evening into the next day (a 7-hour-west
