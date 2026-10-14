@@ -9,6 +9,8 @@ covers picking an issue up.
 
 Issues must be **self-documenting** — a cold reader should understand the problem, the intended direction, and what "done" looks like without clicking through to other issues, PRs, or docs.
 
+A **tracking issue** — a body that is a project's design, parent of the issues implementing it — has its own shape and IDs: `references/tracking-issue.md`.
+
 ### Capture the direction, not just the problem
 
 The single highest-value section. At creation time there is almost always a clear solution or direction in the surrounding context — a conversation, a review comment, code just explored. That context dies with the session; the issue body is the only carrier.
