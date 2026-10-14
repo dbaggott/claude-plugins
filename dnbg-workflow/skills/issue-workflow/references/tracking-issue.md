@@ -98,8 +98,9 @@ which matches them literally, so any other form reads as uncovered.
 
 **These are exempt from `creating.md`'s rule that every criterion is runnable at
 the issue's own merge.** They are, by design, the criteria no single child can
-run. Each names what contributes to it — `Contributes: <children or R#s>` — so
-the children that must land before it can run are known.
+run. Each names what contributes to it — `Contributes: <children or R#s>`, or
+the one requirement it checks named inline — so the children that must land
+before it can run are known.
 
 A child's own criteria still follow `creating.md`: runnable at that child's merge.
 
@@ -140,5 +141,8 @@ has signed off. Record it as one decision-log row:
 | <date> | — | — | Design accepted: spec review READY (<round comment URL>), operator sign-off <where given> | decided |
 ```
 
-Acceptance is that row. Nothing merges. Adding the row is the one edit after the
-`READY` that does not reopen the review; any other edit to the body does.
+Acceptance is that row. Nothing merges.
+
+Until the row lands, any other edit to the body reopens the review. After it,
+the design changes only through decision-log rows, and only the parts a change
+touches are re-reviewed, not the whole body; acceptance stands.
