@@ -29,6 +29,16 @@ EOF
   chmod +x "$FAKE"
 }
 
+# A working repo on main, cd'd into, whose main is pushed to the remote the stub
+# reads; `pr create` needs its head there.
+pushed_repo() {
+  git init -q --bare -b main "$BATS_TEST_TMPDIR/remote.git"
+  git init -q -b main "$BATS_TEST_TMPDIR/w"
+  cd "$BATS_TEST_TMPDIR/w"
+  echo a > a; git add a; git -c user.name=a -c user.email=a@a commit -qm a
+  git push -q "$BATS_TEST_TMPDIR/remote.git" main
+}
+
 stub() {
   EVAL_ISSUE_JSON="$ISSUE_JSON" EVAL_GH_LOG="$BATS_TEST_TMPDIR/gh.log" \
     EVAL_REMOTE="$BATS_TEST_TMPDIR/remote.git" "$EVAL/gh-stub.sh" "$@"
@@ -73,6 +83,7 @@ stub() {
 }
 
 @test "stub: pr create -d takes no value, so the body after it is still logged" {
+  pushed_repo
   stub pr create -d --body "the body" --title t
   [ "$(jq -r 'select(.cmd == "pr create") | .body' "$BATS_TEST_TMPDIR/gh.log")" = "the body" ]
 }
@@ -294,6 +305,7 @@ REPORT="created_at or createdAt?"'
 }
 
 @test "stub: pr view fails before pr create, then serves a draft until pr ready" {
+  pushed_repo
   run stub pr view 2 --json isDraft
   [ "$status" -eq 1 ]
   stub pr create --draft --title t --body "the body" > /dev/null
@@ -305,6 +317,7 @@ REPORT="created_at or createdAt?"'
 }
 
 @test "stub: pr edit replaces the body pr view serves, and pr comment is logged" {
+  pushed_repo
   stub pr create --draft --title t --body one > /dev/null
   stub pr edit 2 --body two > /dev/null
   stub pr comment 2 --body hi > /dev/null
@@ -313,6 +326,7 @@ REPORT="created_at or createdAt?"'
 }
 
 @test "stub: pr view knows only PR 2, and only the fields it serves" {
+  pushed_repo
   stub pr create --draft --title t --body b > /dev/null
   run stub pr view 99
   [ "$status" -eq 1 ]
@@ -323,15 +337,30 @@ REPORT="created_at or createdAt?"'
 }
 
 @test "stub: pr view serves the head branch's commit and changed files from the remote" {
-  git init -q --bare -b main "$BATS_TEST_TMPDIR/remote.git"
-  git init -q -b main "$BATS_TEST_TMPDIR/w"
-  cd "$BATS_TEST_TMPDIR/w"
-  echo a > a; git add a; git -c user.name=a -c user.email=a@a commit -qm a
+  pushed_repo
   git checkout -qb topic; echo b > b; git add b; git -c user.name=a -c user.email=a@a commit -qm b
-  git push -q "$BATS_TEST_TMPDIR/remote.git" main topic
+  git push -q "$BATS_TEST_TMPDIR/remote.git" topic
+  git checkout -q main
   stub pr create --draft --head topic --title t --body b > /dev/null
   run stub pr view 2 --json headRefName,headRefOid,files --jq '[.headRefName, .headRefOid, (.files | map(.path) | join(","))] | join(" ")'
   [ "$output" = "topic $(git rev-parse topic) b" ]
+}
+
+@test "stub: pr create without --head takes the current branch, as gh does" {
+  pushed_repo
+  git checkout -qb topic; echo b > b; git add b; git -c user.name=a -c user.email=a@a commit -qm b
+  git push -q "$BATS_TEST_TMPDIR/remote.git" topic
+  stub pr create --draft --title t --body b > /dev/null
+  run stub pr view --json headRefName,headRefOid --jq '[.headRefName, .headRefOid] | join(" ")'
+  [ "$output" = "topic $(git rev-parse topic)" ]
+}
+
+@test "stub: pr create from a branch the remote does not have is unmodelled" {
+  pushed_repo
+  git checkout -qb unpushed
+  run stub pr create --draft --title t --body b
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .kind "$BATS_TEST_TMPDIR/gh.log")" = unmodelled ]
 }
 
 @test "stub: pr ready --undo is unmodelled" {

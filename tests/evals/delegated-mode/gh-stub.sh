@@ -6,7 +6,8 @@
 # comments, assignees and labels the log says were written, so an agent that
 # checks its own claim or comment finds it.
 #
-# Each log line is {kind: read|write|unmodelled, cmd: "<noun> <verb>", args, body}.
+# Each log line is {kind: read|write|unmodelled, cmd: "<noun> <verb>", args, body,
+# head}; `head` is the branch a `pr create` opened the PR from, empty elsewhere.
 #
 # Environment (set by the wrapper `run.sh` writes, not by the agent):
 #   EVAL_ISSUE_JSON  the fixture issue; its `_`-prefixed keys are never served
@@ -34,9 +35,9 @@ REPO_PATH=${ISSUE_PATH%/issues/*}
 PR_URL="${ISSUE_URL%/issues/*}/pull/2"
 
 log() {
-  local kind=$1 body=${2-}
-  jq -cn --arg kind "$kind" --arg cmd "$CMD" --arg body "$body" \
-    '{kind: $kind, cmd: $cmd, args: $ARGS.positional, body: $body}' \
+  local kind=$1 body=${2-} head=${3-}
+  jq -cn --arg kind "$kind" --arg cmd "$CMD" --arg body "$body" --arg head "$head" \
+    '{kind: $kind, cmd: $cmd, args: $ARGS.positional, body: $body, head: $head}' \
     --args -- ${ARGV[@]+"${ARGV[@]}"} >> "$EVAL_GH_LOG"
 }
 
@@ -50,7 +51,7 @@ ARGV=("$@")
 CMD=""
 
 # Flags the modelled commands take a value for. Anything else is positional.
-JSON_FIELDS="" JQ="" BODY="" BODY_FILE="" PAGINATE_SLURP=0 METHOD=GET API_FIELDS=0
+JSON_FIELDS="" JQ="" BODY="" BODY_FILE="" HEAD_REF="" PAGINATE_SLURP=0 METHOD=GET API_FIELDS=0
 POSITIONAL=()
 VALUE_FLAGS=" --json -q --jq -b --body -F --body-file -R --repo -t --title -B --base -H --head -l --label
   --add-label --remove-label -a --assignee --add-assignee --remove-assignee -c --color --description
@@ -71,7 +72,9 @@ while [ "$#" -gt 0 ]; do
     --slurp) PAGINATE_SLURP=1; shift ;;
     -X|--method) METHOD=$2; shift 2 ;;
     -f|--raw-field|--field|--input) API_FIELDS=1; shift 2 ;;
-    -R|--repo|-t|--title|-B|--base|-H|--head|-l|--label|--add-label|--remove-label \
+    -H|--head) HEAD_REF=$2; shift 2 ;;
+    --head=*) HEAD_REF=${1#--head=}; shift ;;
+    -R|--repo|-t|--title|-B|--base|-l|--label|--add-label|--remove-label \
       |-a|--assignee|--add-assignee|--remove-assignee|-c|--color|--description \
       |-s|--state|-L|--limit|--owner)
       shift 2 ;;
@@ -120,10 +123,9 @@ served_issue() {
 # The PR `pr create` opened, as `pr view --json` serves it; empty before then.
 served_pr() {
   local head oid="" files="[]"
-  head=$(jq -r 'select(.cmd == "pr create") | .args as $a
-                | range(0; $a | length) | select($a[.] == "--head" or $a[.] == "-H") | $a[. + 1]' \
-           "$EVAL_GH_LOG" | head -1)
-  if [ -n "$head" ] && oid=$(git -C "$EVAL_REMOTE" rev-parse -q --verify "refs/heads/$head^{commit}"); then
+  head=$(jq -r 'select(.cmd == "pr create") | .head' "$EVAL_GH_LOG" | head -1)
+  if [ -n "$head" ]; then
+    oid=$(git -C "$EVAL_REMOTE" rev-parse -q --verify "refs/heads/$head^{commit}")
     files=$(git -C "$EVAL_REMOTE" diff --name-only "main...$oid" | jq -R '{path: .}' | jq -s .)
   fi
   jq -n --slurpfile log "$EVAL_GH_LOG" --arg url "$PR_URL" --arg head "$head" --arg oid "$oid" \
@@ -212,8 +214,11 @@ case "$CMD" in
     log write
     ;;
   "pr create")
+    # Like gh, the head defaults to the current branch, and it must be pushed.
+    [ -n "$HEAD_REF" ] || HEAD_REF=$(git rev-parse --abbrev-ref HEAD 2> /dev/null) || unmodelled
+    git -C "$EVAL_REMOTE" rev-parse -q --verify "refs/heads/$HEAD_REF^{commit}" > /dev/null || unmodelled
     read_body
-    log write "$BODY"
+    log write "$BODY" "$HEAD_REF"
     echo "$PR_URL"
     ;;
   "pr edit"|"pr comment")
