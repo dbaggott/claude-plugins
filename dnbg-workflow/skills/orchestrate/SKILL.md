@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Drive one GitHub issue to a merged PR from the main session — claim it, dispatch an author subagent and a reviewer subagent, answer the author's questions that the issue's own body answers, escalate the rest to the operator, log every answer on the issue, and stop when the PR merges. Also closes out a finished tracking issue. Load when asked to orchestrate an issue ("orchestrate the resolution of <issue URL>", "orchestrate <issue URL>", "drive <issue> with an author and a reviewer"), when restarting an orchestrator on an issue, or when asked to close out a tracking issue. Skip for resolving an issue yourself, which is `issue-workflow`, and for reviewing one, which is `reviewer`.
+description: Drive one GitHub issue to a merged PR from the main session — claim it, dispatch an author subagent and a reviewer subagent, answer the author's questions that the issue's own body answers, escalate the rest to the operator, log every answer on the issue, and stop when the PR merges. Given a tracking issue, does the same for each of its sub-issues in dependency order and ends on the whole-project review. Also closes out a finished tracking issue. Load when asked to orchestrate an issue or a tracking issue ("orchestrate the resolution of <issue URL>", "orchestrate <issue URL>", "drive <issue> with an author and a reviewer"), when restarting an orchestrator on an issue, or when asked to close out a tracking issue. Skip for resolving an issue yourself, which is `issue-workflow`, and for reviewing one, which is `reviewer`.
 ---
 
 # Orchestrate
@@ -11,9 +11,12 @@ the issue's body already answers, take the rest to the operator, and record
 every answer on the issue. The operator's attention goes only to escalations and
 the merge.
 
-Closing out a finished tracking issue is a separate entry, in
-`references/closeout.md`. Every agent in a run, you included, ends its part with
-a retrospective, per `references/retrospective.md`; read it before dispatching.
+A tracking issue is driven child by child, each through this flow, by the loop
+in `references/multi-issue.md`, which applies design changes per
+`references/design-change.md`. Closing out a finished tracking issue is a
+separate entry, in `references/closeout.md`. Every agent in a run, you included,
+ends its part with a retrospective, per `references/retrospective.md`; read it
+before dispatching.
 
 `<skill-dir>` is the **Base directory** announced when this skill loads. The
 scripts are at `<skill-dir>/../../scripts/`.
@@ -36,8 +39,9 @@ Nothing from an earlier orchestrator is in your memory, so a restart and a first
 start are the same path.
 
 1. **Sub-issues.** `fetch-issue-set.sh <owner>/<repo> <n>`. A non-empty
-   `children` makes this a tracking issue, which this mode does not run: say so
-   and stop. `result=ERROR` means the set was not read; say so and stop.
+   `children` makes this a tracking issue: continue in
+   `references/multi-issue.md`. `result=ERROR` means the set was not read; say
+   so and stop.
 2. **The claim.** `claim-issue.sh <owner>/<repo> <n>`:
    - `UNCLAIMED` — claim it: `claim-issue.sh <owner>/<repo> <n> --claim`,
      adding `--label=<label>` when a `dnbg-workflow` note at session start names

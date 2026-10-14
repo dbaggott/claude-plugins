@@ -874,6 +874,69 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   [ "$bad" -eq 0 ]
 }
 
+@test "every ready-set ERROR reason is named where the loop reads the set" {
+  local src="$ROOT/dnbg-workflow/scripts/ready-set.sh"
+  local doc="$ROOT/dnbg-workflow/skills/orchestrate/references/multi-issue.md"
+  local reasons r bad=0
+  reasons=$(grep -oE '\bfail [a-z-]+' "$src" | sed 's/^fail //' | sort -u)
+  [ -n "$reasons" ] || { echo "no fail reasons found in $(basename "$src") — the extractor broke"; false; }
+  # From the call's fence to the end of that list item: the prose that dispatches
+  # on the result.
+  local para
+  para=$(awk '/ready-set\.sh" <owner>/ { call = 1; next }
+              call && /^ *```/ { inside = 1; next }
+              inside && /^[0-9]+\. / { exit }
+              inside' "$doc")
+  [ -n "$para" ] || { echo "multi-issue.md no longer calls ready-set.sh — the extractor broke"; false; }
+  for r in $reasons; do
+    grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" <<<"$para" || {
+      echo "multi-issue.md's ready-set paragraph does not name ERROR reason '$r'"; bad=1; }
+    sed -n '/^# Prints/,/^set -euo/p' "$src" | grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" || {
+      echo "$(basename "$src") emits '$r' but its header does not declare it"; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
+# The ready set holds a child until its latest spec or set review verdict reads
+# READY, and finds that verdict by the first line `issue-reviewer` posts. A
+# reworded heading would hold every child of a reviewed project forever, with
+# `no-ready-verdict` as the only sign. So each form the reviewer is told to write
+# is fed through the script as the verdict on a child, which must come out ready.
+documented_verdict_lines() {  # -> one first line per documented form, filled in
+  cat "$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md" \
+      "$ROOT/dnbg-workflow/skills/issue-reviewer/references/design-review.md" \
+    | tr '\n' ' ' \
+    | grep -oE '`[^`]*(Spec|Set) review[^`]*, round *<n>: *(<verdict>|READY)[^`]*`' \
+    | tr -d '`' | sed -E 's/ +/ /g; s/<n>/1/; s/<verdict>/READY/'
+  # Set review is named by word only, as a substitution into the spec form.
+  grep -q '`Set review` in a set' "$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md" \
+    && echo '**Set review, round 1: READY**'
+}
+
+@test "every verdict line issue-reviewer documents is one the ready set reads" {
+  local stub="$BATS_TEST_TMPDIR/bin" lines line n=0
+  mkdir -p "$stub"
+  printf '#!/usr/bin/env bash\ncat "$ANSWER"\n' > "$stub/gh"; chmod +x "$stub/gh"
+  lines=$(documented_verdict_lines)
+  [ "$(grep -c . <<<"$lines")" -ge 3 ] || { echo "found only: $lines — the extractor broke"; false; }
+  while IFS= read -r line; do
+    n=$((n + 1))
+    jq -cn --arg v "$line" '
+      def c: {nodes: [{author: {login: "bot[bot]"}, body: $v}]};
+      {data: {repository: {issue: {url: "u/1", number: 1, oldest: c, newest: (c + {totalCount: 1}),
+        subIssues: {totalCount: 1, nodes: [{url: "u/2", number: 2, title: "t", state: "OPEN",
+          assignees: {totalCount: 0, nodes: []}, labels: {totalCount: 0, nodes: []},
+          blockedBy: {totalCount: 0, nodes: []}, comments: c}]}}}}}' > "$BATS_TEST_TMPDIR/a.json"
+    run env PATH="$stub:$PATH" ANSWER="$BATS_TEST_TMPDIR/a.json" \
+      "$ROOT/dnbg-workflow/scripts/ready-set.sh" o/r 1 --slug=bot
+    if [[ "$(tail -1 <<<"$output")" != *" ready=1" ]] \
+       || [ "$(head -1 <<<"$output" | jq .parent.spec_review)" != true ]; then
+      echo "documented verdict line not read: $line"; echo "$output"; return 1
+    fi
+  done < <(printf '%s\n' "$lines")
+  [ "$n" -ge 3 ]
+}
+
 @test "the two issue reviews each name the other" {
   local spec="$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md"
   local pr="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"

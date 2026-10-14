@@ -132,7 +132,7 @@ you wrote.
 | `git-workflow` | `dnbg-workflow` | GitHub only | Worktree → draft PR → review → merge → cleanup, end to end |
 | `issue-workflow` | `dnbg-workflow` | GitHub only | Writing issues that survive a cold handoff; claiming and resolving one |
 | `issue-reviewer` | `dnbg-workflow` | GitHub only | Reviewing an issue body as a spec, in rounds, before anyone picks it up |
-| `orchestrate` | `dnbg-workflow` | GitHub only | Driving one issue to a merged PR with an author and a reviewer subagent |
+| `orchestrate` | `dnbg-workflow` | GitHub only | Driving one issue, or every child of a tracking issue, to merged PRs with author and reviewer subagents |
 | `process-review` | `dnbg-workflow` | GitHub only | Finding patterns across orchestration retrospectives and drafting upstream issues |
 | `reviewer` | `dnbg-workflow` | GitHub only | Reviewing a pushed PR under an independent GitHub App identity |
 | `reviewer-setup` | `dnbg-workflow` | GitHub only | One-time creation of that App (no cloud service, no shared secret) |
