@@ -5,6 +5,7 @@
 CHANGELOG.md                      # assembled at release time
 changelog.d/<plugin>/             # pending fragments, one per PR
 docs/                             # this directory: reference, read after deciding
+  design/                         # as-built designs of closed tracking issues; their IDs resolve here
 dnbg-workflow/                    # the plugin
   .claude-plugin/plugin.json      # manifest, incl. the userConfig knobs
   always-on-rules.md              # injected into every session
