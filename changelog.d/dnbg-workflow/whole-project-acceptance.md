@@ -1,3 +1,0 @@
-`reviewer` can now review a tracking issue as a whole project. Pointed at an issue with sub-issues, it waits until every child is closed, then grades the merged work against the tracking issue's end-to-end acceptance criteria. It posts one verdict on the tracking issue, `ACCEPTED` or `CHANGES REQUESTED`, which names every criterion.
-
-New closeout procedure: say "close out <tracking issue URL>" once that verdict is `ACCEPTED`. It writes the as-built design to `docs/design/` through one PR, turns each friction-log entry into a follow-up issue or an explicit drop, and closes the tracking issue with a link to the doc. Until the orchestrate skill ships, give the agent the path `dnbg-workflow/skills/orchestrate/references/closeout.md`.
