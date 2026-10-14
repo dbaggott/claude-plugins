@@ -78,7 +78,8 @@ repository. For each, file it per
 
 - **`result=OK`** — the parent and every named blocker are in place.
 - **`reason=parent-conflict`** — the child already belongs to another parent.
-  Stop and surface it; moving an issue between projects is the operator's call.
+  Stop and surface it; moving an issue between projects is the operator's call
+  (without `AskUserQuestion`: `references/delegated.md`).
 - **`reason=parent-rejected`** or **`reason=blocked-by-rejected`** — the forge
   refused. Its message is on stderr. Fix the cause and run the same call again;
   a re-run writes only what is still missing.
