@@ -146,3 +146,6 @@ Acceptance is that row. Nothing merges.
 Until the row lands, any other edit to the body reopens the review. After it,
 the design changes only through decision-log rows, and only the parts a change
 touches are re-reviewed, not the whole body; acceptance stands.
+
+An accepted design is decomposed into its children per
+`references/decomposing.md`.

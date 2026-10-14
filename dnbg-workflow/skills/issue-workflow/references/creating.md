@@ -9,7 +9,7 @@ covers picking an issue up.
 
 Issues must be **self-documenting** — a cold reader should understand the problem, the intended direction, and what "done" looks like without clicking through to other issues, PRs, or docs.
 
-A **tracking issue** — a body that is a project's design, parent of the issues implementing it — has its own shape and IDs: `references/tracking-issue.md`.
+A **tracking issue** — a body that is a project's design, parent of the issues implementing it — has its own shape and IDs: `references/tracking-issue.md`. Turning an accepted one into its children is `references/decomposing.md`.
 
 ### Capture the direction, not just the problem
 
