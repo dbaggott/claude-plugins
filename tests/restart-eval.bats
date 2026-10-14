@@ -5,6 +5,8 @@
 # `gh` and the plugin's scripts stubbed. Nothing here starts an orchestrator.
 
 bats_require_minimum_version 1.5.0
+load trace-dir
+load reap
 
 EVAL="${BATS_TEST_DIRNAME}/evals/restart"
 U=https://github.com/o/r/issues
@@ -12,6 +14,7 @@ VALUE=ahoy-20261014-1
 CID=4242
 
 setup() {
+  contain_traces
   # shellcheck source=evals/restart/run.sh
   source "$EVAL/run.sh"
   REPO=o/r
