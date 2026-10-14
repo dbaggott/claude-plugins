@@ -147,6 +147,13 @@ kill_tree() {
   kill -KILL "$1" 2> /dev/null || true
 }
 
+# <pid> -> kills an orchestrator started by start_orchestrator, and reaps it so
+# the shell does not print a job notice for the kill
+stop_orchestrator() {
+  kill_tree "$1"
+  wait "$1" 2> /dev/null || true
+}
+
 body_of() { gh issue view "$1" --repo "$REPO" --json body --jq .body; }
 
 # <issue-url> <session-uuid> -> claim-issue.sh's verdict on whether that
@@ -225,11 +232,12 @@ await_claims() {
 # does. The orchestrator role would not do: it never wakes on a body edit.
 await_kill_point() {
   local dir=$1 parent n since=$4 deadline=$(( $(date +%s) + ${KILL_TIMEOUT:-1800} )) wpid result
+  local exclude=""
   parent=$(cat "$dir/parent"); n=${parent##*/}
   while before "$deadline"; do
     SETTLE=0 INTERVAL=3 WINDOW=$(( deadline - $(date +%s) )) \
       "$SCRIPTS/watch-issue.sh" "$REPO" "$n" --role=author --slug="$3" --since="$since" \
-      > "$dir/watch.out" 2> /dev/null &
+      ${exclude:+"--exclude=$exclude"} > "$dir/watch.out" 2> /dev/null &
     wpid=$!
     while kill -0 "$wpid" 2> /dev/null; do
       if ! kill -0 "$2" 2> /dev/null; then
@@ -249,6 +257,9 @@ await_kill_point() {
     # Read after the watch's `now`, so the body holds every edit stamped before
     # the next watch's `since`.
     since=${result##* now=}
+    # The PRs it has reported, so a linked PR wakes it once rather than every poll.
+    exclude=$(grep -o -- '--exclude=[^ ]*' "$dir/watch.out" | tail -1 || true)
+    exclude=${exclude#--exclude=}
     kill_due "$(body_of "$parent")" "$5" "$6" && return 0
   done
   echo "the decision did not reach the parent's design and log in ${KILL_TIMEOUT:-1800}s"
@@ -298,17 +309,17 @@ run_once() {
 
   start_orchestrator "$dir" first "$first" "Orchestrate the resolution of $parent."
   pid=$ORCH_PID
-  if ! why=$(await_claims "$dir" "$pid" "$first"); then kill_tree "$pid"; echo "FAIL $why"; return; fi
+  if ! why=$(await_claims "$dir" "$pid" "$first"); then stop_orchestrator "$pid"; echo "FAIL $why"; return; fi
 
   since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   comment=$(gh issue comment "$parent" --repo "$REPO" --body "Decision: R2 changes to: \`restart-eval/$run/greeting.txt\` holds the single line \`$value\` instead of \`hello\`.") \
-    || { kill_tree "$pid"; echo "FAIL the decision comment could not be posted"; return; }
+    || { stop_orchestrator "$pid"; echo "FAIL the decision comment could not be posted"; return; }
   cid=${comment##*issuecomment-}
-  case "$cid" in ''|*[!0-9]*) kill_tree "$pid"; echo "FAIL no comment id in '$comment'"; return ;; esac
+  case "$cid" in ''|*[!0-9]*) stop_orchestrator "$pid"; echo "FAIL no comment id in '$comment'"; return ;; esac
   if ! why=$(await_kill_point "$dir" "$pid" "$login" "$since" "$value" "$cid"); then
-    kill_tree "$pid"; echo "FAIL $why"; return
+    stop_orchestrator "$pid"; echo "FAIL $why"; return
   fi
-  kill_tree "$pid"
+  stop_orchestrator "$pid"
 
   why=$(swept_before_kill "$(body_of "$parent")" "$(body_of "$(cat "$dir/b")")" "$value" "$cid")
   if [ -n "$why" ]; then echo "INCONCLUSIVE sweep completed before kill: $why"; return; fi
@@ -316,8 +327,8 @@ run_once() {
   start_orchestrator "$dir" second "$second" \
     "Orchestrate the resolution of $parent. This is a restart: the previous orchestrator, session ${first:0:8}, was killed, and it and all its subagents are gone. That answers the question of whether its claims have been let go: take them over."
   pid=$ORCH_PID
-  if ! why=$(await_resume "$dir" "$pid" "$second" "$value" "$cid"); then kill_tree "$pid"; echo "FAIL $why"; return; fi
-  kill_tree "$pid"
+  if ! why=$(await_resume "$dir" "$pid" "$second" "$value" "$cid"); then stop_orchestrator "$pid"; echo "FAIL $why"; return; fi
+  stop_orchestrator "$pid"
   echo PASS
 }
 

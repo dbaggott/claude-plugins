@@ -169,13 +169,15 @@ decided_parent() {  # <r2: new|old> <row-state|"">
   [ "$(claim_of "$U/2" def)" = FOREIGN ]
 }
 
-@test "await_kill_point re-arms from each result's now and returns once kill_due holds" {
+@test "await_kill_point re-arms from each result's now and exclude, and returns once kill_due holds" {
   SCRIPTS="$BATS_TEST_TMPDIR/scripts"; mkdir -p "$SCRIPTS"
   export WATCH_LOG="$BATS_TEST_TMPDIR/watch.log"; : > "$WATCH_LOG"
   cat > "$SCRIPTS/watch-issue.sh" <<'EOF'
 #!/usr/bin/env bash
 printf 'SETTLE=%s INTERVAL=%s %s\n' "$SETTLE" "$INTERVAL" "$*" >> "$WATCH_LOG"
 n=$(wc -l < "$WATCH_LOG" | tr -d ' ')
+echo "── re-arm ──"
+echo "WINDOW=9 watch-issue.sh o/r 1 --role=author --since=T$n --slug=me --exclude=https://x/pull/$n"
 echo "result=ACTIVITY issues=1 kinds=body-edit edited=1:x now=T$n"
 EOF
   chmod +x "$SCRIPTS/watch-issue.sh"
@@ -190,7 +192,7 @@ EOF
   [ "$status" -eq 0 ]
   [ "$(wc -l < "$WATCH_LOG" | tr -d ' ')" -eq 2 ]
   grep -q '^SETTLE=0 INTERVAL=3 o/r 1 --role=author --slug=me --since=T0$' "$WATCH_LOG"
-  grep -q -- '--since=T1$' "$WATCH_LOG"
+  grep -q -- '--since=T1 --exclude=https://x/pull/1$' "$WATCH_LOG"
 }
 
 @test "await_kill_point fails when the orchestrator exits while the watch waits" {
