@@ -65,7 +65,9 @@ so its coverage does not read as dropped.
 ## 4. File the children and set their relationships
 
 File in dependency order, blockers first, so every `Depends on` line names real
-URLs. Children live in the parent's repository. For each, file it per
+URLs. A body that mentions a child filed after it, outside `Depends on`, gets
+that URL in an edit once the child exists. Children live in the parent's
+repository. For each, file it per
 `creating.md` (labels included), then set its relationships with one call:
 
 ```bash
@@ -91,6 +93,8 @@ One body edit, after the last child is filed:
 - The **Candidate decomposition** becomes the filed table: each child linked,
   with its `Covers` and `Depends on`.
 - The coverage markings from step 1, and the end-to-end criteria from step 3.
+- Every mention of a candidate child elsewhere in the body ("child 7") becomes
+  that child's URL.
 - One decision-log row recording the filing, state `applied`.
 
 ## 6. Send the set to review
