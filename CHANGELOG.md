@@ -10,6 +10,26 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.1 — 2026-10-14
+
+`issue-reviewer` now reads a later round's changes from the issue's own edit
+history on GitHub, rather than from a copy of the body it had to keep itself. A
+round no longer depends on the session that wrote the last one still holding that
+copy. The same history is available to you: `scripts/issue-diff.sh` in the
+`dnbg-workflow` plugin prints a unified diff of an issue's body between two times.
+
+New: a shape for **tracking issues** — an issue whose body is a project's design
+and the parent of the issues that implement it. `issue-workflow` now describes
+its sections, stable `C#`/`R#`/`D#`/`Q#`/`A#` IDs, decision and open-question
+formats, decision and friction logs, and what makes a design accepted.
+
+`issue-reviewer` gains a design mode: reviewing a tracking issue's body also
+checks that requirements are checkable, every decision has a rationale and a
+reversal condition, every open question has a default, end-to-end criteria
+exist, and every cited ID resolves. The round comment names the mode and lists
+each check it ran.
+
+
 ## dnbg-workflow 2026.9.1 — 2026-09-13
 
 Before asking whether to send a PR to review, the author now self-reviews the
