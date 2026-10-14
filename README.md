@@ -70,9 +70,9 @@ so the issues implementing it can cite its requirements and decisions by ID.
    is written back into it, and the children that cite what changed are updated.
 5. When the last child closes, a whole-project review grades the result against
    the design's own end-to-end acceptance criteria. Closeout, when you ask for
-   it, writes the as-built design into the repo through one more PR, turns the project's
-   friction log into follow-up issues (filing none whose text you haven't
-   approved), and closes the tracking issue.
+   it, writes the as-built design into the repo through one more PR, turns the
+   project's friction log into follow-up issues (filing none whose text you
+   haven't approved), and closes the tracking issue.
 
 You are needed at three points: approving the design, answering escalations,
 and merging. You don't read or approve the children; the set review's verdict
@@ -259,9 +259,9 @@ anything sharing a row arrives together.
 
 Nothing is enforced until you say where: the hooks block only in repos whose
 owner you list in `owners`, and with it empty they never fire. That setting, the
-install scopes, the configurable names and paths, and an opt-in version stamp are in
-[configuration](docs/configuration.md). Requirements — a Claude Code floor and
-six command-line tools — are in [requirements](docs/requirements.md).
+install scopes, the configurable names and paths, and an opt-in version stamp
+are in [configuration](docs/configuration.md). Requirements — a Claude Code
+floor and six command-line tools — are in [requirements](docs/requirements.md).
 
 ## Which forges
 
