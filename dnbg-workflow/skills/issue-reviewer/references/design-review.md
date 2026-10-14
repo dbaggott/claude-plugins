@@ -1,7 +1,7 @@
 # Issue reviewer: design review
 
 Part of the `issue-reviewer` skill. Read this when a body under review is a
-**tracking issue** — it opens by declaring itself one. Its shape is defined in
+**tracking issue** — its body starts with `This is a **tracking issue**`. Its shape is defined in
 `issue-workflow`'s `references/tracking-issue.md`; that file is the standard this
 review holds the body to, so read it first.
 
@@ -10,16 +10,21 @@ posting. This adds checks to each pass, and changes what the round comment says.
 
 ## Mechanical additions
 
-- **Every fixed section is present**, under the names `tracking-issue.md` gives.
+- **Every required section is present**, under the names `tracking-issue.md`
+  gives. Its optional sections are not findings when absent.
 - **Every cited ID resolves.** Collect every `C#`, `R#`, `D#`, `Q#` and `A#`
-  mentioned anywhere in the body, and confirm each has an entry. Then, per
+  the body cites, and confirm each has an entry. A token that is not a citation
+  into this body — an instance type, a paper size — is not one. Then, per
   prefix, confirm no number is missing from the sequence and none is defined
   twice. A gap is a deleted entry, which breaks every citation to it elsewhere;
   a retired entry is marked, not missing.
 - **Coverage markings are well-formed.** A requirement line ending in something
   that looks like a marking but is not exactly `*(end-to-end: A<n>)*` or
-  `*(deferred: <reason>)*` is a finding, since the coverage check reads it as
+  `*(deferred: <reason>)*` is a finding, since a coverage check reads it as
   uncovered. An `end-to-end` marking names an `A#` that exists.
+- **Every constraint names the method that verified it.**
+- **Every decision-log row has the columns, and one of the states,
+  `tracking-issue.md` defines.**
 
 ## Judgment additions
 
@@ -29,7 +34,8 @@ posting. This adds checks to each pass, and changes what the round comment says.
   identified`.** A missing rationale is blocking: a later reader meeting a case
   the decision does not name cannot tell whether it covers it. A missing reversal
   clause is blocking too; `none identified` is an answer and passes.
-- **Every open question has a default.** Blocking when absent: the resolver who
+- **Every open question has a default, or is settled in place** naming the
+  decision that settled it. Blocking when it has neither: the resolver who
   reaches it either stalls or picks silently.
 - **End-to-end criteria exist, and each names its contributors.** A design with
   none has no definition of done above the children.
@@ -41,8 +47,9 @@ posting. This adds checks to each pass, and changes what the round comment says.
   author could not actually make — a priority, a cost the operator bears, a policy
   that is theirs — recorded as settled. Blocking: everything downstream applies it
   as decided.
-- **The candidate decomposition, if present, covers every requirement** — each
-  `R#` appears in some row's `Covers`, or carries one of the two markings.
+- **The candidate decomposition, if present, covers every requirement not
+  retired** — each such `R#` appears in some row's `Covers`, or carries an
+  end-to-end or deferred marking.
 
 ## The round comment
 

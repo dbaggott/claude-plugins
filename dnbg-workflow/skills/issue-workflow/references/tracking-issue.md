@@ -8,13 +8,13 @@ where this file says otherwise.
 
 ## Declare it
 
-Open the body with a sentence saying it is a tracking issue. That is what routes
-a spec review of it to the design checks, in `issue-reviewer`'s
-`references/design-review.md`.
+Start the body with the words `This is a **tracking issue**`, verbatim; the
+rest of the sentence is yours. That opening is what routes a spec review of it
+to the design checks, in `issue-reviewer`'s `references/design-review.md`.
 
 ## Sections
 
-In this order:
+Required, in this order, even while a log is still empty:
 
 - **Problem**, **Goals**, **Non-goals** — as in any issue.
 - **Constraints** (`C#`) — verified facts the design rests on, each with the
@@ -24,10 +24,13 @@ In this order:
 - **Decisions** (`D#`) — format below.
 - **Open questions** (`Q#`) — format below.
 - **End-to-end acceptance criteria** (`A#`) — below.
-- **Candidate decomposition** — optional before decomposition; once children are
-  filed, it is the table linking them, with each child's `Covers` and
-  `Depends on`.
 - **Decision log** and **Friction log** — below.
+
+Optional:
+
+- **Candidate decomposition**, between the acceptance criteria and the decision
+  log. Once children are filed, it is the table linking them, with each child's
+  `Covers` and `Depends on`.
 - **Required reading** and **Related (optional, do not read unless blocked)**, as
   `creating.md` describes.
 
@@ -74,8 +77,8 @@ A question with no default is one the design has not answered.
 
 ## Requirements and coverage
 
-Once children are filed, every requirement is covered in exactly one of three
-ways:
+Once children are filed, every requirement not retired is covered in one of
+these ways:
 
 - a child names it in its `Covers` line;
 - the requirement line ends in `*(end-to-end: A<n>)*` — only the whole project
@@ -88,8 +91,8 @@ ways:
 - **R14.** <requirement text> *(deferred: waits on the forge contract)*
 ```
 
-Use these two markings exactly as written: the set review's coverage check
-matches them literally, and any other form reads as uncovered.
+Write the markings exactly as shown. They are a contract for any coverage check,
+which matches them literally, so any other form reads as uncovered.
 
 ## End-to-end acceptance criteria
 
@@ -129,11 +132,13 @@ the project closes.
 
 ## Acceptance
 
-A design is **accepted** when both hold:
+A design is **accepted** when its latest spec review in design mode
+(`issue-reviewer`'s `references/design-review.md`) is `READY` and the operator
+has signed off. Record it as one decision-log row:
 
-- its latest spec review in design mode (`issue-reviewer`'s
-  `references/design-review.md`) is `READY`;
-- the decision log has a row recording the operator's sign-off, linking that
-  round's comment.
+```markdown
+| <date> | — | — | Design accepted: spec review READY (<round comment URL>), operator sign-off <where given> | decided |
+```
 
-Acceptance is that row. Nothing merges.
+Acceptance is that row. Nothing merges. Adding the row is the one edit after the
+`READY` that does not reopen the review; any other edit to the body does.
