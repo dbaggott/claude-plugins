@@ -205,6 +205,10 @@ record of what was wrong with it, and nobody reviews the fix.
 One comment per issue per round, never one per finding, with the detail folded
 into a `<details>` block. It carries, in order: the verdict, the `lastEditedAt`
 the review was made against, the blocking findings by ID, then the observations.
+The verdict is the first line, written `**Spec review, round <n>: <verdict>**`, with
+`Set review` in a set's round and the design-mode form in
+`references/design-review.md`. `orchestrate`'s ready set reads the latest one to
+decide whether a child may be dispatched.
 
 **Publishing that `lastEditedAt` is what makes a round that straddled an edit
 detectable afterwards.** The gate in `references/rounds.md` narrows that window;

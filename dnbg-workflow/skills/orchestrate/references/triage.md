@@ -69,6 +69,9 @@ Decision log: D4 — applied
 **Basis:** allowlist (a). D4's rationale, "body edits are whole-body replaces and two writers clobber each other", names this case.
 ```
 
+Under a tracking issue, each row is also a row of the parent's decision-log
+table, per `references/multi-issue.md`.
+
 An escalation gets two rows: `proposed` when you ask, and `decided` with the
 operator's answer when it arrives. A restart reads a `proposed` row with nothing
 after it as a question still waiting on the operator.
