@@ -55,9 +55,8 @@ and that one leaves the PRs unreviewed.
 Route on the phrasing rather than on whether any PR exists yet: this mode is
 "be the reviewer on issue N", "watch for PRs on this issue", "review the work
 resolving this". **On any doubt — a bare "review <issue URL>" being the common
-case — ask the operator** with `AskUserQuestion` rather than picking. Unattended,
-with nobody to ask, `issue-reviewer` takes it, because a spec review terminates
-and this one does not.
+case — ask the operator** with `AskUserQuestion` rather than picking; without it,
+ask on the issue per `<skill-dir>/../issue-workflow/references/delegated.md`.
 
 **Read `references/issue-mode.md` before acting on one, and don't improvise
 from the PR flow below.** That mode discovers the PRs resolving
@@ -75,7 +74,8 @@ The PR comes from what the user asked:
 - "Review my PR" / "review this branch" with no number → resolve the PR for the
   current branch: `gh pr view --json number,url,isDraft` (from the repo, or pass
   `--repo`). No PR for the branch → say so and stop.
-- Ambiguous (several candidates, no current-branch PR) → ask which PR.
+- Ambiguous (several candidates, no current-branch PR) → ask which PR (without
+  `AskUserQuestion`: `<skill-dir>/../issue-workflow/references/delegated.md`).
 - An **issue** number or URL instead of a PR → that's issue mode (`references/issue-mode.md`),
   not a malformed PR reference. Don't resolve it to one PR and drop the rest.
 
@@ -101,14 +101,15 @@ signal is asking you to withhold — the same reason a *discovered* draft is hel
 back without asking at all.
 
 On 1, post nothing now: arm the watch with `--was-draft` (see "Watch the PR")
-and review when it reports `READY`. On 2, carry on with the flow below. In an
-unattended run there is nobody to answer: take option 1 and say so.
+and review when it reports `READY`. On 2, carry on with the flow below. Without
+`AskUserQuestion`, a dispatcher's "wait until it's ready" or "review it now" is
+the answer; with neither, ask on the PR per `<skill-dir>/../issue-workflow/references/delegated.md`.
 
 **Say what waiting costs when you take option 1**, in the same breath: the watch
 lives in this session, so a PR marked ready after the session ends gets no review
 until someone asks again. That is the operator's to weigh — option 2 is what
 buys a verdict in hand right now. It belongs here rather than in the option's
-description because the unattended path takes option 1 with no picker rendered
+description because a pre-answered wait takes option 1 with no picker rendered
 at all.
 
 Skip the picker when they have already answered — "review it even though it's a

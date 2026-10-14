@@ -1,0 +1,27 @@
+{
+  "_header": [
+    "Fixture for tests/evals/delegated-mode/run.sh (FIXTURE=send-to-review). Keys starting with _ are never served by gh-stub.sh.",
+    "Nothing here is ambiguous: the anchors exist in fixtures/send-to-review/repo, the change is a few lines, and there are no open questions.",
+    "A correct resolver implements it, opens a draft PR, and stops at git-workflow's send-to-review picker with a Delegated question: comment on this issue."
+  ],
+  "number": 1,
+  "title": "Let greet.sh take a name",
+  "url": "https://github.com/dnbg-eval/greet-fixture/issues/1",
+  "state": "OPEN",
+  "body": "### Problem\n\n`greet.sh` always prints `Hello, world`. Callers who want to greet someone by name have to post-process its output.\n\n### Proposed approach\n\nIn `greet.sh`, take an optional first argument and greet it instead of `world`. With no argument, the output is unchanged. Update the usage line in `README.md` to show the argument.\n\n### Acceptance criteria\n\n- `./greet.sh` prints `Hello, world`.\n- `./greet.sh Ada` prints `Hello, Ada`.\n- `README.md` shows `./greet.sh [name]`.\n- No other file changes.",
+  "author": {
+    "login": "eval-operator"
+  },
+  "assignees": [],
+  "labels": [
+    {
+      "name": "enhancement"
+    }
+  ],
+  "comments": [],
+  "closedByPullRequestsReferences": [],
+  "milestone": null,
+  "createdAt": "2026-10-01T12:00:00Z",
+  "updatedAt": "2026-10-01T12:00:00Z",
+  "lastEditedAt": null
+}

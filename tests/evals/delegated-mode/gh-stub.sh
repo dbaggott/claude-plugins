@@ -6,14 +6,19 @@
 # comments, assignees and labels the log says were written, so an agent that
 # checks its own claim or comment finds it.
 #
-# Each log line is {kind: read|write|unmodelled, cmd: "<noun> <verb>", args, body}.
+# Each log line is {kind: read|write|unmodelled, cmd: "<noun> <verb>", args, body,
+# head}; `head` is the branch a `pr create` opened the PR from, empty elsewhere.
 #
 # Environment (set by the wrapper `run.sh` writes, not by the agent):
 #   EVAL_ISSUE_JSON  the fixture issue; its `_`-prefixed keys are never served
 #   EVAL_GH_LOG      the call log, appended to
+#   EVAL_REMOTE      the bare repo the fixture's origin serves, read for the
+#                    PR's head commit and changed files
 #
-# Modelled: issue view/list/edit/comment, label create, pr list/create,
-# search prs, and GET-only api: user, the issue, its comments and its timeline.
+# Modelled: issue view/list/edit/comment, label create, pr list/create/view/
+# edit/comment/ready, search prs, and GET-only api: user, the repo, the issue,
+# its comments and its timeline. The one PR is the one `pr create` opened; it
+# is a draft until `pr ready`.
 # Anything else, an api write included, is logged as
 # `unmodelled` and exits 1, so a path the stub does not know about fails the run
 # with the call named instead of being answered with something plausible.
@@ -26,11 +31,13 @@ set -euo pipefail
 
 ISSUE_URL=$(jq -r .url "$EVAL_ISSUE_JSON")
 ISSUE_PATH="repos/${ISSUE_URL#https://github.com/}"
+REPO_PATH=${ISSUE_PATH%/issues/*}
+PR_URL="${ISSUE_URL%/issues/*}/pull/2"
 
 log() {
-  local kind=$1 body=${2-}
-  jq -cn --arg kind "$kind" --arg cmd "$CMD" --arg body "$body" \
-    '{kind: $kind, cmd: $cmd, args: $ARGS.positional, body: $body}' \
+  local kind=$1 body=${2-} head=${3-}
+  jq -cn --arg kind "$kind" --arg cmd "$CMD" --arg body "$body" --arg head "$head" \
+    '{kind: $kind, cmd: $cmd, args: $ARGS.positional, body: $body, head: $head}' \
     --args -- ${ARGV[@]+"${ARGV[@]}"} >> "$EVAL_GH_LOG"
 }
 
@@ -44,7 +51,7 @@ ARGV=("$@")
 CMD=""
 
 # Flags the modelled commands take a value for. Anything else is positional.
-JSON_FIELDS="" JQ="" BODY="" BODY_FILE="" PAGINATE_SLURP=0 METHOD=GET API_FIELDS=0
+JSON_FIELDS="" JQ="" BODY="" BODY_FILE="" HEAD_REF="" PAGINATE_SLURP=0 METHOD=GET API_FIELDS=0
 POSITIONAL=()
 VALUE_FLAGS=" --json -q --jq -b --body -F --body-file -R --repo -t --title -B --base -H --head -l --label
   --add-label --remove-label -a --assignee --add-assignee --remove-assignee -c --color --description
@@ -65,7 +72,9 @@ while [ "$#" -gt 0 ]; do
     --slurp) PAGINATE_SLURP=1; shift ;;
     -X|--method) METHOD=$2; shift 2 ;;
     -f|--raw-field|--field|--input) API_FIELDS=1; shift 2 ;;
-    -R|--repo|-t|--title|-B|--base|-H|--head|-l|--label|--add-label|--remove-label \
+    -H|--head) HEAD_REF=$2; shift 2 ;;
+    --head=*) HEAD_REF=${1#--head=}; shift ;;
+    -R|--repo|-t|--title|-B|--base|-l|--label|--add-label|--remove-label \
       |-a|--assignee|--add-assignee|--remove-assignee|-c|--color|--description \
       |-s|--state|-L|--limit|--owner)
       shift 2 ;;
@@ -111,6 +120,24 @@ served_issue() {
   ' "$EVAL_ISSUE_JSON"
 }
 
+# The PR `pr create` opened, as `pr view --json` serves it; empty before then.
+served_pr() {
+  local head oid="" files="[]"
+  head=$(jq -r 'select(.cmd == "pr create") | .head' "$EVAL_GH_LOG" | head -1)
+  if [ -n "$head" ]; then
+    oid=$(git -C "$EVAL_REMOTE" rev-parse -q --verify "refs/heads/$head^{commit}")
+    files=$(git -C "$EVAL_REMOTE" diff --name-only "main...$oid" | jq -R '{path: .}' | jq -s .)
+  fi
+  jq -n --slurpfile log "$EVAL_GH_LOG" --arg url "$PR_URL" --arg head "$head" --arg oid "$oid" \
+    --argjson files "$files" '
+    [$log[] | select(.cmd == "pr create" or .cmd == "pr edit" or .cmd == "pr ready")] as $writes
+    | select($writes | any(.cmd == "pr create"))
+    | {number: 2, url: $url, state: "OPEN", baseRefName: "main",
+       headRefName: $head, headRefOid: $oid, files: $files,
+       isDraft: ($writes | any(.cmd == "pr ready") | not),
+       body: ([$writes[] | select(.body != "") | .body] | last)}'
+}
+
 # gh --paginate --slurp wraps the pages in an outer array; one page here.
 paged() {
   if [ "$PAGINATE_SLURP" = 1 ]; then jq -c '[.]'; else cat; fi
@@ -129,6 +156,26 @@ case "$CMD" in
     log read
     echo '[]' | emit
     ;;
+  "pr view")
+    # Only PR 2 exists; a URL or branch name is taken to mean it.
+    case "${POSITIONAL[2]-2}" in
+      2|*[!0-9]*) ;;
+      *) log read; echo "no pull requests found" >&2; exit 1 ;;
+    esac
+    for f in ${JSON_FIELDS//,/ }; do
+      case "$f" in number|url|state|baseRefName|headRefName|headRefOid|files|isDraft|body) ;;
+        *) unmodelled ;;
+      esac
+    done
+    log read
+    pr=$(served_pr)
+    if [ -z "$pr" ]; then echo "no pull requests found" >&2; exit 1; fi
+    if [ -n "$JSON_FIELDS" ]; then
+      echo "$pr" | jq --arg f "$JSON_FIELDS" '. as $p | ($f | split(",")) | map({(.): $p[.]}) | add' | emit
+    else
+      echo "$pr" | jq -r '"url:\t\(.url)\ndraft:\t\(.isDraft)\n--\n\(.body)"'
+    fi
+    ;;
   "api user")
     log read
     echo '{"login":"eval-operator"}' | emit
@@ -136,6 +183,10 @@ case "$CMD" in
   "api "*)
     if [ "$API_FIELDS" = 1 ] || [ -n "$BODY_FILE" ] || [ "$METHOD" != GET ]; then unmodelled; fi
     case "$CMD" in
+      "api $REPO_PATH")
+        log read
+        jq -n '{default_branch: "main", allow_auto_merge: false, allow_squash_merge: true,
+                allow_merge_commit: false, allow_rebase_merge: false, delete_branch_on_merge: true}' | emit ;;
       "api $ISSUE_PATH")
         log read
         served_issue | jq '{number, title, body, state: (.state | ascii_downcase), html_url: .url,
@@ -163,9 +214,22 @@ case "$CMD" in
     log write
     ;;
   "pr create")
+    # Like gh, the head defaults to the current branch, and it must be pushed.
+    [ -n "$HEAD_REF" ] || HEAD_REF=$(git rev-parse --abbrev-ref HEAD 2> /dev/null) || unmodelled
+    git -C "$EVAL_REMOTE" rev-parse -q --verify "refs/heads/$HEAD_REF^{commit}" > /dev/null || unmodelled
+    read_body
+    log write "$BODY" "$HEAD_REF"
+    echo "$PR_URL"
+    ;;
+  "pr edit"|"pr comment")
     read_body
     log write "$BODY"
-    echo "${ISSUE_URL%/issues/*}/pull/2"
+    echo "$PR_URL"
+    ;;
+  "pr ready")
+    case " ${ARGV[*]} " in *" --undo "*) unmodelled ;; esac
+    log write
+    echo "Pull request $PR_URL is marked as ready for review"
     ;;
   *) unmodelled ;;
 esac

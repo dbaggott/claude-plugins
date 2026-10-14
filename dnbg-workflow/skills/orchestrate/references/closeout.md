@@ -36,7 +36,8 @@ so. Otherwise, proceed only if all three hold:
   round is owed.
 
 If any check fails, stop and tell the operator which one, with the verdict URL if
-there is one. Closeout never runs ahead of the verdict, and never judges the
+there is one (without `AskUserQuestion`:
+`<skill-dir>/../issue-workflow/references/delegated.md`, posted on the parent). Closeout never runs ahead of the verdict, and never judges the
 criteria itself.
 
 ## 2. Dispose of the friction log
@@ -47,7 +48,9 @@ operator the table and the exact text of every follow-up before filing any. An e
 `dnbg-*` plugin's own tooling is filed upstream under the always-on "When shipped
 tooling doesn't fit, tell the user" rule, and that rule needs the operator's
 approval of the exact text. File the approved follow-ups per `issue-workflow`'s
-`references/creating.md`.
+`references/creating.md`. Without `AskUserQuestion`, the table and the follow-up
+texts are the question in `<skill-dir>/../issue-workflow/references/delegated.md`,
+posted on the parent; file nothing until it is answered.
 
 Step 4 writes the table into the parent body, in place of the friction log's
 bullets. Edit the body there, not now: a body edit after the verdict makes the

@@ -49,7 +49,8 @@ each gather and present shipped first (what's done), then in-progress (what's op
 **Owner scope** comes from this plugin's `owners` setting — `${user_config.owners}`.
 `gh search`'s `--owner` takes a comma-separated list, so that value passes straight
 through. If it's empty, ask which org or login to search rather than guessing; a
-search with no owner filter spans all of GitHub and returns noise.
+search with no owner filter spans all of GitHub and returns noise. Without
+`AskUserQuestion`, end the turn with that question as your report.
 
 **Author scope** defaults to **your own** work. Resolve your login once
 (`ME=$(gh api user --jq .login)`); `--author "$ME"` filters server-side to just your
@@ -80,7 +81,8 @@ PRs that nobody recaps — and say you dropped them.
       zone. Don't guess it from the user's email domain, name, or locale — that once put
       a day boundary 7 hours off by labeling an `America/Los_Angeles` machine "Eastern".
       If the user may be working away from the machine's set zone (travel), ask;
-      otherwise the machine's zone is the working zone.
+      otherwise the machine's zone is the working zone. Without `AskUserQuestion`,
+      use the machine's zone and say so in the recap.
     - **Bound the day at a pre-dawn cutoff, not midnight.** `gh search`'s `merged:` /
       `created:` qualifiers match in **UTC**, so a bare `--merged-at 2026-06-11` is the
       UTC calendar day — which clips the local evening into the next day (a 7-hour-west
@@ -233,6 +235,14 @@ don't re-ask those. A bare "summarize yesterday" fixes none — ask all three in
 `AskUserQuestion` call (one question per open axis). Recommend **Standard** detail by
 default, and tag a recommended audience/format only when the phrasing hints one;
 "Other" is always available.
+
+**Without `AskUserQuestion`**, as in a subagent, nobody can answer, and a recap has
+no issue or PR to post the question on. Use any axis the dispatch already
+answered, take the default recommended here for each one still open, and say in
+the recap which defaults you took. If an open axis has no recommended default,
+end the turn with the question as your report: the open axes and their options.
+Never choose silently. (A copy of the rule in `dnbg-workflow`'s
+`issue-workflow/references/delegated.md`, which this plugin cannot reach.)
 
 Audience — not format — drives the impact ordering in step 6, which is exactly why the
 two must stay separate.
