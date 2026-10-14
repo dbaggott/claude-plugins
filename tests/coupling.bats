@@ -778,6 +778,21 @@ remote_read_calls() {  # <SKILL.md>
   [ "$bad" -eq 0 ]
 }
 
+@test "every fetch-issue-set ERROR reason is named where the set is snapshotted" {
+  local src="$ROOT/dnbg-workflow/scripts/fetch-issue-set.sh"
+  local skill="$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md"
+  local reasons r bad=0
+  reasons=$(grep -oE '\bfail [a-z-]+' "$src" | sed 's/^fail //' | sort -u)
+  [ -n "$reasons" ] || { echo "no fail reasons found in $(basename "$src") — the extractor broke"; false; }
+  for r in $reasons; do
+    grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" "$skill" || {
+      echo "issue-reviewer/SKILL.md does not name ERROR reason '$r'"; bad=1; }
+    sed -n '1,25p' "$src" | grep -q "$r" || {
+      echo "$(basename "$src") emits '$r' but its header does not declare it"; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
 @test "the two issue reviews each name the other" {
   local spec="$ROOT/dnbg-workflow/skills/issue-reviewer/SKILL.md"
   local pr="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
