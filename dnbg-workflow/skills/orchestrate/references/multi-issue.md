@@ -86,6 +86,11 @@ When the ready set shows an open child the watch does not cover, stop the watch
 and arm a new one over the set, with `--since` from the stopped one's. Each PR
 gets its own PR watch, as in `SKILL.md`.
 
+Keep, per child, what its author's last report said it is waiting for, when the
+report ends on a wait rather than a question or a result. Several authors can
+be waiting at once, and that record is what
+https://github.com/dbaggott/claude-plugins/issues/260's resume rule reads.
+
 Classify comments with `SKILL.md`'s table, and add these:
 
 | Comment | What it is | Action |
