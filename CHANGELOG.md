@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.3 — 2026-10-14
+
+`issue-reviewer` can now review a tracking issue together with its sub-issues. It reads the whole set in one call, and checks it against the design for more problems: a requirement that no child covers and the parent hasn't marked end-to-end or deferred; a child that needs another child's output but isn't marked blocked by it; and a child whose approach contradicts the design section it cites. A finding that the design itself should change goes on the tracking issue. The expected fix is an edit to that issue's body plus a decision-log row, not edits to the children.
+
+
 ## dnbg-workflow 2026.10.2 — 2026-10-14
 
 `issue-workflow` can now decompose an accepted tracking issue into child issues.
