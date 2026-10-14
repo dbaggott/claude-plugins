@@ -31,13 +31,16 @@ What this cannot close, the watermark `SKILL.md` has every verdict publish cover
 
 ## Read the delta, not the set again
 
-GitHub will not diff issue bodies for you, so the snapshot you recorded is the
-only "before" that exists. Take a fresh one each round and diff against the stored
-copy rather than re-reading the set cold.
+GitHub keeps every version of an issue body but will not diff them, so take the
+delta from `issue-diff.sh`, since the `lastEditedAt` your last round was made
+against (`createdAt` if that was null), rather than re-reading the set cold:
 
-A round reads the body diff since your last snapshot and the response comment,
-per finding ID. Nothing else: a body that did not move and a finding
-with no response are both answers.
+```bash
+"<skill-dir>/../../scripts/issue-diff.sh" <owner>/<repo> <n> --since=<that lastEditedAt>
+```
+
+A round reads that diff and the response comment, per finding ID. Nothing else:
+a body that did not move and a finding with no response are both answers.
 
 ## Ordering, and what a response means
 

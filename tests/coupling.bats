@@ -910,3 +910,57 @@ remote_read_calls() {  # <SKILL.md>
   done
   [ "$bad" = 0 ]
 }
+
+# https://github.com/dbaggott/claude-plugins/issues/149 adds other forges by replacing
+# one seam per script: the `FORGE` guard that refuses with `unsupported-forge`, under a
+# header marker naming that issue. A script that calls `gh` either carries that seam or
+# is listed here as GitHub-shaped throughout, so a new forge call is one or the other
+# by decision rather than by omission. These get their backends from 149 itself.
+GITHUB_ONLY_SCRIPTS="fetch-tree.sh pr-round.sh pr-sources.sh pr-threads.sh pr-verdict.sh watch-issue.sh watch-pr.sh"
+
+calls_forge() {  # <script>
+  grep -v '^[[:space:]]*#' "$1" | grep -qE '(^|[^[:alnum:]_./-])gh[[:space:]]+[a-z]'
+}
+
+# shellcheck disable=SC2016  # the guard is matched as literal text
+has_forge_seam() {  # <script>
+  grep -A1 'THE FORGE IS ASSUMED TO BE GITHUB' "$1" \
+      | grep -qF 'https://github.com/dbaggott/claude-plugins/issues/149' \
+    && grep -qF 'FORGE="${FORGE:-github}"' "$1" \
+    && grep -qE '\bfail unsupported-forge\b' "$1"
+}
+
+forge_seam_problems() {  # <scripts-dir> <github-only list>
+  local f name listed
+  for f in "$1"/*.sh; do
+    name=$(basename "$f")
+    case " $2 " in *" $name "*) listed=1 ;; *) listed=0 ;; esac
+    if [ "$listed" = 1 ]; then
+      calls_forge "$f" || echo "$name is listed GitHub-only but calls no forge"
+      ! has_forge_seam "$f" || echo "$name carries the forge seam — take it off the GitHub-only list"
+    elif calls_forge "$f" && ! has_forge_seam "$f"; then
+      echo "$name calls gh without the forge marker and FORGE guard, and is not listed GitHub-only"
+    fi
+  done
+  for name in $2; do
+    [ -f "$1/$name" ] || echo "$name is listed GitHub-only but does not exist"
+  done
+}
+
+@test "every script that calls the forge carries the forge seam or is listed GitHub-only" {
+  run forge_seam_problems "$ROOT/dnbg-workflow/scripts" "$GITHUB_ONLY_SCRIPTS"
+  [ -z "$output" ] || { echo "$output"; false; }
+}
+
+@test "a forge-calling script with neither the seam nor a listing is caught" {
+  local d="$BATS_TEST_TMPDIR/scripts"; mkdir -p "$d"
+  sed '/THE FORGE IS ASSUMED TO BE GITHUB/d' \
+    "$ROOT/dnbg-workflow/scripts/issue-diff.sh" > "$d/issue-diff.sh"
+  run forge_seam_problems "$d" ""
+  [[ "$output" == *"issue-diff.sh calls gh without the forge marker"* ]]
+
+  cp "$ROOT/dnbg-workflow/scripts/issue-diff.sh" "$d/issue-diff.sh"
+  run forge_seam_problems "$d" "issue-diff.sh gone.sh"
+  [[ "$output" == *"issue-diff.sh carries the forge seam"* ]]
+  [[ "$output" == *"gone.sh is listed GitHub-only but does not exist"* ]]
+}
