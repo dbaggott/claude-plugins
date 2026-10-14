@@ -33,12 +33,8 @@ implementation is a coherent ask, and a resolution review is designed to be arme
 before any work exists.
 
 **On any doubt, ask** with `AskUserQuestion`, offering both readings. A bare
-"review <issue URL>" is the common doubtful case, not the only one.
-
-**Unattended, take the spec review** — this one — and say so in what you post. It
-terminates and a resolution review does not, so guessing this way costs a bounded
-review that gets discarded, and the other way arms an open-ended watch on work
-nobody has started.
+"review <issue URL>" is the common doubtful case, not the only one. Without the
+tool, ask on the issue per `<skill-dir>/../issue-workflow/references/delegated.md`.
 
 ## Before the first round
 

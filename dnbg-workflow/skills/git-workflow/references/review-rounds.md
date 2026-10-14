@@ -105,6 +105,8 @@ A "clean review" includes pure compliments and "noticed X looks good" observatio
 
 **Has findings, no sticky opt-in yet.** Post a summary of the review as a normal message, **then** call `AskUserQuestion` with three options (the tool auto-appends "Other" for anything else). The summary is the evidence the choice is made on — the operator decides fix-now vs defer from what you show them, usually without opening the review. A picker with no summary in front of it forces them to either pick blind or go read the review on GitHub themselves, which defeats the point of you driving the cycle.
 
+Without `AskUserQuestion`, the summary and these options are the question in `<skill-dir>/../issue-workflow/references/delegated.md`. A dispatcher's "auto-handle the review" is a pre-answer for option 1.
+
 The summary goes in the message body, before the tool call — the picker's `question` and option `description` fields are too small to carry it. Cover:
 
 - The review state (APPROVED / CHANGES_REQUESTED / COMMENTED).

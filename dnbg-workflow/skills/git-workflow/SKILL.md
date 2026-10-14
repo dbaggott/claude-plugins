@@ -52,7 +52,7 @@ per plugin.
    Fix a finding in this branch by default. Decline one that is wrong or out of scope, with a one-line reason. One pass: the fixes go to the reviewer with everything else rather than back through the tool. Where the harness has no code-review tool, the standards pass is the whole stage — say so when you announce the PR.
 8. Push, and **open the PR as a draft** (`gh pr create --draft ...`).
 9. After each commit, update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description.
-10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker.
+10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker. Without `AskUserQuestion`, follow `<skill-dir>/../issue-workflow/references/delegated.md` and leave the PR in draft.
 11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`gh pr ready <number> --repo <repo>`) and start watching for the first review — see `references/review-rounds.md`, which carries the watch, the round handling and the reply flow through to a clean verdict.
 12. Never merge. Only a human merges PRs.
 
@@ -146,9 +146,9 @@ If a change turns multi-repo midway — the first PR is already open when you di
 
 ## After opening a draft PR
 
-**Before this picker, if you made a substantive design change mid-implementation** — a departure from the approach agreed at pickup (the issue's "Proposed approach", or, for a PR with no issue, whatever you and the operator settled on in chat), a contract/interface change, anything a reviewer would be surprised by — surface that change and its rationale in chat *first*, per `issue-workflow`'s "Surface design changes that emerge mid-implementation". The operator must learn the design moved before review and manual testing run against it, not discover it inside the review. This applies to any PR — without an issue, the agreed design lives in the chat thread instead of an issue body.
+**Before this picker, if you made a substantive design change mid-implementation** — a departure from the approach agreed at pickup (the issue's "Proposed approach", or, for a PR with no issue, whatever you and the operator settled on in chat), a contract/interface change, anything a reviewer would be surprised by — surface that change and its rationale in chat *first* (without `AskUserQuestion`, in the delegated question below), per `issue-workflow`'s "Surface design changes that emerge mid-implementation". The operator must learn the design moved before review and manual testing run against it, not discover it inside the review. This applies to any PR — without an issue, the agreed design lives in the chat thread instead of an issue body.
 
-Announce the draft PR with its full URL and the self-review's outcome — what it fixed, in a line, and each finding you declined with its reason, since those are what the operator is deciding to send on. Then call `AskUserQuestion` with two options (the tool auto-appends "Other" for anything else):
+Announce the draft PR with its full URL and the self-review's outcome — what it fixed, in a line, and each finding you declined with its reason, since those are what the operator is deciding to send on. Then call `AskUserQuestion` with two options (the tool auto-appends "Other" for anything else). Without it, ask the same question per `<skill-dir>/../issue-workflow/references/delegated.md`:
 
 1. **"Send to review (Recommended)"** — "Mark the PR ready and watch for the first review."
 2. **"Not yet"** — "Leave it in draft; say 'ready' whenever you want it reviewed."
