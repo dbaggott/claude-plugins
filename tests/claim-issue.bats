@@ -45,14 +45,14 @@ comment() {  # <body> <iso>
   issue '["operator"]' '["assigned:agent-session"]' \
     "[$(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z)]"
   run "$CLAIM" o/r 7
-  [ "$output" = "result=OWN claim=c7f40c25 at=2026-01-02T00:00:00Z" ]
+  [ "$output" = "result=OWN claim=c7f40c25 at=2026-01-02T00:00:00Z assignees=operator labels=assigned:agent-session" ]
 }
 
 @test "a claim carrying another session's id is foreign" {
   issue '["operator"]' '["assigned:agent-session"]' \
     "[$(comment 'Claimed by an agent session (0badc0de).' 2026-01-02T00:00:00Z)]"
   run "$CLAIM" o/r 7
-  [ "$output" = "result=FOREIGN claim=0badc0de at=2026-01-02T00:00:00Z" ]
+  [ "$output" = "result=FOREIGN claim=0badc0de at=2026-01-02T00:00:00Z assignees=operator labels=assigned:agent-session" ]
 }
 
 # An issue can carry an older claim of this session's under a sibling's newer
@@ -62,27 +62,27 @@ comment() {  # <body> <iso>
     $(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z),
     $(comment 'Claimed by an agent session (0badc0de).' 2026-01-03T00:00:00Z)]"
   run "$CLAIM" o/r 7
-  [ "$output" = "result=FOREIGN claim=0badc0de at=2026-01-03T00:00:00Z" ]
+  [ "$output" = "result=FOREIGN claim=0badc0de at=2026-01-03T00:00:00Z assignees=operator labels=assigned:agent-session" ]
 }
 
 @test "a legacy claim with no id is foreign with no id" {
   issue '["operator"]' '["assigned:claude-code"]' \
     "[$(comment 'Claimed by Claude Code.' 2026-01-02T00:00:00Z)]"
   run "$CLAIM" o/r 7
-  [ "$output" = "result=FOREIGN claim=none at=2026-01-02T00:00:00Z" ]
+  [ "$output" = "result=FOREIGN claim=none at=2026-01-02T00:00:00Z assignees=operator labels=assigned:claude-code" ]
 }
 
 @test "a claim made where no session id was exported has no id" {
   issue '["operator"]' '["assigned:agent-session"]' \
     "[$(comment 'Claimed by an agent session (id unavailable).' 2026-01-02T00:00:00Z)]"
   run "$CLAIM" o/r 7
-  [ "$output" = "result=FOREIGN claim=none at=2026-01-02T00:00:00Z" ]
+  [ "$output" = "result=FOREIGN claim=none at=2026-01-02T00:00:00Z assignees=operator labels=assigned:agent-session" ]
 }
 
 @test "marks applied by hand with no claim comment are foreign" {
   issue '[]' '["assigned:someone-else"]'
   run "$CLAIM" o/r 7
-  [ "$output" = "result=FOREIGN claim=none at=none" ]
+  [ "$output" = "result=FOREIGN claim=none at=none assignees=none labels=assigned:someone-else" ]
 }
 
 @test "an own id is never matched when this session has none" {
@@ -90,7 +90,7 @@ comment() {  # <body> <iso>
   issue '["operator"]' '["assigned:agent-session"]' \
     "[$(comment 'Claimed by an agent session (id unavailable).' 2026-01-02T00:00:00Z)]"
   run "$CLAIM" o/r 7
-  [ "$output" = "result=FOREIGN claim=none at=2026-01-02T00:00:00Z" ]
+  [ "$output" = "result=FOREIGN claim=none at=2026-01-02T00:00:00Z assignees=operator labels=assigned:agent-session" ]
 }
 
 # The stamp line follows the claim line, so a line-anchored read of the claim
@@ -99,7 +99,7 @@ comment() {  # <body> <iso>
   issue '["operator"]' '["assigned:agent-session"]' \
     "[$(comment $'Claimed by an agent session (c7f40c25).\n<!-- dnbg-workflow 2026.10.5 -->' 2026-01-02T00:00:00Z)]"
   run "$CLAIM" o/r 7
-  [ "$output" = "result=OWN claim=c7f40c25 at=2026-01-02T00:00:00Z" ]
+  [ "$output" = "result=OWN claim=c7f40c25 at=2026-01-02T00:00:00Z assignees=operator labels=assigned:agent-session" ]
 }
 
 @test "--claim applies the label, the assignee, and the claim comment" {
@@ -172,4 +172,12 @@ EOF
 @test "another forge is refused" {
   FORGE=gitlab run "$CLAIM" o/r 7
   [[ "$output" == *"reason=unsupported-forge"* ]]
+}
+
+# A teammate assigned by hand has no claim comment either, so the holders are
+# what tells that claim from an agent session's id-less one.
+@test "a person assigned by hand is named as the holder" {
+  issue '["alice"]' '["enhancement"]'
+  run "$CLAIM" o/r 7
+  [ "$output" = "result=FOREIGN claim=none at=none assignees=alice labels=none" ]
 }

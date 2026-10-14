@@ -7,8 +7,8 @@
 # Without `--claim`, the own-claim test from `issue-workflow`'s
 # `references/resolving.md`. Exactly one result line, then exit 0:
 #   result=UNCLAIMED claim=none at=none
-#   result=OWN       claim=<id> at=<iso>
-#   result=FOREIGN   claim=<id|none> at=<iso|none>
+#   result=OWN       claim=<id> at=<iso> assignees=<login,…> labels=<label,…|none>
+#   result=FOREIGN   claim=<id|none> at=<iso|none> assignees=<login,…|none> labels=<label,…|none>
 #   result=ERROR     reason=bad-args|unsupported-forge|not-found|issue-query|issue-query-shape now=<iso>
 #
 # An issue is claimed when it has an assignee or any `assigned:*` label. The
@@ -17,7 +17,9 @@
 # that id to equal this session's (`${CLAUDE_CODE_SESSION_ID:0:8}`); every other
 # claimed state is FOREIGN, and `claim=none` there means the claim carries no id
 # a session could have written: marks applied by hand, a claim predating ids, or
-# one made where no session id was exported.
+# one made where no session id was exported. `assignees` and `labels` (the
+# `assigned:*` ones) say who holds a claim with no id, since a teammate assigned
+# by hand and an agent session's id-less claim read the same otherwise.
 #
 # With `--claim`, the three marks: the label (created if the repo lacks it), the
 # operator as assignee, and the claim comment carrying this session's id, with
@@ -91,7 +93,7 @@ RAW=$(gh api graphql -f query="$Q" -f owner="$OWNER" -f repo="$NAME" -F n="$N" 2
 [ -n "$RAW" ] || fail issue-query
 printf '%s' "$RAW" | jq -e '.errors // [] | any(.type == "NOT_FOUND")' >/dev/null 2>&1 && fail not-found
 
-# One line out: `<claimed 0|1>|<id or empty>|<at or empty>`. A separator that is
+# One line out: `<claimed 0|1>|<id or empty>|<at or empty>|<assignees>|<labels>`. A separator that is
 # not whitespace, since `read` folds adjacent whitespace ones and an empty id
 # would shift the timestamp into its place. An id of "id unavailable" is the
 # comment saying it has none.
@@ -106,15 +108,19 @@ OUT=$(printf '%s' "$RAW" | jq -r '
       | { at: $c.createdAt,
           id: ((capture("\\((?<id>[^)]*)\\)").id // "") | if . == "id unavailable" then "" else . end) } ]
   | last as $latest
-  | [ (if $claimed then 1 else 0 end), ($latest.id // ""), ($latest.at // "") ] | map(tostring | gsub("\\|"; "")) | join("|")' 2>/dev/null) \
+  | [ (if $claimed then 1 else 0 end), ($latest.id // ""), ($latest.at // ""),
+      ($i.assignees.nodes | map(.login) | join(",")),
+      ($i.labels.nodes | map(.name | select(startswith("assigned:"))) | join(",")) ]
+  | map(tostring | gsub("\\|"; "")) | join("|")' 2>/dev/null) \
   || fail issue-query-shape
 
-IFS='|' read -r CLAIMED ID AT <<<"$OUT"
+IFS='|' read -r CLAIMED ID AT WHO LABELS <<<"$OUT"
+HOLDERS="assignees=${WHO:-none} labels=${LABELS:-none}"
 
 if [ "$CLAIMED" = 0 ]; then
   echo "result=UNCLAIMED claim=none at=none"
 elif [ -n "$ID" ] && [ -n "$SID" ] && [ "$ID" = "$SID" ]; then
-  echo "result=OWN claim=$ID at=$AT"
+  echo "result=OWN claim=$ID at=$AT $HOLDERS"
 else
-  echo "result=FOREIGN claim=${ID:-none} at=${AT:-none}"
+  echo "result=FOREIGN claim=${ID:-none} at=${AT:-none} $HOLDERS"
 fi

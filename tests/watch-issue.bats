@@ -515,8 +515,9 @@ EOF
 
 # The orchestrator's author, the operator and the orchestrator itself all post
 # under one login, so this role excludes none and names each comment's author.
-orch_comment() {  # <login> <iso> <url>
-  jq -cn --arg a "$1" --arg t "$2" --arg u "$3" '{author:{login:$a}, createdAt:$t, url:$u}'
+orch_comment() {  # <login> <iso> <url> [body]
+  jq -cn --arg a "$1" --arg t "$2" --arg u "$3" --arg b "${4:-}" \
+    '{author:{login:$a}, createdAt:$t, url:$u, body:$b}'
 }
 
 @test "the orchestrator role wakes on the operator's own login" {
@@ -566,4 +567,53 @@ orch_comment() {  # <login> <iso> <url>
   [[ "${lines[-1]}" == result=IDLE* ]]
   [[ "$output" == *"--role=orchestrator --since=20"* ]]
   [[ "$output" != *"--slug"* ]]
+}
+
+# Under D4 the orchestrator is the body's only writer, so a body edit is its own
+# and waking on it spends a turn to learn nothing.
+@test "the orchestrator role does not wake on a body edit" {
+  repo "$(issue 163 '[]' '[]' OPEN 2026-01-02T00:00:00Z)"
+  INTERVAL=1 SETTLE=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+@test "the orchestrator role never wakes on its own bookkeeping comments" {
+  export CLAUDE_CODE_SESSION_ID=c7f40c25-rest
+  repo "$(issue 163 "[
+    $(orch_comment operator 2026-01-02T00:00:00Z https://x/c1 $'Decision log: D4 \u2014 applied\n\nbody'),
+    $(orch_comment operator 2026-01-02T00:01:00Z https://x/c2 'Claimed by an agent session (c7f40c25).'),
+    $(orch_comment operator 2026-01-02T00:02:00Z https://x/c3 'Claude Code is acting as reviewer on this issue.')]")"
+  INTERVAL=1 SETTLE=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+# A claim under another id is a second worker taking the issue mid-run.
+@test "the orchestrator role wakes on a sibling's claim" {
+  export CLAUDE_CODE_SESSION_ID=c7f40c25-rest
+  repo "$(issue 163 "[$(orch_comment operator 2026-01-02T00:00:00Z https://x/c1 'Claimed by an agent session (0badc0de).')]")"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == *" comments=operator:https://x/c1 "* ]]
+}
+
+@test "the orchestrator role lists a question beside the bookkeeping it drops" {
+  repo "$(issue 163 "[
+    $(orch_comment operator 2026-01-02T00:00:00Z https://x/c1 'Decision log: D4 \u2014 applied'),
+    $(orch_comment operator 2026-01-02T00:01:00Z https://x/c2 'Delegated question: which path?')]")"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == *" comments=operator:https://x/c2 "* ]]
+}
+
+@test "the orchestrator role names an overflowed page so the caller reads the thread" {
+  local c
+  c=$(jq -cn '[{author:{login:"operator"}, createdAt:"2026-01-02T00:00:00Z", url:"https://x/c9", body:"hi"}]')
+  jq -n --argjson c "$c" '{data:{repository:{i163:{number:163, state:"OPEN", lastEditedAt:null,
+      comments:{totalCount:40, nodes:$c},
+      closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}}}}}' > "$GQL"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == *" overflowed=163 "* ]]
 }

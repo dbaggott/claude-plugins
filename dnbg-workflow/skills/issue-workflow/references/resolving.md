@@ -39,7 +39,8 @@ It tests the **latest** claim comment, not any of them. An issue can carry more 
 
 - **`OWN`: the id matches `${CLAUDE_CODE_SESSION_ID:0:8}`** — this session's own mark, and still the standing one. Proceed; note it in one line. A resumed session keeps its id, so re-reading your own claim after `claude --resume` matches rather than looking like a stranger's.
 - **`FOREIGN` with an id** — a sibling session, which is a real claim by another worker. Stop and ask, exactly as for any other claimant (without `AskUserQuestion`: `references/delegated.md`).
-- **`FOREIGN claim=none`: the comment carries no id, or there is no claim comment at all** — the claim predates this scheme, came from a harness that exports no session id, or the label was applied by hand with no claim comment behind it. With `AskUserQuestion`, note the claim in one line and proceed; without it, stop and ask per `references/delegated.md`.
+- **`FOREIGN claim=none`, held only by you (`assignees=` names no one but your own login, and `labels=` only your claim label or `assigned:claude-code`)** — the claim predates this scheme, came from a harness that exports no session id, or the label was applied by hand with no claim comment behind it. With `AskUserQuestion`, note the claim in one line and proceed; without it, stop and ask per `references/delegated.md`.
+- **`FOREIGN claim=none` with any other holder** — a teammate assigned by hand, or another tool's `assigned:*` label. A real claim: stop and ask, as for a sibling.
 
 One quirk worth knowing rather than guarding against: a delegated session surfaces an existing claim *as a comment*, so a claim quoted verbatim at line-start can itself become the latest claim line. The id inside a quotation is the sibling's, not yours, so the comparison still lands on stop-and-ask — the benign direction.
 

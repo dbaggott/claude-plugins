@@ -39,36 +39,41 @@ start are the same path.
      adding `--label=<label>` when a `dnbg-workflow` note at session start names
      a claim label, and `--stamp=<version>` when one names a version.
    - `OWN` — your own claim from earlier in this session. Proceed.
-   - `FOREIGN` — another session holds it, often a predecessor orchestrator that
-     died. Tell the operator the claim's id and `at`, and the time of the
-     issue's latest comment as its last activity, and ask once whether that
-     session and its subagents are gone. Proceed only on yes, and then claim
-     with `--claim`, which re-marks it under your id. On no, stop.
+   - `FOREIGN` — someone else holds it: another session (often a predecessor
+     orchestrator that died) when `claim=` carries an id, otherwise whoever
+     `assignees=` and `labels=` name. Tell the operator the holder, the claim's
+     `at`, and the time of the issue's latest comment as its last activity, and
+     ask once whether that holder has let it go; for a session, whether it and
+     its subagents are gone. Proceed only on yes, and then claim with
+     `--claim`, which re-marks it under your id. On no, stop.
    - `ERROR` — the claim could not be read. Say so and stop.
 3. **Open PRs.** `pr-sources.sh <owner>/<repo> <n>`, then
    `gh pr view <url> --json state,isDraft,headRefOid` on each. An open PR is a
    predecessor's work, which the author you dispatch continues rather than
    restarts. Read the per-source fields before treating `count=0` as none, as
    `issue-workflow`'s `references/resolving.md` describes.
-4. **The log.** Read the issue's comments from the last one opening with
-   `Decision log:` onward, or all of them when there is none. Anything after
-   it was never handled: a
-   `Delegated question:` with no answer below it is still open, and an operator
-   comment is still unread.
+4. **The log.** Read every comment on the issue. What is still open: a
+   `Delegated question:` that no row's **Question** line links, a `proposed`
+   row with no later row of the same ID, and an operator comment newer than the
+   last row.
 5. **The design.** Read the issue body. Its "Proposed approach", rejected
    alternatives, acceptance criteria, and open questions with their defaults
    are what you triage against. Run `issue-workflow`'s critical review on it
    now: a body you believe is wrong is an escalation before any dispatch, not a
    problem to hand the author.
 
-## Dispatch the author and the reviewer
+Then answer anything step 4 found open, under "Answer or escalate", before or
+alongside the dispatch.
 
-Two `general-purpose` subagents through the Agent tool, both in the background.
+## Dispatch the author, then the reviewer
+
+Each is a `general-purpose` subagent through the Agent tool, in the background.
 A background subagent that ends its turn with a watch still running is woken
 when that watch returns, so each keeps its own watch across its turns.
 
-**The author**, prompted with the recipe below. The claim you made is already
-the author's: a subagent shares your session id, so its pickup reads `OWN`.
+**The author**, at once, prompted with the recipe below. The claim you made is
+already the author's: a subagent shares your session id, so its pickup reads
+`OWN`.
 
 > Resolve `<issue URL>`, send it to review when you're done, and auto-handle any
 > reviewer feedback; never merge. You were dispatched by an orchestrator, so
@@ -80,7 +85,9 @@ the author's: a subagent shares your session id, so its pickup reads `OWN`.
 
 The bracketed line goes in only when step 3 found an open PR.
 
-**The reviewer**, unless the operator said they will review it themselves:
+**The reviewer**, when the PR leaves draft (the PR watch's `READY`), or at once
+when step 3 found the PR already out of draft. Skip it when the operator said
+they will review the PR themselves.
 
 > Act as the reviewer on `<issue URL>`, in `reviewer`'s issue mode. You were
 > dispatched by an orchestrator, so follow `issue-workflow`'s
@@ -105,35 +112,39 @@ Never poll in the conversation. Each event reaches you as one of these:
     --role=orchestrator --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   ```
 
-  It excludes no login, because the author, the operator, and you all post as
-  one account, and its `comments=<login:url,…>` field names each new comment's
-  author. Classify each comment by its author and its first line:
+  It wakes on comments, linked PRs, and the issue closing, never on a body edit
+  or on what only your own bookkeeping writes: `Decision log:` rows, your own
+  `Claimed by`, and the reviewer's assignment note. Everyone posts as one
+  account, so its `comments=<login:url,…>` field names each remaining comment's
+  author, and `overflowed=<n>` says the page did not reach back far enough, so
+  read that issue's thread in full. Read each comment and classify it by its
+  first line, then its author:
 
   | Comment | What it is | Action |
   | --- | --- | --- |
-  | the reviewer bot's login | a review round or verdict | none; the author handles rounds |
-  | opens with `Delegated question:` | the author's question | triage it, under "Answer or escalate" |
-  | opens with `Decision log:` or `Claimed by` | written by a script or by you | drop it |
-  | anything else under the operator's login | the operator, the author's progress, or the reviewer's assignment note | read it; act only if it states a decision |
+  | opens with `Delegated question:` | a question from the agent that posted it: the reviewer under the bot's login, otherwise the author | triage it, under "Answer or escalate" |
+  | opens with `Claimed by` | another session claiming the issue mid-run | tell the operator and ask whether to stop |
+  | anything else from the reviewer bot | a review round or verdict | none; the author handles rounds |
+  | anything else under the operator's login | the operator, or the author's progress | read it; act only if it states a decision |
 
   An operator comment that states a decision is a decision: log it as
   `decided`, promote it into the body, and send it to any agent it affects. One
-  that does not is noted and changes nothing. `kinds=comment` with no
-  `comments=` field means the page overflowed: read the thread.
-
-  Your own comments and body edits wake this watch, since nothing tells your
-  writes from the author's. After each write, re-arm and expect one wake for it.
-- **The PR watch**, armed once a PR exists, in the background, with the same
-  author role the author uses, so it sees the bot's reviews and the PR's state:
+  that does not is noted and changes nothing.
+- **The PR watch**, armed once a PR exists (the issue watch's `linked-pr`, or
+  the author's report), in the background, with the same author role the author
+  uses, so it sees the bot's reviews and the PR's state. Add `--was-draft` while
+  the PR is a draft:
 
   ```bash
   WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <pr> \
-    "<head>" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "" --role=author --last-verdict=
+    "<head>" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "" --role=author --last-verdict= \
+    [--was-draft]
   ```
 
   `<head>` is the full SHA from `gh pr view <pr> --json headRefOid`. Re-arm
   from its `── re-arm ──` line, carrying `verdict_sha` into `--last-verdict`
   when a result names one. What a result asks of you:
+  - `READY` — the PR left draft: dispatch the reviewer.
   - `ACTIVITY` — a review round. The author handles it; if its last
     notification said it finished, continue it as above. When
     `pr-verdict.sh <owner>/<repo> <pr>` reads `verdict=APPROVED at_head=1
@@ -154,20 +165,21 @@ check the PR's state and go to "Stop" if it merged.
 
 ## Answer or escalate
 
-A question reaches you twice, as the author's report and as its
-`Delegated question:` comment. Handle it once, keyed by the comment's URL.
+A question reaches you twice, as the asking agent's report and as its
+`Delegated question:` comment. Handle it once, keyed by the comment's URL, and
+send the answer to the agent that asked.
 
 Triage it against the design (step 5) under the allowlist in
 `references/triage.md`, which also gives the log row's exact shape:
 
 - **Answerable** — the design's recorded rationale covers the case, and the
   answer is on the allowlist. Post the `Decision log:` row on the issue, then
-  continue the author with `SendMessage`, carrying the same answer and the row's
-  URL.
-- **Not answerable** — ask the operator with `AskUserQuestion`, giving the
-  author's question, the options it names, and your recommendation. Post the
-  operator's answer as a `Decision log:` row, then continue the author the same
-  way.
+  continue the agent that asked with `SendMessage`, carrying the same answer and
+  the row's URL.
+- **Not answerable** — post a `proposed` row, then ask the operator with
+  `AskUserQuestion`, giving the question, the options it names, and your
+  recommendation. Post the operator's answer as a `decided` row, then continue
+  the agent that asked the same way.
 
 Every answer, every escalation outcome, and every application of a decision
 already in the log to a new case is a row. Applying a prior decision without a

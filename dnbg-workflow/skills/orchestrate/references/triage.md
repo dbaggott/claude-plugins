@@ -26,9 +26,9 @@ competing values, and anything that contradicts the design. So does a discovery
 the issue's author could not have known about, because answering it is a new
 decision rather than a lookup.
 
-When the issue is a child of a tracking issue, the parent's decision `D11` is
-the authority for this list, and a difference between the two is itself an
-escalation.
+When the issue is a child of a tracking issue whose decisions state an
+escalation allowlist of their own, that decision is the authority instead, and
+a difference between the two is itself an escalation.
 
 ## The row
 
@@ -66,7 +66,7 @@ Decision log: D4 — applied
 
 **Question:** https://github.com/<owner>/<repo>/issues/<n>#issuecomment-<id>
 **Answer:** Edit the body from the orchestrator only; the author proposes the change in its report.
-**Basis:** D11(a). D4's rationale, "body edits are whole-body replaces and two writers clobber each other", names this case.
+**Basis:** allowlist (a). D4's rationale, "body edits are whole-body replaces and two writers clobber each other", names this case.
 ```
 
 An escalation gets two rows: `proposed` when you ask, and `decided` with the
