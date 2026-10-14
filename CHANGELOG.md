@@ -10,6 +10,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.2 — 2026-10-14
+
+`issue-workflow` can now decompose an accepted tracking issue into child issues.
+It covers grouping requirements into children, the lines each child carries to
+say what it covers and depends on, keeping every child's criteria runnable at its
+own merge, and filing the children as GitHub sub-issues with blocked-by
+relationships. Setting those relationships is safe to re-run after a partial
+failure. It refuses to move an issue that already belongs to another parent.
+
+
 ## dnbg-workflow 2026.10.1 — 2026-10-14
 
 `issue-reviewer` now reads a later round's changes from the issue's own edit
