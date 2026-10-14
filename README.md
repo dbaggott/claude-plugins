@@ -36,6 +36,52 @@ round, so the session claims the issue, opens the PR, marks it ready, works each
 review round to a clean verdict, and reports back when you return. The one thing
 it will not do is merge: only a human merges.
 
+**One session orchestrating one issue — it runs the other two.** Instead of
+starting an author and a reviewer yourself, ask one session to orchestrate:
+
+> orchestrate the resolution of `<issue URL>`
+
+It claims the issue, dispatches the author and then the reviewer as subagents,
+and sits between them. When the author asks something the issue's body already
+settles — a stated default, a recorded decision, an implementation detail that
+changes no contract — the orchestrator answers it. Anything else, such as a
+change to user-visible behavior or to scope, comes to you as a question with a
+recommendation. Every answer, from either source, is logged on the issue as a
+`Decision log:` comment, so a restarted orchestrator picks up from the issue
+alone. It tells you when the PR is approved and ready to merge, and it stops
+when you merge it.
+
+![One session claims an issue, dispatches an author subagent, answers the author's first question from the issue's own default and logs it, escalates the second as a picker because it changes user-visible behavior, dispatches a reviewer when the PR is marked ready, reports the approved PR as ready to merge, and after the merge reports under Summary, Observations, and Actionable.](docs/media/demo-orchestrate.gif)
+
+**A whole project, end to end.** The same orchestrator runs a project of many
+issues, given a **tracking issue**: an issue whose body is the design, written
+so the issues implementing it can cite its requirements and decisions by ID.
+
+1. The design is reviewed as a spec, in rounds, until it converges. Then you
+   approve it.
+2. Decomposition files the child issues. Each one says which requirements it
+   covers and which siblings it depends on, and the dependencies become
+   GitHub's own blocked-by links.
+3. A set review checks the children against the design: every requirement
+   covered, every dependency recorded as a link, and no child contradicting the
+   section it cites.
+4. The orchestrator runs the children in dependency order, a few at a time,
+   each through the single-issue loop above. A decision that changes the design
+   is written back into it, and the children that cite what changed are updated.
+5. When the last child closes, a whole-project review grades the result against
+   the design's own end-to-end acceptance criteria. Closeout, when you ask for
+   it, writes the as-built design into the repo through one more PR, turns the
+   project's friction log into follow-up issues (filing none whose text you
+   haven't approved), and closes the tracking issue.
+
+While it runs, you are needed at three points: approving the design, answering
+escalations, and merging. You don't read or approve the children; the set
+review's verdict on each one is that gate. Closeout is the one step you start
+yourself, and its follow-up issues wait on your approval of their text. The
+project that built this flow ran under it, so its tracking issue,
+https://github.com/dbaggott/claude-plugins/issues/223, is a worked example of a
+design, its children, and its decision log.
+
 **Two sessions on one task -- one for interactive development, one reviewing
 the work.** Here the operator works something out conversationally and it goes
 straight to a draft PR. Once you're satisfied, you send it to another session
@@ -105,6 +151,17 @@ name the structural problem instead of patching symptoms. And when the shipped
 tooling doesn't fit your case, the agent is told to finish your task and then
 *tell you*, offering to file it upstream, rather than silently working around it.
 
+**A project's plan is an input to every step that follows it, not a document
+beside them.** The design lives in a tracking issue, where its requirements and
+decisions carry stable IDs, so each child cites the ones it implements. Because
+the citations are machine-readable, the set review *computes* coverage by
+diffing them against the design rather than judging it by eye. The orchestrator
+answers an author's question from the design's recorded rationale, and when the
+answer changes the design it writes the change back, so the next child reads the
+current design rather than the original one. And every agent in a run leaves a
+retrospective, which `process-review` reads across runs to find the friction that
+recurs and draft the upstream issue that removes it.
+
 **Token cost falls out of the same design** rather than being optimised in
 afterwards. Skills load only when their description matches the task, and the
 always-on file — the one thing charged to every session of every user — is kept
@@ -139,6 +196,12 @@ you wrote.
 | `velocity-tradeoff` | `dnbg-workflow` | **Any** | Opt-in: how to size work where the risk/benefit trade favors speed |
 | `coding-practices` | `dnbg-practices` | **Any** | Design, security, naming, logging, and the smells to stop on |
 | `work-summary` | `dnbg-work-summary` | GitHub only | Turning your merged/open PRs into an audience-shaped recap |
+
+The planning flow has no skill of its own; it lives in the skills that do each
+step. `issue-workflow` carries how a tracking issue is written and how it is
+decomposed into children, `issue-reviewer` carries the design review and the set
+review against it, and `orchestrate` runs the children and closes the project
+out.
 
 The `reviewer` pair is the piece with the least in common with the rest — it
 exists because GitHub won't let you approve your own PR, and a separate App
@@ -198,9 +261,9 @@ anything sharing a row arrives together.
 
 Nothing is enforced until you say where: the hooks block only in repos whose
 owner you list in `owners`, and with it empty they never fire. That setting, the
-install scopes, two configurable names, and an opt-in version stamp are in
-[configuration](docs/configuration.md). Requirements — a Claude Code floor and
-six command-line tools — are in [requirements](docs/requirements.md).
+install scopes, the configurable names and paths, and an opt-in version stamp
+are in [configuration](docs/configuration.md). Requirements — a Claude Code
+floor and six command-line tools — are in [requirements](docs/requirements.md).
 
 ## Which forges
 
@@ -254,7 +317,7 @@ has the detail, and an issue first is always cheaper than a declined PR.
 | | |
 | --- | --- |
 | [Requirements](docs/requirements.md) | Claude Code floor, the six CLI tools, platforms |
-| [Configuration](docs/configuration.md) | Install scopes, `owners`, the two configurable names, the version stamp, the reviewer key |
+| [Configuration](docs/configuration.md) | Install scopes, `owners`, the configurable names and paths, the version stamp, the reviewer key |
 | [Forge support](docs/forge-support.md) | Per-forge matrix, and what declining looks like |
 | [Releases](docs/releases.md) | Updating, auto-update, CalVer, installing a specific version |
 | [Security](SECURITY.md) | Threat model, what the hooks see, reporting a vulnerability |

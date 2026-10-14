@@ -1,12 +1,12 @@
 # Configuration
 
-Four values, all optional. Leave every one of them alone and the plugin still
+Every value here is optional. Leave all of them alone and the plugin still
 works — it loads its skills and rules, advises, blocks nothing, and publishes
 nothing you didn't write.
 
 - [Install scope](#install-scope) — which of two adoption modes you're in
 - [`owners`](#owners--which-repos-it-enforces-on) — **the only setting that turns the hooks on**
-- [`worktree_path` and `claim_label`](#the-mechanical-opinions) — two names you can change
+- [`worktree_path`, `claim_label` and `retrospective_dir`](#the-mechanical-opinions) — names and paths you can change
 - [`version_stamp`](#version_stamp--recording-which-prompts-published-what) — off by default; adds a hidden version marker to what you publish
 - [The reviewer bot's private key](#the-reviewer-bots-private-key) — where it is read from
 
@@ -53,8 +53,8 @@ trying the plugin in a repo without committing anything.)
 ## `owners` — which repos it enforces on
 
 **This is what turns the hooks on, and it only matters in Mode A.** It is the
-first of the four values Claude Code prompts for at enable time — the other three
-are below, and none of them turns any *enforcement* on or off:
+first of the values Claude Code prompts for at enable time — the others are
+below, and none of them turns any *enforcement* on or off:
 
 | Setting | Meaning |
 | --- | --- |
@@ -78,14 +78,16 @@ through a repo's `CLAUDE.md` rather than through config.
 
 ## The mechanical opinions
 
-Two of this plugin's choices are mechanical — a directory name and a label name —
-and you can change them without forking. Both default to what the skills say, so
-leaving them alone is the same as not having them:
+Some of this plugin's choices are mechanical — where worktrees go, what a claim
+is labelled, and where retrospectives are kept — and you can change them without
+forking. Each defaults to what the skills say, so leaving them alone is the same
+as not having them:
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `worktree_path` | `.worktrees` | Repo-relative directory worktrees are created in. Must stay inside the repo and must be a plain path — an absolute path, a `~` path, any `..` segment, a leading `-`, or a character outside letters, digits and `. _ - /` is rejected and the default used instead |
 | `claim_label` | `assigned:agent-session` | Label an agent session applies when it claims an issue. Must start with `assigned:` |
+| `retrospective_dir` | `~/.claude/dnbg-retrospectives` | Where `orchestrate`'s agents write their retrospectives, one subdirectory per repo (`<dir>/<owner>/<repo>/`), and where `process-review` reads them. Must be an absolute path or one under `~/`, with the same character rule as `worktree_path`; anything else is rejected and the default used instead |
 
 Set one and the session-start hook prints a short note saying so; the skills read
 that note as overriding the defaults they spell out. Set nothing and the hook
@@ -98,19 +100,23 @@ directory for everyone who clones it — each collaborator sets their own, or
 leaves the default. That is the same asymmetry that stops a cloned repo widening
 what gets enforced on your machine, and it costs the same thing here.
 
-**Both rejections are enforced rather than advisory, and for the same kind of
+**The rejections are enforced rather than advisory, and for the same kind of
 reason.** Worktrees outside the repo are not covered by `.gitignore` and the
 skills' cleanup steps stop resolving against them; a path carrying a space, a
 leading dash, or a shell metacharacter renders a `git worktree add` that cannot
 run as printed, and the printed command is the whole point of the block message.
-A claim label outside
-`assigned:` is worse, because it fails silently in *both* directions: the check
+A claim label outside `assigned:` is worse, because it fails silently in *both*
+directions: the check
 for an existing claim matches the whole `assigned:` namespace deliberately, so
 that any claimant — another agent, a bot, a teammate's tooling — is visible
 without this plugin knowing their name. Step outside it and your claims stop
 being seen by them while theirs stop being seen by you, which puts two workers on
-one issue. Where a value is rejected, the session-start note names the value, the
-reason, and the default it fell back to.
+one issue. A retrospective directory is the reverse of a worktree root, outside
+every repo by design, so it has to name a place on its own: a relative path
+would land in whichever checkout the writing agent happened to stand in. Its
+character rule is the worktree one, because an agent retypes the value into the
+command that creates it. Where a value is rejected, the session-start note
+names the value, the reason, and the default it fell back to.
 
 What is deliberately **not** configurable: PRs always open as drafts, the
 send-to-review picker and its fixed option order, the `[<branch-name>]` sibling
