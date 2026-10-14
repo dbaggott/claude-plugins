@@ -165,6 +165,16 @@ line() { tail -1 <<<"$1"; }
   [[ "$output" == "result=ERROR reason=snapshot-deleted "* ]]
 }
 
+@test "with --until omitted, the head is the current body even if its revision was deleted" {
+  history
+  jq '.data.repository.issue.userContentEdits.nodes |= map(
+        if .editedAt == "'"$T3"'" then .deletedAt = "'"$T3"'" | .diff = null else . end)' \
+    "$PAGES/first.json" > "$PAGES/x" && mv "$PAGES/x" "$PAGES/first.json"
+  run "$DIFF" o/r 7 --since="$T2"
+  [ "$(line "$output")" = "result=OK base=$T2 head=$T3 editors=carol" ]
+  grep -qx -- '+c' <<<"$output"
+}
+
 @test "CRLF bodies diff on content, not line endings" {
   page first "" $'a\r\nB' "$(edit "$T1" bob $'a\r\nB')" "$(edit "$T0" author $'a\nb')"
   run "$DIFF" o/r 7 --since="$T0"
@@ -182,7 +192,9 @@ line() { tail -1 <<<"$1"; }
   local args
   for args in "" "o/r" "o/r 7" "r 7 --since=$T0" "o/r x --since=$T0" \
               "o/r 7 --since=2026-10-01" "o/r 7 --since=$T0 --until=yesterday" \
-              "o/r 7 --since=$T2 --until=$T1" "o/r 7 --since=$T0 --extra"; do
+              "o/r 7 --since=$T2 --until=$T1" "o/r 7 --since=$T0 --extra" \
+              "o/t/r 7 --since=$T0" "o/r 7 --since=$T0 --since=$T1" \
+              "o/r 7 --since=$T0 --until=$T1 --until=$T2"; do
     # shellcheck disable=SC2086  # word-splitting the case is the point
     run "$DIFF" $args
     [[ "$output" == "result=ERROR reason=bad-args "* ]] || { echo "accepted: $args"; false; }

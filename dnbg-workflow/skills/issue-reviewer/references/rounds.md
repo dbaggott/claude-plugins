@@ -39,8 +39,10 @@ against (`createdAt` if that was null), rather than re-reading the set cold:
 "<skill-dir>/../../scripts/issue-diff.sh" <owner>/<repo> <n> --since=<that lastEditedAt>
 ```
 
-A round reads that diff and the response comment, per finding ID. Nothing else:
-a body that did not move and a finding with no response are both answers.
+The diff covers the body only; a retitle or state change shows in the snapshot
+query, not here. A round reads that diff and the response comment, per finding ID.
+Nothing else: a body that did not move
+and a finding with no response are both answers.
 
 ## Ordering, and what a response means
 
@@ -142,8 +144,8 @@ transfer, or a PR number. Say so rather than reporting those issues as quiet.
 **A dead watch is not a quiet issue.** The watch lives in this session, so a
 background task returning no result line at all — killed, session ended, reloaded
 — is blindness rather than silence, and it looks identical to a round nobody has
-answered. Re-read every watched issue's state and `lastEditedAt` and diff against
-your last snapshot before concluding anything.
+answered. Re-read every watched issue's state and `lastEditedAt`, and take the
+`issue-diff.sh` delta above, before concluding anything.
 
 ## When the watch is unavailable: the manual relay
 

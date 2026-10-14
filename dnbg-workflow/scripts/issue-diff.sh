@@ -14,8 +14,9 @@
 #   result=OK same=true
 #   result=ERROR reason=bad-args|unsupported-forge|not-found|issue-query|issue-query-shape|history-overflow|snapshot-deleted|diff-failed now=<iso>
 #
-# `base=none` means `--since` predates the issue, so the head body prints as all
-# additions — never as an empty diff a caller could read as "unchanged".
+# `base=none` means no snapshot exists at or before `--since` — normally because it
+# predates the issue — so the head body prints as all additions, never as an empty
+# diff a caller could read as "unchanged".
 # `same=true` means both moments resolve to one snapshot and nothing else prints.
 # `editors` is every login that wrote a snapshot after the base up to the head,
 # in order, so an intermediate editor is visible even when the head's own editor
@@ -44,14 +45,14 @@ ISO_RE='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
 REPO="${1:-}"; N="${2:-}"
 [ "$#" -ge 2 ] || fail bad-args
 shift 2
-case "$REPO" in */*) ;; *) fail bad-args ;; esac
+case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 case "$N" in ''|*[!0-9]*) fail bad-args ;; esac
 
 SINCE=""; UNTIL=""
 for a in "$@"; do
   case "$a" in
-    --since=*) SINCE="${a#--since=}" ;;
-    --until=*) UNTIL="${a#--until=}" ;;
+    --since=*) [ -z "$SINCE" ] || fail bad-args; SINCE="${a#--since=}" ;;
+    --until=*) [ -z "$UNTIL" ] || fail bad-args; UNTIL="${a#--until=}" ;;
     *) fail bad-args ;;
   esac
 done
@@ -108,7 +109,9 @@ for (( page = 0; ; page++ )); do
 done
 
 # Oldest first. The API lists newest first, so reversing before the stable sort
-# keeps two edits stamped in the same second in the order they were made.
+# keeps two edits stamped in the same second in the order they were made. The
+# newest snapshot is the current body, taken from the issue itself so a deleted
+# newest revision still has one.
 SNAPS=$(jq -cs --argjson issue "$ISSUE" '
   ($issue.author.login // "ghost") as $author
   | if length == 0 then
@@ -119,6 +122,7 @@ SNAPS=$(jq -cs --argjson issue "$ISSUE" '
         editor: (if .editedAt == $issue.createdAt then $author
                  else (.editor.login // "ghost") end),
         body: (if .deletedAt then null else .diff end)})
+      | .[-1].body = $issue.body
     end' "$TMP/nodes") || fail issue-query-shape
 
 # Index of the latest snapshot at or before a moment, or -1 when the moment
