@@ -41,7 +41,9 @@ Decision log: <ID> — <state>
 
 - **`<ID>`** is the decision the row records or applies. Cite an existing ID
   when there is one: a `D#` or `Q#` the issue or its parent defines, or the ID
-  of an earlier row. A new decision takes the next unused `<n>-D<k>` on this
+  of an earlier row. A plain issue's sections carry no IDs, so a row applying
+  one cites its heading, as in `Decision log: Proposed approach — applied`. A
+  new decision takes the next unused `<n>-D<k>` on this
   issue, where `<n>` is the issue number, so it cannot collide with the parent's
   own IDs.
 - **`<state>`** is `proposed` for a question escalated and not yet answered,

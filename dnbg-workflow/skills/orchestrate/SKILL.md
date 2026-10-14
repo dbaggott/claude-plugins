@@ -17,6 +17,9 @@ Closing out a finished tracking issue is a separate entry, in
 `<skill-dir>` is the **Base directory** announced when this skill loads. The
 scripts are at `<skill-dir>/../../scripts/`.
 
+This flow is GitHub-only, like `issue-workflow`'s. If the host in the issue
+URL is not `github.com`, say so, name the host, and stop.
+
 ## Run it in the main session
 
 Only the main session can ask the operator anything, and escalation is half of
