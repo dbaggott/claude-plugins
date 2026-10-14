@@ -15,7 +15,8 @@ tree, then the verdict is composed and posted. On an issue under active editing
 that gap is long enough for the author to move past what you reviewed.
 
 Before composing the verdict, re-read `lastEditedAt` for every issue in the round
-— one aliased query covers the set, the shape `SKILL.md` snapshots with. Then:
+— one call covers the set, the one `SKILL.md` snapshots with: `fetch-issue-set.sh`
+again for a tracking set, the aliased query otherwise. Then:
 
 - Unmoved — post the verdict you composed.
 - Moved — re-read that body and recompose its verdict against the new
@@ -39,7 +40,8 @@ against (`createdAt` if that was null), rather than re-reading the set cold:
 "<skill-dir>/../../scripts/issue-diff.sh" <owner>/<repo> <n> --since=<that lastEditedAt>
 ```
 
-The diff covers the body only; a retitle or state change shows in the snapshot
+A child's repo is the one in its URL, which need not be the parent's. The diff
+covers the body only; a retitle or state change shows in the snapshot
 query, not here. A round reads that diff and the response comment, per finding ID.
 Nothing else: a body that did not move
 and a finding with no response are both answers.

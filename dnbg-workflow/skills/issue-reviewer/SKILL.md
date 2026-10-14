@@ -63,7 +63,22 @@ loads; the script lives in `reviewer`, which shares the App.
 **Read every issue in the set before judging any of it** — the set-level findings
 below are visible only once every body is in hand.
 
-Snapshot the set in one call, whatever its size:
+Snapshot the set in one call, whatever its size. **A tracking issue brings its
+sub-issues with it** — asked to review one, the set is it and every child:
+
+```bash
+"<skill-dir>/../../scripts/fetch-issue-set.sh" <owner>/<repo> <parent>
+```
+
+It prints one object — `parent`, then `children`, each with `body`, `state`,
+`created` and `body_edited`, and per child the `blocked_by` URLs — then
+`result=OK now=<iso> children=<count>`. `now` is your read time. On `ERROR`,
+`reason=not-found` is a parent number that resolves to no issue and
+`set-overflow` a set larger than one query returns; `issue-query`,
+`issue-query-shape`, `bad-args` and `unsupported-forge` mean nothing was read.
+Report any of them rather than reviewing part of a set.
+
+Any other set, snapshot with one aliased query:
 
 ```bash
 gh api graphql -f query='{
@@ -74,8 +89,9 @@ gh api graphql -f query='{
 }'
 ```
 
-Record the time you read it: that, and each issue's `lastEditedAt`, are what
-`references/rounds.md` gates the post on.
+Record the time you read it: that, and each issue's `lastEditedAt`
+(`body_edited` in the script's object), are what `references/rounds.md` gates
+the post on.
 
 **A null `lastEditedAt` is a reading, not a missing field** — the body has never
 been edited. Treat it as "has not moved", and use `createdAt` when you need an age.
@@ -136,11 +152,37 @@ Across the set:
 - **Phasing** — an issue whose approach depends on what a later issue delivers.
 - **Orphaned work** — something the plan implies that no issue owns.
 
+When the set is a tracking issue and its children, the design is in hand, so
+these become computable too:
+
+- **Coverage** — every requirement not retired appears in some child's `Covers`
+  line, or its line in the parent ends in an `*(end-to-end: A<n>)*` or
+  `*(deferred: <reason>)*` marking, per `issue-workflow`'s
+  `references/tracking-issue.md`. Compute it: list the parent's `R#`s, expand
+  each `Covers` range (`R7–R10` is four), and diff. A closed child's `Covers`
+  counts — closed is delivered.
+- **Unrealized dependency** — a child's acceptance criterion needs something
+  another child introduces (a script, a reference file, a mode) with no
+  `blocked_by` edge from the one to the other. A child's `Depends on` line that
+  disagrees with its `blocked_by` URLs is the same finding: the edge is the
+  source of truth, and the line is its mirror.
+- **Drift** — a child's approach contradicts the parent section it cites.
+
 **A set-level finding attaches to the issue whose body has to change**, which is
 often not the issue it is *about*: a phasing error goes on the issue that would
 move, an overlap on the one that should shed the scope. Orphaned work has no such
 home, so it goes on the nearest owner and says explicitly that it is unowned —
-otherwise it is filed against nothing.
+otherwise it is filed against nothing. In a tracking set:
+
+- An unrealized dependency goes on the child that needs the output, which is
+  where the edge and the `Depends on` line are added.
+- A coverage gap goes on the parent, since closing it is a parent decision: a
+  child takes the requirement on, or the parent marks it.
+- Drift goes on the child — unless the child is right and the design is wrong.
+- **A finding that the design should change goes on the parent**, with the
+  parent's verdict set by it, whatever child it was found through. The author's
+  expected response is a parent body edit plus a decision-log row, not a child
+  edit; children that cite the changed section follow from that row.
 
 ## Verdicts and findings
 
