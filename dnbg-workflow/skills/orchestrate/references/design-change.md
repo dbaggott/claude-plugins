@@ -1,8 +1,9 @@
 # Orchestrate: applying a design change
 
 Part of the `orchestrate` skill. Read this when a row in a tracking issue's
-decision log reaches `decided`, and on start for every `decided` row not yet
-`applied`. Such a row is work to finish, whoever started it, so each step below
+decision log reaches `decided`, an answer to one child's question included, and
+on start for every `decided` row not yet `applied`. A decision that changes
+nothing beyond the asking child's body runs only steps 3 and 6. Such a row is work to finish, whoever started it, so each step below
 checks the current state rather than assuming it is first to run.
 
 Act on the row at once. The decision is the gate, and the edits below are part
@@ -34,7 +35,8 @@ edit it. Escalate whether it needs follow-up work.
 
 Change the text of the child's body that the decision changes, and promote the
 decision into it with a link to the row, as `references/triage.md` promotes a
-decided row.
+decided row. The link is the child's record of it: a decision raised on the
+parent gets no `Decision log:` comment on the children it reaches.
 
 ## 4. Re-review what changed materially
 

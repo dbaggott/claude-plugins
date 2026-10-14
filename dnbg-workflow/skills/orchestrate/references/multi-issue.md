@@ -104,8 +104,13 @@ applied, citing its row.
 Every row is written twice: the `Decision log:` comment on the child, as
 `references/triage.md` gives it, and a row in the parent's decision-log table,
 whose **Child** cell is the child's URL and whose **Entry** links that comment.
-A decision about the parent alone, such as a systemic finding, has only the
-table row.
+A decision raised on the parent, such as an operator comment there or a
+systemic finding, has only the table row, and reaches a child through
+`references/design-change.md`, which promotes it into the child's body.
+
+Every `decided` row, an answer to one child's question included, is finished
+through `references/design-change.md`, whose last step marks it `applied`. A
+row left at `decided` reads as unfinished work on every later loop and restart.
 
 You are the parent body's only writer. Edit it by reading the body, changing
 it, and writing it back with `gh issue edit <parent> --body-file <file>`, and
@@ -155,7 +160,11 @@ resumes from the parent and re-claims under "On start".
 
 ## Project review
 
-When every child is closed, dispatch `reviewer` on the parent, in the
+When every child is closed and every child's agents have ended, write your own
+retrospective, once for the run, per `references/retrospective.md`, with the
+parent as its issue, and fold its project-level items into the parent. Do it
+now: the review grades the parent's body as it stands, and an edit after the
+verdict owes a new round. Then dispatch `reviewer` on the parent, in the
 background:
 
 > Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
@@ -169,8 +178,7 @@ alone.
 ## Stop
 
 Stop on the project verdict, and never judge the end-to-end criteria yourself.
-Write your own retrospective, once for the run, per
-`references/retrospective.md`, with the parent as its issue. Report under `SKILL.md`'s three headings, covering every child: its PR, and
+Leave the parent's body alone from here. Report under `SKILL.md`'s three headings, covering every child: its PR, and
 every escalation with its outcome. On `ACCEPTED`, tell the operator the project is
 ready for closeout: "close out `<parent URL>`" (`references/closeout.md`). On
 `CHANGES REQUESTED`, give the findings: what to build next is the operator's
