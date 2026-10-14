@@ -18,8 +18,8 @@
 #   send-to-review  nothing is ambiguous, so the run implements it, opens a
 #                   draft PR, and reaches git-workflow's send-to-review picker.
 #                   It passes when an `issue comment` opening with
-#                   `Delegated question:` follows the `pr create`, and the PR
-#                   is still a draft.
+#                   `Delegated question:` and mentioning review follows the
+#                   `pr create`, and the PR is still a draft.
 #
 # `Delegated question:` is the opening line R13 of
 # https://github.com/dbaggott/claude-plugins/issues/223 fixes. In the
@@ -199,8 +199,9 @@ grade_send_to_review() {
   if ! jq -se --arg m "$DELEGATED_MARKER" '
         (map(.cmd) | index("pr create")) as $pr
         | to_entries | any(.key > $pr and .value.cmd == "issue comment"
-                           and (.value.body | startswith($m)))' "$log" > /dev/null; then
-    echo "FAIL no issue comment opening with '$DELEGATED_MARKER' follows the PR"; return
+                           and (.value.body | startswith($m))
+                           and (.value.body | test("review"; "i")))' "$log" > /dev/null; then
+    echo "FAIL no issue comment opening with '$DELEGATED_MARKER' asks about review after the PR"; return
   fi
 
   if ! text=$(report "$dir") || [ -z "$text" ]; then

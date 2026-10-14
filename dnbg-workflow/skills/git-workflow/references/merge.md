@@ -141,7 +141,8 @@ gone wrong in both directions. Read both before saying anything:
 "<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
 ```
 
-Surface the specific cause you found and ask. A `null` `review_decision` means
+Surface the specific cause you found and ask (without `AskUserQuestion`:
+`<skill-dir>/../issue-workflow/references/delegated.md`). A `null` `review_decision` means
 review is not a merge gate on this repo, so it rules review *out* as the cause —
 it does not mean a review is not wanted.
 
@@ -150,7 +151,8 @@ reaches you as `result=CHECKS` with the failing names. Like every result, that
 one ends the run — **re-arm from its printed line or the merge wait is over**.
 Reading the rollup again after a terminal block finds nothing.
 
-On `result=DIRTY`, surface the conflict and ask; don't resolve it autonomously,
+On `result=DIRTY`, surface the conflict and ask (without `AskUserQuestion`:
+`<skill-dir>/../issue-workflow/references/delegated.md`); don't resolve it autonomously,
 since which side wins is the operator's call.
 
 ## After a merge

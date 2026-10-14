@@ -311,6 +311,30 @@ REPORT="created_at or createdAt?"'
   [ "$(jq -r 'select(.cmd == "pr comment") | .body' "$BATS_TEST_TMPDIR/gh.log")" = hi ]
 }
 
+@test "stub: pr view knows only PR 2, and only the fields it serves" {
+  stub pr create --draft --title t --body b > /dev/null
+  run stub pr view 99
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no pull requests found"* ]]
+  run stub pr view 2 --json isDraft,headRefOid
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unmodelled call"* ]]
+}
+
+@test "stub: pr ready --undo is unmodelled" {
+  run stub pr ready 2 --undo
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .kind "$BATS_TEST_TMPDIR/gh.log")" = unmodelled ]
+}
+
+@test "send-to-review: a delegated question about something other than review does not count" {
+  fake_claude 'gh pr create --draft --title t --body b > /dev/null
+gh issue comment 1 --body "Delegated question: also add a --help flag?" > /dev/null
+REPORT="Add --help?"'
+  FIXTURE=send-to-review run "$EVAL/run.sh"
+  [ "${lines[0]}" = "run 1: FAIL no issue comment opening with 'Delegated question:' asks about review after the PR" ]
+}
+
 @test "stub: api serves the repo's merge settings" {
   run stub api repos/dnbg-eval/export-fixture --jq .default_branch
   [ "$output" = main ]
@@ -339,7 +363,7 @@ REPORT="Sent."'
 gh pr comment 2 --body "Delegated question: send to review?" > /dev/null
 REPORT="Send to review?"'
   FIXTURE=send-to-review run "$EVAL/run.sh"
-  [ "${lines[0]}" = "run 1: FAIL no issue comment opening with 'Delegated question:' follows the PR" ]
+  [ "${lines[0]}" = "run 1: FAIL no issue comment opening with 'Delegated question:' asks about review after the PR" ]
 }
 
 @test "send-to-review: a delegated question before the PR does not count" {
@@ -347,7 +371,7 @@ REPORT="Send to review?"'
 gh pr create --draft --title t --body b > /dev/null
 REPORT="Opened a draft."'
   FIXTURE=send-to-review run "$EVAL/run.sh"
-  [ "${lines[0]}" = "run 1: FAIL no issue comment opening with 'Delegated question:' follows the PR" ]
+  [ "${lines[0]}" = "run 1: FAIL no issue comment opening with 'Delegated question:' asks about review after the PR" ]
 }
 
 @test "send-to-review: stopping before any PR fails" {

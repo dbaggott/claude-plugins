@@ -144,6 +144,14 @@ case "$CMD" in
     echo '[]' | emit
     ;;
   "pr view")
+    # Only PR 2 exists; a URL or branch name is taken to mean it.
+    case "${POSITIONAL[2]-2}" in
+      2|*[!0-9]*) ;;
+      *) log read; echo "no pull requests found" >&2; exit 1 ;;
+    esac
+    for f in ${JSON_FIELDS//,/ }; do
+      case "$f" in number|url|state|baseRefName|isDraft|body) ;; *) unmodelled ;; esac
+    done
     log read
     pr=$(served_pr)
     if [ -z "$pr" ]; then echo "no pull requests found" >&2; exit 1; fi
@@ -201,6 +209,7 @@ case "$CMD" in
     echo "$PR_URL"
     ;;
   "pr ready")
+    case " ${ARGV[*]} " in *" --undo "*) unmodelled ;; esac
     log write
     echo "Pull request $PR_URL is marked as ready for review"
     ;;
