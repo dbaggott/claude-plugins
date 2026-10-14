@@ -6,7 +6,7 @@ CHANGELOG.md                      # assembled at release time
 changelog.d/<plugin>/             # pending fragments, one per PR
 docs/                             # this directory: reference, read after deciding
 dnbg-workflow/                    # the plugin
-  .claude-plugin/plugin.json      # manifest, incl. the three userConfig knobs
+  .claude-plugin/plugin.json      # manifest, incl. the userConfig knobs
   always-on-rules.md              # injected into every session
   hooks/                          # rule injection, two gates
   skills/                         # loaded on demand when the description matches
@@ -62,6 +62,12 @@ Three places content can live; default to the cheapest that fits.
 If you're tempted to add to `always-on-rules.md`, ask whether a skill
 description could fire it instead. If yes, prefer the skill.
 
+The conventions for a tracking issue and its decomposition are references of
+`issue-workflow` (`references/tracking-issue.md`, `references/decomposing.md`),
+and the design review that holds a tracking issue to them is `issue-reviewer`'s
+`references/design-review.md`. The skills that depend on them point at those
+files rather than restating them, so a change to the conventions goes there.
+
 ## If you forked this
 
 Nothing in the plugin itself assumes this repo's setup — which repos it enforces
@@ -84,11 +90,11 @@ If you don't want automated versioning at all, delete that workflow.
 
 ## Regenerating the README demos
 
-Five GIFs, one script each, all driven by `render.sh`:
+One GIF per demo script, all driven by `render.sh`:
 
 ```bash
 brew install asciinema agg
-docs/media/render.sh           # all five
+docs/media/render.sh           # all of them
 docs/media/render.sh gate      # or one, by name
 ```
 
@@ -106,6 +112,7 @@ so the re-render is enforced rather than remembered — see below.
 | `demo-vibe-review` | Reenacted. Two panes, no issue — conversation to PR to merge and cleanup |
 | `demo-file-issue` | Reenacted, except the `BLOCKED` message, which the real hook produces at record time |
 | `demo-work-summary` | Reenacted, condensed from a real 2026-08-11 session |
+| `demo-orchestrate` | Reenacted. One orchestrator session driving an author and a reviewer subagent on one issue |
 
 **Keep the reenactments honest.** They are scripted because the pickers and the
 agent's own dialogue are Claude Code's interface and never reach stdout — not
