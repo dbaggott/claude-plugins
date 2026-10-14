@@ -67,7 +67,9 @@ closing, a row reaching `applied`, a spec verdict on a child.
 
 A child is **in flight** while it is open and `claim-issue.sh` reads `OWN` on
 it, and after it closes until its author has sent its final report and its
-reviewer has ended. A child that closes without a merged PR: tell the operator.
+reviewer has ended. At that end, collect both agents' retrospectives and fold
+their project-level items into the parent, per `references/retrospective.md`. A
+child that closes without a merged PR: tell the operator.
 
 ## Waiting
 
@@ -167,7 +169,8 @@ alone.
 ## Stop
 
 Stop on the project verdict, and never judge the end-to-end criteria yourself.
-Report under `SKILL.md`'s three headings, covering every child: its PR, and
+Write your own retrospective, once for the run, per
+`references/retrospective.md`, with the parent as its issue. Report under `SKILL.md`'s three headings, covering every child: its PR, and
 every escalation with its outcome. On `ACCEPTED`, tell the operator the project is
 ready for closeout: "close out `<parent URL>`" (`references/closeout.md`). On
 `CHANGES REQUESTED`, give the findings: what to build next is the operator's
