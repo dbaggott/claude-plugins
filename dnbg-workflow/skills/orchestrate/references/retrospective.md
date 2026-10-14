@@ -73,8 +73,15 @@ date: <YYYY-MM-DD>
   skill said something wrong, quote the line. Patterns are found by grouping on
   these names, so an item that names nothing cannot join one.
 - **`plugin_version`** is the version a `## dnbg-workflow <version>` note at
-  session start names. With no such note, write `none`. Take it from nowhere
-  else, since a guessed version reads like a real one.
+  session start names. With no such note, read it from the installed plugin's
+  manifest:
+
+  ```bash
+  jq -r .version "<skill-dir>/../../.claude-plugin/plugin.json"
+  ```
+
+  Write `none` only when neither gives one. Never write a version from memory,
+  since a guessed version reads like a real one.
 - **No secrets and no tokens.** The files are local, but `process-review` quotes
   them into issue drafts.
 

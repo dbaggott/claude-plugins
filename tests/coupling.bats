@@ -775,6 +775,18 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   [ "$bad" -eq 0 ]
 }
 
+# Without the session-start note, a retrospective's version comes from the
+# manifest path retrospective.md gives relative to the skill's base directory. A
+# path that no longer resolves leaves every default install writing `none`.
+@test "the manifest path retrospective.md reads plugin_version from resolves" {
+  local tmpl="$ROOT/dnbg-workflow/skills/orchestrate/references/retrospective.md"
+  local rel
+  rel=$(grep -oE '"<skill-dir>/[^"]*plugin\.json"' "$tmpl" | tr -d '"' | sed 's|^<skill-dir>/||')
+  [ -n "$rel" ] || { echo "retrospective.md names no manifest path"; false; }
+  jq -e '.version | length > 0' "$ROOT/dnbg-workflow/skills/orchestrate/$rel" >/dev/null || {
+    echo "<skill-dir>/$rel does not resolve to a manifest with a version"; false; }
+}
+
 # A `description:` whose value contains an unquoted `: ` is not a description with
 # a colon in it — YAML reads the colon as a mapping indicator, the frontmatter
 # stops parsing, and Claude Code loads the skill with EVERY field dropped. The
