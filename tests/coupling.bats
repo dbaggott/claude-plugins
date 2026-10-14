@@ -911,11 +911,10 @@ remote_read_calls() {  # <SKILL.md>
   [ "$bad" = 0 ]
 }
 
-# https://github.com/dbaggott/claude-plugins/issues/149 adds other forges by replacing
-# one seam per script: the `FORGE` guard that refuses with `unsupported-forge`, under a
-# header marker naming that issue. A script that calls `gh` either carries that seam or
-# is listed here as GitHub-shaped throughout, so a new forge call is one or the other
-# by decision rather than by omission. These get their backends from 149 itself.
+# A script that calls `gh` either carries the forge seam — the header marker naming
+# https://github.com/dbaggott/claude-plugins/issues/149 and the `FORGE` guard that
+# refuses with `unsupported-forge` — or is listed here as GitHub-shaped throughout, so a
+# new forge call is one or the other by decision rather than by omission.
 GITHUB_ONLY_SCRIPTS="fetch-tree.sh pr-round.sh pr-sources.sh pr-threads.sh pr-verdict.sh watch-issue.sh watch-pr.sh"
 
 calls_forge() {  # <script>
