@@ -160,6 +160,14 @@ worktree_path_rejection() {  # <configured-value>
     '~' | '~/'*) printf 'it is a home-relative path' ;;
     '..' | '../'* | *'/..' | *'/../'*) printf "it contains a \`..\` segment that escapes the repo" ;;
     -*) printf 'it starts with a dash, which git reads as an option rather than a path' ;;
+    *) path_charset_rejection "$1" ;;
+  esac
+}
+
+# The character rule both configured paths share: they are rendered into text
+# an agent retypes as a shell command.
+path_charset_rejection() {  # <path>
+  case "${1:-}" in
     # POSIX classes rather than `A-Za-z0-9` ranges: range endpoints are
     # collation-dependent, which tests/watch-pr.bats already has a case for
     # elsewhere in this repo.
@@ -191,16 +199,17 @@ claim_label_rejection() {  # <configured-value>
 # worktree one, for the same reason — the value is rendered into the
 # session-start note, and an agent retypes it into `mkdir -p`.
 retrospective_dir_rejection() {  # <configured-value>
+  # Judged as resolve_retrospective_dir will use it, so `~//` is rejected here
+  # rather than passing and then silently falling back there.
+  local value="${1:-}"
+  while [ "${value%/}" != "$value" ]; do value="${value%/}"; done
   # The literal `~` the operator typed, as in worktree_path_rejection.
   # shellcheck disable=SC2088
-  case "${1:-}" in
+  case "$value" in
     /?* | '~/'?*) ;;
     *) printf "it is neither an absolute path nor one under \`~/\`"; return ;;
   esac
-  case "${1#\~}" in
-    *[![:alnum:]._/-]*)
-      printf "it contains a character outside letters, digits and \`.\` \`_\` \`-\` \`/\`" ;;
-  esac
+  path_charset_rejection "${value#\~}"
 }
 
 # The worktree root this session uses: the configured value when it is set and
@@ -249,7 +258,7 @@ resolve_retrospective_dir() {
 
 # Has the operator asked for the version stamp?
 #
-# Unlike the two knobs above this is a gate rather than a value, so it matches
+# Unlike the knobs above this is a gate rather than a value, so it matches
 # the *affirmative* and everything else — unset, empty, `false`, a typo — leaves
 # the stamp off. The stamp lands on PR descriptions, review bodies and issue
 # comments that other people read, so a value this hook cannot make sense of has

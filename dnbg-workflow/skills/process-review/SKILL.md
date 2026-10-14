@@ -40,8 +40,9 @@ Group the items by heading, then within a heading put together the items that
 describe one problem: the same skill step, script, or missing instruction, even
 when worded differently.
 
-- **The count is the number of sources carrying the problem**, where a source is
-  a file or a friction-log bullet. Two items in one file count once.
+- **The count is the number of sources carrying the problem.** A source is one
+  role on one issue, all its files together, or one friction-log bullet. So one
+  agent repeating itself counts once.
 - **A pattern has a count of at least two.** Everything else is a singleton.
 - **One problem under two headings is one pattern.** File it under the heading
   most of its sources use, and count each source once.

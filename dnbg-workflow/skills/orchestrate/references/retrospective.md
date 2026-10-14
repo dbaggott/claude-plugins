@@ -1,7 +1,9 @@
 # Orchestrate: retrospectives
 
 Part of the `orchestrate` skill. The orchestrator reads this before dispatching,
-and every agent it dispatches reads it when its part of the run ends. A
+and every agent it dispatches reads it once, when its part of the run is over:
+the author after its post-merge cleanup, the reviewer when its review ends. Turns
+that end earlier, such as the author's at send-to-review, do not write one. A
 retrospective records where the **process** hurt one agent on one issue: the
 skills, the scripts, the waits. The issue's own bugs belong on the issue or the
 PR. `process-review` reads retrospectives in batches to find what recurs.
@@ -78,7 +80,7 @@ date: <YYYY-MM-DD>
 
 ## Asking the agents for one
 
-Both dispatch recipes in `SKILL.md` end with the request, so it costs no extra
+Both dispatch recipes in `SKILL.md` carry the request, so it costs no extra
 turn. When a final report
 arrives without that section, or the path it gives does not exist, continue that
 agent once with `SendMessage`:
@@ -102,10 +104,11 @@ triage, the watches, the escalations, and the dispatches.
 ## Fold project-level items into the parent
 
 When the issue is a child of a tracking issue, its body opens with
-`Sub-issue of <parent URL>`. Read the three retrospectives and pick out each
-item about this project rather than about the plugin generally: its design, its
-children, or the conventions they share. Those are what the parent's closeout
-acts on. Plugin-wide friction stays in the files for `process-review`.
+`Sub-issue of <parent URL>`. Read the run's retrospectives and pick out each
+item the parent's closeout should dispose of: anything about this project's
+design, its children, or the conventions they share, and any tooling friction
+that cost this run real time. Leave out minor plugin-wide friction, which the
+files keep for `process-review`.
 
 Add each one to the parent body's **Friction log** as a dated bullet naming its
 source:
@@ -114,8 +117,11 @@ source:
 - **<YYYY-MM-DD>.** <item> (<role> on <issue URL>)
 ```
 
-Body edits replace the whole body. Fetch the parent's body immediately before
-editing it, change only the Friction log section, and write it back with
-`gh issue edit <parent> --repo <owner>/<repo> --body-file <file>`. A parent with
-no Friction log section has nowhere to put them. Say so in the Stop report
-instead.
+Body edits replace the whole body, and a sibling's orchestrator may be editing
+the same parent. Fetch the parent's body immediately before editing it, change
+only the Friction log section, and write it back with
+`gh issue edit <parent URL> --body-file <file>`, by URL since the parent may
+live in another repo. Then fetch it again; if your bullets are missing, a
+concurrent write replaced yours, so add them again on top of the new body. A
+parent with no Friction log section has nowhere to put them. Say so in the Stop
+report instead.

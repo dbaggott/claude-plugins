@@ -85,10 +85,9 @@ already the author's: a subagent shares your session id, so its pickup reads
 > the operator something. The issue is already claimed under your session id.
 > [Continue `<PR URL>`, which is already open for it.] When you send the PR to
 > review, end your turn with its URL. When it merges, finish the post-merge
-> cleanup and report under Summary, Observations, and Actionable. When your
-> part ends, write a retrospective per `<skill-dir>/references/retrospective.md`,
-> and end your final report with a **Retrospective** section giving the file's
-> path.
+> cleanup, write a retrospective per
+> `<skill-dir>/references/retrospective.md`, and report under Summary,
+> Observations, Actionable, and Retrospective, the last giving the file's path.
 
 The bracketed line goes in only when step 3 found an open PR. In both recipes,
 `<skill-dir>` is written out as the absolute path, since the agent has not
@@ -101,7 +100,7 @@ they will review the PR themselves.
 > Act as the reviewer on `<issue URL>`, in `reviewer`'s issue mode. You were
 > dispatched by an orchestrator, so follow `issue-workflow`'s
 > `references/delegated.md` wherever a skill asks the operator something. When
-> your part ends, write a retrospective per
+> your review ends, write a retrospective per
 > `<skill-dir>/references/retrospective.md`, and end your final report with a
 > **Retrospective** section giving the file's path.
 

@@ -214,6 +214,10 @@ with_version_stamp() {  # <value>
   [ "$(with_retrospective_dir 'retros')" = "~/.claude/dnbg-retrospectives" ]
   [ "$(with_retrospective_dir '/')" = "~/.claude/dnbg-retrospectives" ]
   [ "$(with_retrospective_dir '~/')" = "~/.claude/dnbg-retrospectives" ]
+  # Rejected as resolved, so the session-start note reports it instead of the
+  # value falling back unannounced.
+  [ -n "$(retrospective_dir_rejection '~//')" ]
+  [ -n "$(retrospective_dir_rejection '//')" ]
 }
 
 @test "a retrospective directory that would render an unrunnable command is rejected" {

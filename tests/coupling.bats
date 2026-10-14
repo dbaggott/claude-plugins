@@ -203,7 +203,7 @@ EOF
   }
 }
 
-# `version_stamp` is pinned separately rather than as a third arm above, because
+# `version_stamp` is pinned separately rather than as another arm above, because
 # it has no lib.sh constant to compare against: it is a gate, and what an
 # unconfigured session does is decided by how `version_stamp_enabled` reads an
 # unset variable. A constant nothing consults would pin nothing.
