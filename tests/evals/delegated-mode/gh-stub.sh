@@ -42,7 +42,13 @@ CMD=""
 # Flags the modelled commands take a value for. Anything else is positional.
 JSON_FIELDS="" JQ="" BODY="" BODY_FILE="" PAGINATE_SLURP=0
 POSITIONAL=()
+VALUE_FLAGS=" --json -q --jq -b --body -F --body-file -R --repo -t --title -B --base -H --head -l --label
+  --add-label --remove-label -a --assignee --add-assignee --remove-assignee -c --color --description
+  -s --state -L --limit --owner -X --method "
 while [ "$#" -gt 0 ]; do
+  case "$VALUE_FLAGS" in
+    *[[:space:]]"$1"[[:space:]]*) [ "$#" -ge 2 ] || unmodelled ;;
+  esac
   case "$1" in
     --json) JSON_FIELDS=$2; shift 2 ;;
     --json=*) JSON_FIELDS=${1#--json=}; shift ;;
@@ -54,7 +60,7 @@ while [ "$#" -gt 0 ]; do
     --body-file=*) BODY_FILE=${1#--body-file=}; shift ;;
     --slurp) PAGINATE_SLURP=1; shift ;;
     -R|--repo|-t|--title|-B|--base|-H|--head|-l|--label|--add-label|--remove-label \
-      |-a|--assignee|--add-assignee|--remove-assignee|-c|--color|-d|--description \
+      |-a|--assignee|--add-assignee|--remove-assignee|-c|--color|--description \
       |-s|--state|-L|--limit|--owner|-X|--method)
       shift 2 ;;
     -*) shift ;;
@@ -63,6 +69,17 @@ while [ "$#" -gt 0 ]; do
 done
 [ "${#POSITIONAL[@]}" -ge 2 ] || unmodelled
 CMD="${POSITIONAL[0]} ${POSITIONAL[1]}"
+if [ "${POSITIONAL[0]}" = api ]; then
+  # `/user` and `user?per_page=100` are the same endpoint as `user`.
+  endpoint=${POSITIONAL[1]#/}
+  CMD="api ${endpoint%%\?*}"
+fi
+
+read_body() {
+  if [ -n "$BODY_FILE" ]; then
+    if [ "$BODY_FILE" = - ]; then BODY=$(cat); else BODY=$(cat "$BODY_FILE"); fi
+  fi
+}
 
 # gh applies --jq to its JSON output and prints strings raw.
 emit() {
@@ -91,29 +108,26 @@ case "$CMD" in
     echo '{"login":"eval-operator"}' | emit
     ;;
   "api "*)
-    case "${POSITIONAL[1]}" in
+    case "$CMD" in
       */timeline) log read; if [ "$PAGINATE_SLURP" = 1 ]; then echo '[[]]'; else echo '[]'; fi | emit ;;
       *) unmodelled ;;
     esac
     ;;
   "issue comment")
-    if [ -n "$BODY_FILE" ]; then
-      if [ "$BODY_FILE" = - ]; then BODY=$(cat); else BODY=$(cat "$BODY_FILE"); fi
-    fi
+    read_body
     log write "$BODY"
     echo "$ISSUE_URL#issuecomment-1"
     ;;
   "issue edit")
-    log write
+    read_body
+    log write "$BODY"
     echo "$ISSUE_URL"
     ;;
   "label create")
     log write
     ;;
   "pr create")
-    if [ -n "$BODY_FILE" ]; then
-      if [ "$BODY_FILE" = - ]; then BODY=$(cat); else BODY=$(cat "$BODY_FILE"); fi
-    fi
+    read_body
     log write "$BODY"
     echo "${ISSUE_URL%/issues/*}/pull/2"
     ;;
