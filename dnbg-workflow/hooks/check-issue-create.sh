@@ -93,7 +93,16 @@ fi
 # Matching that structure (not the bare skill name) keeps this hook's own
 # block message — which names the skill in prose — from satisfying the check
 # on a retry.
+#
+# A subagent's call carries `agent_id`, but `transcript_path` still names the
+# main session's transcript, and the subagent's skill loads are written to its
+# own file beside it. Only that file counts: a subagent does not inherit the
+# skills its parent loaded.
 TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // empty')
+AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // empty')
+if [ -n "$AGENT_ID" ]; then
+  TRANSCRIPT="${TRANSCRIPT%.jsonl}/subagents/agent-${AGENT_ID}.jsonl"
+fi
 [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ] || exit 0
 grep -qE '"skill" *: *"(dnbg-workflow:)?issue-workflow"' "$TRANSCRIPT" && exit 0
 
