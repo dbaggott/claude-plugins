@@ -346,6 +346,6 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    watch covers it, so a child added or reopened reaches you even when the PR
    does not move. On each of its returns, and before each new round, go back
    to step 1. A child open again is unbuilt work: request changes naming it,
-   whatever the PR's diff. Both watches run in the background, so a turn you
-   end with them armed is woken when one returns: ending a turn is not ending
-   the assignment, which ends when the parent closes.
+   whatever the PR's diff. Report at each verdict, and keep watching after
+   it: both watches run in the background, so a turn you end with them armed
+   is woken when one returns. The assignment ends when the parent closes.
