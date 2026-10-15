@@ -1028,10 +1028,11 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
 }
 
 # The harness's code-review tool can return after the turn that started it, so
-# step 7's wait is what holds the PR until those findings land.
-@test "git-workflow's self-review step waits for the code-review result and names the data-only floor" {
+# step 7's wait is what holds the PR until those findings land, and the
+# orchestrator has to read the author's turn-ending wait as a wait.
+@test "git-workflow's self-review waits for the code-review result, and orchestrate reads that wait" {
   local step
-  step=$(awk '/^7\. /{inside=1} /^8\. /{inside=0} inside' \
+  step=$(awk '/^7\. /{inside=1} /^8\. /{exit} inside' \
     "$ROOT/dnbg-workflow/skills/git-workflow/SKILL.md")
   [ -n "$step" ] || { echo "git-workflow/SKILL.md has no step 7"; false; }
 
@@ -1039,6 +1040,11 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
     echo "step 7 no longer says to wait for the code-review tool's result"; false; }
   grep -q 'generated or data files' <<<"$step" || {
     echo "step 7 no longer names the data-only floor"; false; }
+  grep -q 'background review' <<<"$step" || {
+    echo "step 7 no longer has a dispatched author report its wait on the review"; false; }
+  grep -q 'background review' "$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md" || {
+    echo "orchestrate no longer reads an author's wait on a background review as a wait"
+    false; }
 }
 
 @test "issue-workflow SKILL.md still points at each of its paths" {
