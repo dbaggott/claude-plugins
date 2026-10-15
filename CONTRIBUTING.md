@@ -122,11 +122,11 @@ ran.
 Two of the commands above are narrower than the CI step they stand for, so a
 green run here is good evidence rather than a guarantee. The `jq` lines are only
 the JSON-parse part of the manifest checks, which also compare marketplace and
-manifest descriptions and confirm every version is semver-parseable; and `claude
-plugin validate .` is the root call, where CI additionally runs it over each
-plugin source. Those, and the fragment rule above, are short shell blocks in the
-`lint` job of [`.github/workflows/ci.yml`](.github/workflows/ci.yml) if you want
-to run the rest by hand.
+manifest descriptions and confirm every version is semver-parseable; and
+`claude plugin validate .` is the root call, where CI additionally runs it over
+each plugin source. Those, and the fragment rule above, are short shell blocks
+in the `lint` job of [`.github/workflows/ci.yml`](.github/workflows/ci.yml) if
+you want to run the rest by hand.
 
 ## More
 
