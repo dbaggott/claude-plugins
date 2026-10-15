@@ -88,6 +88,12 @@ row "${C_OK}● APPROVED — ready to merge.${C_OFF}" \
 beat 0.9
 row "${C_DIM}  gh pr merge 104 --repo dbaggott/claude-plugins --squash${C_OFF}" ""
 beat 0.8
+row "${C_SAY}  Summary — POLL_CURVE override; one review round.${C_OFF}" ""
+beat 0.6
+row "${C_SAY}  Observations — the default curve is unchanged.${C_OFF}" ""
+beat 0.6
+row "${C_SAY}  Actionable — the watcher takes no override.${C_OFF}" ""
+beat 0.8
 row "${C_TOOL}● Task${C_OFF}   watch-pr.sh 104 --role=author ${C_DIM}(background)${C_OFF}" ""
 beat 1.8
 
@@ -103,11 +109,9 @@ row "${C_TOOL}● Bash${C_OFF}   git switch main && git pull --ff-only --prune" 
 beat 0.7
 row "${C_TOOL}● Bash${C_OFF}   git branch -D poll-curve-config" ""
 beat 1.0
-row "${C_SAY}  Cleaned up — nobody asked me to.${C_OFF}" ""
-beat 1.2
-row "${C_SAY}  Summary — POLL_CURVE override shipped in pull/104.${C_OFF}" ""
+row "${C_SAY}  Summary — merged, and cleaned up unasked.${C_OFF}" ""
 beat 0.8
-row "${C_SAY}  Observations — the default curve is unchanged.${C_OFF}" ""
+row "${C_SAY}  Observations — nothing new since the handoff.${C_OFF}" ""
 beat 0.8
-row "${C_SAY}  Actionable — the watcher takes no override.${C_OFF}" ""
+row "${C_SAY}  Actionable — nothing new since the handoff.${C_OFF}" ""
 beat 5.0

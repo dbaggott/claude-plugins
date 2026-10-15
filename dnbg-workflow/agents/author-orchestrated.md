@@ -26,5 +26,6 @@ for, and otherwise on the event that ended it:
 - If the PR closes unmerged, end your turn saying so.
 - When it merges, finish the post-merge cleanup, write a retrospective per
   `${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/references/retrospective.md`, and
-  report under Summary, Observations, Actionable, and Retrospective, the last
-  giving the file's path.
+  report under Summary, Observations, Actionable, and Retrospective, the first
+  three carrying what changed since your handoff and the last giving the file's
+  path.

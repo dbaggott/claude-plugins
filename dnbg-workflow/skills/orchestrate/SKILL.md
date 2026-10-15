@@ -210,7 +210,8 @@ three headings:
 - **Observations** — what the log shows: questions answered without the
   operator, and anything that recurred. Give each retrospective's path, and name
   any role that left none.
-- **Actionable** — what the operator may want to do, including any author or
-  reviewer report item that needs them.
+- **Actionable** — what the operator may want to do, including any item in the
+  author's handoff, the author's final report, or the reviewer's report that
+  needs them.
 
 Never merge.
