@@ -65,7 +65,7 @@ INLINE=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direct
 # Both replies reach jq on stdin: they carry every review and comment body, and
 # one busy PR passes the per-argument cap on Linux.
 OUT=$(printf '%s\n%s\n' "$RAW" "$INLINE" | jq -cn '
-  # Four states, rather than whatever vocabulary a forge uses. A CheckRun carries .status and, once
+  # Five states, rather than whatever vocabulary a forge uses. A CheckRun carries .status and, once
   # finished, .conclusion; a StatusContext carries .state. Handing those through
   # raw makes every caller re-derive "is this passing", and a caller that misses
   # one spelling reads a running check as a failed one.
@@ -74,13 +74,29 @@ OUT=$(printf '%s\n%s\n' "$RAW" "$INLINE" | jq -cn '
      | ascii_downcase) as $c
     | if   $c == "success" then "success"
       elif $c == "neutral" or $c == "skipped" then "neutral"
+      # Not passing, but not a verdict on the code either: it blocks a merge
+      # like a failure and is not reported as one.
+      elif $c == "cancelled" then "cancelled"
       elif $c == "" or $c == "pending" or $c == "queued" or $c == "in_progress"
            or $c == "waiting" or $c == "requested" or $c == "expected" then "pending"
       else "failure" end;
 
+  # gh prints a missing time as the zero time. A check that has neither started
+  # nor finished sorts newest, since a queued run can only be the live one; one
+  # cancelled before it started sorts by when it was cancelled.
+  def recency:
+    def real: . != null and . != "" and (startswith("0001-") | not);
+    if check_state == "pending" and ((.startedAt // "") | real | not) then "9999"
+    else [.startedAt, .createdAt, .completedAt] | map(select(real)) | (first // "") end;
+
   input as $pr
   | input as $inline
-  | ($pr.statusCheckRollup // []) | map({
+  # A second workflow run on the same head leaves the checks of the first run in the
+  # rollup beside its own, so only the newest run of each check speaks for the
+  # head. Keyed by workflow as well, since two workflows may each have a "lint".
+  | ($pr.statusCheckRollup // [])
+  | group_by([(.workflowName // ""), (.name // .context // "?")])
+  | map(max_by(recency) | {
       name: (.name // .context // "?"),
       state: check_state
     }) as $checks
@@ -117,7 +133,7 @@ OUT=$(printf '%s\n%s\n' "$RAW" "$INLINE" | jq -cn '
             # `pr-verdict.sh` backstop.
             (if ($running | length) > 0
              then {status:"blocked", cause:"checks_running"}
-             elif ($checks | map(select(.state == "failure")) | length) > 0
+             elif ($checks | map(select(.state == "failure" or .state == "cancelled")) | length) > 0
              then {status:"blocked", cause:"checks_failing"}
              elif ($pr.reviewDecision // "") == "REVIEW_REQUIRED"
                or ($pr.reviewDecision // "") == "CHANGES_REQUESTED"
