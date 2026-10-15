@@ -117,7 +117,8 @@ This applies to the **discovered** set only — hold these back without asking. 
 draft the operator *names* gets the picker in `SKILL.md`'s "If the PR is a draft,
 ask before reviewing".
 
-Watch a held-back draft rather than dropping it, arming the ready check:
+Watch a held-back draft rather than dropping it, arming the ready check, in the
+background with `timeout: 7200000` as `SKILL.md`'s watch is:
 
 ```bash
 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> <slug> \

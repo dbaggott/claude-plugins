@@ -157,7 +157,9 @@ EOF
 @test "a suspend does not consume the window" {
   setup_clock
   echo 100000 > "$SUSPEND"   # ~28h with the lid shut
-  run bash -c ". '$LIB'
+  # The ceiling is wall-clock, so it would end this run on wake; lifted here so
+  # what is asserted is the window alone. The ceiling's own suspend case is below.
+  run bash -c "export WINDOW_CEILING=1000000; . '$LIB'
     poll_init
     poll_nap
     poll_timed_out && echo TIMED_OUT || echo ALIVE
@@ -181,6 +183,93 @@ EOF
   # t=90, since 10 + 20*90/1800 rounds up a second.)
   [ "$awake" -ge 100 ]
   [ "$awake" -lt 130 ]
+}
+
+# The ceiling exists because a headless session stops a background command at its
+# Bash `timeout` and the watch then prints no result. A run has to end itself
+# first, whatever the window, and say how much of the window it left unserved.
+@test "the ceiling ends a run the window would not, and names what is left" {
+  setup_clock
+  run bash -c "export WINDOW=21600 WINDOW_CEILING=1000; . '$LIB'
+    poll_init
+    while ! poll_timed_out; do poll_nap; done
+    echo wall=\$(poll_wall) left=\$(poll_split_left)"
+  [ "$status" -eq 0 ]
+  # Exactly on the ceiling: the last nap is clipped to it rather than slept past.
+  [[ "${lines[-1]}" == "wall=1000 left=20600" ]]   # after any heartbeat lines
+}
+
+@test "a run whose window ends first leaves nothing to carry" {
+  setup_clock
+  run bash -c "export WINDOW=100 WINDOW_CEILING=1000; . '$LIB'
+    poll_init
+    while ! poll_timed_out; do poll_nap; done
+    echo left=[\$(poll_split_left)] env=[\$(poll_window_env \"\$(poll_split_left)\")]"
+  [ "$status" -eq 0 ]
+  [[ "${lines[-1]}" == "left=[] env=[WINDOW=100]" ]]
+}
+
+# WINDOW_LEFT is how the re-arm line hands the remainder on. WINDOW still rides
+# along unchanged, so the run that finally exhausts the window re-arms a full one.
+@test "WINDOW_LEFT bounds a re-armed run, and the full WINDOW is what it hands on" {
+  setup_clock
+  run bash -c "export WINDOW=21600 WINDOW_LEFT=50 WINDOW_CEILING=1000 INTERVAL=10; . '$LIB'
+    poll_init
+    while ! poll_timed_out; do poll_nap; done
+    echo awake=\$(poll_awake) env=[\$(poll_window_env \"\$(poll_split_left)\")]"
+  [ "$status" -eq 0 ]
+  local awake; awake=$(sed -n 's/^awake=\([0-9]*\).*/\1/p' <<<"$output")
+  [ "$awake" -ge 50 ]
+  [ "$awake" -lt 70 ]
+  [[ "$output" == *"env=[WINDOW=21600]"* ]]
+}
+
+# Each split run used to restart the curve at its floor, so a six-hour quiet wait
+# never reached the 300 s cap and polled about twice as often.
+@test "a run re-armed from a split resumes the curve where the window had reached" {
+  setup_clock
+  run bash -c "export WINDOW=21600 WINDOW_LEFT=15300; . '$LIB'
+    poll_init
+    echo quiet=\$(poll_quiet) interval=\$(poll_interval)"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "quiet=6300 interval=$(bash -c ". '$LIB'; poll_interval_at 6300")" ]]
+}
+
+# Past the ceiling only a settle keeps a run going, and a settle is a burst on its
+# way out: clipping its naps to the ceiling would poll every second until it lands.
+@test "a nap past the ceiling is not clipped to it" {
+  setup_clock
+  run bash -c "export WINDOW=21600 WINDOW_CEILING=5 INTERVAL=10; . '$LIB'
+    poll_init
+    poll_nap
+    poll_nap
+    echo wall=\$(poll_wall)"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "wall=15" ]]
+}
+
+# The harness's deadline is not ours to see, so the ceiling counts every second
+# the lid was shut. The window does not: the run ends, the window is still owed.
+@test "a suspend spends the ceiling but not the window" {
+  setup_clock
+  echo 100000 > "$SUSPEND"
+  run bash -c "export WINDOW=21600 WINDOW_CEILING=6300; . '$LIB'
+    poll_init
+    poll_nap
+    poll_timed_out && echo TIMED_OUT || echo ALIVE
+    echo left=\$(poll_split_left) field=[\$(poll_window_field \"\$(poll_split_left)\")]"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"TIMED_OUT"* ]]
+  [[ "$output" == *"left=21590 field=[ window_left=21590]"* ]]
+}
+
+@test "a window knob that is not a positive integer is refused" {
+  local knob
+  for knob in WINDOW=0 WINDOW_LEFT=abc WINDOW_CEILING=-5; do
+    run bash -c "export $knob; . '$LIB'"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"must be a positive integer"* ]]
+  done
 }
 
 # Waking at the dormant cap would be least responsive exactly when the human has

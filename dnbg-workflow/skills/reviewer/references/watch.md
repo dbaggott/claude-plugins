@@ -32,7 +32,8 @@ verdict together. **Run it first; it is what their handling below reads from.**
   re-review: note it in your next reply if it touches what you asked for,
   otherwise re-arm. The names are shell-quoted because forge check names
   contain spaces.
-- **`IDLE`** — nothing within the polling window. Re-arm from the printed line.
+- **`IDLE`** — nothing within the polling window, or, with `window_left=`, a run
+  cut short at the watch's wall-clock ceiling. Re-arm from the printed line either way.
 - **`ERROR reason=<source>`** — that source failed repeatedly and the watch
   cannot see. **Do not re-arm**: unlike `IDLE`, this says nothing about the PR,
   so re-arming polls straight back into the same failure while reporting

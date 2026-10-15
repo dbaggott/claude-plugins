@@ -25,7 +25,9 @@
 #   result=BLOCKED  cause=terminal now=<iso>                # nothing pending will clear it
 #                                                           # — author role WITH --merge-stage only
 #   result=CLOSED   state=MERGED|CLOSED                     # finished — stop watching
-#   result=IDLE     [merge=behind|blocked|unrecognised:<v>] [since=<iso>] now=<iso>
+#   result=IDLE     [merge=behind|blocked|unrecognised:<v>] [since=<iso>] [window_left=<s>] now=<iso>
+#                   # window_left: only this run ended, at lib-poll.sh's WINDOW_CEILING;
+#                   # the window goes on in the re-arm line
 #   result=ERROR    reason=<source> now=<iso>               # the watch is broken — do NOT re-arm
 #
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
@@ -156,7 +158,7 @@ obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0; obs_verdict=""
 # reported, and the next round's diff then starts after that commit: it appears
 # in none of them.
 rearm_head="$LAST_HEAD"
-settle_until=0; settle_cap=0; holding_draft=0; stop_merge=""; idle_merge=""
+settle_until=0; settle_cap=0; holding_draft=0; stop_merge=""; idle_merge=""; split_left=""
 # Stamped once per report, so the re-arm line's `since` and `now=` are one value.
 NOW=""
 J=""; RAWC="[]"
@@ -176,8 +178,8 @@ shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 # ("no verdict handled yet"), so `:-` would substitute the mutated state back in
 # and mark a verdict handled that no run ever reported.
 rearm_cmd() {  # [head] [since] [verdict]
-  printf 'WINDOW=%s "%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s --last-checks-head=%s' \
-    "$WINDOW" "$HERE" "$REPO" "$PR" "${1:-${rearm_head:-\"\"}}" "${2:-$NOW}" \
+  printf '%s "%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s --last-checks-head=%s' \
+    "$(poll_window_env "$split_left")" "$HERE" "$REPO" "$PR" "${1:-${rearm_head:-\"\"}}" "${2:-$NOW}" \
     "$SLUG" "$ROLE" \
     "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)$([ "$MERGE_STAGE" = 1 ] && printf ' --merge-stage' || true)" \
     "${3-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")" "$checks_head"
@@ -212,13 +214,14 @@ verdict_field() {
 report_idle() {
   local held=""
   NOW=$(poll_now_iso)
+  split_left=$(poll_split_left)
   if have_burst; then
     watch_rearm "$(rearm_cmd "$ORIG_HEAD" "$ORIG_SINCE" "$ORIG_VERDICT")"
     held=" since=$ORIG_SINCE"
   else
     watch_rearm "$(rearm_cmd)"
   fi
-  echo "result=IDLE${idle_merge:+ merge=$idle_merge}$held now=$NOW"; exit 0
+  echo "result=IDLE${idle_merge:+ merge=$idle_merge}$held$(poll_window_field "$split_left") now=$NOW"; exit 0
 }
 
 # Whether anything is still worth waking the caller for. A settle can outlive its

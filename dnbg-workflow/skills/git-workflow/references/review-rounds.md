@@ -10,7 +10,7 @@ When the operator picks "Send to review" in `SKILL.md`'s picker, or otherwise si
 
 1. Note the time, then run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft. That time is the first arm's `since`, per the first-arm rule in `watch-issue.sh`'s header: the review responds to this step. A PR already out of draft was ready before this step, so its review responds to your last push instead: take `since` from your last commit, `gh pr view <num> --repo <repo> --json commits --jq '.commits[-1].committedDate'`, which is no later than the push.
 2. **Record the current head SHA.** Everything else the next arm needs comes back on the watch's own `── re-arm ──` line; this is a first arm, so there is nothing yet to carry.
-3. **Spawn `watch-pr.sh`** as a **background** task (Bash `run_in_background: true`). It blocks until something happens, so its idle polling never enters the conversation, and the harness wakes you when it returns.
+3. **Spawn `watch-pr.sh`** as a **background** task (Bash `run_in_background: true`, `timeout: 7200000`), and every re-arm of it the same way. Without the timeout a headless session stops the watch after 10 minutes, and it returns no result line. It blocks until something happens, so its idle polling never enters the conversation, and the harness wakes you when it returns.
 
 ```bash
 HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
@@ -46,6 +46,8 @@ After any `alive` heartbeat lines, the script prints a summary of the activity i
 - **`result=ERROR reason=<source>`** — the watch itself is broken: that source failed repeatedly, so it cannot see. **Do not re-arm** — you would poll straight back into the same failure. Check `gh auth status` and the `<num>`/`<repo>` pair, then tell the operator. Unlike `IDLE` this means nothing about the PR; the watch never got a look at it.
 - **`result=ERROR reason=bad-args`** — the watch refused to start because an argument could not do its job. Usually a re-arm's argument: an abbreviated `<last_head>` or `--last-verdict` value (see the note below — both take a full 40-character SHA), a missing `--role`, or a trailing flag outside the accepted set. Fix it and re-spawn. **The exception is auth**: this role derives its own login from `gh api user`, and a failure there produces an empty slug, which the watch refuses. So unlike the other bad arguments, `gh auth status` is worth a look when nothing in the command line is obviously wrong.
 - **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (The reviewer role treats `IDLE` as routine, which is why the role is an argument rather than a caller convention.)
+
+  **An `IDLE` carrying `window_left=` is not this.** A run also ends at a wall-clock ceiling, which a long suspend reaches with most of the window unspent. Re-arm from its line, and neither report it nor count it.
 
   **Check whether HEAD is already approved before reporting that no review landed** — run `pr-verdict.sh` per `SKILL.md`'s "Know the repo's merge settings". If it is `APPROVED` at HEAD, the review is *in hand* and the watch simply missed it. Reporting "no review has landed" over a standing approval is a false statement about the PR, made from the watcher's blind spot rather than from the PR. If HEAD is not approved, the entry above stands.
 

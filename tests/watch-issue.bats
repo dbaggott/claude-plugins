@@ -649,3 +649,16 @@ EOF
     run "$WATCH" o/r 163 164 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
   [[ "${lines[-1]}" == "result=CLOSED issues=163 watching=164 "* ]]
 }
+
+# The issue-side half of watch-pr.bats's ceiling case: the same split, carried
+# both on the re-arm line and as a result-line field for a caller that is a script.
+@test "a window longer than the ceiling ends the run at the ceiling and re-arms the rest" {
+  repo "$(issue 163)"
+  WINDOW=21600 WINDOW_CEILING=30 INTERVAL=7 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CLOCK")" -le 30 ]
+  [[ "${lines[-1]}" == result=IDLE*" window_left=21570 now="* ]]
+  local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
+  [[ "$rearm" == "WINDOW=21600 WINDOW_LEFT=21570 \""* ]]
+}

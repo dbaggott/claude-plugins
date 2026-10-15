@@ -42,8 +42,11 @@ a fresh comment.
 
 ## Waiting for the next round
 
-Spawn the wait as a **background** task so idle polling never enters the
-conversation. Its `--since` follows the first-arm rule in `watch-issue.sh`'s header,
+Spawn the wait as a **background** task with `timeout: 7200000`, and every
+re-arm of it the same way, so idle polling never enters the conversation.
+Without the timeout a headless session stops the watch after 10 minutes, and it
+returns no result line. Its `--since` follows the first-arm rule in
+`watch-issue.sh`'s header,
 taking the response's own timestamp from GitHub
 (`gh api repos/<owner>/<repo>/issues/comments/<id> --jq .created_at`, the id
 from the URL `gh issue comment` printed):
@@ -64,7 +67,9 @@ Dispatch on the result:
 - **`ACTIVITY`** with `kinds=comment` — the next round landed. Read it.
 - **`CLOSED`** — the issue closed rather than converging. Stop.
 - **`IDLE`** — the deadline elapsed. Re-arm; after a second empty window, tell the
-  operator nothing has landed rather than waiting silently.
+  operator nothing has landed rather than waiting silently. An `IDLE` carrying
+  `window_left=` is a run cut short at the watch's wall-clock ceiling, not an
+  empty window: re-arm and don't count it.
 - **`ERROR`** — the watch could not see the issue, whatever the reason. **Do not
   re-arm**, and do not report that the reviewer has not answered: you do not know
   that. `reason=issue-query` points at auth or the issue numbers;

@@ -1411,3 +1411,82 @@ MD
   [[ "$output" == *"site.md:11: does not say"* ]]
   [[ "$output" != *"site.md:4:"* ]]
 }
+
+# A headless session stops a background command at its Bash `timeout`, 600 s
+# when none is passed, and a watch stopped that way prints no result line. So
+# every spawn site has to pass one, and lib-poll.sh's WINDOW_CEILING, the most a
+# run lasts before its settle, has to fit inside it with the settle to spare.
+#
+# spawn_timeouts <file>... prints `<file>:<line>: <ms>` per fenced block that
+# invokes a watcher, `<ms>` being the `timeout: <ms>` named in that block or in
+# the paragraph leading into it, or `none`.
+spawn_timeouts() {  # <file>...
+  awk '
+    function flushfence(    ctx, ms) {
+      if (fence ~ /watch-(pr|issue)\.sh/) {
+        ctx = lead " " fence; ms = "none"
+        if (match(ctx, /timeout: [0-9]+/)) ms = substr(ctx, RSTART + 9, RLENGTH - 9)
+        printf "%s:%d: %s\n", FILENAME, fstart, ms
+      }
+      fence = ""; lead = ""; para = ""; last = ""
+    }
+    FNR == 1 { infence = 0; lead = ""; para = ""; last = ""; fence = "" }
+    /^[[:space:]]*```/ {
+      if (infence) { infence = 0; flushfence() } else { infence = 1; fstart = FNR; lead = (para != "") ? para : last }
+      next
+    }
+    infence { fence = fence " " $0; next }
+    /^[[:space:]]*$/ { if (para != "") last = para; para = ""; next }
+    { para = para " " $0 }
+  ' "$@"
+}
+
+@test "every watch spawn site passes the same timeout, and the ceiling fits inside it" {
+  local sites ms ceiling settle
+  sites=$(spawn_timeouts $(find "$ROOT/dnbg-workflow/skills" -name '*.md' | sort))
+  echo "$sites"
+  [ -n "$sites" ] || { echo "no spawn sites found — the extractor broke"; false; }
+  [ -z "$(grep ': none$' <<<"$sites")" ] || { echo "a spawn site passes no timeout"; false; }
+  ms=$(sed 's/.*: //' <<<"$sites" | sort -u)
+  [ "$(wc -l <<<"$ms")" -eq 1 ] || { echo "spawn sites disagree on the timeout: $ms"; false; }
+
+  ceiling=$(sed -n 's/^WINDOW_CEILING=\${WINDOW_CEILING:-\([0-9]*\)}$/\1/p' "$ROOT/dnbg-workflow/scripts/lib-poll.sh")
+  settle=$(sed -n 's/^SETTLE_MAX=\${SETTLE_MAX:-\([0-9]*\)}$/\1/p' \
+    "$ROOT/dnbg-workflow/scripts/watch-pr.sh" "$ROOT/dnbg-workflow/scripts/watch-issue.sh" | sort -n | tail -1)
+  [ -n "$ceiling" ] && [ -n "$settle" ] || { echo "could not read WINDOW_CEILING or SETTLE_MAX"; false; }
+  [ $(( (ceiling + settle) * 1000 )) -lt "$ms" ] || {
+    echo "WINDOW_CEILING ${ceiling}s + SETTLE_MAX ${settle}s does not fit in timeout: $ms"; false; }
+}
+
+@test "a spawn site whose lead-in names no timeout is caught" {
+  cat > "$BATS_TEST_TMPDIR/site.md" <<'MD'
+Some other command takes `timeout: 7200000`.
+
+Spawn it in the background:
+
+```bash
+watch-pr.sh o/r 1 --role=author
+```
+
+Then, with `timeout: 7200000`:
+
+```bash
+watch-issue.sh o/r 1 --role=author --since=<when you posted>
+```
+MD
+  run spawn_timeouts "$BATS_TEST_TMPDIR/site.md"
+  [[ "$output" == *"site.md:5: none"* ]]
+  [[ "$output" == *"site.md:11: 7200000"* ]]
+}
+
+# A run also ends at lib-poll.sh's wall-clock WINDOW_CEILING, which a long suspend
+# reaches whatever the window, so any IDLE handler can see `window_left=`. A
+# handler that does not name it reads a cut-short run as an empty window, and
+# the author's and merge-stage handlers stop watching on one.
+@test "every skill file with an IDLE handler says what window_left= means" {
+  local f bad=0
+  for f in $(grep -rlE '^[[:space:]]*- \*\*`(result=)?IDLE|bare `result=IDLE`' "$ROOT/dnbg-workflow/skills"); do
+    grep -q 'window_left=' "$f" || { echo "${f#"$ROOT"/} handles IDLE but never names window_left="; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}

@@ -1354,3 +1354,29 @@ EOF
   [[ "${lines[-1]}" == result=IDLE* ]]
   [[ "${lines[-1]}" != *"merge="* ]]
 }
+
+# A headless session stops a background command at its Bash `timeout`, and a watch
+# stopped that way prints no result. So a window longer than lib-poll.sh's
+# WINDOW_CEILING is served in runs: each ends itself at the ceiling with a re-arm
+# line that carries the rest of the window, and running that line goes on with it.
+@test "a window longer than the ceiling ends the run at the ceiling and re-arms the rest" {
+  WINDOW=21600 WINDOW_CEILING=30 INTERVAL=7 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CLOCK")" -le 30 ]
+  [[ "${lines[-1]}" == "result=IDLE window_left=21570 now="* ]]
+  local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
+  [[ "$rearm" == "WINDOW=21600 WINDOW_LEFT=21570 \""* ]]
+
+  WINDOW_CEILING=30 INTERVAL=7 run eval "$rearm"
+  [[ "${lines[-1]}" == "result=IDLE window_left=21540 now="* ]]
+}
+
+@test "the run that exhausts the window reports a bare IDLE and re-arms a full one" {
+  WINDOW=21600 WINDOW_LEFT=10 WINDOW_CEILING=30 INTERVAL=1 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [ "$status" -eq 0 ]
+  [[ "${lines[-1]}" == "result=IDLE now="* ]]
+  local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
+  [[ "$rearm" == "WINDOW=21600 \""* ]]
+}

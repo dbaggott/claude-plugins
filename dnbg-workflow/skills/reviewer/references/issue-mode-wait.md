@@ -36,9 +36,11 @@ branch name, so a later follow-up PR on its own branch is invisible to it.
 during that wait**, not when the first PR lands: the wait is the one stretch of
 the cycle with nothing else in it, and the issue already names the target repo.
 
-Spawn the wait as a **background** task so the idle polling never enters the
-conversation. Its `--since` follows the first-arm rule in `watch-issue.sh`'s
-header: the `now=` of `issue-mode.md`'s `fetch-issue-set.sh` snapshot, taken before the
+Spawn the wait as a **background** task with `timeout: 7200000`, and every
+re-arm of it the same way, so the idle polling never enters the conversation.
+Without the timeout a headless session stops the watch after 10 minutes, and it
+returns no result line. Its `--since` follows the first-arm rule in
+`watch-issue.sh`'s header: the `now=` of `issue-mode.md`'s `fetch-issue-set.sh` snapshot, taken before the
 discovery pass, so a PR opened while you looked still wakes it.
 
 ```bash
@@ -124,7 +126,8 @@ the catch-all**:
   list forward), and after the second empty window tell the operator nothing has
   landed rather than waiting silently. Both sources ran, so this genuinely means no
   PR references the issue — **don't reach for "the issue number is probably wrong"
-  as the explanation**.
+  as the explanation**. An `IDLE` carrying `window_left=` is one run of a window
+  too long for a single run, not an empty window: re-arm and don't count it.
 
 **Re-arm from the `── re-arm ──` line the watch prints, never from the clock.** It
 carries `since` set to that run's own `now`, and folds in any newly-seen PR;
