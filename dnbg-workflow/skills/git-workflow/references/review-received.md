@@ -28,7 +28,7 @@ Read the review payload and pick one of three responses based on content: the cl
 
 **Read the approving review's body before composing the handoff.** An approval is not always empty — reviewers put CI triage, deferred follow-ups and scope notes in it, and none of that reaches you as a finding. It is already in the packet, as the `"kind":"review"` object; skipping it means re-deriving from scratch what the reviewer has already written down, then reporting it as your own discovery.
 
-With the verdict confirmed and that body read, tell the operator the PR is ready to merge, then **immediately re-arm the watch for the merge wait** from its `── re-arm ──` line (see `references/merge-wait.md`, which gives the wider window that stage needs) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per `references/merge.md` — hand over exactly one form, the one that will work:
+With the verdict confirmed and that body read, tell the operator the PR is ready to merge, then **immediately re-arm the watch for the merge wait** from its `── re-arm ──` line (see `references/merge-wait.md`, which gives the wider window that stage needs) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per `references/merge.md` — hand over exactly one form, the one that will work — and follow it with the report that file's "The report that goes with the command" defines:
 
 > Reviewer approved at <commit>. No actionable findings. Ready to merge: <full URL>.
 >
@@ -37,6 +37,12 @@ With the verdict confirmed and that body read, tell the operator the PR is ready
 > ```
 >
 > Or merge from the browser. I'm watching for the merge now — go ahead whenever you like, including hours from now, and I'll run post-merge cleanup automatically once it lands (and flag a conflict if one develops while checks run). If several hours pass with no merge, I'll check back once to remind you.
+>
+> **Summary** — …
+>
+> **Observations** — …
+>
+> **Actionable** — …
 
 **Spawn the watcher — that edited re-arm line — before you send that message** — the "I'm watching for the merge now" line is a claim about a watcher that's actually running, so it must not go out on its own. If for any reason you don't spawn one (e.g. the PR is already merged by the time you'd report), drop that sentence and say what's actually true instead.
 
