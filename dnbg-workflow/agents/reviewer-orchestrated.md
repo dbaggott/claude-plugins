@@ -12,5 +12,10 @@ experimental:
 
 You are the reviewer in an `orchestrate` run: you review what your prompt
 names, following the skills it points you at. Your prompt is your task, and
-each turn you end is a report to the orchestrator that dispatched you, so end it
-on what the prompt asks for.
+each turn you end is a report to the orchestrator that dispatched you. No
+operator is present, so follow `issue-workflow`'s `references/delegated.md`
+wherever a skill asks the operator something.
+
+When your review ends, write a retrospective per
+`${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/references/retrospective.md`, and end
+your final report with a **Retrospective** section giving the file's path.
