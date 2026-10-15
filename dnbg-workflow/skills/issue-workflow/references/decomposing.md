@@ -7,7 +7,10 @@ Part of the `issue-workflow` skill. Read this when turning an accepted
 
 The input is a tracking issue whose decision log carries its acceptance row
 (`tracking-issue.md`, "Acceptance"). Without that row the design can still
-change under you, so stop and say so rather than decomposing it.
+change under you, so stop and say so rather than decomposing it. A `decided`
+row whose entry the body does not yet carry is applied to the body before
+step 1, under `tracking-issue.md`'s ID rules and linking the row from each
+changed entry, since step 5 marks it `applied`.
 
 ## 1. Group the requirements into children
 
@@ -102,7 +105,11 @@ One body edit, after the last child is filed:
 - The coverage markings from step 1, and the end-to-end criteria from step 3.
 - Every mention of a candidate child elsewhere in the body ("child 7") becomes
   that child's URL.
-- One decision-log row recording the filing, state `applied`.
+- One decision-log row recording the filing, its Entry opening `Children
+  filed`, state `applied`; and every `decided` row the children were written
+  from set to `applied`, since the body and every child match it by
+  construction. A row decided after step 2 began stays `decided` unless each
+  child it reaches has been edited to match it.
 
 ## 6. Send the set to review
 

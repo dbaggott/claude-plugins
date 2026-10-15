@@ -4,7 +4,11 @@ Part of the `orchestrate` skill. Read this when a row in a tracking issue's
 decision log reaches `decided`, an answer to one child's question included, and
 on start for every `decided` row not yet `applied`. A decision that changes
 nothing beyond the asking child's body runs only steps 3 and 6. Such a row is work to finish, whoever started it, so each step below
-checks the current state rather than assuming it is first to run.
+checks the current state rather than assuming it is first to run. A row whose
+entry the parent's body and every child it reaches already carry (step 2,
+whose set serves every row of the pass) is not swept: set its state to
+`applied` and post one line on the parent, `Decision log: <date> <ID> set to
+applied, already in the body and every child`.
 
 Act on the row at once. The decision is the gate, and the edits below are part
 of applying it, not a precondition for acting on it.
@@ -59,7 +63,8 @@ re-review. Answer the rounds as the bodies' writer, relaying them to the author
 for a child in flight, per `issue-workflow`'s
 `references/spec-review-rounds.md`, except its wait: each round reaches you as
 the `issue-reviewer`'s report, which ends on its own wait for your answer, so
-read that report as a round to answer rather than as a wait. A finding that asks for a design change is
+read that report as a round to answer rather than as a wait; and except its
+marking of the row `applied`, which is step 6 here. A finding that asks for a design change is
 an escalation. A re-reviewed child is not dispatched until its latest verdict
 reads `READY`.
 
