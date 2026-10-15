@@ -346,8 +346,9 @@ while :; do
   # Level-triggered, like the verdict: a conclusion is current state, so counting
   # it as an event wakes on one red build forever, and filtering it by `since`
   # loses one that landed while no watch was running.
+  # `unique`, since two workflows can each fail a check of the same name.
   checks_now=$(printf '%s' "$J" | jq -r '
-    [ .checks[] | select(.state == "failure") | .name ] | sort | join(",")')
+    [ .checks[] | select(.state == "failure") | .name ] | unique | join(",")')
   # A conclusion belongs to the commit it ran on, so a baseline gathered on any
   # other head says nothing about this one — two builds of the same check share
   # a name and nothing else. Comparing names alone marks a check that is red on
