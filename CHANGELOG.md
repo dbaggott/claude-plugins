@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.17 — 2026-10-15
+
+Fixed the issue-creation hook blocking every `gh issue create` from a subagent
+that had loaded `issue-workflow`, which stopped `orchestrate`'s author agents
+from filing follow-up issues. The hook now checks the subagent's own skill
+loads, so a subagent is allowed once it has loaded the skill and blocked until
+then, whatever the main session loaded.
+
+
 ## dnbg-workflow 2026.10.16 — 2026-10-15
 
 Picking up an issue, reviewing one, and handling review rounds and merges no
