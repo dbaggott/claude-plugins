@@ -96,8 +96,8 @@ fi
 #
 # A subagent's call carries `agent_id`, but `transcript_path` still names the
 # main session's transcript, and the subagent's skill loads are written to its
-# own file beside it. Only that file counts, forks included: a load in the
-# parent says nothing about what the subagent has read.
+# own file beside it. Only that file counts: a dispatched subagent does not see
+# the parent's loads, and a fork, which does, pays one Skill call to load it.
 TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // empty')
 AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // empty')
 if [ -n "$AGENT_ID" ] && [ -n "$TRANSCRIPT" ]; then
