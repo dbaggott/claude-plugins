@@ -135,14 +135,15 @@ handled after. Without it, post the question on the parent per
 `issue-workflow`'s `references/delegated.md` and end the turn with it as your
 report. Only the child that asked waits; the rest of the loop keeps moving as
 reports arrive. The operator's answer is a comment on the parent: at each loop
-while the question is open, read the parent's comments newer than it, and a
-restart reads them under "On start". An answer is a `decided` row, then
+while the question is open, read the parent's comments newer than it. With no
+agent left in flight to wake you, the turn you ended is the run's end, and a
+restart reads the answer under "On start". An answer is a `decided` row, then
 `references/design-change.md`.
 
 ## Systemic problems
 
 Scan the parent's log at each loop, and each review round on a child's PR as
-it arrives. Raise a finding when:
+its reviewer's report brings it. Raise a finding when:
 
 - questions from two different children cite the same `R#` or `D#`;
 - one decision has been `applied` more than three times, or the parent's `Q5`

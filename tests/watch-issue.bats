@@ -546,6 +546,7 @@ EOF
 }
 
 @test "the retired orchestrator role is refused" {
+  # Through a variable, so a grep for the retired flag finds no live caller here.
   local retired=orchestrator
   repo "$(issue 163)"
   INTERVAL=1 WINDOW=3 \

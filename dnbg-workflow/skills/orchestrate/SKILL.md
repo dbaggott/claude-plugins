@@ -133,8 +133,7 @@ it when the operator said they will review the PR themselves.
 
 ## Wait on subagent reports
 
-Never poll in the conversation, and arm no watch of your own. Each event
-reaches you as a subagent ending its turn, and that turn's report is the event.
+Never poll in the conversation, and arm no issue watch. Each event reaches you as a subagent ending its turn, and that turn's report is the event.
 Act on what it ends with:
 
 - a question — triage it, under "Answer or escalate";
@@ -143,9 +142,9 @@ Act on what it ends with:
 - the author's merge handoff — relay it, under "Relay the merge handoff";
   its merge watch is armed;
 - the author's reminder that the PR is still open and needs merging — relay
-  it the same way. Its merge watch has stopped, so the merge reaches you only
-  when the operator says so: read the PR, and continue the author to its
-  post-merge cleanup and final report once it shows merged;
+  it the same way. Its merge watch has stopped, so read the PR again when the
+  operator says it merged and at each later report, and once it shows merged,
+  continue the author to its post-merge cleanup and final report;
 - the author's final report, or the reviewer's end — go to "Stop" once both
   are in;
 - the author's report that its PR closed unmerged — ask the operator whether

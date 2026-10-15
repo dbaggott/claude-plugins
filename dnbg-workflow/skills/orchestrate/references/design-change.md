@@ -59,7 +59,8 @@ reported the edit. A child whose latest verdict is newer than its step 3 edit ha
 re-review. Answer the rounds as the bodies' writer, relaying them to the author
 for a child in flight, per `issue-workflow`'s
 `references/spec-review-rounds.md`, except its wait: each round reaches you as
-the `issue-reviewer`'s report. A finding that asks for a design change is
+the `issue-reviewer`'s report, which ends on its own wait for your answer, so
+read that report as a round to answer rather than as a wait. A finding that asks for a design change is
 an escalation. A re-reviewed child is not dispatched until its latest verdict
 reads `READY`.
 
