@@ -61,7 +61,10 @@ INLINE=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direct
 #
 # Two rollup shapes: CheckRun carries .name/.status/.conclusion, StatusContext
 # .context/.state. A check that has not finished carries no conclusion.
-OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
+#
+# Both replies reach jq on stdin: they carry every review and comment body, and
+# one busy PR passes the per-argument cap on Linux.
+OUT=$(printf '%s\n%s\n' "$RAW" "$INLINE" | jq -cn '
   # Five states, rather than whatever vocabulary a forge uses. A CheckRun carries .status and, once
   # finished, .conclusion; a StatusContext carries .state. Handing those through
   # raw makes every caller re-derive "is this passing", and a caller that misses
@@ -86,10 +89,12 @@ OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
     if check_state == "pending" and ((.startedAt // "") | real | not) then "9999"
     else [.startedAt, .createdAt, .completedAt] | map(select(real)) | (first // "") end;
 
+  input as $pr
+  | input as $inline
   # A second workflow run on the same head leaves the checks of the first run in the
   # rollup beside its own, so only the newest run of each check speaks for the
   # head. Keyed by workflow as well, since two workflows may each have a "lint".
-  ($pr.statusCheckRollup // [])
+  | ($pr.statusCheckRollup // [])
   | group_by([(.workflowName // ""), (.name // .context // "?")])
   | map(max_by(recency) | {
       name: (.name // .context // "?"),

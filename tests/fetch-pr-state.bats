@@ -337,3 +337,26 @@ line() { tail -1 <<<"$1"; }
   [ "$(obj "$output" | jq -r '.merge.status')" = behind ]
   [ "$(obj "$output" | jq -r '.merge.cause')" = base_moved ]
 }
+
+@test "a PR whose review text passes ARG_MAX still fetches" {
+  # Six 200,000-character bodies, about 1.2 MB, over macOS's 1 MB ARG_MAX, and
+  # each one over Linux's 128 KB cap on any one argument.
+  local filler i
+  filler=$(printf '%0200000d' 0)
+  {
+    printf '{"state":"OPEN","isDraft":false,"headRefOid":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",'
+    printf '"statusCheckRollup":[],"mergeStateStatus":"CLEAN","reviewDecision":"",'
+    printf '"reviews":[{"author":{"login":"r"},"state":"COMMENTED","body":"%s"}],"comments":[' "$filler"
+    for (( i = 1; i <= 4; i++ )); do
+      printf '%s{"author":{"login":"c"},"body":"%s"}' "$( (( i > 1 )) && echo ,)" "$filler"
+    done
+    printf ']}'
+  } > "$PR_JSON"
+  printf '[{"user":{"login":"i"},"id":7,"body":"%s"}]' "$filler" > "$INLINE_JSON"
+  [ "$(( $(wc -c < "$PR_JSON") + $(wc -c < "$INLINE_JSON") ))" -gt 1048576 ]
+
+  run "$FETCH" o/r 1
+  [ "$status" -eq 0 ]
+  [[ "$(line "$output")" == "result=OK "* ]]
+  [ "$(obj "$output" | jq '[.reviews[], .comments[], .inline[] | .body | length] | add')" -eq 1200000 ]
+}
