@@ -56,7 +56,9 @@ most sensitive thing either hook touches and so the one most worth stating
 outright. It happens only *after* a command has already matched `gh issue
 create` against a covered repo: the hook takes `transcript_path` from the
 payload and greps that file for a single pattern, to find out whether the
-`issue-workflow` skill was loaded this session (a single `grep -qE` for the
+`issue-workflow` skill was loaded this session. When a subagent runs the command,
+the hook reads that subagent's own transcript instead, which it locates from
+the payload's `agent_id` (still a single `grep -qE` for the
 skill's name, and nothing else reads the file). What it learns is one yes/no. The transcript
 is not parsed further, and nothing from it is kept, written, or sent.
 
