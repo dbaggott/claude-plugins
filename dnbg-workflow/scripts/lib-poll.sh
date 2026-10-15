@@ -301,8 +301,9 @@ _poll_parse_curve() {
   _poll_t=("${ts[@]}"); _poll_i=("${is[@]}")
 }
 _poll_parse_curve
-case $HEARTBEAT in ''|*[!0-9]*) _poll_die "HEARTBEAT '$HEARTBEAT' is not a non-negative integer" ;; esac
-[ "$HEARTBEAT" -ge 1 ] || _poll_die "HEARTBEAT must be at least 1s (got $HEARTBEAT)"
+# A leading zero is refused too: arithmetic reads `08` as bad octal and kills the
+# watch mid-nap rather than here.
+case $HEARTBEAT in ''|0*|*[!0-9]*) _poll_die "HEARTBEAT must be a whole number of seconds, at least 1 (got '$HEARTBEAT')" ;; esac
 
 # The curve as a pure function: interval for a given quiet-time, in seconds.
 # Public because it is the whole shape of the thing and deserves a test that
@@ -349,14 +350,16 @@ poll_timed_out() { [ "$(poll_awake)" -ge "$WINDOW" ]; }
 
 poll_now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
-# Prints a heartbeat if one is due. A failed write is swallowed: the line is
+# Prints a heartbeat if one is due. A write error is swallowed: the line is
 # evidence about the watch, and losing one is cheaper than ending the watch
 # under `set -e`.
 _poll_heartbeat() {
   local a
   a=$(poll_awake)
   [ $(( a - _poll_beat )) -ge "$HEARTBEAT" ] || return 0
-  _poll_beat=$a
+  # Snapped to the boundary it was due on, so a wake that runs a second late
+  # does not push every later beat back with it.
+  _poll_beat=$(( a - (a - _poll_beat) % HEARTBEAT ))
   printf 'alive at=%s awake=%ss\n' "$(poll_now_iso)" "$a" 2>/dev/null || true
 }
 

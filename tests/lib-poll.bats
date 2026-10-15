@@ -626,8 +626,23 @@ EOF
   [ "$output" = "awake=60" ]
 }
 
-@test "a zero HEARTBEAT is refused rather than spinning" {
-  run bash -c "export HEARTBEAT=0; . '$LIB'"
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"at least 1s"* ]]
+@test "a HEARTBEAT that is zero, padded or not a number is refused at source time" {
+  local v
+  for v in 0 08 abc; do
+    run bash -c "export HEARTBEAT='$v'; . '$LIB'"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"HEARTBEAT must be"* ]]
+  done
+}
+
+# A late wake shifts the line it lands on, not the grid: the next beat is still
+# due on the next boundary.
+@test "a late wake does not drift the heartbeat cadence" {
+  setup_clock
+  run bash -c "export WATCH_LOG=off HEARTBEAT=60 POLL_CURVE='0:300'; . '$LIB'
+    poll_init; sleep 61; poll_nap"
+  [ "$status" -eq 0 ]
+  local awake
+  awake=$(sed -n 's/^alive at=[0-9T:Z-]* awake=\([0-9]*\)s$/\1/p' <<<"$output" | paste -sd' ' -)
+  [ "$awake" = "61 120 180 240 300 360" ]
 }
