@@ -14,8 +14,8 @@ the merge.
 **You own coordination state, never artifact state.** Coordination is claims,
 dispatch and ordering, questions and answers, the decision log, retrospectives,
 and the safety nets for an agent that died or stalled. Artifacts are the PR and
-whether it can merge, CI, the branch, the issue body while an author is
-resolving it, and the review verdict. Every judgment about an artifact is the
+whether it can merge, CI, the branch, the body of the issue being resolved,
+and the review verdict. Every judgment about an artifact is the
 author's or the reviewer's: relay it and record it. Read an artifact's state
 only to decide whom to dispatch, wake, or ask, never to form a view of it that
 competes with its owner's.
@@ -96,7 +96,8 @@ already the author's: a subagent shares your session id, so its pickup reads
 > reviewer feedback; never merge. You were dispatched by an orchestrator, so
 > follow `issue-workflow`'s `references/delegated.md` wherever a skill asks
 > the operator something. The issue is already claimed under your session id.
-> [Continue `<PR URL>`, which is already open for it.] When you send the PR to
+> [Continue `<PR URL>`, which is already open for it.] [Promote these decided
+> rows into the issue body, linking each: `<row URLs>`.] When you send the PR to
 > review, end your turn with its URL. When the review is clean, re-arm your
 > merge watch and end your turn with your merge handoff. If the PR closes
 > unmerged, end your turn saying so. When it merges, finish
@@ -104,7 +105,8 @@ already the author's: a subagent shares your session id, so its pickup reads
 > `<skill-dir>/references/retrospective.md`, and report under Summary,
 > Observations, Actionable, and Retrospective, the last giving the file's path.
 
-The bracketed line goes in only when step 3 found an open PR. In both recipes,
+The first bracketed line goes in only when step 3 found an open PR, the second
+only for `decided` rows the body does not yet carry. In both recipes,
 `<skill-dir>` is written out as the absolute path, since the agent has not
 loaded this skill.
 
@@ -201,8 +203,8 @@ Every answer, every escalation outcome, and every application of a decision
 already in the log to a new case is a row. Applying a prior decision without a
 row is the failure the log exists to prevent.
 
-A `decided` row is promoted into the issue body per `references/triage.md`,
-which says whether you or the author writes it.
+A `decided` row is promoted into the issue body by the author, per
+`references/triage.md`.
 
 ## Relay the merge handoff
 

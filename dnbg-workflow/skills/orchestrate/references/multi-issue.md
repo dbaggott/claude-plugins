@@ -121,9 +121,9 @@ Every `decided` row, an answer to one child's question included, is finished
 through `references/design-change.md`, whose last step marks it `applied`. A
 row left at `decided` reads as unfinished work on every later loop and restart.
 
-You are the parent body's only writer, and a child's until its author is
-dispatched; from then the child's body is the author's, per `SKILL.md`. Edit a
-body by reading it, changing it, and writing it back with
+You are the parent body's only writer. A child's body is its author's, per
+`SKILL.md`; you edit one only in a design change's sweep of a child not yet
+dispatched (`references/design-change.md`). Edit a body by reading it, changing it, and writing it back with
 `gh issue edit <n> --body-file <file>`, and re-read it just before each write.
 
 **An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
