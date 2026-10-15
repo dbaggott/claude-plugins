@@ -48,8 +48,8 @@ run with it as your report.
 
 Nothing from an earlier orchestrator is in your memory, so a restart and a first
 start are the same path. A predecessor's work reaches you through GitHub, and
-on the same machine through its worktree; an unpushed branch is the one state a
-restart cannot recover.
+its worktree on this machine through its PR's branch; an unpushed branch is the
+one state a restart cannot recover.
 
 1. **Sub-issues.** `fetch-issue-set.sh <owner>/<repo> <n>`. A non-empty
    `children` makes this a tracking issue: continue in
@@ -83,9 +83,10 @@ restart cannot recover.
    `issue-workflow`'s `references/claiming.md` describes.
 
    A predecessor on this machine may also have left its worktree, and `git
-   worktree add` for the same branch fails on it. Run `git worktree list`: a
-   worktree on the PR's branch, or, with no PR, on a branch naming the issue
-   number, goes into the dispatch prompt so the fresh author continues in it.
+   worktree add` for the same branch fails on it. In the local clone of the
+   issue's repository, the one the author works in, run `git worktree list`: a
+   worktree on the PR's branch goes into the dispatch prompt so the fresh
+   author continues in it.
 4. **The log.** Read every comment on the issue. What is still open: a
    `Delegated question:` that no row's **Question** line links, a `proposed`
    row with no later row of the same ID, and an operator comment newer than the
@@ -117,9 +118,9 @@ already the author's: a subagent shares your session id, so its pickup reads
 > Resolve `<issue URL>`, send it to review when you're done, and auto-handle any
 > reviewer feedback. The issue is already claimed under your session id.
 > [Continue `<PR URL>`, which is already open for it, on its branch
-> `<branch>`.] [A predecessor left its worktree at `<path>`, on branch
-> `<branch>`; continue there.] [Promote these decided rows into the issue body,
-> linking each: `<row URLs>`.]
+> `<branch>`.] [Its worktree from a predecessor is at `<path>`; continue
+> there.] [Promote these decided rows into the issue body, linking each:
+> `<row URLs>`.]
 
 The first bracketed line goes in only when step 3 found an open `closes` or
 `sibling` PR, or the operator handed one over, the second only when step 3
@@ -207,8 +208,8 @@ handoff: continue the author and ask for one.
 
 Every wake re-sends this session's whole context, so after 40 wakes, or at the
 first context compaction, hand over to a fresh session. Wait until every author
-in flight has its PR out of draft or is waiting on the operator, so a fresh
-author can continue the pushed work. Then check every decision is on the issue,
+in flight has a PR open or is waiting on the operator, so a fresh author can
+continue the pushed work. Then check every decision is on the issue,
 and in the parent under a tracking issue, stop your subagents, and
 tell the operator that you are restarting and why: they start a fresh session on
 the same URL, which resumes from GitHub and re-claims under "On start".

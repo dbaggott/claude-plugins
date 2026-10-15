@@ -1506,3 +1506,20 @@ MD
     | grep -v "$rule" || true)
   [ -z "$others" ] || { echo "a pkill outside the rule:"; echo "$others"; false; }
 }
+
+# An orchestrated author's unpushed work is the one state a restarted
+# orchestrator cannot see, so the author pushes before its self-review and the
+# orchestrator's dispatch names the pushed branch and any worktree left on it.
+@test "the orchestrated author pushes before its self-review, and orchestrate continues that branch" {
+  local author="$ROOT/dnbg-workflow/agents/author-orchestrated.md"
+  local orch="$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md" prompt
+  grep -q 'open the draft PR as soon as the first commit exists' "$author" || {
+    echo "author-orchestrated.md no longer opens the draft PR at the first commit"; false; }
+  grep -q 'before the self-review' "$author" || {
+    echo "author-orchestrated.md no longer puts the push before the self-review"; false; }
+  grep -q 'headRefName' "$orch" || {
+    echo "orchestrate step 3 no longer reads the PR's branch"; false; }
+  prompt=$(sed -n '/^> Resolve `<issue URL>`/,/^$/p' "$orch")
+  grep -q 'on its branch' <<<"$prompt" && grep -q '`<path>`' <<<"$prompt" || {
+    echo "orchestrate's dispatch prompt no longer names the PR's branch and the predecessor's worktree"; false; }
+}
