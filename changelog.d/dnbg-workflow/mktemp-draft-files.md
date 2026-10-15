@@ -3,4 +3,4 @@ descriptions. They share one scratchpad directory, so two agents drafting a
 body at the same chosen name, such as `pr-body.md`, could publish one PR's
 description onto another. Every skill that writes a PR description, issue body,
 comment or review through a file now has it created with `mktemp`, and a test
-fails on any site that names a fixed file instead.
+checks the skills' body-file commands for it.
