@@ -30,8 +30,8 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
    an issue, then run `issue-workflow`'s critical review on it: the parent is
    yours, not an author's, and a design you believe is wrong is an escalation
    before any dispatch.
-5. **Run the loop.** With every child already closed, the loop goes straight to the closeout, whose step 1 continues a
-   predecessor's closeout PR. A parent already closed by that PR's merge has
+5. **Run the loop.** With every child already closed, the loop goes straight
+   to the closeout, whose step 1 continues a predecessor's closeout PR. A parent already closed by that PR's merge has
    only "Stop" left.
 
 ## The loop
