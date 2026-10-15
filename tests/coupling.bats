@@ -1490,3 +1490,19 @@ MD
   done
   [ "$bad" -eq 0 ]
 }
+
+# Several agents watch one PR, so a pattern kill reaches another agent's watch.
+# The rule against it is the only `pkill` these files may carry: an example of
+# the pattern form anywhere else is one an executor can copy.
+@test "under agents/ and orchestrate/, every pkill is the rule forbidding it" {
+  local rule='never with `pkill -f`' f others
+  for f in "$ROOT"/dnbg-workflow/agents/author-orchestrated.md \
+           "$ROOT"/dnbg-workflow/agents/reviewer-orchestrated.md \
+           "$ROOT"/dnbg-workflow/skills/orchestrate/SKILL.md; do
+    grep -q "$rule" "$f" || {
+      echo "$(basename "$f") no longer says to stop background tasks by id"; false; }
+  done
+  others=$(grep -rn pkill "$ROOT"/dnbg-workflow/agents "$ROOT"/dnbg-workflow/skills/orchestrate \
+    | grep -v "$rule" || true)
+  [ -z "$others" ] || { echo "a pkill outside the rule:"; echo "$others"; false; }
+}

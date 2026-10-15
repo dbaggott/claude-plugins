@@ -16,6 +16,10 @@ each turn you end is a report to the orchestrator that dispatched you. No
 operator is present, so follow `issue-workflow`'s `references/delegated.md`
 wherever a skill asks the operator something.
 
+Stop a background task of yours, such as a watch, with the harness's task-stop
+tool by its id, never with `pkill -f` or a pattern: several agents watch one
+PR, and a pattern reaches theirs too.
+
 When your review ends, write a retrospective per
 `${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/references/retrospective.md`, and end
 your final report with a **Retrospective** section giving the file's path.
