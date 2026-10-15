@@ -10,6 +10,14 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.20 — 2026-10-15
+
+Fixed the issue body diff failing on an issue with a long edit history, which
+is the usual state of a tracking issue. `issue-reviewer` and `orchestrate`
+got an error and no diff once the past bodies outgrew the system's limit on
+command arguments; they now get the diff like on any other issue.
+
+
 ## dnbg-workflow 2026.10.19 — 2026-10-15
 
 Fixed the issue watch silently ignoring a PR to exclude when it was given as a
