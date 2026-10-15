@@ -61,25 +61,9 @@ names a cause and has a remedy, so it is re-armed rather than stopped —
 `merge=behind` wants an "Update branch" click, and `merge=unrecognised:<value>`
 means the schema moved and wants the enum capture re-run.
 
-Any time the operator says something about the merge — kicking it off
-("merging", "auto-merge is on", "go ahead") **or asserting it is done**
-("merged", "it is merged", "done") — **verify state with `gh pr view` before
-acting on the words**. Operators use "merged" for both "the button was clicked,
-auto-merge is queued" and "GitHub shows merged"; same phrasing, different states.
-
-```bash
-gh pr view <num> --repo <repo> --json state,autoMergeRequest
-```
-
-- **`state=MERGED`** — run the post-merge cleanup in `references/post-merge.md`. If a watch is still in
-  flight it will report `CLOSED state=MERGED` shortly; ignore the duplicate
-  rather than cleaning up twice.
-- **`state=CLOSED`** without a merge — acknowledge, stop, leave the worktree in
-  case they reopen.
-- **`state=OPEN`, `autoMergeRequest` non-null** — auto-merge is scheduled and a
-  running watch will catch it.
-- **`state=OPEN`, nothing scheduled** — either they were being forward-looking or
-  it has not merged. Say so; don't start a second watch.
+When the operator says anything about the merge — kicking it off or asserting it
+is done — verify the state before acting on the words, per
+`references/post-merge.md`.
 
 ### On `result=BLOCKED cause=terminal`
 

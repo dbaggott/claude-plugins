@@ -1,4 +1,4 @@
-# Git workflow: merge and cleanup
+# Git workflow: composing the merge command
 
 Part of the `git-workflow` skill. Read this once a review is clean and you are
 composing the merge handoff; `references/review-received.md` routes here.

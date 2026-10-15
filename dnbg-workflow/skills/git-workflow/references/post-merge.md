@@ -6,7 +6,27 @@ handled a review round.
 
 ## After a merge
 
-When told a PR has been merged (or when the merge watch in `references/merge-wait.md` reports `CLOSED state=MERGED`), clean up **before starting any new work**, in this order:
+Any time the operator says something about the merge — kicking it off
+("merging", "auto-merge is on", "go ahead") **or asserting it is done**
+("merged", "it is merged", "done") — **verify state with `gh pr view` before
+acting on the words**. Operators use "merged" for both "the button was clicked,
+auto-merge is queued" and "GitHub shows merged"; same phrasing, different states.
+
+```bash
+gh pr view <num> --repo <repo> --json state,autoMergeRequest
+```
+
+- **`state=MERGED`** — run the cleanup below. If a watch is still in
+  flight it will report `CLOSED state=MERGED` shortly; ignore the duplicate
+  rather than cleaning up twice.
+- **`state=CLOSED`** without a merge — acknowledge, stop, leave the worktree in
+  case they reopen.
+- **`state=OPEN`, `autoMergeRequest` non-null** — auto-merge is scheduled and a
+  running watch will catch it.
+- **`state=OPEN`, nothing scheduled** — either they were being forward-looking or
+  it has not merged. Say so; don't start a second watch.
+
+Once `state=MERGED` is confirmed (or the merge watch in `references/merge-wait.md` reports `CLOSED state=MERGED`), clean up **before starting any new work**, in this order:
 
 1. Remove the worktree: `git worktree remove .worktrees/<branch-name>`
 2. `git switch <default-branch> && git pull --ff-only --prune` — make sure the primary checkout is on the default branch (a no-op given the rule at the top of this skill, but cheap defense in depth against the pull silently fast-forwarding the wrong branch), then fast-forward with the merge commit. `--prune` also clears the remote-tracking branch, if the repo already deleted it on merge.
