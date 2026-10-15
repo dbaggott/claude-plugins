@@ -46,8 +46,8 @@
 # healthy watch mid-wait looks exactly like that of a killed one. `poll_nap`
 # therefore prints `alive at=<iso> awake=<n>s` every HEARTBEAT awake seconds,
 # and those lines are the only stdout before the result. The beat is on its
-# own clock, not once per tick, because the curve backs off to 300s exactly
-# where a long wait most needs evidence of life.
+# own clock, not once per tick, because the curve backs off to its slowest
+# exactly where a long wait most needs evidence of life.
 #
 # It is printed by the poll loop itself, never by a background helper: a helper
 # would outlive a killed watch and keep reporting it alive.
@@ -301,9 +301,8 @@ _poll_parse_curve() {
   _poll_t=("${ts[@]}"); _poll_i=("${is[@]}")
 }
 _poll_parse_curve
-# At least 1 for the same reason as a curve interval: 0 makes every nap a spin.
 case $HEARTBEAT in ''|*[!0-9]*) _poll_die "HEARTBEAT '$HEARTBEAT' is not a non-negative integer" ;; esac
-[ "$HEARTBEAT" -ge 1 ] || _poll_die "HEARTBEAT must be at least 1s (got $HEARTBEAT) — 0 spins"
+[ "$HEARTBEAT" -ge 1 ] || _poll_die "HEARTBEAT must be at least 1s (got $HEARTBEAT)"
 
 # The curve as a pure function: interval for a given quiet-time, in seconds.
 # Public because it is the whole shape of the thing and deserves a test that
@@ -390,6 +389,9 @@ poll_nap() {
   left=$iv
   while [ "$left" -gt 0 ]; do
     piece=$(( HEARTBEAT - ($(poll_awake) - _poll_beat) ))
+    # The clock can pass a boundary between the beat check and this read; a
+    # piece below 1 would make `sleep` fail and `left` grow.
+    [ "$piece" -ge 1 ] || piece=1
     [ "$piece" -le "$left" ] || piece=$left
     before=$(date +%s)
     sleep "$piece" &
