@@ -36,10 +36,8 @@ competing values, and anything that contradicts the design. So does a discovery
 the issue's author could not have known about, because answering it is a new
 decision rather than a lookup.
 
-A departure the author reports as already built, in a comment, its report or
-the PR description, goes through this same list as if it had asked before
-building. Being built makes nothing answerable, and one that contradicts the
-design escalates like any other.
+A departure the author reports as already built goes through this same list as
+if it had asked first: being built makes nothing answerable.
 
 When the issue is a child of a tracking issue whose decisions state an
 escalation allowlist of their own, that decision is the authority instead, and

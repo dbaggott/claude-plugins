@@ -38,8 +38,7 @@ the report says so.
 
 A substantive design change found mid-implementation (`references/resolving.md`,
 "Surface design changes that emerge mid-implementation", says what counts) is one
-of these questions, asked before the change is built. Reporting it built, in a
-comment or the PR description, is choosing silently.
+of these questions, asked before the change is built.
 
 The comment begins with exactly `Delegated question:`. That is how the
 dispatcher tells your question from other comments under the same login, so put

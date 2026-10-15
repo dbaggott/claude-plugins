@@ -175,7 +175,6 @@ grade_asked() {
   if ! text=$(report "$dir"); then
     echo "FAIL unreadable claude output (see $dir/output.json)"; return
   fi
-  # shellcheck disable=SC2016  # `$plant`, `$r` and `$t` are jq variables.
   if ! jq -en --arg r "$text" --argjson plant "$PLANT" '$plant | all(. as $t | $r | contains($t))' > /dev/null; then
     echo "FAIL the question reached the issue but not the report"; return
   fi

@@ -157,12 +157,11 @@ A question reaches you as the asking agent's report, which links its
 `Delegated question:` comment. That comment's URL is the question's key in the
 log. Send the answer to the agent that asked.
 
-A departure from the design that an author reports as made rather than asks, in
-its report, a comment on the issue, or the PR description, is a question it
-skipped. Triage it the same way, with the comment or the PR as the row's
-**Question**, and continue the author with the answer before the reviewer is
-dispatched; an answer other than the change as built sends the author back to
-rework it first.
+A departure from the design that an author reports as made rather than asks is
+a question it skipped. Triage it the same way, with the comment or the PR that
+reports it as the row's **Question**, and continue the author with the answer
+before the reviewer is dispatched; an answer other than the change as built
+sends the author back to rework it first.
 
 Triage it against the design (step 5) under the allowlist in
 `references/triage.md`, which also gives the log row's exact shape:
