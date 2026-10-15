@@ -1027,6 +1027,20 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
     false; }
 }
 
+# The harness's code-review tool can return after the turn that started it, so
+# step 7's wait is what holds the PR until those findings land.
+@test "git-workflow's self-review step waits for the code-review result and names the data-only floor" {
+  local step
+  step=$(awk '/^7\. /{inside=1} /^8\. /{inside=0} inside' \
+    "$ROOT/dnbg-workflow/skills/git-workflow/SKILL.md")
+  [ -n "$step" ] || { echo "git-workflow/SKILL.md has no step 7"; false; }
+
+  grep -q 'wait for that result before step 8' <<<"$step" || {
+    echo "step 7 no longer says to wait for the code-review tool's result"; false; }
+  grep -q 'generated or data files' <<<"$step" || {
+    echo "step 7 no longer names the data-only floor"; false; }
+}
+
 @test "issue-workflow SKILL.md still points at each of its paths" {
   local skill="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" f
   for f in creating claiming resolving spec-review-rounds; do
