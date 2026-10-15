@@ -10,6 +10,21 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.29 — 2026-10-15
+
+A PR or issue watch now prints an `alive` line about once a minute while it
+waits, so its background task output shows whether it is still running. Before,
+a healthy watch and a dead one both left an empty output until the result line.
+The result line and how to read it are unchanged.
+
+
+## dnbg-workflow 2026.10.28 — 2026-10-15
+
+`orchestrate`'s author and reviewer agents now carry the instructions every orchestrated dispatch shares — delegated mode, writing a retrospective when their part ends, and for the author never merging and what each turn ends on — so the dispatch prompts carry only what varies per dispatch. A review you run yourself with `reviewer` or `issue-reviewer` is unchanged.
+
+The `issue-reviewer` that `orchestrate` dispatches to re-review issue bodies after a design change now writes a retrospective too, filed under the parent issue.
+
+
 ## dnbg-workflow 2026.10.27 — 2026-10-15
 
 Claude Code's agent panel now shows which of `orchestrate`'s agents is the author

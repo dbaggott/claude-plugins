@@ -23,7 +23,9 @@ root wins, and `<owner>/<repo>/` goes under it the same way.
 
 Name the file `<YYYY-MM-DD>T<HHMMSS>Z-<n>-<role>.md`, in UTC, where `<n>` is the
 issue number and `<role>` is `author`, `reviewer` or `orchestrator`. The time
-keeps a second dispatch of the same role from overwriting the first.
+keeps a second dispatch of the same role from overwriting the first. A reviewer
+of a set of issues takes their parent as its issue, here and in the file's
+`issue:`.
 
 ## The prompt
 
@@ -87,13 +89,13 @@ date: <YYYY-MM-DD>
 
 ## Asking the agents for one
 
-Both dispatch recipes in `SKILL.md` carry the request, so it costs no extra
-turn. When a final report
+Each agent's own instructions carry the request, so it costs no extra turn.
+When a final report
 arrives without that section, or the path it gives does not exist, continue that
 agent once with `SendMessage`:
 
-> Write your retrospective now, per `<skill-dir>/references/retrospective.md`,
-> and reply with the file's path.
+> Write your retrospective now, per your instructions, and reply with the
+> file's path.
 
 That continuation is the fallback rather than the plan, because it replays the
 agent's whole transcript for one more turn, and a late one finds the cache cold.

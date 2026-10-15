@@ -41,15 +41,17 @@ sha40() { printf '%040d' "$1"; }
 # Other `date` formats (the ISO stamp in a result line, the trace's timestamps) pass
 # through to the real binary, since nothing here asserts on them.
 setup_clock() {
-  export CLOCK="$BATS_TEST_TMPDIR/clock"; echo 0 > "$CLOCK"
-  cat > "$STUB/date" <<'EOF'
-#!/usr/bin/env bash
-off=$(cat "$CLOCK" 2>/dev/null || echo 0)
-if [ "$1" = "+%s" ]; then echo $(( 1700000000 + off )); else exec /bin/date "$@"; fi
+  export CLOCK="$BATS_TEST_TMPDIR/clock" CLOCK_BASE=1700000000; echo 0 > "$CLOCK"
+  # Stubs here name "$BASH" as their interpreter rather than `env bash`, and the
+  # per-tick ones read their state with `read` rather than `cat`: on CI's runner
+  # every process a tick spawns is a cost the whole suite pays.
+  { echo "#!$BASH"; cat; } > "$STUB/date" <<'EOF'
+off=0; [ -f "$CLOCK" ] && read -r off < "$CLOCK"
+if [ "$1" = "+%s" ]; then echo $(( CLOCK_BASE + off )); else exec /bin/date "$@"; fi
 EOF
-  cat > "$STUB/sleep" <<'EOF'
-#!/usr/bin/env bash
-echo $(( $(cat "$CLOCK") + ${1:-0} )) > "$CLOCK"
+  { echo "#!$BASH"; cat; } > "$STUB/sleep" <<'EOF'
+read -r now < "$CLOCK"
+echo $(( now + ${1:-0} )) > "$CLOCK"
 EOF
   chmod +x "$STUB/date" "$STUB/sleep"
 }
@@ -60,16 +62,16 @@ setup() {
   CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
   setup_clock
   # MODE_* files control the stub: presence means "this source fails".
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
-echo "$(date +%s) $*" >> "$CALLS"
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
+or_default() { local v=$2; [ -f "$1" ] && IFS= read -r -d '' v < "$1"; printf '%s' "$v"; }
+read -r off < "$CLOCK"; echo "$(( CLOCK_BASE + off )) $*" >> "$CALLS"
 # One poll is one `pr view`, so that is what counts as a tick — and the
 # stub is the only thing in the test that sees one. Anything a test wants to happen
 # "later in the watch" is scheduled by tick count rather than by backgrounding a
 # `sleep`: with the clock stubbed there is no real time for a background job to wait
 # in, and its `sleep` would corrupt the shared clock file besides.
 if [ "$2" = view ]; then
-  t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+  t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"; t=$((t + 1)); echo "$t" > "$TICKS"
   if [ -n "${AT_TICK:-}" ] && [ "$t" -ge "$AT_TICK" ]; then
     printf '%s' "${AT_TICK_VALUE:-}" > "$AT_TICK_FILE"
   fi
@@ -77,14 +79,14 @@ fi
 case "$1 $2" in
   "pr view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
-    n=$(cat "$HEADCOUNT" 2>/dev/null || echo 0)
+    n=0; [ -f "$HEADCOUNT" ] && read -r n < "$HEADCOUNT"
     printf '{"state":"%s","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":[],"statusCheckRollup":%s,"mergeStateStatus":"%s","reviewDecision":"%s"}' \
-      "$(cat "$PRSTATE" 2>/dev/null || echo OPEN)" \
-      "$(cat "$DRAFT_FILE" 2>/dev/null || echo false)" "$n" \
-      "$(cat "$REVIEWS" 2>/dev/null || echo '[]')" \
-      "$(cat "$ROLLUP" 2>/dev/null || echo '[]')" \
-      "$(cat "$MERGESTATE" 2>/dev/null || echo CLEAN)" \
-      "$(cat "$REVIEWDECISION" 2>/dev/null || echo '')" ;;
+      "$(or_default "$PRSTATE" OPEN)" \
+      "$(or_default "$DRAFT_FILE" false)" "$n" \
+      "$(or_default "$REVIEWS" '[]')" \
+      "$(or_default "$ROLLUP" '[]')" \
+      "$(or_default "$MERGESTATE" CLEAN)" \
+      "$(or_default "$REVIEWDECISION" '')" ;;
   "api "*|"api")
     # Inline comments: the one endpoint the PR fetch reaches beyond `pr view`, so
     # failing it alone is how a source going blind underneath a healthy primary
@@ -106,8 +108,8 @@ EOF
   export REVIEWS="$BATS_TEST_TMPDIR/reviews"
   # NOT `DRAFT`: watch-pr.sh assigns its own `DRAFT` from the payload, and an
   # assignment to an already-exported name keeps the export — so the stub, a
-  # grandchild of the watch, would receive `DRAFT=true` in place of this path,
-  # `cat` it, fail, and report every tick after the first as not-a-draft.
+  # grandchild of the watch, would receive `DRAFT=true` in place of this path, find
+  # no such file, and report every tick after the first as not-a-draft.
   export DRAFT_FILE="$BATS_TEST_TMPDIR/draft"
   export TICKS="$BATS_TEST_TMPDIR/ticks"
 }
@@ -136,9 +138,8 @@ reviews() {  # <state> <commit-sha> <login>
 
 # (b) the counter must reset on success, or a flaky link trips a false ERROR.
 @test "intermittent failures do not trip ERROR" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
-n=$(( $(cat "$CALLS.n" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$CALLS.n"
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
+n=0; [ -f "$CALLS.n" ] && read -r n < "$CALLS.n"; n=$((n + 1)); echo "$n" > "$CALLS.n"
 case "$1 $2" in
   "pr view") [ "$n" -le 2 ] && exit 1
              echo '{"state":"OPEN","isDraft":false,"headRefOid":"0000000000000000000000000000000000000000","reviews":[],"comments":[]}' ;;
@@ -149,6 +150,15 @@ EOF
   INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=3 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [[ "$output" != *"result=ERROR"* ]]
   [[ "$output" == *"result=IDLE"* ]]
+}
+
+# Every watcher inherits the heartbeat from the library; this pins that the PR
+# watch's own stdout carries it ahead of the result, unparsed by anything.
+@test "a wait longer than one heartbeat prints a liveness line before the result" {
+  HEARTBEAT=2 INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "alive at="* ]]
+  [[ "${lines[-1]}" == result=IDLE* ]]
 }
 
 # (c) the insidious one: the primary poll stays healthy, so the watch looks fine
@@ -202,8 +212,7 @@ EOF
 # would drop real activity the caller can never recover, because it re-arms with
 # `since` set to now.
 @test "a burst in hand outranks ERROR" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
   "pr view") echo '{"state":"OPEN","isDraft":false,"headRefOid":"0000000000000000000000000000000000000009","reviews":[],"comments":[]}' ;;
   *) exit 1 ;;   # comments query always fails
@@ -223,8 +232,7 @@ EOF
 # iteration, so a shape failure sharing it can never exceed 1. That is why the
 # threshold matters more than the assertion here.
 @test "a persistent payload-shape break reports ERROR, not IDLE" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
   "pr view") echo 'not json at all' ;;
   *) echo '[]' ;;
@@ -241,8 +249,7 @@ EOF
   # Unguarded, the payload parse dies under `set -e`: exit 5, no result= at all.
   # The reviewer skill handles a missing line, but a watch that vanishes is the
   # blindness this whole change removes, wearing a louder costume.
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
   "pr view") echo 'not json at all' ;;
   *) echo '[]' ;;
@@ -268,8 +275,7 @@ EOF
 # without asking for newest-first the watch sees only history, never registers the
 # reply, and idles out looking healthy.
 @test "a reply behind a page of older comments still registers" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
   "pr view") echo '{"state":"OPEN","isDraft":false,"headRefOid":"0000000000000000000000000000000000000000","reviews":[],"comments":[]}' ;;
   "api "*|"api")
@@ -293,8 +299,7 @@ EOF
 # `// empty` alone passed it, leaving STATE="" to match neither MERGED nor CLOSED, so
 # the watch ran its whole window against an error and reported IDLE on a closed PR.
 @test "a payload missing state is a shape error, not a quiet wait" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
   "pr view") echo '{"message":"Not Found"}' ;;
   *) echo '[]' ;;
@@ -589,11 +594,10 @@ EOF
 # ever reported here — the caller re-arms with since_iso set to now, so a payload
 # it did not carry is filtered out for good.
 @test "a push that lands with replies carries the replies" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
   "pr view")
-    n=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$TICKS"
+    n=0; [ -f "$TICKS" ] && read -r n < "$TICKS"; n=$((n + 1)); echo "$n" > "$TICKS"
     h=0; [ "$n" -ge 2 ] && h=1
     printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[]}' "$h" ;;
   "api "*|"api")
@@ -1125,18 +1129,17 @@ EOF
 # it means a burst whose activity WAS inline comments reports `activity=1` over
 # an empty summary.
 @test "a degraded inline fetch does not blank the activity summary" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
-echo "$(date +%s) $*" >> "$CALLS"
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
+read -r off < "$CLOCK"; echo "$(( CLOCK_BASE + off )) $*" >> "$CALLS"
 if [ "$2" = view ]; then
-  t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+  t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"; t=$((t + 1)); echo "$t" > "$TICKS"
 fi
 case "$1 $2" in
   "pr view")
     printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[],"statusCheckRollup":[],"mergeStateStatus":"CLEAN","reviewDecision":""}' 0 ;;
   "api "*|"api")
     # Answers on tick 1, then goes blind — the degraded case.
-    t=$(cat "$TICKS" 2>/dev/null || echo 0)
+    t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"
     [ "$t" -ge 2 ] && exit 1
     echo '[{"user":{"login":"someone"},"created_at":"2026-06-01T00:00:00Z","id":7,"path":"a.sh","line":3,"body":"x"}]' ;;
   *) exit 1 ;;

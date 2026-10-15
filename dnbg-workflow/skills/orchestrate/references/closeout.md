@@ -113,12 +113,7 @@ out of draft, dispatch `reviewer` on the parent as
 `dnbg-workflow:reviewer-orchestrated`, in the background:
 
 > Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
-> tracking issue, so grade the whole project on its closeout PR. You were
-> dispatched by an orchestrator, so follow `issue-workflow`'s
-> `references/delegated.md` wherever a skill asks the operator something. When
-> your review ends, write a retrospective per
-> `<skill-dir>/references/retrospective.md`, and end your final report with a
-> **Retrospective** section giving the file's path.
+> tracking issue, so grade the whole project on its closeout PR.
 
 Its review arrives on the PR, so handle every round as an author does, per
 `git-workflow`'s `references/review-received.md` and
