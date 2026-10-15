@@ -62,7 +62,7 @@ by exactly one of the first two:
 "<skill-dir>/../../scripts/pr-sources.sh" <owner>/<repo> <n>
 ```
 
-It prints the deduped union as one URL per line, then
+It prints the deduped union as one `<url> relevance=…` line per PR, then
 `result=OK count=<n> closing=… search=… timeline=…`.
 
 ⚠️ **Read the per-source fields before reporting an empty set.** The union

@@ -21,6 +21,9 @@ setup() {
   export FAIL_TIMELINE="$BATS_TEST_TMPDIR/fail_timeline"
   export FAIL_SEARCH="$BATS_TEST_TMPDIR/fail_search"
   export CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
+  # One file per PR, named by `pr_key`; a PR with none reads as an untagged PR
+  # that closes nothing.
+  export PRS="$BATS_TEST_TMPDIR/prs"; mkdir -p "$PRS"
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
 echo "$*" >> "$CALLS"
@@ -28,6 +31,11 @@ case "$1 $2" in
   "issue view")
     [ -f "$FAIL_CLOSING" ] && exit 1
     printf '{"closedByPullRequestsReferences":%s}' "$(cat "$CLOSING")" ;;
+  "pr view")
+    f="$PRS/$(printf '%s' "$3" | tr -c 'A-Za-z0-9' _)"
+    [ -f "$f.fail" ] && exit 1
+    if [ -f "$f" ]; then cat "$f"
+    else echo '{"title":"t","headRefName":"b","closingIssuesReferences":[]}'; fi ;;
   "search prs")
     [ -f "$FAIL_SEARCH" ] && exit 1
     cat "$SEARCH" ;;
@@ -44,7 +52,17 @@ EOF
   export PATH="$STUB:$PATH"
 }
 
-urls_of()  { grep -v '^result=' <<<"$1" || true; }
+urls_of()  { grep -v '^result=' <<<"$1" | cut -d' ' -f1 || true; }
+relevance_of() {  # <output> <url>
+  grep -F "$2 " <<<"$1" | sed -n 's/.* relevance=//p'
+}
+pr_key() { printf '%s' "$1" | tr -c 'A-Za-z0-9' _; }
+pr_reads() {  # <url> <title> <head> [closes-issue-url]
+  local closes="[]"
+  [ -n "${4:-}" ] && closes="[{\"url\":\"$4\"}]"
+  printf '{"title":"%s","headRefName":"%s","closingIssuesReferences":%s}' \
+    "$2" "$3" "$closes" > "$PRS/$(pr_key "$1")"
+}
 result_of() { grep '^result=' <<<"$1"; }
 
 xref() {  # <url> [more...]
@@ -176,4 +194,86 @@ xref() {  # <url> [more...]
 @test "bad arguments query nothing at all" {
   run "$SOURCES" justarepo 5
   [ ! -s "$CALLS" ]
+}
+
+# What each PR is to the issue. `orchestrate` hands only a closing PR or a tagged
+# sibling to its author; reading a mention as the issue's work sends that author
+# to continue a PR in another repo that only cites the issue.
+
+# The closing source's word stands even when the PR cannot be read.
+@test "a PR the closing source lists reads closes, even unread" {
+  echo '[{"url":"https://x/pull/1"}]' > "$CLOSING"
+  : > "$PRS/$(pr_key https://x/pull/1).fail"
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://x/pull/1)" = closes ]
+}
+
+# The closing source can fail while the others answer; the PR's own closing
+# references still identify it, so it is not demoted to a mention.
+@test "a PR closing the issue reads closes when the closing source is down" {
+  : > "$FAIL_CLOSING"
+  xref https://x/pull/2
+  pr_reads https://x/pull/2 "Fix it" fix-it https://github.com/O/R/issues/5
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://x/pull/2)" = closes ]
+}
+
+@test "a PR closing a different issue is not read as closing this one" {
+  xref https://x/pull/2
+  pr_reads https://x/pull/2 "Fix it" fix-it https://github.com/o/r/issues/50
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://x/pull/2)" = mention ]
+}
+
+@test "a PR titled with its own head branch in brackets reads sibling" {
+  xref https://y/pull/3
+  pr_reads https://y/pull/3 "[pair-x] Infra half" pair-x
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://y/pull/3)" = sibling ]
+}
+
+# A bracketed title alone is not the pairing: the tag has to BE the head branch.
+@test "a bracket tag that is not the head branch reads mention" {
+  xref https://y/pull/3
+  pr_reads https://y/pull/3 "[orchestration] Closeout" orchestration-closeout
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://y/pull/3)" = mention ]
+}
+
+@test "a tagged PR on the closing PR's branch reads sibling" {
+  echo '[{"url":"https://x/pull/1"}]' > "$CLOSING"
+  pr_reads https://x/pull/1 "[pair-x] App half" pair-x https://github.com/o/r/issues/5
+  xref https://y/pull/3
+  pr_reads https://y/pull/3 "[pair-x] Infra half" pair-x
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://x/pull/1)" = closes ]
+  [ "$(relevance_of "$output" https://y/pull/3)" = sibling ]
+}
+
+# Another multi-repo change carries its own tag, and citing this issue does not
+# make it this issue's sibling.
+@test "a tagged PR on a branch no closing PR shares reads mention" {
+  echo '[{"url":"https://x/pull/1"}]' > "$CLOSING"
+  pr_reads https://x/pull/1 "Fix it" fix-it https://github.com/o/r/issues/5
+  xref https://y/pull/3
+  pr_reads https://y/pull/3 "[other-work] Infra" other-work
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://y/pull/3)" = mention ]
+}
+
+@test "a PR that only cites the issue reads mention" {
+  echo '[{"url":"https://y/pull/4"}]' > "$SEARCH"
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://y/pull/4)" = mention ]
+  [[ "$output" == *"result=OK count=1"* ]]
+}
+
+# Unreadable is not a mention: a caller that drops a mention would drop a PR it
+# never got to look at.
+@test "a PR that cannot be read reads unknown" {
+  xref https://y/pull/6
+  : > "$PRS/$(pr_key https://y/pull/6).fail"
+  run "$SOURCES" o/r 5
+  [ "$status" -eq 0 ]
+  [ "$(relevance_of "$output" https://y/pull/6)" = unknown ]
 }
