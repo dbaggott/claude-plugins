@@ -10,6 +10,14 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.27 — 2026-10-15
+
+Claude Code's agent panel now shows which of `orchestrate`'s agents is the author
+and which the reviewer. Both used to render as `dnbg-workflow:orchestrated-…`,
+with the role truncated away. They are renamed to
+`dnbg-workflow:author-orchestrated` and `dnbg-workflow:reviewer-orchestrated`.
+
+
 ## dnbg-workflow 2026.10.26 — 2026-10-15
 
 Fixed PR watches going blind on a pull request with a lot of review text. Once
