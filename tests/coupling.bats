@@ -1478,3 +1478,15 @@ MD
   [[ "$output" == *"site.md:5: none"* ]]
   [[ "$output" == *"site.md:11: 7200000"* ]]
 }
+
+# A run also ends at lib-poll.sh's wall-clock WINDOW_CEILING, which a long suspend
+# reaches whatever the window, so any IDLE handler can see `window_left=`. A
+# handler that does not name it reads a cut-short run as an empty window, and
+# the author's and merge-stage handlers stop watching on one.
+@test "every skill file with an IDLE handler says what window_left= means" {
+  local f bad=0
+  for f in $(grep -rlE '^[[:space:]]*- \*\*`(result=)?IDLE|bare `result=IDLE`' "$ROOT/dnbg-workflow/skills"); do
+    grep -q 'window_left=' "$f" || { echo "${f#"$ROOT"/} handles IDLE but never names window_left="; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
