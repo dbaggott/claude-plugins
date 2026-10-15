@@ -115,6 +115,14 @@ The description reflects the **as-built** state, rewritten after each commit —
 - **Claim only the scope you checked.** The over-claim usually starts one step earlier, as an unexamined assumption written up as fact: that a change generalizes, that it fixes the root cause (not just the symptom you reproduced), that the correlation you saw is the cause, that nothing else is affected. Verify the assumption, or state the scope you actually verified ("fixes the observed case; other inputs unchecked"; "removes the symptom — root cause not confirmed"). An assumption is not a result.
 - **Surface gaps, not just wins.** Known limitations, unverified branches, and deferred follow-ups belong in the body — these are as-built facts about the result, not the development narrative ruled out above; omitting them reads as "all handled," and the next reader inherits the surprise.
 
+**Draft the description in a file from `mktemp`, never at a name you chose**:
+`mktemp <scratchpad>/body.XXXXXX` when the harness names a scratchpad directory,
+plain `mktemp` otherwise, and pass that path to `--body-file`. A dispatched
+subagent shares its dispatcher's scratchpad, so a name you chose is one another
+agent may choose too, and the next `--body-file` publishes its text over yours.
+The same goes for every issue body, comment or review you draft in a file
+before posting it.
+
 When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
 
 **Claim less, rather than more precisely.** The bar above pushes toward accuracy, and accuracy pushes toward checkable detail — a count, a percentage, a file list. Each of those is something a reviewer can verify, and verifying it costs a round whether or not it was worth stating. Ask what they do differently for having it: a number that scopes the diff earns its place; a number that only describes the work does not. Precision about a quantity that moves is the worst case, since it is guaranteed to drift where a true loose claim survives the next commit.

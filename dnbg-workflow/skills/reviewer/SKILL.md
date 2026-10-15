@@ -519,7 +519,7 @@ jq -n --arg body "<summary / non-inline findings as markdown>" \
 ```
 
 For comment bodies that themselves contain quotes/newlines, pass each via its own
-`--arg` too (or build the JSON in a scratch file and use `--input <file>`). A
+`--arg` too (or build the JSON in a file from `mktemp` and use `--input <file>`). A
 literal `<<'JSON'` heredoc only works when every body is simple.
 
 `event` is `APPROVE` or `REQUEST_CHANGES` (never `COMMENT`); each `comments`

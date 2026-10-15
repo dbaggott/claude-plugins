@@ -98,6 +98,9 @@ its role: the author as `dnbg-workflow:orchestrated-author`, the reviewer as
 `dnbg-workflow:orchestrated-reviewer`.
 A background subagent that ends its turn with a watch still running is woken
 when that watch returns, so each keeps its own watch across its turns.
+Each also shares your scratchpad directory, so a draft file at a chosen name
+there is one you and it can both write; every draft file comes from `mktemp`,
+per `git-workflow`'s "Writing the PR description".
 
 **The author**, at once, prompted with the recipe below. The claim you made is
 already the author's: a subagent shares your session id, so its pickup reads

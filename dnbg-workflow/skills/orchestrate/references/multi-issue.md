@@ -128,7 +128,8 @@ You are the parent body's only writer. A child's body is its author's, per
 `SKILL.md`; you edit one only in a design change's sweep of a child not yet
 dispatched (`references/design-change.md`). Any other body edit, a row's
 state cell included, is reading the body, changing it, and writing it back with
-`gh issue edit <n> --body-file <file>`, re-read just before each write.
+`gh issue edit <n> --body-file <file>`, re-read just before each write. `<file>`
+comes from `mktemp`, per `git-workflow`'s "Writing the PR description".
 
 **An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
 the loop pauses until they answer, and the events that arrived meanwhile are
