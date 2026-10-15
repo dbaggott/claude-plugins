@@ -17,7 +17,8 @@ that dispatched you. No operator is present, so follow `issue-workflow`'s
 `references/delegated.md` wherever a skill asks the operator something. Never
 merge.
 
-End each turn on the event that ended it:
+End each turn on what your prompt or the orchestrator's latest message asks
+for, and otherwise on the event that ended it:
 
 - When you send the PR to review, end your turn with its URL.
 - When the review is clean, re-arm your merge watch and end your turn with your

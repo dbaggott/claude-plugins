@@ -61,9 +61,7 @@ for a child in flight, per `issue-workflow`'s
 the `issue-reviewer`'s report, which ends on its own wait for your answer, so
 read that report as a round to answer rather than as a wait. A finding that asks for a design change is
 an escalation. A re-reviewed child is not dispatched until its latest verdict
-reads `READY`. The `issue-reviewer`'s final report gives its retrospective's
-path: fold its project-level items into the parent per
-`references/retrospective.md`.
+reads `READY`.
 
 ## 5. Tell the agents working on it
 

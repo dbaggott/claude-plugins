@@ -113,9 +113,7 @@ already the author's: a subagent shares your session id, so its pickup reads
 
 The first bracketed line goes in only when step 3 found an open `closes` or
 `sibling` PR, or the operator handed one over, the second
-only for `decided` rows the body does not yet carry. Each agent's own
-instructions carry delegated mode, the retrospective, and for the author never
-merging and what each turn ends on, so neither recipe repeats them.
+only for `decided` rows the body does not yet carry.
 
 **The reviewer**, when the author's turn ends with its PR URL at
 send-to-review, or at once when step 3 found the PR already out of draft. Skip
