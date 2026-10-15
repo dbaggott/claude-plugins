@@ -74,8 +74,9 @@ start are the same path.
      looks like the issue's work, and hand it to the author only if the
      operator says so.
 
-   Pass every PR this step found, whatever its state or relevance, as
-   `--exclude` on the issue watch's first arm, since it otherwise wakes on each.
+   Pass the URL of every PR this step found, whatever its state or relevance,
+   as `--exclude` on the issue watch's first arm, since it otherwise wakes on
+   each.
    Read the per-source fields before treating `count=0` as none, as
    `issue-workflow`'s `references/claiming.md` describes.
 4. **The log.** Read every comment on the issue. What is still open: a
@@ -163,7 +164,7 @@ Never poll in the conversation. Each event reaches you as one of these:
   ```bash
   "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> \
     --role=orchestrator --since=<step 1's now=> \
-    [--exclude=<step 3's PRs, comma-separated>]
+    [--exclude=<step 3's PR URLs, comma-separated>]
   ```
 
   It wakes on comments, linked PRs, and the issue closing, never on a body edit
@@ -185,8 +186,9 @@ Never poll in the conversation. Each event reaches you as one of these:
   `decided` and handle it as any decided row, under "Answer or escalate". One
   that does not is noted and changes nothing.
 
-  `ERROR` is not a quiet issue: don't re-arm; check `gh auth status` and tell
-  the operator. `IDLE` is re-armed. A `linked-pr` wake for the author's PR
+  `ERROR` is not a quiet issue: don't re-arm. `reason=bad-args` is your own
+  command refused before it polled, so fix it and re-run; any other reason,
+  check `gh auth status` and tell the operator. `IDLE` is re-armed. A `linked-pr` wake for the author's PR
   needs nothing, since the author reports it; any other PR is someone else's
   work on the issue, so tell the operator. `CLOSED` is the issue closing, and
   the watch ends with it. If the author's last turn ended on a wait or on its

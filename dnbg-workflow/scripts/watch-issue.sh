@@ -148,6 +148,15 @@ for k in $(printf '%s' "$WAKE_ON" | tr ',' ' '); do
 done
 XLOGINS=$(printf '%s' "$XLOGINS" | csv)
 wakes() { case ",$WAKE_ON," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
+# `grep -vxF` matches whole lines, so an entry takes effect only when it is
+# exactly a URL the poll produces. Each is trimmed, since ` https://…` is the
+# shape written after a comma, and anything still not a PR URL — `286`, `#286` —
+# is refused: it would otherwise exclude nothing and say nothing.
+EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | csv | tr ',' '\n')
+if [ -n "$EXCLUDE_LINES" ] && printf '%s\n' "$EXCLUDE_LINES" \
+    | grep -qvE '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+$'; then
+  bad=1
+fi
 [ "$bad" = 1 ] && fatal bad-args
 
 # A review round on an issue is a stream — several comments and body edits over
@@ -156,12 +165,6 @@ wakes() { case ",$WAKE_ON," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 # wake indefinitely under a settle with none.
 SETTLE=${SETTLE:-45}
 SETTLE_MAX=${SETTLE_MAX:-300}
-
-# Trimmed per entry: `grep -vxF` matches whole lines, so ` https://…` — the shape
-# written after a comma — can never equal a URL the poll produces, and the entry
-# is silently ignored. That is the hot loop the exclusion exists to prevent, with
-# no diagnostic.
-EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | csv | tr ',' '\n')
 
 poll_init
 
