@@ -211,7 +211,7 @@ EOF
 # along unchanged, so the run that finally exhausts the window re-arms a full one.
 @test "WINDOW_LEFT bounds a re-armed run, and the full WINDOW is what it hands on" {
   setup_clock
-  run bash -c "export WINDOW=21600 WINDOW_LEFT=50 WINDOW_CEILING=1000; . '$LIB'
+  run bash -c "export WINDOW=21600 WINDOW_LEFT=50 WINDOW_CEILING=1000 INTERVAL=10; . '$LIB'
     poll_init
     while ! poll_timed_out; do poll_nap; done
     echo awake=\$(poll_awake) env=[\$(poll_window_env \"\$(poll_split_left)\")]"
@@ -220,6 +220,30 @@ EOF
   [ "$awake" -ge 50 ]
   [ "$awake" -lt 70 ]
   [[ "$output" == *"env=[WINDOW=21600]"* ]]
+}
+
+# Each split run used to restart the curve at its floor, so a six-hour quiet wait
+# never reached the 300 s cap and polled about twice as often.
+@test "a run re-armed from a split resumes the curve where the window had reached" {
+  setup_clock
+  run bash -c "export WINDOW=21600 WINDOW_LEFT=15300; . '$LIB'
+    poll_init
+    echo quiet=\$(poll_quiet) interval=\$(poll_interval)"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "quiet=6300 interval=$(bash -c ". '$LIB'; poll_interval_at 6300")" ]]
+}
+
+# Past the ceiling only a settle keeps a run going, and a settle is a burst on its
+# way out: clipping its naps to the ceiling would poll every second until it lands.
+@test "a nap past the ceiling is not clipped to it" {
+  setup_clock
+  run bash -c "export WINDOW=21600 WINDOW_CEILING=5 INTERVAL=10; . '$LIB'
+    poll_init
+    poll_nap
+    poll_nap
+    echo wall=\$(poll_wall)"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "wall=15" ]]
 }
 
 # The harness's deadline is not ours to see, so the ceiling counts every second

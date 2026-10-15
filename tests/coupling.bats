@@ -1419,7 +1419,7 @@ MD
 #
 # spawn_timeouts <file>... prints `<file>:<line>: <ms>` per fenced block that
 # invokes a watcher, `<ms>` being the `timeout: <ms>` named in that block or in
-# the text since the block before it, or `none`.
+# the paragraph leading into it, or `none`.
 spawn_timeouts() {  # <file>...
   awk '
     function flushfence(    ctx, ms) {
@@ -1428,15 +1428,16 @@ spawn_timeouts() {  # <file>...
         if (match(ctx, /timeout: [0-9]+/)) ms = substr(ctx, RSTART + 9, RLENGTH - 9)
         printf "%s:%d: %s\n", FILENAME, fstart, ms
       }
-      fence = ""; lead = ""
+      fence = ""; lead = ""; para = ""; last = ""
     }
-    FNR == 1 { infence = 0; lead = ""; fence = "" }
+    FNR == 1 { infence = 0; lead = ""; para = ""; last = ""; fence = "" }
     /^[[:space:]]*```/ {
-      if (infence) { infence = 0; flushfence() } else { infence = 1; fstart = FNR }
+      if (infence) { infence = 0; flushfence() } else { infence = 1; fstart = FNR; lead = (para != "") ? para : last }
       next
     }
     infence { fence = fence " " $0; next }
-    { lead = lead " " $0 }
+    /^[[:space:]]*$/ { if (para != "") last = para; para = ""; next }
+    { para = para " " $0 }
   ' "$@"
 }
 
@@ -1450,14 +1451,17 @@ spawn_timeouts() {  # <file>...
   [ "$(wc -l <<<"$ms")" -eq 1 ] || { echo "spawn sites disagree on the timeout: $ms"; false; }
 
   ceiling=$(sed -n 's/^WINDOW_CEILING=\${WINDOW_CEILING:-\([0-9]*\)}$/\1/p' "$ROOT/dnbg-workflow/scripts/lib-poll.sh")
-  settle=$(sed -n 's/^SETTLE_MAX=\${SETTLE_MAX:-\([0-9]*\)}$/\1/p' "$ROOT/dnbg-workflow/scripts/watch-pr.sh")
+  settle=$(sed -n 's/^SETTLE_MAX=\${SETTLE_MAX:-\([0-9]*\)}$/\1/p' \
+    "$ROOT/dnbg-workflow/scripts/watch-pr.sh" "$ROOT/dnbg-workflow/scripts/watch-issue.sh" | sort -n | tail -1)
   [ -n "$ceiling" ] && [ -n "$settle" ] || { echo "could not read WINDOW_CEILING or SETTLE_MAX"; false; }
   [ $(( (ceiling + settle) * 1000 )) -lt "$ms" ] || {
     echo "WINDOW_CEILING ${ceiling}s + SETTLE_MAX ${settle}s does not fit in timeout: $ms"; false; }
 }
 
-@test "a spawn site with no timeout, or one only a later block names, is caught" {
+@test "a spawn site whose lead-in names no timeout is caught" {
   cat > "$BATS_TEST_TMPDIR/site.md" <<'MD'
+Some other command takes `timeout: 7200000`.
+
 Spawn it in the background:
 
 ```bash
@@ -1471,6 +1475,6 @@ watch-issue.sh o/r 1 --role=author --since=<when you posted>
 ```
 MD
   run spawn_timeouts "$BATS_TEST_TMPDIR/site.md"
-  [[ "$output" == *"site.md:3: none"* ]]
-  [[ "$output" == *"site.md:9: 7200000"* ]]
+  [[ "$output" == *"site.md:5: none"* ]]
+  [[ "$output" == *"site.md:11: 7200000"* ]]
 }

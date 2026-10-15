@@ -331,7 +331,16 @@ poll_interval_at() {
 _poll_start=0; _poll_suspended=0; _poll_baseline=0
 
 # Call once, after the knobs are set and before the loop.
-poll_init() { _poll_start=$(date +%s); _poll_suspended=0; _poll_baseline=0; poll_trace_init; }
+#
+# A run re-armed from a split starts the curve where the window had reached, not
+# at the floor: a split run ended quiet, so the window has been quiet all along,
+# and restarting at the floor every ceiling would keep a six-hour wait from ever
+# reaching the cap.
+poll_init() {
+  _poll_start=$(date +%s); _poll_suspended=0
+  _poll_baseline=$(( WINDOW_LEFT < WINDOW ? WINDOW_LEFT - WINDOW : 0 ))
+  poll_trace_init
+}
 
 # Awake seconds since poll_init.
 poll_awake() { echo $(( $(date +%s) - _poll_start - _poll_suspended )); }
@@ -376,8 +385,9 @@ poll_nap() {
   iv=$(poll_interval)
   # Never sleep through the ceiling: a nap at the 300 s cap that started just
   # under it would spend most of the margin the ceiling keeps for the settle.
+  # Past it, only a settle is still running, and that naps on the curve as usual.
   to_ceiling=$(( WINDOW_CEILING - $(poll_wall) ))
-  [ "$to_ceiling" -lt "$iv" ] && iv=$(( to_ceiling > 1 ? to_ceiling : 1 ))
+  if [ "$to_ceiling" -gt 0 ] && [ "$to_ceiling" -lt "$iv" ]; then iv=$to_ceiling; fi
   # Before the sleep, not after: a watch is killed mid-sleep far more often than
   # mid-poll, and a line written afterwards is the one line that would be missing.
   _poll_log_tick "$iv"

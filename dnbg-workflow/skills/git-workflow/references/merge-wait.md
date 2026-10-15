@@ -27,11 +27,11 @@ away for hours, and a watch that idles out at 30 minutes leaves the merge
 uncaught and the post-merge cleanup unrun — the exact case this stage exists for.
 
 **Take the `── re-arm ──` line the review watch just printed, change `WINDOW=` to
-`21600`, and add `--merge-stage`.** Spawn it, and every re-arm of it, in the
-background with `timeout: 7200000`: without it a headless session stops the
-watch after 10 minutes, and it returns no result line. That line already
-carries the head it observed, `since` set to its own `now`, the verdict it reported and the checks it
-named — so this is a two-token edit:
+`21600`, and add `--merge-stage`.** That line already carries the head it
+observed, `since` set to its own `now`, the verdict it reported and the checks it
+named — so this is a two-token edit. Spawn the result, and every re-arm of it, in
+the background with `timeout: 7200000`. Without the timeout a headless session
+stops the watch after 10 minutes, and it returns no result line.
 
 ```bash
 WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
