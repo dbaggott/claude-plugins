@@ -51,9 +51,7 @@ criteria changed, or whose body changed in a section their `Covers` line cites.
 The rest are not re-reviewed.
 
 > Review `<child URLs>` as a set against their parent `<parent URL>`. This is a
-> re-review after the design change in `<row link>`. You were dispatched by an
-> orchestrator, so follow `issue-workflow`'s `references/delegated.md`
-> wherever a skill asks the operator something.
+> re-review after the design change in `<row link>`.
 
 For an in-flight child, dispatch the re-review only once its author has
 reported the edit. A child whose latest verdict is newer than its step 3 edit has had its
