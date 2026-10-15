@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.31 — 2026-10-15
+
+`orchestrate` now launches the fresh session a branch-loaded acceptance run needs
+itself, as a background headless `claude` process, rather than handing you the
+command and waiting. Your part of such a run is only the merges. When that
+session exits partway through, the orchestrator resumes it so the run still
+reaches its merge and cleanup.
+
+
 ## dnbg-workflow 2026.10.30 — 2026-10-15
 
 The cycle report under Summary, Observations, and Actionable now comes with the merge handoff, beneath the merge command, rather than after the merge. Deferred findings and follow-ups the reviewer raised are in front of you while you can still send the PR back for one more change.
