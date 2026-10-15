@@ -123,14 +123,27 @@ A decision raised on the parent, such as an operator comment there or a
 systemic finding, has only the table row, and reaches a child through
 `references/design-change.md`, which promotes it into the child's body.
 
+Append the table row with:
+
+```bash
+"<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --table="Decision log" \
+  --row='| <date> | <ID> | <child URL or —> | <entry> | <state> |'
+```
+
+`result=OK` means the row is in the body. A re-run never adds it twice, so on
+`write-lost`, `write` or `issue-query` run it once more, and escalate if it
+fails again. `section-missing` or `table-missing` means the parent has no
+decision log to append to, which is an escalation.
+
 Every `decided` row, an answer to one child's question included, is finished
 through `references/design-change.md`, whose last step marks it `applied`. A
 row left at `decided` reads as unfinished work on every later loop and restart.
 
 You are the parent body's only writer. A child's body is its author's, per
 `SKILL.md`; you edit one only in a design change's sweep of a child not yet
-dispatched (`references/design-change.md`). Edit a body by reading it, changing it, and writing it back with
-`gh issue edit <n> --body-file <file>`, and re-read it just before each write.
+dispatched (`references/design-change.md`). Any other body edit, a row's
+state cell included, is reading the body, changing it, and writing it back with
+`gh issue edit <n> --body-file <file>`, re-read just before each write.
 
 **An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
 the loop pauses until they answer, and the events that arrived meanwhile are
@@ -159,10 +172,10 @@ raised again.
 
 ## Keep the log under the body limit
 
-Before writing the parent, if its body passes 50,000 characters, move every
-table row whose child is closed and whose state is final into one comment
-opening `Decision log: archived rows`, and leave one row in its place pointing
-at that comment. `proposed` rows and `decided` rows not yet applied stay.
+After each write to the parent, if its body passes 50,000 characters, which
+`log-row.sh` prints as `body_chars`, move every table row whose child is closed
+and whose state is final into one comment opening `Decision log: archived
+rows`, and leave one row in its place pointing at that comment. `proposed` rows and `decided` rows not yet applied stay.
 
 ## Stop
 

@@ -119,18 +119,17 @@ design, its children, or the conventions they share, and any tooling friction
 that cost this run real time. Leave out minor plugin-wide friction, which the
 files keep for `process-review`.
 
-Add each one to the parent body's **Friction log** as a dated bullet naming its
-source:
+Add them to the parent body's **Friction log** in one call, a dated bullet per
+item naming its source. The parent may live in another repo, so take
+`<owner>/<repo>` and `<parent>` from its URL:
 
-```markdown
-- **<YYYY-MM-DD>.** <item> (<role> on <issue URL>)
+```bash
+"<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --bullet="Friction log" \
+  --text='**<YYYY-MM-DD>.** <item> (<role> on <issue URL>)' [--text=…]
 ```
 
-Body edits replace the whole body, and a sibling's orchestrator may be editing
-the same parent. Fetch the parent's body immediately before editing it, change
-only the Friction log section, and write it back with
-`gh issue edit <parent URL> --body-file <file>`, by URL since the parent may
-live in another repo. Then fetch it again; if your bullets are missing, a
-concurrent write replaced yours, so add them again on top of the new body. A
-parent with no Friction log section has nowhere to put them. Say so in the Stop
-report instead.
+A sibling's orchestrator may be writing the same parent, and the script confirms
+its write survived. A re-run adds only the bullets still missing, so on
+`write-lost`, `write` or `issue-query` run it once more. If it fails again, or
+on `section-missing`, where the parent has nowhere to put them, say so in the
+Stop report instead.
