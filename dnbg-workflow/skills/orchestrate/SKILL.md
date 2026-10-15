@@ -72,9 +72,8 @@ start are the same path.
    - `mention`, or `unknown` when the PR could not be read — not shown to be
      the issue's work. Name each open one to the operator, saying when one
      looks like the issue's work, and hand it to the author only if the
-     operator says so.
-     Pass every `mention`, open or not, as `--exclude` when you arm the issue
-     watch, which otherwise wakes on each.
+     operator says so. Pass every `mention`, open or not, as `--exclude` when
+     you arm the issue watch, which otherwise wakes on each.
 
    Read the per-source fields before treating `count=0` as none, as
    `issue-workflow`'s `references/resolving.md` describes.
