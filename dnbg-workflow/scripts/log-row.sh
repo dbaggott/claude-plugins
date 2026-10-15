@@ -15,8 +15,9 @@
 #
 # A line the section already holds outside a code fence is not appended again,
 # nor is one given twice, so `appended` can be less than the lines given, and
-# re-running a call whose outcome is unknown is safe. `body_chars` is the body's length after the write, the figure the
-# tracking issue's archive threshold is measured against.
+# re-running a call whose outcome is unknown is safe. `body_chars` is the body's
+# length after the write, the figure the tracking issue's archive threshold is
+# measured against.
 #
 # Body writes replace the whole body, so a concurrent writer can replace this
 # one. Each write is confirmed by fetching the body again, and lines found
