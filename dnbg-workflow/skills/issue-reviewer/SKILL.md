@@ -140,6 +140,8 @@ Per issue:
 - **Can a cold resolver finish it?** They have the body and nothing else. Do they
   know what to build, which decisions are already made, and how to tell when they
   are done? Acceptance criteria that cannot be checked are not acceptance criteria.
+  A criterion met by a recorded run that names no paths invalidating the run is a
+  finding (`issue-workflow`'s `references/creating.md`).
 
 Across the set:
 

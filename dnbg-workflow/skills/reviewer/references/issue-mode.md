@@ -15,9 +15,25 @@ What changes is the standard you review against. A PR-scoped review judges the
 diff on its own terms. An issue-scoped review also asks **whether the issue's
 acceptance criteria are met** — a diff can be clean, well-tested, and still not
 be the thing the issue asked for. Read the issue body as the spec, and treat an
-unmet acceptance criterion as a finding like any other. Honor the same reading
-discipline the body's own labels set (`issue-workflow`): "Related (optional — do
-not read unless blocked)" links stay unread, depth 1 only.
+unmet acceptance criterion as a finding like any other. Two kinds are graded
+differently:
+
+- **A criterion met by a run** (an eval, a live exercise) is met by a recorded
+  run, linked from the PR or the issue and carrying its output. Don't re-run it.
+  It stands while nothing under the paths the criterion names as invalidating it
+  changed after the run's commit; list what changed with
+  `gh api repos/<repo>/compare/<run commit>...<head> --jq '.files[].filename'`.
+  Where the criterion names no paths, judge from that list whether anything the
+  run exercises changed, and say which paths you judged by. No recorded run, or
+  a stale one, is a blocking finding naming the run.
+- **A criterion blocked only on an operator action** outside the PR, such as a
+  merge in a test repository or a live exercise only the operator can start, is
+  an observation naming that action, not a blocking finding. Approve, and say
+  in the verdict that the approval is conditional on it.
+
+Honor the same reading discipline the body's own labels set (`issue-workflow`):
+"Related (optional — do not read unless blocked)" links stay unread, depth 1
+only.
 
 **Every `gh issue` command in issue mode — this file and both siblings — runs under your own auth, not the
 bot's** — prefix each with `env -u GH_TOKEN`. The bot reviews; the issue itself

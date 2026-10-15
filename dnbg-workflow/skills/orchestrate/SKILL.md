@@ -35,7 +35,9 @@ URL is not `github.com`, say so, name the host, and stop.
 
 ## Run it as the main session
 
-You dispatch subagents, so you cannot be one. Escalation is half of this job,
+You dispatch subagents, so you cannot be one. For the same reason, an
+acceptance criterion only a main session can run is yours to run, per
+`references/triage.md` item (f). Escalation is half of this job,
 so where `AskUserQuestion` is absent, as in a headless session, every place
 below that asks the operator follows `issue-workflow`'s
 `references/delegated.md`: an answer given in your prompt settles the question
