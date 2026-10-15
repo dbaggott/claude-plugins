@@ -68,6 +68,35 @@ line() { tail -1 <<<"$1"; }
                {"name":"b","status":"COMPLETED","conclusion":"TIMED_OUT"}]'
   run "$FETCH" o/r 1
   [ "$(obj "$output" | jq -r '.merge.cause')" = checks_failing ]
+  # Finished, but only the timeout is a failure: a cancelled run says nothing
+  # about the code.
+  [ "$(obj "$output" | jq -r '[.checks[].state] | join(",")')" = "neutral,failure" ]
+}
+
+# A second workflow run on one head leaves the first run's checks in the rollup.
+@test "only the newest run of a check speaks for the head" {
+  pr BLOCKED '[{"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"},
+               {"name":"lint","workflowName":"CI","status":"IN_PROGRESS","conclusion":"","startedAt":"2026-01-01T00:05:00Z"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -c '.checks')" = '[{"name":"lint","state":"pending"}]' ]
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_running ]
+}
+
+# gh prints an unstarted check's time as the zero time, which sorts oldest.
+@test "a queued check is newer than a started run of the same check" {
+  pr BLOCKED '[{"name":"lint","workflowName":"CI","status":"QUEUED","conclusion":"","startedAt":"0001-01-01T00:00:00Z"},
+               {"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"},
+               {"name":"ci-required","workflowName":"CI","status":"QUEUED","conclusion":""},
+               {"name":"ci-required","workflowName":"CI","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '[.checks[].state] | join(",")')" = "pending,pending" ]
+}
+
+@test "same-named checks in different workflows are both kept" {
+  pr BLOCKED '[{"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"2026-01-01T00:05:00Z"},
+               {"name":"lint","workflowName":"Docs","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '[.checks[].state] | join(",")')" = "success,failure" ]
 }
 
 @test "a neutral check does not make a clean PR look unfinished" {

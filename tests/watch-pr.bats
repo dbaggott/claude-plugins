@@ -857,6 +857,40 @@ EOF
   [[ "$output" != *"result=ACTIVITY"* ]]
 }
 
+# --- a check re-run on the same head --------------------------------------------
+
+# Marking a PR ready starts a second run that cancels the first on the same head;
+# the cancelled run's checks stay in the rollup beside the live ones.
+@test "a cancelled run superseded by a pending one is not a CHECKS wake" {
+  echo '[{"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"CANCELLED","startedAt":"2026-01-01T00:00:00Z"},
+         {"name":"lint","workflowName":"CI","status":"IN_PROGRESS","conclusion":"","startedAt":"2026-01-01T00:01:00Z"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=6 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" != *"checks="* ]]
+}
+
+@test "a cancelled run superseded by a failed one names the check once" {
+  echo '[{"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"CANCELLED","startedAt":"2026-01-01T00:00:00Z"},
+         {"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:01:00Z"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='lint'"* ]]
+}
+
+@test "a failed run superseded by a pending one is not a CHECKS wake" {
+  echo '[{"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"},
+         {"name":"lint","workflowName":"CI","status":"IN_PROGRESS","conclusion":"","startedAt":"2026-01-01T00:01:00Z"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=6 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" != *"checks="* ]]
+}
+
+@test "one name failing in two workflows is listed once" {
+  echo '[{"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"},
+         {"name":"lint","workflowName":"Docs","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='lint'"* ]]
+}
+
 # --- check names are forge-supplied text ---------------------------------------
 
 # `build (macos-latest)` is what GitHub calls a default matrix job. Unquoted it

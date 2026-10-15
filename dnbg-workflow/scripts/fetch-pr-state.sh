@@ -70,12 +70,23 @@ OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
     (if (.conclusion // "") == "" then (.status // .state // "") else .conclusion end
      | ascii_downcase) as $c
     | if   $c == "success" then "success"
-      elif $c == "neutral" or $c == "skipped" then "neutral"
+      # Cancelled is neutral: a cancelled run says nothing about the code.
+      elif $c == "neutral" or $c == "skipped" or $c == "cancelled" then "neutral"
       elif $c == "" or $c == "pending" or $c == "queued" or $c == "in_progress"
            or $c == "waiting" or $c == "requested" or $c == "expected" then "pending"
       else "failure" end;
 
-  ($pr.statusCheckRollup // []) | map({
+  # A not-yet-started check sorts newest: a queued run can only be the live one.
+  def started:
+    (.startedAt // .createdAt // "") as $t
+    | if $t == "" or ($t | startswith("0001-")) then "9999" else $t end;
+
+  # A second workflow run on the same head leaves the first run's checks in the
+  # rollup beside its own, so only the newest run of each check speaks for the
+  # head. Keyed by workflow as well, since two workflows may each have a "lint".
+  ($pr.statusCheckRollup // [])
+  | group_by([(.workflowName // ""), (.name // .context // "?")])
+  | map(max_by(started) | {
       name: (.name // .context // "?"),
       state: check_state
     }) as $checks
