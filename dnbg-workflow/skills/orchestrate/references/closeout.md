@@ -25,7 +25,7 @@ gh pr view <url> --json state,isDraft,body,closingIssuesReferences
 ```
 
 Read the per-source fields before treating `count=0` as none, as
-`issue-workflow`'s `references/resolving.md` describes. An open PR whose
+`issue-workflow`'s `references/claiming.md` describes. An open PR whose
 `closingIssuesReferences` include the parent is a predecessor's closeout PR.
 Continue it rather than opening a second, at the first of steps 4 to 6 its
 description does not carry; one out of draft resumes at step 6, with a reviewer
@@ -119,7 +119,8 @@ out of draft, dispatch `reviewer` on the parent, in the background:
 > **Retrospective** section giving the file's path.
 
 Its review arrives on the PR, so handle every round as an author does, per
-`git-workflow`'s `references/review-rounds.md`. A finding on an `A#` with no
+`git-workflow`'s `references/review-received.md` and
+`references/review-findings.md`. A finding on an `A#` with no
 recorded run is answered by running it and recording it, as in step 4.
 
 A finding this PR cannot answer, such as unbuilt work that a new child would
@@ -130,7 +131,8 @@ back to the loop. It reaches this file again at `open=0`, where step 1 finds
 the PR and you bring its doc up to date before sending it back to review.
 
 When the review is clean, give the operator the merge handoff per
-`git-workflow`'s `references/merge.md`. Never merge. The merge closes the
-parent. Run `git-workflow`'s post-merge cleanup, then go to
+`git-workflow`'s `references/merge.md`, and re-arm the watch for the merge
+from its `── re-arm ──` line per its `references/merge-wait.md`. Never merge. The merge closes the parent. Run
+`git-workflow`'s post-merge cleanup (`references/post-merge.md`), then go to
 `references/multi-issue.md`'s "Stop", once the reviewer's final report is in.
 If the PR closes unmerged, ask the operator whether to open a new one or stop.

@@ -2,8 +2,8 @@
 
 Part of the `issue-workflow` skill. Read this when filing or updating an issue;
 `SKILL.md` carries the host check, the reference conventions, and the
-maintenance sweep — all of which apply either way; `references/resolving.md`
-covers picking an issue up.
+maintenance sweep — all of which apply either way; `references/claiming.md`
+and `references/resolving.md` cover picking an issue up.
 
 ## Creating issues
 
@@ -58,7 +58,7 @@ Labels sort along independent axes; an issue carries one from each that applies,
 - **Type** — what kind of work it is: `bug`, `enhancement`, `documentation`, etc. Apply exactly one. This is the axis a triager filters on first, so an unlabeled issue is effectively invisible to that pass.
 - **Area** (`area:*`) — which subsystem it touches. The component axis that keeps a growing backlog scannable. Apply at least one; an issue genuinely spanning two subsystems gets both. The valid set is **per-repo and self-describing**: run `gh label list --repo <repo> --search area` and read each label's description — that listing is the catalog, not anything enumerated here, so it never goes stale against this skill. When none fits and the issue clearly belongs to a *recurring* subsystem, **propose** a new `area:<kebab>` label with a one-line description and get the operator's confirmation before creating it (`gh label create --repo <repo> --color <hex> --description "..."`). Don't mint area labels unilaterally — the per-repo set stays human-curated, and ad-hoc creation fragments the namespace (`area:db` vs `area:database`).
 
-The `assigned:*` claim labels are a third axis, applied by the claiming flow in `references/resolving.md` rather than here.
+The `assigned:*` claim labels are a third axis, applied by the claiming flow in `references/claiming.md` rather than here.
 
 ### Reporting a gap upstream
 

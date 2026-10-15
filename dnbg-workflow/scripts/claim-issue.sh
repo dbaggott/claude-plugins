@@ -5,7 +5,7 @@
 #   claim-issue.sh <owner/repo> <n> --claim [--label=<assigned:…>] [--stamp=<version>]
 #
 # Without `--claim`, the own-claim test from `issue-workflow`'s
-# `references/resolving.md`. Exactly one result line, then exit 0:
+# `references/claiming.md`. Exactly one result line, then exit 0:
 #   result=UNCLAIMED claim=none at=none
 #   result=OWN       claim=<id> at=<iso> assignees=<login,…> labels=<label,…|none>
 #   result=FOREIGN   claim=<id|none> at=<iso|none> assignees=<login,…|none> labels=<label,…|none>

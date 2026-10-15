@@ -1018,7 +1018,7 @@ EOF
 
 # --- the re-arm line has to reproduce THIS watch, not a default one -------------
 
-# `merge.md` arms a six-hour wait explicitly and says in bold that the default
+# `merge-wait.md` arms a six-hour wait explicitly and says in bold that the default
 # will not do. A bare command drops that on the first wake, after which the skill
 # reports a thirty-minute idle as six hours with no merge.
 @test "the re-arm line carries the window this run was given" {

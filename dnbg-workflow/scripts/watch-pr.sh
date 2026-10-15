@@ -168,7 +168,7 @@ J=""; RAWC="[]"
 shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 
 # `WINDOW=` is carried because the line's whole contract is that running it
-# continues THIS watch. merge.md arms a six-hour wait explicitly, and a bare
+# continues THIS watch. merge-wait.md arms a six-hour wait explicitly, and a bare
 # command silently drops it back to the role default on the first wake — after
 # which the skill reports a thirty-minute idle as six hours with no merge.
 #

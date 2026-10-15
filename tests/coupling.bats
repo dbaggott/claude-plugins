@@ -367,7 +367,7 @@ DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
 # BOTH would be caught by review, not by a grep.
 @test "the prose discovery sites call the union rather than carrying a copy" {
   local f
-  for f in "$ROOT/dnbg-workflow/skills/issue-workflow/references/resolving.md" \
+  for f in "$ROOT/dnbg-workflow/skills/issue-workflow/references/claiming.md" \
            "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md"; do
     grep -q 'pr-sources\.sh' "$f" || {
       echo "$(basename "$f") no longer invokes pr-sources.sh"; false; }
@@ -382,7 +382,7 @@ DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
 # the same marks the same way.
 @test "the claim sites call claim-issue.sh rather than carrying the gh commands" {
   local f
-  for f in "$ROOT/dnbg-workflow/skills/issue-workflow/references/resolving.md" \
+  for f in "$ROOT/dnbg-workflow/skills/issue-workflow/references/claiming.md" \
            "$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md"; do
     grep -q 'claim-issue\.sh' "$f" || {
       echo "$(basename "$f") no longer invokes claim-issue.sh"; false; }
@@ -753,6 +753,25 @@ remote_read_calls() {  # <SKILL.md>
   [ "$bad" -eq 0 ]
 }
 
+# A reference is read whole, in one call, at the moment its flow needs it. Past
+# roughly this size the harness cuts that read off mid-file, and the agent works
+# from the half it got, so a file that has grown past it is split at a heading
+# rather than read in ranges. Globbed over every plugin so a new file is covered.
+@test "no skill reference is too long to read in one call" {
+  local f size bad=0 found=0
+  shopt -s nullglob
+  for f in "$ROOT"/*/skills/*/references/*.md; do
+    found=$((found + 1))
+    size=$(wc -c <"$f")
+    [ "$size" -le 12000 ] || {
+      echo "${f#"$ROOT"/} is $((size)) bytes — split it at a heading to 12000 or under"
+      bad=1; }
+  done
+  shopt -u nullglob
+  [ "$found" -gt 0 ] || { echo "no reference files found — the glob broke"; bad=1; }
+  [ "$bad" -eq 0 ]
+}
+
 # A tracking issue's parent resolves through the closeout PR its orchestrator
 # authors, so the operator has no second command to give at the end of a
 # project. A site still telling them to say "close out" sends them to an entry
@@ -881,7 +900,7 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   reasons=$(grep -oE '\bfail [a-z-]+' "$src" | sed 's/^fail //' | sort -u)
   [ -n "$reasons" ] || { echo "no fail reasons found in $(basename "$src") — the extractor broke"; false; }
 
-  for f in "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode.md" \
+  for f in "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode-wait.md" \
            "$ROOT/dnbg-workflow/skills/issue-reviewer/references/rounds.md" \
            "$ROOT/dnbg-workflow/skills/issue-workflow/references/spec-review-rounds.md"; do
     for r in $reasons; do
@@ -1010,7 +1029,7 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
 
 @test "issue-workflow SKILL.md still points at each of its paths" {
   local skill="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" f
-  for f in creating resolving spec-review-rounds; do
+  for f in creating claiming resolving spec-review-rounds; do
     [ -f "$ROOT/dnbg-workflow/skills/issue-workflow/references/$f.md" ] || {
       echo "references/$f.md is missing"; false; }
     grep -q "references/$f\.md" "$skill" || {
