@@ -10,6 +10,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.25 — 2026-10-15
+
+Fixed an orchestrator and its subagents overwriting each other's PR
+descriptions. They share one scratchpad directory, so two agents drafting a
+body at the same chosen name, such as `pr-body.md`, could publish one PR's
+description onto another. Every skill that writes a PR description, issue body,
+comment or review through a file now has it created with `mktemp`, and a test
+checks the skills' body-file commands for it.
+
+
 ## dnbg-workflow 2026.10.24 — 2026-10-15
 
 The PR watch no longer reports a failing check from a superseded workflow run.
