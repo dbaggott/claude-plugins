@@ -73,9 +73,9 @@ The doc is the parent body as built, not as planned:
 
 Every `A#` met by a run, such as an eval or a live exercise, that no child's
 own criteria record is yours to run now. Record each run's output and the
-commit it ran on as a section of the PR description, under the `A#` it is for, and link it from the doc's
-`A#`. Running a criterion is not judging it: whether a run meets its `A#` is the
-reviewer's call, on this PR.
+commit it ran on as a section of the PR description, under the `A#` it is for,
+and link it from the doc's `A#`. Running a criterion is not judging it: whether
+a run meets its `A#` is the reviewer's call, on this PR.
 
 ## 5. Dispose of the friction log
 

@@ -53,7 +53,6 @@ and names which of those fired on which issue. Several issues cost one call per
 tick, so watching the whole set you were handed is no more expensive than
 watching one.
 
-
 The issue wait never stands in for a PR watch: every open PR you reviewed or
 held back as a draft keeps its own `watch-pr.sh` beside it, an approved one
 included, since a push after approval needs a re-verdict (`references/watch.md`,
