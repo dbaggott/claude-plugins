@@ -259,6 +259,37 @@ run_issue_hook() {  # <payload>
   [ "$status" -eq 2 ]
 }
 
+# A subagent's call carries `agent_id` and its parent's `transcript_path`; the
+# subagent's own transcript sits at <parent without .jsonl>/subagents/agent-<id>.jsonl.
+
+subagent_payload() {  # <command> <agent-id>
+  bash_payload "$1" | jq -c --arg a "$2" '. + {agent_id:$a, agent_type:"general-purpose"}'
+}
+
+subagent_transcript() {  # <agent-id>
+  mkdir -p "${TRANSCRIPT%.jsonl}/subagents"
+  printf '%s\n' "${TRANSCRIPT%.jsonl}/subagents/agent-$1.jsonl"
+}
+
+@test "a subagent that loaded the skill in its own transcript is allowed" {
+  printf '{"skill":"dnbg-workflow:issue-workflow"}\n' > "$(subagent_transcript a1)"
+  run_issue_hook "$(subagent_payload 'gh issue create --title x' a1)"
+  [ "$status" -eq 0 ]
+}
+
+@test "a subagent is blocked when only its parent loaded the skill" {
+  printf '{"skill":"dnbg-workflow:issue-workflow"}\n' > "$TRANSCRIPT"
+  printf '{"role":"user","content":"hi"}\n' > "$(subagent_transcript a1)"
+  run_issue_hook "$(subagent_payload 'gh issue create --title x' a1)"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"BLOCKED by dnbg-workflow:check-issue-create"* ]]
+}
+
+@test "a subagent with no transcript file of its own is allowed — the same fail-open" {
+  run_issue_hook "$(subagent_payload 'gh issue create --title x' a1)"
+  [ "$status" -eq 0 ]
+}
+
 @test "honours a quoted --repo argument" {
   run_issue_hook "$(bash_payload 'gh issue create --repo "acme-corp/other" --title x')"
   [ "$status" -eq 2 ]
