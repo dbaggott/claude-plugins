@@ -1,5 +1,5 @@
 ---
-name: orchestrated-author
+name: author-orchestrated
 description: The author an `orchestrate` run dispatches to resolve one GitHub issue through a PR, from claim to merge. Dispatch it only from `orchestrate`; for any other task, use a general-purpose agent.
 # A 1-hour prompt-cache TTL, where subagents default to 5 minutes: the author's
 # transcript grows long, and it idles past 5 minutes on review rounds, CI, the

@@ -109,7 +109,7 @@ a drop is closed as not planned, citing the round.
 
 Send it to review per `git-workflow`'s "After opening a draft PR". When it is
 out of draft, dispatch `reviewer` on the parent as
-`dnbg-workflow:orchestrated-reviewer`, in the background:
+`dnbg-workflow:reviewer-orchestrated`, in the background:
 
 > Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
 > tracking issue, so grade the whole project on its closeout PR. You were

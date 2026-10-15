@@ -1,5 +1,5 @@
 ---
-name: orchestrated-reviewer
+name: reviewer-orchestrated
 description: The reviewer an `orchestrate` run dispatches, on an issue's PRs or on issue bodies, until its review ends. Dispatch it only from `orchestrate`; for any other task, use a general-purpose agent.
 # A 1-hour prompt-cache TTL, where subagents default to 5 minutes: the reviewer
 # idles past 5 minutes between review rounds and on its watches, so each resume
