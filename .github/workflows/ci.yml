@@ -339,9 +339,9 @@ jobs:
         # of what they decide (is this a worktree, is this file tracked) is
         # answered by git rather than by the script.
         #
-        # `-j` needs GNU `parallel`; without it bats runs zero tests and exits 0,
-        # so the `--version` guard is what keeps a missing binary, or moreutils'
-        # unrelated `parallel`, from passing.
+        # `-j` needs GNU `parallel`, and bats runs zero tests without it. The
+        # `--version` guard fails the step on anything else, moreutils' unrelated
+        # `parallel` included, before bats starts.
         run: |
           set -euo pipefail
           parallel --version | grep -q 'GNU parallel'
