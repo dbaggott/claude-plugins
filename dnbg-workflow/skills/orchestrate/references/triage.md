@@ -65,7 +65,7 @@ A row under (a) names the decision it applies:
 Decision log: D4 — applied
 
 **Question:** https://github.com/<owner>/<repo>/issues/<n>#issuecomment-<id>
-**Answer:** Edit the body from the orchestrator only; the author proposes the change in its report.
+**Answer:** Leave the parent's body to the orchestrator; propose the change in your report.
 **Basis:** allowlist (a). D4's rationale, "body edits are whole-body replaces and two writers clobber each other", names this case.
 ```
 
@@ -78,7 +78,10 @@ after it as a question still waiting on the operator.
 
 ## Promote decided rows into the body
 
-After a `decided` row, edit the issue body so a cold reader of it sees the
-decision without the log: change the section the decision affects, such as the
-"Proposed approach" or an acceptance criterion, and link the row. An `applied`
+After a `decided` row, the issue body changes so a cold reader of it sees the
+decision without the log: the section the decision affects, such as the
+"Proposed approach" or an acceptance criterion, changes and links the row.
+
+Once an author is dispatched the body is the author's: the message carrying the
+answer tells it to make that edit. Before then, make it yourself. An `applied`
 row changes nothing in the body, since the decision it applies is already there.

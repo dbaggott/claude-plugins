@@ -38,6 +38,9 @@ decision into it with a link to the row, as `references/triage.md` promotes a
 decided row. The link is the child's record of it: a decision raised on the
 parent gets no `Decision log:` comment on the children it reaches.
 
+A child in flight has its author as the body's writer: step 5 tells the author
+the edit, and you check the body for it before step 6.
+
 ## 4. Re-review what changed materially
 
 When the ready set's `parent.spec_review` is true, dispatch `issue-reviewer` on
@@ -58,7 +61,8 @@ reads `READY`.
 ## 5. Tell the agents working on it
 
 `SendMessage` the author and the reviewer of every reached child in flight: the
-change, what in their child's body it changed, and the row's URL.
+change, what in their child's body it changes, and the row's URL. The author's
+message also asks it to make that edit, per step 3.
 
 ## 6. Mark the row applied
 
