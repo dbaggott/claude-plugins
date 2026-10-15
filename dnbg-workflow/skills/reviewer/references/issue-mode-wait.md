@@ -53,6 +53,10 @@ and names which of those fired on which issue. Several issues cost one call per
 tick, so watching the whole set you were handed is no more expensive than
 watching one.
 
+The issue wait never stands in for a PR watch: every open PR you reviewed or
+held back as a draft keeps its own `watch-pr.sh` beside it, an approved one
+included, since a push after approval needs a re-verdict (`references/watch.md`,
+"End state").
 
 **At most one issue wait at a time, re-armed only on its own return, from its `── re-arm ──` line.** A PR
 watcher returning is a trigger to re-discover, not to arm a second wait — two
@@ -99,7 +103,13 @@ the catch-all**:
   conversation moved, so read it before deciding whether the assignment changed.
   `edited=` carries each issue's body-edit stamp, so a comment claiming the body
   was updated can be checked without a second call.
-- **`CLOSED`** — the work was dropped or resolved without a PR. Say so and stop.
+- **`CLOSED`** — run step 1's discovery once more; an open PR it finds keeps
+  the assignment going, and a printed re-arm line still covers the other
+  issues. A merge of a PR you reviewed is reported once, at its own watch's
+  `CLOSED`, which can arrive after this one, so check each PR you reviewed with
+  `gh pr view <url> --json state,closingIssuesReferences` and report the close
+  here only when none of them caused it: the work was dropped or resolved
+  without a PR.
 - **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
   re-arm**, and do **not** report that nothing has landed: you do not know that.
   Expired auth, or every issue number resolving to nothing, produces exactly this.

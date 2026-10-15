@@ -51,6 +51,10 @@ Issues arrive at two depths, and what the resolver owes differs by depth:
 
 A grounded issue that passes the critical review cleanly needs no separate approval step — the creator already made the design decision and the review is the check on it. The approval gate is for design *you* introduce, not a checkpoint on every pickup. But "no separate approval" is not license to rush to "grounded, proceed" by skimping the review — the gate is cheap because the review was real, not because it was skipped.
 
+### Run the criteria met by a run before send-to-review
+
+A criterion met by a run (an eval, a live exercise) is run before the PR leaves draft, and recorded on it: the output, the commit it ran on, and the invalidating paths the criterion names (`references/creating.md`). A later commit outside those paths leaves the run standing; one inside them means running it again. When the run needs the operator, such as a merge in a test repository or a session only they can start, ask for that part as soon as the branch can be run, in one message, rather than at send-to-review. A run you cannot make yourself, such as one only a main session can make when you are a subagent, is a question to whoever dispatched you, not a criterion to skip.
+
 ### Surface design changes that emerge mid-implementation
 
 The buy-in gates above fire *before* code — at pickup, on an under-researched issue, or when the critical review re-routes a grounded one. But design decisions also surface *during* implementation: you start building the agreed approach, then hit a wall, find a better path, or discover a contract has to change, and you course-correct. That mid-flight change had no gate — the operator signed off on the issue's design (or the one agreed at pickup), not this one. Left unsurfaced, it's discovered at review or manual-test time, after the change and any rework are already paid for and after review ran against a design no one approved — the latency this rule exists to remove.
