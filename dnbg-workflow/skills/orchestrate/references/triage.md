@@ -27,9 +27,8 @@ merely mentioning it:
   text: read the changed files from the author's worktree in place of the
   installed copies, and the author's record says it ran that way. A branch
   that changes a script, a hook, or a skill a dispatched subagent loads needs
-  a fresh session loading the branch instead (Claude Code:
-  `--plugin-dir <worktree>/<plugin>`); give the operator that command and the
-  prompt to run.
+  a fresh session loading the branch instead, which you launch yourself, per
+  "Run a branch-loaded session" below.
 
 Everything else escalates, and these always do: a change to an external
 contract or to user-visible behavior, a change of scope, a choice between
@@ -40,6 +39,77 @@ decision rather than a lookup.
 When the issue is a child of a tracking issue whose decisions state an
 escalation allowlist of their own, that decision is the authority instead, and
 a difference between the two is itself an escalation.
+
+## Run a branch-loaded session
+
+Launch it as a background Bash task, from a local clone of the repository the
+run targets, with the prompt in a quoted heredoc so the shell expands nothing
+in it:
+
+```bash
+cd <clone> && env -u CLAUDE_CODE_SESSION_ID claude -p --verbose \
+  --output-format stream-json --session-id <uuid> --setting-sources "" \
+  --permission-mode <mode> --plugin-dir <worktree>/<plugin> \
+  > <log> 2>&1 <<'PROMPT'
+<prompt>
+PROMPT
+```
+
+- **`env -u CLAUDE_CODE_SESSION_ID`** keeps your session id out of the run, which
+  would otherwise claim issues as you and read your claims as its own.
+- **`<uuid>`** comes from `uuidgen`, so you hold the id to resume it by.
+- **`--setting-sources ""`** keeps the installed copy of the plugin out, so the
+  run loads the branch's and nothing else's. It drops every user-scope setting
+  and plugin with it, so a criterion that needs one, such as `dnbg-practices`,
+  adds that plugin with another `--plugin-dir`.
+- **`<mode>`** is your own session's permission mode, since a headless session
+  cannot answer a prompt. If yours is not `bypassPermissions`, ask the operator
+  which mode the run gets in (f)'s one message.
+- **`<log>`** is a file from `mktemp` in your scratchpad. Its `system` `init`
+  line lists the plugin at the worktree path with source `<plugin>@inline`; the
+  author's record cites that line as the evidence the run loaded the branch.
+
+The operator's part stays their usual one, the merges. Hand them the command
+and the prompt instead only when you have no Bash tool, or when they ask to run
+it themselves.
+
+**When the session exits early.** A print session ends once its main turn has
+nothing left to wait on, which can be any wait on a subagent, and its subagents'
+watches end with it. Its exit wakes you. Read what it was waiting on from the
+log's final `result` line, and the PR's state from the forge:
+
+- **An event the forge already shows**, such as an approval at head while it
+  waits on the merge handoff: resume at once.
+- **The merge:** relay the handoff, and resume once the operator says the PR
+  merged and the forge confirms it.
+- **An event not yet on the forge:** tell the operator what it waits on, and
+  resume when they say it has happened.
+
+Resume with the same flags, a prompt naming the event and the subagents to
+reach, and the log appended to:
+
+```bash
+cd <clone> && env -u CLAUDE_CODE_SESSION_ID claude -p --verbose \
+  --output-format stream-json --resume <uuid> --setting-sources "" \
+  --permission-mode <mode> --plugin-dir <worktree>/<plugin> \
+  >> <log> 2>&1 <<'PROMPT'
+<prompt>
+PROMPT
+```
+
+Such as "<PR URL> is approved at head. SendMessage your author by its agent id
+for its merge handoff, then relay it", or after the merge "<PR URL> merged.
+SendMessage your author and reviewer by their agent ids to finish, then Stop."
+A resumed session can exit again; resume it each time until the log ends on its
+Stop report.
+
+**Evidence about processes.** The author's record comes from the forge and the
+`init` line. When a criterion is about processes, such as no `<script>` spawned
+by role X, start a second background task beside the run that appends
+`ps -axo pid,ppid,command` to a scratchpad file every few seconds and ends when
+the run's process does. Attribute each process by its arguments, the target
+repository and issue, never by a bare `pgrep`: other sessions on this machine
+run the same scripts. The samples go to the author for its record.
 
 ## The row
 
