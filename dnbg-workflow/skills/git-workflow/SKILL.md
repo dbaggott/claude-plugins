@@ -53,7 +53,7 @@ per plugin.
 8. Push, and **open the PR as a draft** (`gh pr create --draft ...`).
 9. After each commit, update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description.
 10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker. Without `AskUserQuestion`, follow `<skill-dir>/../issue-workflow/references/delegated.md`.
-11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`gh pr ready <number> --repo <repo>`) and start watching for the first review — see `references/review-rounds.md`, which carries the watch, the round handling and the reply flow through to a clean verdict.
+11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`gh pr ready <number> --repo <repo>`) and start watching for the first review — see `references/review-rounds.md`, which carries the watch. A review that comes in goes to `references/review-received.md`, findings to `references/review-findings.md`, and a clean verdict to `references/merge.md` for the handoff.
 12. Never merge. Only a human merges PRs.
 
 Worktrees live in `.worktrees/` inside the repo. Ensure `.worktrees` is in `.gitignore`.
@@ -163,7 +163,7 @@ Full GitHub URLs, always — per the always-on rule "Reference issues and PRs by
 
 ## When a PR merges
 
-The post-merge cleanup is in `references/merge.md`, and it runs before any new work. Reach it from `references/review-rounds.md` when a review comes back clean or its watch reports the PR closed, and straight from here when you are simply told a PR merged — a resumed session, or one that only ever opened the PR.
+The post-merge cleanup is in `references/post-merge.md`, and it runs before any new work. Reach it from `references/merge-wait.md` when the merge lands, from `references/review-rounds.md` when its watch reports the PR closed, and straight from here when you are simply told a PR merged — a resumed session, or one that only ever opened the PR.
 
 ## After rebase or merge
 

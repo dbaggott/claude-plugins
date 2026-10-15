@@ -77,7 +77,7 @@ start are the same path.
    Pass every PR this step found, whatever its state or relevance, as
    `--exclude` on the issue watch's first arm, since it otherwise wakes on each.
    Read the per-source fields before treating `count=0` as none, as
-   `issue-workflow`'s `references/resolving.md` describes.
+   `issue-workflow`'s `references/claiming.md` describes.
 4. **The log.** Read every comment on the issue. What is still open: a
    `Delegated question:` that no row's **Question** line links, a `proposed`
    row with no later row of the same ID, and an operator comment newer than the

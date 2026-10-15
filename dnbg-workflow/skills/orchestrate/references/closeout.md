@@ -25,7 +25,7 @@ gh pr view <url> --json state,isDraft,body,closingIssuesReferences
 ```
 
 Read the per-source fields before treating `count=0` as none, as
-`issue-workflow`'s `references/resolving.md` describes. An open PR whose
+`issue-workflow`'s `references/claiming.md` describes. An open PR whose
 `closingIssuesReferences` include the parent is a predecessor's closeout PR.
 Continue it rather than opening a second, at the first of steps 4 to 6 its
 description does not carry; one out of draft resumes at step 6, with a reviewer

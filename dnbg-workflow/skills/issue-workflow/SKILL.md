@@ -45,11 +45,12 @@ with almost no overlap, so each lives in its own file. Read the one you are on:
   Responding per finding ID, the edit-then-comment ordering the reviewer reads
   your state from, and waiting on the next round. The reviewer's side is the
   `issue-reviewer` skill.
-- **Picking up an issue to resolve it** → `references/resolving.md`. Claiming it
-  (and checking it is not already claimed), the freshness probe, the critical
-  review of the issue itself, and the link-following discipline.
+- **Picking up an issue to resolve it** → `references/claiming.md` first:
+  checking it is not already claimed, then claiming it. Then
+  `references/resolving.md`: the freshness probe, the critical review of the
+  issue itself, and the link-following discipline.
 
-**On pickup, read `references/resolving.md` before touching any file or
+**On pickup, read `references/claiming.md` before touching any file or
 opening a worktree.** Claiming comes first, and an issue already being worked by
 someone else is a stop, not a merge conflict to discover later.
 

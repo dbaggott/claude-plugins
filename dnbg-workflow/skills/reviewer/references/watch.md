@@ -115,7 +115,7 @@ the same as completion.
 ⚠️ **In the issue-scoped mode, a PR reaching `CLOSED` is not the end of the
 assignment** — it is the trigger to re-discover. Completion there is a fresh
 discovery pass finding no open PR *and* the issue closed; see "Discovery is
-continuous" in `references/issue-mode.md`. Treating one PR's `CLOSED` as the end is exactly how the
+continuous" in `references/issue-mode-wait.md`. Treating one PR's `CLOSED` as the end is exactly how the
 sibling PR that opens tomorrow goes unreviewed.
 
 ## Report the review, in three sections

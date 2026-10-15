@@ -60,9 +60,11 @@ ask on the issue per `<skill-dir>/../issue-workflow/references/delegated.md`.
 
 **Read `references/issue-mode.md` before acting on one, and don't improvise
 from the PR flow below.** That mode discovers the PRs resolving
-the issue from three sources (using fewer silently misses PRs), waits when none
-exist, reviews the whole set against the issue's acceptance criteria, and keeps
-re-discovering until the issue closes. None of it is derivable from what follows.
+the issue from three sources (using fewer silently misses PRs), then
+`references/issue-mode-wait.md` waits when none exist, reviews the whole set
+against the issue's acceptance criteria, and keeps re-discovering until the issue
+closes. A tracking issue is graded in `references/issue-mode-tracking.md`. None of
+it is derivable from what follows.
 
 Everything below is the per-PR flow, which issue mode runs once per PR it finds.
 

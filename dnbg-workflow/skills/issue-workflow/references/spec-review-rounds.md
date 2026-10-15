@@ -90,4 +90,4 @@ that disposes nothing new leaves the remainder as an operator decision.
 Fold anything the review established that changes what a resolver should build
 into the body, per "Maintaining issues" in `SKILL.md`: a fact living only in a
 comment is invisible to the handoff. Picking the issue up is then
-`references/resolving.md`.
+`references/claiming.md`.
