@@ -72,9 +72,10 @@ start are the same path.
    - `mention`, or `unknown` when the PR could not be read — not shown to be
      the issue's work. Name each open one to the operator, saying when one
      looks like the issue's work, and hand it to the author only if the
-     operator says so. Pass every `mention`, open or not, as `--exclude` when
-     you arm the issue watch, which otherwise wakes on each.
+     operator says so.
 
+   Pass every PR this step found, whatever its state or relevance, as
+   `--exclude` when you arm the issue watch, which otherwise wakes on each.
    Read the per-source fields before treating `count=0` as none, as
    `issue-workflow`'s `references/resolving.md` describes.
 4. **The log.** Read every comment on the issue. What is still open: a
@@ -160,7 +161,7 @@ Never poll in the conversation. Each event reaches you as one of these:
   ```bash
   "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> \
     --role=orchestrator --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    [--exclude=<step 3's mentions, comma-separated>]
+    [--exclude=<step 3's PRs, comma-separated>]
   ```
 
   It wakes on comments, linked PRs, and the issue closing, never on a body edit

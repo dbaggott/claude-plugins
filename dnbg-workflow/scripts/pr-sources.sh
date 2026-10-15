@@ -15,7 +15,9 @@
 # union need not re-derive it:
 #   closes   — it carries a closing reference to the issue;
 #   sibling  — a tagged multi-repo sibling: its title starts with `[<head branch>]`,
-#              the pairing `git-workflow`'s "Multi-repo changes" requires;
+#              the pairing `git-workflow`'s "Multi-repo changes" requires, on the
+#              branch of a `closes` PR in the set, or on any branch when no
+#              `closes` PR's branch is known;
 #   mention  — neither; it only cites the issue;
 #   unknown  — the PR could not be read, and the closing source did not list it.
 # A PR both closing and tagged reads `closes`.
@@ -140,24 +142,42 @@ urls=$(printf '%s\n%s\n%s\n' "$closing_urls" "$xref_urls" "$search_urls" \
 
 # One read per PR, rather than trusting the closing source alone: that source can
 # fail while the rest answer, and the PR's own closing references still say
-# whether it closes the issue.
+# whether it closes the issue. Each read yields `<url>\t<closes>\t<head>\t<tagged>`,
+# or `<url>\tunread` when the PR could not be read.
 ISSUE_URL="https://github.com/$REPO/issues/$ISSUE"
-relevance_of() {  # <pr-url>
-  printf '%s\n' "$closing_urls" | grep -qxF "$1" && { echo closes; return; }
-  local j
-  j=$(gh pr view "$1" --json title,headRefName,closingIssuesReferences 2>/dev/null) \
-    || { echo unknown; return; }
-  echo "$j" | jq -r --arg issue "$ISSUE_URL" '
-      if any((.closingIssuesReferences // [])[];
-             (.url // "" | ascii_downcase) == ($issue | ascii_downcase)) then "closes"
-      elif (.headRefName // "") as $h
-           | $h != "" and ((.title // "") | startswith("[" + $h + "]")) then "sibling"
-      else "mention" end' 2>/dev/null || echo unknown
+read_pr() {  # <pr-url>
+  local j listed=false
+  printf '%s\n' "$closing_urls" | grep -qxF "$1" && listed=true
+  if j=$(gh pr view "$1" --json title,headRefName,closingIssuesReferences 2>/dev/null) \
+     && echo "$j" | jq -r --arg url "$1" --arg issue "$ISSUE_URL" --argjson listed "$listed" '
+          (.headRefName // "") as $h
+          | [ $url,
+              ($listed or any((.closingIssuesReferences // [])[];
+                  (.url // "" | ascii_downcase) == ($issue | ascii_downcase))),
+              $h,
+              ($h != "" and ((.title // "") | startswith("[" + $h + "]"))) ]
+          | map(tostring) | join("\t")' 2>/dev/null; then
+    return
+  fi
+  if $listed; then printf '%s\ttrue\t\tfalse\n' "$1"; else printf '%s\tunread\n' "$1"; fi
 }
 
+# A tag pairs a PR with the issue's closing PR, so a tagged PR whose branch no
+# closing PR shares is another change that cites this issue. With no closing PR
+# whose branch is known, a tag is taken at its word: a sibling can open first.
 if [ -n "$urls" ]; then
-  while IFS= read -r u; do
-    printf '%s relevance=%s\n' "$u" "$(relevance_of "$u")"
-  done <<<"$urls"
+  while IFS= read -r u; do read_pr "$u"; done <<<"$urls" | awk -F'\t' '
+    { url[NR] = $1; closes[NR] = $2; head[NR] = $3; tagged[NR] = $4
+      if ($2 == "true" && $3 != "") closer[$3] = 1 }
+    END {
+      for (b in closer) any_closer = 1
+      for (i = 1; i <= NR; i++) {
+        if (closes[i] == "unread")     r = "unknown"
+        else if (closes[i] == "true")  r = "closes"
+        else if (tagged[i] == "true" && (!any_closer || head[i] in closer)) r = "sibling"
+        else                           r = "mention"
+        print url[i] " relevance=" r
+      }
+    }'
 fi
 echo "result=OK count=$(printf '%s' "$urls" | grep -c . || true) closing=$closing search=$search timeline=$timeline"

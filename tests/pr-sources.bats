@@ -200,11 +200,12 @@ xref() {  # <url> [more...]
 # sibling to its author; reading a mention as the issue's work sends that author
 # to continue a PR in another repo that only cites the issue.
 
-@test "a PR the closing source lists reads closes, without being read again" {
+# The closing source's word stands even when the PR cannot be read.
+@test "a PR the closing source lists reads closes, even unread" {
   echo '[{"url":"https://x/pull/1"}]' > "$CLOSING"
+  : > "$PRS/$(pr_key https://x/pull/1).fail"
   run "$SOURCES" o/r 5
   [ "$(relevance_of "$output" https://x/pull/1)" = closes ]
-  ! grep -q '^pr view' "$CALLS"
 }
 
 # The closing source can fail while the others answer; the PR's own closing
@@ -235,6 +236,27 @@ xref() {  # <url> [more...]
 @test "a bracket tag that is not the head branch reads mention" {
   xref https://y/pull/3
   pr_reads https://y/pull/3 "[orchestration] Closeout" orchestration-closeout
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://y/pull/3)" = mention ]
+}
+
+@test "a tagged PR on the closing PR's branch reads sibling" {
+  echo '[{"url":"https://x/pull/1"}]' > "$CLOSING"
+  pr_reads https://x/pull/1 "[pair-x] App half" pair-x https://github.com/o/r/issues/5
+  xref https://y/pull/3
+  pr_reads https://y/pull/3 "[pair-x] Infra half" pair-x
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" https://x/pull/1)" = closes ]
+  [ "$(relevance_of "$output" https://y/pull/3)" = sibling ]
+}
+
+# Another multi-repo change carries its own tag, and citing this issue does not
+# make it this issue's sibling.
+@test "a tagged PR on a branch no closing PR shares reads mention" {
+  echo '[{"url":"https://x/pull/1"}]' > "$CLOSING"
+  pr_reads https://x/pull/1 "Fix it" fix-it https://github.com/o/r/issues/5
+  xref https://y/pull/3
+  pr_reads https://y/pull/3 "[other-work] Infra" other-work
   run "$SOURCES" o/r 5
   [ "$(relevance_of "$output" https://y/pull/3)" = mention ]
 }
