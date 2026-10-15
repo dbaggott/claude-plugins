@@ -338,7 +338,14 @@ jobs:
         # stdin, an exit code out — against real git repositories, because most
         # of what they decide (is this a worktree, is this file tracked) is
         # answered by git rather than by the script.
-        run: npx --yes bats@1.13.0 tests/
+        #
+        # `-j` needs GNU `parallel`; without it bats runs zero tests and exits 0,
+        # so the `--version` guard is what keeps a missing binary, or moreutils'
+        # unrelated `parallel`, from passing.
+        run: |
+          set -euo pipefail
+          parallel --version | grep -q 'GNU parallel'
+          npx --yes bats@1.13.0 -j 8 tests/
 
   ci-required:
     # Single umbrella job. New fanout jobs added above gate merges by being
