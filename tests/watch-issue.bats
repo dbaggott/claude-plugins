@@ -17,14 +17,15 @@ load reap
 
 setup_clock() {
   export CLOCK="$BATS_TEST_TMPDIR/clock"; echo 0 > "$CLOCK"
-  cat > "$STUB/date" <<'EOF'
-#!/usr/bin/env bash
-off=$(cat "$CLOCK" 2>/dev/null || echo 0)
+  # Stubs here name "$BASH" as their interpreter rather than `env bash`, and the
+  # per-tick ones read files with builtins rather than `cat`: on CI's runner every
+  # process a tick spawns is a cost the whole suite pays.
+  { echo "#!$BASH"; cat; } > "$STUB/date" <<'EOF'
+off=0; [ -f "$CLOCK" ] && off=$(<"$CLOCK")
 if [ "$1" = "+%s" ]; then echo $(( 1700000000 + off )); else exec /bin/date "$@"; fi
 EOF
-  cat > "$STUB/sleep" <<'EOF'
-#!/usr/bin/env bash
-echo $(( $(cat "$CLOCK") + ${1:-0} )) > "$CLOCK"
+  { echo "#!$BASH"; cat; } > "$STUB/sleep" <<'EOF'
+echo $(( $(<"$CLOCK") + ${1:-0} )) > "$CLOCK"
 EOF
   chmod +x "$STUB/date" "$STUB/sleep"
 }
@@ -36,10 +37,9 @@ setup() {
   export GQL_EXIT="$BATS_TEST_TMPDIR/gql_exit"
   export TICKS="$BATS_TEST_TMPDIR/ticks"; echo 0 > "$TICKS"
   setup_clock
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$*" in *"api user"*) echo operator; exit 0 ;; esac
-t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+t=0; [ -f "$TICKS" ] && t=$(<"$TICKS"); t=$((t + 1)); echo "$t" > "$TICKS"
 cat "$GQL"
 [ -f "$GQL_EXIT" ] && exit 1
 exit 0
@@ -415,10 +415,9 @@ comment() {  # <login> <iso>
 # re-arm sets `since` past that activity, so it is filtered out for good rather
 # than deferred. Both facts ride one line instead.
 @test "an issue closing does not drop a pending burst on its siblings" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$*" in *"api user"*) echo operator; exit 0 ;; esac
-t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+t=0; [ -f "$TICKS" ] && t=$(<"$TICKS"); t=$((t + 1)); echo "$t" > "$TICKS"
 if [ "$t" = 1 ]; then st5=OPEN; else st5=CLOSED; fi
 jq -cn --arg st5 "$st5" '{data:{repository:{
   i5:{number:5,state:$st5,lastEditedAt:null,comments:{totalCount:0,nodes:[]},
@@ -442,10 +441,9 @@ EOF
 # Nothing left to watch: the activity is still owed, but a re-arm line would put
 # the watch back on a set that is entirely closed.
 @test "a burst reported alongside the last issue closing carries no re-arm" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$*" in *"api user"*) echo operator; exit 0 ;; esac
-t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+t=0; [ -f "$TICKS" ] && t=$(<"$TICKS"); t=$((t + 1)); echo "$t" > "$TICKS"
 if [ "$t" = 1 ]; then st=OPEN; else st=CLOSED; fi
 jq -cn --arg st "$st" '{data:{repository:{
   i7:{number:7,state:$st,lastEditedAt:null,
@@ -477,8 +475,7 @@ EOF
 # either. The earlier-tick case is covered above; this is the same loss by a
 # different route, and only ordering the branches fixes both.
 @test "a closure seen with a sibling's first activity keeps both" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$*" in *"api user"*) echo operator; exit 0 ;; esac
 jq -cn '{data:{repository:{
   i5:{number:5,state:"CLOSED",lastEditedAt:null,comments:{totalCount:0,nodes:[]},
@@ -499,10 +496,9 @@ EOF
 # Each missing number leaves the set permanently, so a later one replacing an
 # earlier one in the field means the caller is never told about the first.
 @test "two issues going missing at different times are both named" {
-  cat > "$STUB/gh" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$*" in *"api user"*) echo operator; exit 0 ;; esac
-t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+t=0; [ -f "$TICKS" ] && t=$(<"$TICKS"); t=$((t + 1)); echo "$t" > "$TICKS"
 # #9 unresolvable from the start; #10 goes on tick 3.
 if [ "$t" -ge 3 ]; then ten=null; else ten='{"number":10,"state":"OPEN","lastEditedAt":null,
   "comments":{"totalCount":0,"nodes":[]},

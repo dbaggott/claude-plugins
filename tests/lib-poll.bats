@@ -34,16 +34,17 @@ setup_clock() {
   # two leaks however long the test itself took into every assertion, which turns
   # exact expectations into flaky ranges. Other date formats (the ISO stamp in a
   # result line) pass through, since nothing asserts on them.
-  cat > "$STUB/date" <<'EOF'
-#!/usr/bin/env bash
-off=$(cat "$CLOCK" 2>/dev/null || echo 0)
+  # Stubs here name "$BASH" as their interpreter rather than `env bash`, and the
+  # per-tick ones read files with builtins rather than `cat`: on CI's runner every
+  # process a tick spawns is a cost the whole suite pays.
+  { echo "#!$BASH"; cat; } > "$STUB/date" <<'EOF'
+off=0; [ -f "$CLOCK" ] && off=$(<"$CLOCK")
 if [ "$1" = "+%s" ]; then echo $(( 1700000000 + off )); else exec /bin/date "$@"; fi
 EOF
-  cat > "$STUB/sleep" <<'EOF'
-#!/usr/bin/env bash
+  { echo "#!$BASH"; cat; } > "$STUB/sleep" <<'EOF'
 jump=0
-if [ -s "$SUSPEND" ]; then jump=$(cat "$SUSPEND"); : > "$SUSPEND"; fi
-echo $(( $(cat "$CLOCK") + ${1:-0} + jump )) > "$CLOCK"
+if [ -s "$SUSPEND" ]; then jump=$(<"$SUSPEND"); : > "$SUSPEND"; fi
+echo $(( $(<"$CLOCK") + ${1:-0} + jump )) > "$CLOCK"
 EOF
   chmod +x "$STUB/date" "$STUB/sleep"
   export PATH="$STUB:$PATH"

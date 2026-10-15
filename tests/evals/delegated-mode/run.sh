@@ -101,9 +101,10 @@ for d in "${path_dirs[@]}"; do
     mirror_n=$((mirror_n + 1))
     m="$OUT/path-mirror/$mirror_n"
     mkdir -p "$m"
-    for f in "$d"/*; do
-      [ "$(basename "$f")" = gh ] || ln -sf "$f" "$m/"
-    done
+    # One `ln` per batch rather than per file: this runs once per eval test, over
+    # directories as large as /usr/bin.
+    find "$d" -mindepth 1 -maxdepth 1 ! -name gh ! -name '.*' \
+      -exec sh -c 'ln -sf "$@" "$0"' "$m/" {} +
     d=$m
   fi
   MIRROR_PATH="${MIRROR_PATH:+$MIRROR_PATH:}$d"
