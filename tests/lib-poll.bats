@@ -352,11 +352,12 @@ EOF
     poll_init; for _ in 1 2 3; do poll_nap; done" &
   local pid=$! i=0
   echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
-  # The sleep is the child of the watch; find it before the watch dies. START is
-  # traced before the first nap forks, so wait for the child, not for the log.
+  # The sleep is the child of the watch; find it before the watch dies. Matched by
+  # name, because the watch's command substitutions are children too, and one of
+  # those exits on its own and passes the reap assertion without testing it.
   local nap=""
   while [ -z "$nap" ] && [ "$i" -lt 150 ]; do
-    nap=$(pgrep -P "$pid" 2>/dev/null | head -1); [ -n "$nap" ] || sleep 0.1; i=$((i + 1))
+    nap=$(pgrep -x -P "$pid" sleep 2>/dev/null | head -1); [ -n "$nap" ] || sleep 0.1; i=$((i + 1))
   done
   [ -n "$nap" ] || skip "could not observe the nap child on this platform"
   kill -TERM "$pid"; wait "$pid" 2>/dev/null || true
