@@ -186,8 +186,8 @@ Never poll in the conversation. Each event reaches you as one of these:
   `decided` and handle it as any decided row, under "Answer or escalate". One
   that does not is noted and changes nothing.
 
-  `ERROR` is not a quiet issue: don't re-arm. `reason=bad-args` is your own
-  command refused before it polled, so fix it and re-run; any other reason,
+  `ERROR` is not a quiet issue: don't re-arm. `reason=bad-args` means the watch
+  refused your command's arguments, so fix them and re-run; any other reason,
   check `gh auth status` and tell the operator. `IDLE` is re-armed. A
   `linked-pr` wake for the author's PR needs nothing, since the author reports
   it; any other PR is someone else's work on the issue, so tell the operator.

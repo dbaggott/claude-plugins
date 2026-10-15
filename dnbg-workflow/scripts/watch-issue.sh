@@ -153,8 +153,8 @@ wakes() { case ",$WAKE_ON," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 # shape written after a comma, and anything still not a PR URL — `286`, `#286` —
 # is refused: it would otherwise exclude nothing and say nothing.
 EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | csv | tr ',' '\n')
-if [ -n "$EXCLUDE_LINES" ] && printf '%s\n' "$EXCLUDE_LINES" \
-    | grep -qvE '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+$'; then
+if [ -n "$EXCLUDE_LINES" ] \
+    && grep -qvE '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+$' <<<"$EXCLUDE_LINES"; then
   bad=1
 fi
 [ "$bad" = 1 ] && fatal bad-args

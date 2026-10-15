@@ -170,6 +170,21 @@ comment() {  # <login> <iso>
   [ "$(cat "$TICKS")" = 0 ]
 }
 
+@test "a URL that is not a PR's is refused in --exclude" {
+  repo "$(issue 163)"
+  run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot \
+    --exclude=https://github.com/o/r/issues/9
+  [[ "${lines[-1]}" == "result=ERROR reason=bad-args"* ]]
+}
+
+@test "a PR URL whose repo name has dots, dashes and underscores is excluded" {
+  repo "$(issue 163 '[]' '["https://github.com/a-b/c.d_e/pull/9"]')"
+  INTERVAL=1 SETTLE=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot \
+      --exclude=https://github.com/a-b/c.d_e/pull/9
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
 @test "the PRs that woke the watch are folded into the re-arm line" {
   repo "$(issue 163 '[]' '["https://github.com/o/r/pull/9"]')"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
