@@ -36,6 +36,11 @@ competing values, and anything that contradicts the design. So does a discovery
 the issue's author could not have known about, because answering it is a new
 decision rather than a lookup.
 
+A departure the author reports as already built, in a comment, its report or
+the PR description, goes through this same list as if it had asked before
+building. Being built makes nothing answerable, and one that contradicts the
+design escalates like any other.
+
 When the issue is a child of a tracking issue whose decisions state an
 escalation allowlist of their own, that decision is the authority instead, and
 a difference between the two is itself an escalation.
@@ -134,7 +139,8 @@ Decision log: <ID> — <state>
 Below the first line, in this order:
 
 - **Question** — the `Delegated question:` comment's URL, or the operator
-  comment's URL when the decision came from one.
+  comment's URL when the decision came from one; for a departure reported
+  rather than asked, the URL of the comment or PR that reports it.
 - **Answer** — the answer, in a sentence or two.
 - **Basis** — the allowlist item it was decided under and the rationale it rests
   on, quoted or linked; or `operator`, with how they answered (in session, or
