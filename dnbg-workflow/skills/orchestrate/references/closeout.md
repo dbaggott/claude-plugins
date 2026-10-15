@@ -113,7 +113,10 @@ out of draft, dispatch `reviewer` on the parent, in the background:
 > Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
 > tracking issue, so grade the whole project on its closeout PR. You were
 > dispatched by an orchestrator, so follow `issue-workflow`'s
-> `references/delegated.md` wherever a skill asks the operator something.
+> `references/delegated.md` wherever a skill asks the operator something. When
+> your review ends, write a retrospective per
+> `<skill-dir>/references/retrospective.md`, and end your final report with a
+> **Retrospective** section giving the file's path.
 
 Its review arrives on the PR, so handle every round as an author does, per
 `git-workflow`'s `references/review-rounds.md`. A finding on an `A#` with no
@@ -129,5 +132,5 @@ the PR and you bring its doc up to date before sending it back to review.
 When the review is clean, give the operator the merge handoff per
 `git-workflow`'s `references/merge.md`. Never merge. The merge closes the
 parent. Run `git-workflow`'s post-merge cleanup, then go to
-`references/multi-issue.md`'s "Stop". If the PR closes unmerged, ask the
-operator whether to open a new one or stop.
+`references/multi-issue.md`'s "Stop", once the reviewer's final report is in.
+If the PR closes unmerged, ask the operator whether to open a new one or stop.
