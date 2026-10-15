@@ -43,20 +43,25 @@ a difference between the two is itself an escalation.
 ## Run a branch-loaded session
 
 Launch it as a background Bash task, from a local clone of the repository the
-run targets, with the prompt on stdin so the shell expands nothing in it:
+run targets, with the prompt in a quoted heredoc so the shell expands nothing
+in it:
 
 ```bash
 cd <clone> && env -u CLAUDE_CODE_SESSION_ID claude -p --verbose \
   --output-format stream-json --session-id <uuid> --setting-sources "" \
   --permission-mode <mode> --plugin-dir <worktree>/<plugin> \
-  <<< "<prompt>" > <log> 2>&1
+  > <log> 2>&1 <<'PROMPT'
+<prompt>
+PROMPT
 ```
 
 - **`env -u CLAUDE_CODE_SESSION_ID`** keeps your session id out of the run, which
   would otherwise claim issues as you and read your claims as its own.
 - **`<uuid>`** comes from `uuidgen`, so you hold the id to resume it by.
 - **`--setting-sources ""`** keeps the installed copy of the plugin out, so the
-  run loads the branch's and nothing else's.
+  run loads the branch's and nothing else's. It drops every user-scope setting
+  and plugin with it, so a criterion that needs one, such as `dnbg-practices`,
+  adds that plugin with another `--plugin-dir`.
 - **`<mode>`** is your own session's permission mode, since a headless session
   cannot answer a prompt. If yours is not `bypassPermissions`, ask the operator
   which mode the run gets in (f)'s one message.
@@ -87,7 +92,9 @@ reach, and the log appended to:
 cd <clone> && env -u CLAUDE_CODE_SESSION_ID claude -p --verbose \
   --output-format stream-json --resume <uuid> --setting-sources "" \
   --permission-mode <mode> --plugin-dir <worktree>/<plugin> \
-  <<< "<prompt>" >> <log> 2>&1
+  >> <log> 2>&1 <<'PROMPT'
+<prompt>
+PROMPT
 ```
 
 Such as "<PR URL> is approved at head. SendMessage your author by its agent id
