@@ -86,6 +86,15 @@ comment() {  # <login> <iso>
   [[ "${lines[-1]}" == result=IDLE* ]]
 }
 
+@test "a wait longer than one heartbeat prints a liveness line before the result" {
+  repo "$(issue 163)"
+  HEARTBEAT=2 INTERVAL=1 WINDOW=5 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "alive at="* ]]
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
 # The operator's login is a substring of the bot's, so an author-side watch
 # matching loosely drops every reviewer comment it exists to catch — and reports
 # a quiet issue while seeing all of them.
