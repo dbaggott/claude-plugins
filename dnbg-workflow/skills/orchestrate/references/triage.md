@@ -27,9 +27,8 @@ merely mentioning it:
   text: read the changed files from the author's worktree in place of the
   installed copies, and the author's record says it ran that way. A branch
   that changes a script, a hook, or a skill a dispatched subagent loads needs
-  a fresh session loading the branch instead (Claude Code:
-  `--plugin-dir <worktree>/<plugin>`); give the operator that command and the
-  prompt to run.
+  a fresh session loading the branch instead, which you launch yourself, per
+  "Run a branch-loaded session" below.
 
 Everything else escalates, and these always do: a change to an external
 contract or to user-visible behavior, a change of scope, a choice between
@@ -40,6 +39,51 @@ decision rather than a lookup.
 When the issue is a child of a tracking issue whose decisions state an
 escalation allowlist of their own, that decision is the authority instead, and
 a difference between the two is itself an escalation.
+
+## Run a branch-loaded session
+
+Launch it as a background Bash task, from a local clone of the repository the
+run targets:
+
+```bash
+cd <clone> && claude -p --verbose --output-format stream-json \
+  --session-id <uuid> --permission-mode <mode> \
+  --plugin-dir <worktree>/<plugin> \
+  "<prompt>" > <log> 2>&1
+```
+
+- **`<uuid>`** comes from `uuidgen`, so you hold the id to resume it by.
+- **`<mode>`** is your own session's permission mode, since a headless session
+  cannot answer a prompt. If yours is not `bypassPermissions`, ask the operator
+  which mode the run gets in (f)'s one message.
+- **`<log>`** is a file from `mktemp` in your scratchpad. Its `system` `init`
+  line lists the plugin at the worktree path with source `<plugin>@inline`; the
+  author's record cites that line as the evidence the run loaded the branch.
+
+The operator's part stays their usual one, the merges. Hand them the command
+and the prompt instead only when you have no Bash tool, or when they ask to run
+it themselves.
+
+**When the session exits before its merge.** A print session ends once its main
+turn has nothing left to wait on, which can be its merge handoff, and its
+subagents' watches end with it. Wait for the operator's merge, then resume it:
+
+```bash
+cd <clone> && claude -p --verbose --output-format stream-json \
+  --resume <uuid> --permission-mode <mode> \
+  --plugin-dir <worktree>/<plugin> \
+  "<PR URL> merged. Continue your author and reviewer to their final reports, then Stop." \
+  >> <log> 2>&1
+```
+
+Read its outcome from the log's final `result` lines.
+
+**Evidence about processes.** The author's record comes from the forge and the
+`init` line. When a criterion is about processes, such as no `<script>` spawned
+by role X, sample `ps -axo pid,ppid,command` on an interval until the run's
+process exits. Attribute each process by its arguments, the target repository
+and issue, never by a bare `pgrep`: other sessions on this machine run the same
+scripts. The samples go to the author for its record.
 
 ## The row
 

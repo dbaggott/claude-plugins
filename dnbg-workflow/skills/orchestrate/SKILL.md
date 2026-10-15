@@ -23,9 +23,9 @@ competes with its owner's.
 A tracking issue is driven child by child, each through this flow, by the loop
 in `references/multi-issue.md`, which applies design changes per
 `references/design-change.md`. Its parent is resolved by a closeout PR that you
-author, per `references/closeout.md`: the one artifact that is yours. Every agent in a run, you included,
-ends its part with a retrospective, per `references/retrospective.md`; read it
-before dispatching.
+author, per `references/closeout.md`: the one artifact that is yours. Every
+agent in a run, you included, ends its part with a retrospective, per
+`references/retrospective.md`; read it before dispatching.
 
 `<skill-dir>` is the **Base directory** announced when this skill loads. The
 scripts are at `<skill-dir>/../../scripts/`.
@@ -138,8 +138,9 @@ it when the operator said they will review the PR themselves.
 
 ## Wait on subagent reports
 
-Never poll in the conversation, and arm no issue watch. Each event reaches you as a subagent ending its turn, and that turn's report is the event.
-Act on what it ends with:
+Never poll in the conversation, and arm no issue watch. Each event reaches you
+as a subagent ending its turn, and that turn's report is the event. Act on what
+it ends with:
 
 - a question — triage it, under "Answer or escalate";
 - the author's PR URL at send-to-review — dispatch the reviewer, unless one
