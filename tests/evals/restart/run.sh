@@ -232,20 +232,19 @@ await_claims() {
   return 1
 }
 
-# <run-dir> <pid> <login> <since> <value> <comment-id> -> 0 once kill_due holds
-# on the parent; prints why not otherwise.
+# <run-dir> <pid> <since> <value> <comment-id> -> 0 once kill_due holds on the
+# parent; prints why not otherwise.
 #
-# The watch runs as an author whose own login is the operator's, so the comments
-# everyone in the run posts under that login do not wake it, and a body edit
-# does. The orchestrator role would not do: it never wakes on a body edit.
+# The watch wakes on a body edit and the parent closing, nothing else: the
+# decision lands as a body edit under the operator's login, the one login every
+# comment in the run also posts under.
 await_kill_point() {
-  local dir=$1 parent n since=$4 deadline=$(( $(date +%s) + ${KILL_TIMEOUT:-1800} )) wpid result
-  local exclude=""
+  local dir=$1 parent n since=$3 deadline=$(( $(date +%s) + ${KILL_TIMEOUT:-1800} )) wpid result
   parent=$(cat "$dir/parent"); n=${parent##*/}
   while before "$deadline"; do
     SETTLE=0 INTERVAL=3 WINDOW=$(( deadline - $(date +%s) )) \
-      "$SCRIPTS/watch-issue.sh" "$REPO" "$n" --role=author --slug="$3" --since="$since" \
-      ${exclude:+"--exclude=$exclude"} > "$dir/watch.out" 2> /dev/null &
+      "$SCRIPTS/watch-issue.sh" "$REPO" "$n" --role=author --wake-on=body-edit,close \
+      --since="$since" > "$dir/watch.out" 2> /dev/null &
     wpid=$!
     while kill -0 "$wpid" 2> /dev/null; do
       if ! kill -0 "$2" 2> /dev/null; then
@@ -259,7 +258,7 @@ await_kill_point() {
     result=$(grep '^result=' "$dir/watch.out" | tail -1)
     case "$result" in
       result=ACTIVITY*) ;;
-      result=IDLE*) kill_due "$(body_of "$parent")" "$5" "$6" && return 0; break ;;
+      result=IDLE*) kill_due "$(body_of "$parent")" "$4" "$5" && return 0; break ;;
       result=CLOSED*) echo "the parent was closed before the decision reached it"; return 1 ;;
       *) echo "the parent's watch failed: ${result:-no result}"; return 1 ;;
     esac
@@ -268,10 +267,7 @@ await_kill_point() {
     # otherwise never wake it. The body is read after `now`, so an edit seen
     # twice is only read twice.
     since=$(iso_before "${result##* now=}" 5)
-    # The PRs it has reported, so a linked PR wakes it once rather than every poll.
-    exclude=$(grep -o -- '--exclude=[^ ]*' "$dir/watch.out" | tail -1 || true)
-    exclude=${exclude#--exclude=}
-    kill_due "$(body_of "$parent")" "$5" "$6" && return 0
+    kill_due "$(body_of "$parent")" "$4" "$5" && return 0
   done
   echo "the decision did not reach the parent's design and log in ${KILL_TIMEOUT:-1800}s"
   return 1
@@ -309,9 +305,9 @@ clean_up() {
   done
 }
 
-# <run-dir> <run-id> <login> -> PASS, FAIL or INCONCLUSIVE, with a reason
+# <run-dir> <run-id> -> PASS, FAIL or INCONCLUSIVE, with a reason
 run_once() {
-  local dir=$1 run=$2 login=$3 first second pid value comment cid since why parent
+  local dir=$1 run=$2 first second pid value comment cid since why parent
   first=$(uuidgen | tr '[:upper:]' '[:lower:]')
   second=$(uuidgen | tr '[:upper:]' '[:lower:]')
   value="ahoy-$run"
@@ -329,7 +325,7 @@ run_once() {
     || { stop_orchestrator "$pid"; echo "FAIL the decision comment could not be posted"; return; }
   cid=${comment##*issuecomment-}
   case "$cid" in ''|*[!0-9]*) stop_orchestrator "$pid"; echo "FAIL no comment id in '$comment'"; return ;; esac
-  if ! why=$(await_kill_point "$dir" "$pid" "$login" "$since" "$value" "$cid"); then
+  if ! why=$(await_kill_point "$dir" "$pid" "$since" "$value" "$cid"); then
     stop_orchestrator "$pid"; echo "FAIL $why"; return
   fi
   stop_orchestrator "$pid"
@@ -356,8 +352,8 @@ main() {
     ''|*[!0-9]*|0) echo "RUNS must be a positive integer, got '$RUNS'" >&2; exit 2 ;;
   esac
   CLAUDE=$(command -v "${CLAUDE_BIN:-claude}") || { echo "no claude binary: ${CLAUDE_BIN:-claude}" >&2; exit 2; }
-  local out login stamp i dir verdict passed=0 inconclusive=0
-  login=$(gh api user --jq .login) || { echo "gh is not logged in" >&2; exit 2; }
+  local out stamp i dir verdict passed=0 inconclusive=0
+  gh api user --jq .login > /dev/null || { echo "gh is not logged in" >&2; exit 2; }
   out=${EVAL_OUT:-$(mktemp -d "${TMPDIR:-/tmp}/restart-eval.XXXXXX")}
   stamp=$(date -u +%Y%m%d%H%M%S)
 
@@ -370,7 +366,7 @@ main() {
     # An interrupt stops the orchestrator in flight, which would otherwise keep
     # spending and writing to REPO, and still cleans up.
     trap 'stop_orchestrator "${ORCH_PID:-}"; [ "${KEEP:-}" = 1 ] || clean_up "$dir"; exit 130' INT TERM
-    run_once "$dir" "$stamp-$i" "$login" > "$dir/verdict"
+    run_once "$dir" "$stamp-$i" > "$dir/verdict"
     trap - INT TERM
     verdict=$(tail -1 "$dir/verdict")
     echo "run $i: $verdict ($(cat "$dir/parent" 2> /dev/null || echo "no parent filed"))"

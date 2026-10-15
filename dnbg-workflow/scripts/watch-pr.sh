@@ -29,8 +29,12 @@
 #   result=ERROR    reason=<source> now=<iso>               # the watch is broken — do NOT re-arm
 #
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
-# carrying the next invocation; a burst also carries `── next ──`, the
-# pr-round.sh call that reads it in full. CLOSED, ERROR, DIRTY and BLOCKED carry
+# carrying the next invocation, whose `since` is that result's `now=` — except an
+# IDLE still holding an unreported burst, which hands back the `since` it was
+# armed with so the next run re-observes what this one held. The first arm has
+# no line to copy, so its `since` follows the first-arm rule in watch-issue.sh's
+# header. A burst also carries `── next ──`, the pr-round.sh call that reads
+# it in full. CLOSED, ERROR, DIRTY and BLOCKED carry
 # neither — none of the four clears without a human, so a re-armed watch would
 # report the same state on its next tick for as long as it kept being re-armed.
 #
@@ -152,6 +156,8 @@ obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0; obs_verdict=""
 # in none of them.
 rearm_head="$LAST_HEAD"
 settle_until=0; settle_cap=0; holding_draft=0; stop_merge=""; idle_merge=""
+# Stamped once per report, so the re-arm line's `since` and `now=` are one value.
+NOW=""
 J=""; RAWC="[]"
 
 # A check name is forge-supplied and routinely contains a space — `build
@@ -170,7 +176,7 @@ shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 # and mark a verdict handled that no run ever reported.
 rearm_cmd() {  # [head] [since] [verdict]
   printf 'WINDOW=%s "%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s --last-checks-head=%s' \
-    "$WINDOW" "$HERE" "$REPO" "$PR" "${1:-${rearm_head:-\"\"}}" "${2:-$(poll_now_iso)}" \
+    "$WINDOW" "$HERE" "$REPO" "$PR" "${1:-${rearm_head:-\"\"}}" "${2:-$NOW}" \
     "$SLUG" "$ROLE" \
     "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)$([ "$MERGE_STAGE" = 1 ] && printf ' --merge-stage' || true)" \
     "${3-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")" "$checks_head"
@@ -203,12 +209,13 @@ verdict_field() {
 # run was given — the hold survives, and the next run re-observes what this one
 # saw instead of it being filtered out by an advanced `since`.
 report_idle() {
+  NOW=$(poll_now_iso)
   if have_burst; then
     watch_rearm "$(rearm_cmd "$ORIG_HEAD" "$ORIG_SINCE" "$ORIG_VERDICT")"
   else
     watch_rearm "$(rearm_cmd)"
   fi
-  echo "result=IDLE${idle_merge:+ merge=$idle_merge} now=$(poll_now_iso)"; exit 0
+  echo "result=IDLE${idle_merge:+ merge=$idle_merge} now=$NOW"; exit 0
 }
 
 # Whether anything is still worth waking the caller for. A settle can outlive its
@@ -247,6 +254,7 @@ report_burst() {
   # armed with, so reporting is what makes every move up to now handled.
   rearm_head="$obs_head"
   [ -n "$saw_checks" ] && checks_baseline="$saw_checks"
+  NOW=$(poll_now_iso)
   watch_rearm "$(rearm_cmd)"
   local ck="" mg=""
   [ -n "$saw_checks" ] && ck=" checks=$(shq "$saw_checks")"
@@ -256,15 +264,15 @@ report_burst() {
   # handled — so reducing an unhandled verdict to CHECKS loses it until the IDLE
   # backstop notices an approval standing at HEAD, a window later.
   if [ "$checks_only" = 1 ]; then
-    echo "result=CHECKS checks=$(shq "$saw_checks")$mg now=$(poll_now_iso)"
+    echo "result=CHECKS checks=$(shq "$saw_checks")$mg now=$NOW"
     exit 0
   fi
   if [ "$saw_ready" = 1 ]; then
-    echo "result=READY new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) now=$(poll_now_iso)"
+    echo "result=READY new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) now=$NOW"
   elif [ "$saw_commits" = 1 ]; then
-    echo "result=COMMITS new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) now=$(poll_now_iso)"
+    echo "result=COMMITS new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) now=$NOW"
   else
-    echo "result=ACTIVITY activity=$saw_activity$ck$mg$(verdict_field) now=$(poll_now_iso)"
+    echo "result=ACTIVITY activity=$saw_activity$ck$mg$(verdict_field) now=$NOW"
   fi
   exit 0
 }

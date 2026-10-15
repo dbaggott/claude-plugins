@@ -1174,3 +1174,94 @@ forge_seam_problems() {  # <scripts-dir> <github-only list>
   [[ "$output" == *"issue-diff.sh carries the forge seam"* ]]
   [[ "$output" == *"gone.sh is listed GitHub-only but does not exist"* ]]
 }
+
+# The watch arm contract (watch-issue.sh's header): a re-arm runs the
+# `── re-arm ──` line the watch printed, and a first arm takes `since` from the
+# caller's last action under the first-arm rule. Neither half reads the clock at
+# arm time, and nothing but a reviewer reading prose stops a site that says
+# otherwise, so this reads every skill for the two shapes a wrong site takes.
+#
+# arm_violations <file>... prints `<file>:<line>: <why>` per violation:
+#   - a fenced block invoking a watcher that reads the clock, or a paragraph
+#     telling the reader to stamp `since` from it, which is a first arm stamped
+#     at arm time;
+#   - a paragraph telling the reader to spawn, arm or re-arm a watch that names
+#     neither the printed re-arm line nor the first-arm rule, which is a re-arm
+#     left to the reader to compose. That catches a site naming no timestamp at
+#     all ("spawn a fresh background poll"), where a grep for the clock cannot.
+#     The pointer to the first-arm rule is what marks a first arm, so the
+#     exception costs the skills no markup.
+arm_violations() {  # <file>...
+  awk '
+    function flush() {
+      if (para != "" && tolower(para) ~ ARM && para !~ /── re-arm ──|re-arm line|first-arm rule/)
+        printf "%s:%d: arms a watch without naming the printed re-arm line or the first-arm rule\n", FILENAME, pstart
+      if (para ~ /date -u|arm time/ && tolower(para) ~ /since|first arm/)
+        printf "%s:%d: stamps since from the clock\n", FILENAME, pstart
+      para = ""
+    }
+    function flushfence() {
+      if (fence ~ /watch-(pr|issue)\.sh/ && fence ~ /\$\(date /)
+        printf "%s:%d: a watcher block reads the clock\n", FILENAME, fstart
+      fence = ""
+    }
+    BEGIN {
+      ARM = "(spawn|re-arm|arm)(s|ed|ing)? (it|them|(the|a|one) (fresh |new |second )?(background )?(issue |pr |set |merge )?(watch|watcher|wait|poll)|`?watch-(pr|issue)\\.sh)"
+    }
+    FNR == 1 { flush(); infence = 0 }
+    /^[[:space:]]*```/ {
+      if (infence) { infence = 0; flushfence() } else { flush(); infence = 1; fstart = FNR; fence = "" }
+      next
+    }
+    infence { fence = fence "\n" $0; next }
+    /^[[:space:]]*$/ { flush(); next }
+    { if (para == "") pstart = FNR; para = para " " $0 }
+    END { flush() }
+  ' "$@"
+}
+
+@test "every watch arm in the skills follows the re-arm contract" {
+  run arm_violations $(find "$ROOT/dnbg-workflow/skills" -name '*.md' | sort)
+  echo "$output"
+  [ -z "$output" ]
+}
+
+@test "a re-arm that names no timestamp at all is caught" {
+  printf '%s\n' "After pushing the fix, spawn a fresh background poll on the new head." \
+    > "$BATS_TEST_TMPDIR/site.md"
+  run arm_violations "$BATS_TEST_TMPDIR/site.md"
+  [[ "$output" == *"site.md:1: arms a watch"* ]]
+}
+
+@test "a first arm stamped from the clock is caught" {
+  cat > "$BATS_TEST_TMPDIR/site.md" <<'MD'
+Spawn the wait under the first-arm rule:
+
+```bash
+watch-issue.sh o/r 1 --role=author --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+```
+MD
+  run arm_violations "$BATS_TEST_TMPDIR/site.md"
+  [[ "$output" == *"site.md:3: a watcher block reads the clock"* ]]
+}
+
+@test "a first arm told in prose to read the clock is caught" {
+  printf '%s\n' 'Record a timestamp (`date -u +%Y-%m-%dT%H:%M:%SZ` on the first arm only).' \
+    > "$BATS_TEST_TMPDIR/site.md"
+  run arm_violations "$BATS_TEST_TMPDIR/site.md"
+  [[ "$output" == *"site.md:1: stamps since from the clock"* ]]
+}
+
+@test "a first arm that names the rule and a re-arm that names the line both pass" {
+  cat > "$BATS_TEST_TMPDIR/site.md" <<'MD'
+Spawn the wait, with `--since` per the first-arm rule:
+
+```bash
+watch-issue.sh o/r 1 --role=author --since=<when you posted the response>
+```
+
+On `IDLE`, re-arm the watch from the `── re-arm ──` line it printed.
+MD
+  run arm_violations "$BATS_TEST_TMPDIR/site.md"
+  [ -z "$output" ]
+}

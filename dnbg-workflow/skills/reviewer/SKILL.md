@@ -100,7 +100,7 @@ yet endorsed for review, and a verdict on a draft spends the attention that
 signal is asking you to withhold — the same reason a *discovered* draft is held
 back without asking at all.
 
-On 1, post nothing now: arm the watch with `--was-draft` (see "Watch the PR")
+On 1, post nothing now: arm the watch with `--was-draft` (see "Watch the PR", which gives the first-arm rule)
 and review when it reports `READY`. On 2, carry on with the flow below. Without
 `AskUserQuestion`, a dispatcher's "wait until it's ready" or "review it now" is
 the answer; with neither, ask on the PR per `<skill-dir>/../issue-workflow/references/delegated.md`.
@@ -603,8 +603,9 @@ whatever changed meanwhile. If you quit the session, re-invoke the skill on the
 PR to resume (it re-assesses current state and picks the watch back up).
 
 1. **Record state** after each action: the HEAD SHA you last reviewed, a
-   timestamp marking "handled up to here" (`date -u +%Y-%m-%dT%H:%M:%SZ` on the
-   first arm only — on a re-arm carry the `now` the watcher reported, per
+   timestamp marking "handled up to here" (on the first arm, the time you noted
+   just before posting the review, per the first-arm rule in `watch-issue.sh`'s
+   header; a re-arm runs the printed `── re-arm ──` line, which carries it, per
    `references/watch.md`), and the SHA of the verdict you last handled — nothing
    yet, on a first arm.
 
@@ -614,9 +615,10 @@ PR to resume (it re-assesses current state and picks the watch back up).
    string against what GitHub returns, so a short SHA can never match; it is
    refused (`result=ERROR reason=bad-args`). `<last_verdict_sha>` is compared
    against `commit.oid` the same way and is refused the same way.
-2. **Spawn `watch-pr.sh`** as a **background**
-   task — it blocks until something happens, so its idle polling never enters the
-   conversation; the harness wakes you when it returns:
+2. **Spawn `watch-pr.sh`** as a **background** task, on a re-arm by running
+   its printed `── re-arm ──` line — it blocks until something happens, so its
+   idle polling never enters the conversation; the harness wakes you when it
+   returns:
 
    ```bash
    # --last-verdict makes the verdict check level-triggered rather than counted

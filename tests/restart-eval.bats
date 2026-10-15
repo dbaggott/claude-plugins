@@ -181,7 +181,7 @@ decided_parent() {  # <r2: new|old> <row-state|"">
   [ "$(claim_of "$U/2" def)" = FOREIGN ]
 }
 
-@test "await_kill_point re-arms from just before each result's now, with its exclude, and returns once kill_due holds" {
+@test "await_kill_point waits on body edits, re-arms from just before each result's now, and returns once kill_due holds" {
   SCRIPTS="$BATS_TEST_TMPDIR/scripts"; mkdir -p "$SCRIPTS"
   export WATCH_LOG="$BATS_TEST_TMPDIR/watch.log"; : > "$WATCH_LOG"
   cat > "$SCRIPTS/watch-issue.sh" <<'EOF'
@@ -189,8 +189,8 @@ decided_parent() {  # <r2: new|old> <row-state|"">
 printf 'SETTLE=%s INTERVAL=%s %s\n' "$SETTLE" "$INTERVAL" "$*" >> "$WATCH_LOG"
 n=$(wc -l < "$WATCH_LOG" | tr -d ' ')
 echo "── re-arm ──"
-echo "WINDOW=9 watch-issue.sh o/r 1 --role=author --since=T$n --slug=me --exclude=https://x/pull/$n"
-echo "result=ACTIVITY issues=1 kinds=body-edit edited=1:x now=2026-10-14T21:30:0${n}Z"
+echo "WINDOW=9 watch-issue.sh o/r 1 --role=author --since=T$n --wake-on=body-edit,close"
+echo "result=ACTIVITY issues=1 kinds=body-edit edited=1:x wake-on=body-edit,close now=2026-10-14T21:30:0${n}Z"
 EOF
   chmod +x "$SCRIPTS/watch-issue.sh"
   echo "$U/1" > "$DIR/parent"
@@ -199,12 +199,12 @@ EOF
   decided_parent new decided > "$BODY_DIR/body-2"
   body_of() { local n; n=$(wc -l < "$WATCH_LOG" | tr -d ' '); cat "$BODY_DIR/body-$n"; }
   sleep 30 3>&- & local orch=$!
-  run await_kill_point "$DIR" "$orch" me T0 "$VALUE" "$CID"
+  run await_kill_point "$DIR" "$orch" T0 "$VALUE" "$CID"
   kill "$orch"
   [ "$status" -eq 0 ]
   [ "$(wc -l < "$WATCH_LOG" | tr -d ' ')" -eq 2 ]
-  grep -q '^SETTLE=0 INTERVAL=3 o/r 1 --role=author --slug=me --since=T0$' "$WATCH_LOG"
-  grep -q -- '--since=2026-10-14T21:29:56Z --exclude=https://x/pull/1$' "$WATCH_LOG"
+  grep -q '^SETTLE=0 INTERVAL=3 o/r 1 --role=author --wake-on=body-edit,close --since=T0$' "$WATCH_LOG"
+  grep -q -- '--wake-on=body-edit,close --since=2026-10-14T21:29:56Z$' "$WATCH_LOG"
 }
 
 @test "await_kill_point fails when the orchestrator exits while the watch waits" {
@@ -214,7 +214,7 @@ EOF
   echo "$U/1" > "$DIR/parent"
   bash -c 'exit 0' & local orch=$!
   wait "$orch"
-  run await_kill_point "$DIR" "$orch" me T0 "$VALUE" "$CID"
+  run await_kill_point "$DIR" "$orch" T0 "$VALUE" "$CID"
   [ "$status" -eq 1 ]
   [ "$output" = "the first orchestrator exited before writing the decision" ]
 }
@@ -225,7 +225,7 @@ EOF
   chmod +x "$SCRIPTS/watch-issue.sh"
   echo "$U/1" > "$DIR/parent"
   sleep 30 3>&- & local orch=$!
-  run await_kill_point "$DIR" "$orch" me T0 "$VALUE" "$CID"
+  run await_kill_point "$DIR" "$orch" T0 "$VALUE" "$CID"
   kill "$orch"
   [ "$status" -eq 1 ]
   [ "$output" = "the parent's watch failed: result=ERROR reason=issue-query now=T" ]

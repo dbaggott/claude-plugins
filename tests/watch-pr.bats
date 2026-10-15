@@ -626,6 +626,17 @@ EOF
   [[ "$output" != *'"kind":'* ]]
 }
 
+# The header's contract: the re-arm line's `since` is the result's `now=`, one
+# value, so a caller reading either gets the same next arm.
+@test "the re-arm line's since is the result's now" {
+  printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --last-verdict= --role=reviewer
+  local rearm
+  rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
+  [[ "$rearm" == *" $(sha40 0) ${lines[-1]##* now=} bot "* ]]
+}
+
 @test "a verdict wake names the state that stands, not only its SHA" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   INTERVAL=1 SETTLE=1 WINDOW=10 \

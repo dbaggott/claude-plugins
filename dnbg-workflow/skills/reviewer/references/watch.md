@@ -1,7 +1,7 @@
 # Reviewer: after the watch returns
 
 Part of the `reviewer` skill. Read this when `watch-pr.sh` returns, before
-branching on what it said. `SKILL.md` carries the flow up to spawning the watch;
+branching on what it said. `SKILL.md` carries the flow up to spawning the watch under the first-arm rule;
 everything from the first return to the final report is here.
 
 ## Branch on `result=`

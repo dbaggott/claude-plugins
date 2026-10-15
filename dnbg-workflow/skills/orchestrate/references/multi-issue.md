@@ -30,7 +30,7 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
    an issue, then run `issue-workflow`'s critical review on it: the parent is
    yours, not an author's, and a design you believe is wrong is an escalation
    before any dispatch.
-5. **Arm the set watch** (below), then run the loop. With every child already
+5. **Arm the set watch** (below, under the first-arm rule), then run the loop. With every child already
    closed, the loop goes straight to the closeout, whose step 1 continues a
    predecessor's closeout PR. A parent already closed by that PR's merge has
    only "Stop" left.
@@ -87,7 +87,7 @@ one per issue:
 
 ```bash
 "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <parent> <open child…> \
-  --role=orchestrator --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  --role=orchestrator --since=<the time you noted before the reads on start>
 ```
 
 Arm it with `--exclude` carrying the PRs step 3 found on each child, and

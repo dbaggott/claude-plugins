@@ -158,11 +158,12 @@ during that wait**, not when the first PR lands: the wait is the one stretch of
 the cycle with nothing else in it, and the issue already names the target repo.
 
 Spawn the wait as a **background** task so the idle polling never enters the
-conversation:
+conversation. Its `--since` follows the first-arm rule in `watch-issue.sh`'s header: the time you noted before the
+discovery pass, so a PR opened while you looked still wakes it.
 
 ```bash
 "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
-  --role=reviewer --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --role=reviewer --since=<the time you noted before discovering> \
   --slug="$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")" \
   [--exclude=<url,url,...>]
 ```
@@ -173,7 +174,7 @@ tick, so watching the whole set you were handed is no more expensive than
 watching one.
 
 
-**At most one issue wait at a time, re-armed only on its own return.** A PR
+**At most one issue wait at a time, re-armed only on its own return, from its `── re-arm ──` line.** A PR
 watcher returning is a trigger to re-discover, not to arm a second wait — two
 waits on one issue each paginate the whole timeline every tick and both report
 the same `CLOSED`.
@@ -274,11 +275,12 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    place it shows up.
 2. **Hold until every child is closed.** While any is open, wait on the parent
    and the open children in one call, so a comment or body edit on the parent
-   also reaches you:
+   also reaches you. Its `--since` follows the first-arm rule in `watch-issue.sh`'s header: the time you noted
+   before step 1's snapshot.
 
    ```bash
    "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <parent> <open child…> \
-     --role=reviewer --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --slug=<slug> \
+     --role=reviewer --since=<the time you noted before step 1> --slug=<slug> \
      [--exclude=<url,url,...>]
    ```
 
