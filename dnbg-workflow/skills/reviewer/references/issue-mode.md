@@ -21,11 +21,12 @@ differently:
 - **A criterion met by a run** (an eval, a live exercise) is met by a recorded
   run, linked from the PR or the issue and carrying its output. Don't re-run it.
   It stands while nothing under the paths the criterion names as invalidating it
-  changed after the run's commit; list what changed with
-  `gh api repos/<repo>/compare/<run commit>...<head> --jq '.files[].filename'`.
-  Where the criterion names no paths, judge from that list whether anything the
-  run exercises changed, and say which paths you judged by. No recorded run, or
-  a stale one, is a blocking finding naming the run.
+  changed after the run's commit; fetch both commits and list what changed with
+  `git diff --name-only <run commit> <head>`, a tree comparison that a rebase
+  since the run does not inflate. Where the criterion names no paths, judge from
+  that list whether anything the run exercises changed, and say which paths you
+  judged by. No recorded run, or a stale one, is a blocking finding naming the
+  run, unless the run waits only on an operator action, as below.
 - **A criterion blocked only on an operator action** outside the PR, such as a
   merge in a test repository or a live exercise only the operator can start, is
   an observation naming that action, not a blocking finding. Approve, and say

@@ -53,7 +53,7 @@ A grounded issue that passes the critical review cleanly needs no separate appro
 
 ### Run the criteria met by a run before send-to-review
 
-A criterion met by a run (an eval, a live exercise) is run before the PR leaves draft, and recorded on it: the output, the commit it ran on, and the invalidating paths the criterion names (`references/creating.md`). A later commit outside those paths leaves the run standing; one inside them means running it again. When the run needs the operator, such as a merge in a test repository or a session only they can start, ask for that part as soon as the branch can be run, in one message, rather than at send-to-review.
+A criterion met by a run (an eval, a live exercise) is run before the PR leaves draft, and recorded on it: the output, the commit it ran on, and the invalidating paths the criterion names (`references/creating.md`). A later commit outside those paths leaves the run standing; one inside them means running it again. When the run needs the operator, such as a merge in a test repository or a session only they can start, ask for that part as soon as the branch can be run, in one message, rather than at send-to-review. A run you cannot make yourself, such as one only a main session can make when you are a subagent, is a question to whoever dispatched you, not a criterion to skip.
 
 ### Surface design changes that emerge mid-implementation
 

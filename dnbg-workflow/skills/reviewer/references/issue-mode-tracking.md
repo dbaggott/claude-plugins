@@ -56,7 +56,8 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    merged result, not on each PR alone. A criterion's `Contributes:` line says
    which children's PRs to read first, but it does not limit what you read. A
    requirement marked `*(end-to-end: A<n>)*` is graded through its `A<n>`. A
-   criterion that needs a run is graded by `issue-mode.md`'s recorded-run rule;
+   criterion that needs a run is graded by `issue-mode.md`'s rule for a
+   criterion met by a run;
    here the record is a section of the closeout PR's description, or a comment
    or PR section linked from the parent or a child. Check the as-built
    doc against the parent body by `closeout.md`'s step 3, and the friction-log

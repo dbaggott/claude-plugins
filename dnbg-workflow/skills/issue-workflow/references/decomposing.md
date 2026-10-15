@@ -63,8 +63,8 @@ names this child and the others it needs. The child keeps a pointer to `A<n>`
 so its coverage does not read as dropped.
 
 An `A<n>` met by a run, such as an eval or a live exercise, names who records
-it: one contributing child, whose own criteria then include "run and record
-A<n>", or the closeout PR's author, who runs it before the project review. It
+it: the contributing child that depends on all the others, whose own criteria
+then include "run and record A<n>", or the closeout PR's author, who runs it before the project review. It
 also names the paths invalidating the run, per `creating.md`.
 
 ## 4. File the children and set their relationships

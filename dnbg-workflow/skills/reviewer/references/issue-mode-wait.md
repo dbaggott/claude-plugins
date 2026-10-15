@@ -105,9 +105,12 @@ the catch-all**:
   `edited=` carries each issue's body-edit stamp, so a comment claiming the body
   was updated can be checked without a second call.
 - **`CLOSED`** — run step 1's discovery once more; an open PR it finds keeps
-  the assignment going. A PR you reviewed that closed the issue reports its own
-  merge at its watch's `CLOSED`, so report the close here only when no such PR
-  caused it: the work was dropped or resolved without a PR.
+  the assignment going, and a printed re-arm line still covers the other
+  issues. A merge of a PR you reviewed is reported once, at its own watch's
+  `CLOSED`, which can arrive after this one, so check each PR you reviewed with
+  `gh pr view <url> --json state,closingIssuesReferences` and report the close
+  here only when none of them caused it: the work was dropped or resolved
+  without a PR.
 - **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
   re-arm**, and do **not** report that nothing has landed: you do not know that.
   Expired auth, or every issue number resolving to nothing, produces exactly this.
