@@ -753,6 +753,28 @@ remote_read_calls() {  # <SKILL.md>
   [ "$bad" -eq 0 ]
 }
 
+# A tracking issue's parent resolves through the closeout PR its orchestrator
+# authors, so the operator has no second command to give at the end of a
+# project. A site still telling them to say "close out" sends them to an entry
+# no skill answers. Matched as the bare phrase, since every form of that
+# instruction carries it and the noun "closeout" does not.
+close_out_sites() {  # <dir> -> each line naming the command
+  grep -rniE 'close out' "$1"
+}
+
+@test "nothing under orchestrate/ tells the operator to say close out" {
+  run close_out_sites "$ROOT/dnbg-workflow/skills/orchestrate"
+  [ "$status" -eq 1 ] || { echo "$output"; false; }
+}
+
+@test "a reference telling the operator to say close out is caught" {
+  mkdir -p "$BATS_TEST_TMPDIR/orchestrate/references"
+  printf 'On ACCEPTED, tell the operator: "close out <parent URL>".\n' \
+    > "$BATS_TEST_TMPDIR/orchestrate/references/multi-issue.md"
+  run close_out_sites "$BATS_TEST_TMPDIR/orchestrate"
+  [ "$status" -eq 0 ]
+}
+
 # coding-practices' references cite rules by ID (`C10`, `E2`) and the body says
 # an ID is never reused, so a renumbered or dropped rule turns every citation of
 # it into a pointer at the wrong rule with nothing going red. The body's bolded

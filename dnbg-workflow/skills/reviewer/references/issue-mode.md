@@ -18,9 +18,8 @@ discipline the body's own labels set (`issue-workflow`): "Related (optional — 
 not read unless blocked)" links stay unread, depth 1 only.
 
 **Every `gh issue` command in this file runs under your own auth, not the
-bot's** — prefix each with `env -u GH_TOKEN`. The bot reviews; the issue itself
-is the operator's, and the only bot write to one is the project verdict under
-"A tracking issue" below, which posts through `gh api`. What the prefix
+bot's** — prefix each with `env -u GH_TOKEN`. The bot reviews PRs; the issue
+itself is the operator's, and the bot never writes to it. What the prefix
 guards is a call that mints a bot token and then touches the issue: `SKILL.md`
 has every `gh` write mint in its own tool call, so the token is only ever live
 inside one. The prefix costs
@@ -49,7 +48,7 @@ differently:
 
 `children: []` means a plain issue, and the rest of this file up to "A tracking
 issue" applies. Any children make it a tracking issue: skip to that section,
-which reuses the discovery and watch below but not the per-PR loop. A
+which reuses the discovery, the watch and the per-PR review below. A
 `result=ERROR` is neither: the set was not read, so say so rather than reviewing
 it as a plain issue.
 
@@ -263,8 +262,9 @@ A tracking issue's body is a project's design, and its sub-issues carry the work
 (`issue-workflow`'s `references/tracking-issue.md`). Each child is reviewed in
 its own issue mode. Here you judge whether **the whole was built**, against the
 parent's end-to-end acceptance criteria (`A#`), which no child owns and no
-per-child review can see. You post no PR reviews in this mode, except on the
-closeout PR in step 6.
+per-child review can see. You grade them in one place: the review of the
+closeout PR, the one PR that closes the parent (`orchestrate`'s
+`references/closeout.md`).
 
 1. **List the children** from the `fetch-issue-set.sh` snapshot above: each
    one's `url` and `state`. Re-run it on every return of the watch below,
@@ -293,56 +293,30 @@ closeout PR in step 6.
 3. **Collect the merged PRs.** Run `pr-sources.sh` once per child, taking
    `<owner>/<repo>` and the number from the child's own `url`, and once on the
    parent. Take the union, reading the per-source fields as described above.
-   Check each URL with `gh pr view <url> --json state`. The union is the
-   `MERGED` ones. An open PR on a closed child is not part of it, so name that
-   PR in the verdict.
-4. **Grade every `A#` against that union**, judged on the merged result, not on
-   each PR alone. A criterion's `Contributes:` line says which children's PRs to
-   read first, but it does not limit what you read. A requirement marked
-   `*(end-to-end: A<n>)*` is graded through its `A<n>`. A criterion that needs a
-   run, such as an eval or a live exercise, is met by a recorded run: a comment
-   or PR section carrying its output, linked from the parent or a child. Don't
-   re-run it yourself. If no run is recorded, that is a blocking finding that
-   names the missing run.
-5. **Post one verdict on the parent**, under the bot identity. The verdict is
-   what closeout acts on and what the operator weighs, so it carries the same
-   independent identity as `issue-reviewer`'s rounds. Mint the token in the same
-   call that posts:
-
-   ```bash
-   GH_TOKEN="$("<skill-dir>/mint-token.sh" <owner>)" || exit 1
-   export GH_TOKEN
-   gh api repos/<repo>/issues/<parent>/comments -F body=@<path> --jq '"\(.user.login) \(.id)"'
-   ```
-
-   The printed login must be the bot's. If it is not, the token never arrived
-   and the verdict is under the operator's name, where closeout will not find
-   it. Delete it with `gh api -X DELETE repos/<repo>/issues/comments/<id>`,
-   then fix the mint and post again.
-
-   The body is, in order:
-
-   - `**Project review, round <n>: ACCEPTED**` or
-     `**Project review, round <n>: CHANGES REQUESTED**`. Those are the only
-     two verdicts.
-   - `Graded against body_edited: <value>`, the parent's `body_edited` from the
-     snapshot you graded, or `none`. Closeout compares it with the current
-     value.
-   - The merged-PR union, by URL.
-   - **One line per `A#`, every one named**: met, with its evidence (a PR, a
-     file at the merged commit, a run's comment), or a finding with the ID
-     `<parent>-B<n>`, or `<parent>-O<n>` for an observation. Any blocking
-     finding makes the verdict `CHANGES REQUESTED`.
-   - The version stamp, under the same condition as a PR review's in
-     `SKILL.md`.
-6. **Keep watching after the verdict**, with step 2's call on the parent alone,
-   and go back to step 1 on every return. Grade a new round when the snapshot
-   differs from the one you graded: a child added or reopened, a new merged PR,
-   or a parent `body_edited` newer than the one the verdict records. A new
-   round re-grades every criterion, not only the ones that failed. A comment
-   alone gets a reply when it asks you something, and otherwise a re-arm. After
-   `ACCEPTED`, the next PR to link the parent is the closeout PR
-   (`orchestrate`'s `references/closeout.md`). Review it per `SKILL.md`,
-   asking whether its as-built doc matches the parent body. Closeout edits the
-   parent body only when it closes the parent, so that edit never asks for a
-   round. The assignment ends when the parent closes.
+   Check each URL with `gh pr view <url> --json state,closingIssuesReferences`.
+   The union is the `MERGED` ones. An open PR on a closed child is not part of
+   it, so name that PR in the review.
+4. **Find the closeout PR**: the open PR whose `closingIssuesReferences`
+   include the parent. Until one is out of draft, run the discovery loop above
+   on the parent alone, holding a draft back as it says.
+5. **Grade every `A#` against that union and the closeout PR**, judged on the
+   merged result, not on each PR alone. A criterion's `Contributes:` line says
+   which children's PRs to read first, but it does not limit what you read. A
+   requirement marked `*(end-to-end: A<n>)*` is graded through its `A<n>`. A
+   criterion that needs a run, such as an eval or a live exercise, is met by a
+   recorded run: a section of the closeout PR's description, or a comment or PR
+   section linked from the parent or a child, carrying its output. Don't re-run
+   it yourself. If no run is recorded, that is a blocking finding that names the
+   missing run, and the author records it in the next round. Check the as-built
+   doc against the parent body by `closeout.md`'s step 4, and the friction-log
+   table by its step 3, as you would any diff against its spec.
+6. **Review the closeout PR per `SKILL.md`**: mint a token, review, post, and
+   watch. The review body opens with
+   `**Project review, round <n>: ACCEPTED**` when you approve and
+   `**Project review, round <n>: CHANGES REQUESTED**` when you request changes,
+   then gives the merged-PR union by URL and **one line per `A#`, every one
+   named**: met, with its evidence (a PR, a file at the merged commit, a
+   recorded run), or a finding. Every later round re-grades every criterion,
+   not only the ones that failed, and goes back to step 1 first, since a child
+   reopened while you watched is unbuilt work. The assignment ends when the
+   parent closes.

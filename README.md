@@ -68,17 +68,18 @@ so the issues implementing it can cite its requirements and decisions by ID.
 4. The orchestrator runs the children in dependency order, a few at a time,
    each through the single-issue loop above. A decision that changes the design
    is written back into it, and the children that cite what changed are updated.
-5. When the last child closes, a whole-project review grades the result against
-   the design's own end-to-end acceptance criteria. Closeout, when you ask for
-   it, writes the as-built design into the repo through one more PR, turns the
-   project's friction log into follow-up issues (filing none whose text you
-   haven't approved), and closes the tracking issue.
+5. When the last child closes, the orchestrator opens the closeout PR, which
+   resolves the tracking issue the way any PR resolves its issue: it writes the
+   as-built design into the repo and turns the project's friction log into
+   follow-up issues, filing none whose text you haven't approved. Its review is
+   the whole-project review, grading the result against the design's own
+   end-to-end acceptance criteria, and its merge closes the tracking issue.
 
 While it runs, you are needed at three points: approving the design, answering
 escalations, and merging. You don't read or approve the children; the set
-review's verdict on each one is that gate. Closeout is the one step you start
-yourself, and its follow-up issues wait on your approval of their text. The
-project that built this flow ran under it, so its tracking issue,
+review's verdict on each one is that gate. The closeout's follow-up issues wait
+on your approval of their text. The project that built this flow ran under it,
+so its tracking issue,
 https://github.com/dbaggott/claude-plugins/issues/223, is a worked example of a
 design, its children, and its decision log.
 

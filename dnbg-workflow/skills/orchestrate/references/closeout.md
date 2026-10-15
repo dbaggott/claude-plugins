@@ -1,60 +1,59 @@
-# Orchestrate: closing out a tracking issue
+# Orchestrate: resolving a tracking issue through its closeout PR
 
-Part of the `orchestrate` skill. Read this when the operator says "close out
-<tracking issue URL>". Run it in the main session, since step 2 needs the
-operator's approval.
+Part of the `orchestrate` skill. Read this when `references/multi-issue.md`'s
+loop finds every child closed. The parent resolves the way a plain issue does:
+one PR closes it, `reviewer`'s issue mode on the parent reviews that PR, and the
+operator merges it. You are that PR's author. Step 3 needs the operator's
+approval, so this runs in the main session.
 
-Closeout takes a finished project, writes its as-built design into the repo,
-disposes of its friction log, and closes the tracking issue. The parent's shape
-and IDs are in `issue-workflow`'s `references/tracking-issue.md`. Nothing here
-merges. The operator merges the doc PR.
-
-## 1. Check the project is accepted
-
-```bash
-"<skill-dir>/../../scripts/fetch-issue-set.sh" <owner>/<repo> <n>
-gh issue view <n> --repo <owner>/<repo> --json comments --jq '
-  [.comments[] | select((.author.login | rtrimstr("[bot]")) == "<slug>"
-                        and (.body | startswith("**Project review, round")))]
-  | last | {url, verdict: (.body | split("\n")[0]),
-           graded: (.body | capture("Graded against body_edited: (?<v>\\S+)").v)}'
-```
+The closeout PR writes the project's as-built design into the repo and disposes
+of its friction log. The parent's shape and IDs are in `issue-workflow`'s
+`references/tracking-issue.md`.
 
 `<skill-dir>` is the **Base directory** announced when this skill loads, or,
-with no skill loaded, the directory holding this file's `references/`. `<slug>`
-is the reviewer bot's login, from `jq -r .slug` on the reviewer config, at the
-path `reviewer`'s `references/issue-mode.md` reads it from. The verdict is the
-one `reviewer` posts in that file's "A tracking issue" mode.
+with no skill loaded, the directory holding this file's `references/`.
 
-A `result=ERROR` from the snapshot means the set was not read, so stop and say
-so. Otherwise, proceed only if all three hold:
+## 1. Find a predecessor's closeout PR
 
-- every child's `state` is `CLOSED`;
-- the latest verdict reads `ACCEPTED`;
-- its `graded` value equals the snapshot's `body_edited`, where `none` matches
-  `null`. If not, the review graded a body that has changed since, so a new
-  round is owed.
+```bash
+"<skill-dir>/../../scripts/pr-sources.sh" <owner>/<repo> <parent>
+gh pr view <url> --json state,isDraft,closingIssuesReferences
+```
 
-If any check fails, stop and tell the operator which one, with the verdict URL if
-there is one (without `AskUserQuestion`:
-`<skill-dir>/../issue-workflow/references/delegated.md`, posted on the parent). Closeout never runs ahead of the verdict, and never judges the
-criteria itself.
+Read the per-source fields before treating `count=0` as none, as
+`issue-workflow`'s `references/resolving.md` describes. An open PR whose
+`closingIssuesReferences` include the parent is a predecessor's closeout PR.
+Continue it rather than opening a second: a draft resumes at whichever of steps
+2 to 4 its description does not yet carry, and one out of draft resumes at step
+5, with a reviewer dispatched if none is reviewing it.
 
-## 2. Dispose of the friction log
+## 2. Run the criteria no child recorded
+
+Write your own retrospective first, once for the run, per
+`references/retrospective.md` with the parent as its issue, and fold its
+project-level items into the parent's friction log, so step 3 disposes of them
+too.
+
+Every `A#` met by a run, such as an eval or a live exercise, that no child's
+own criteria record is yours to run now. Record each run's output as a section
+of the PR description, under the `A#` it is for. Running a criterion is not
+judging it: whether a run meets its `A#` is the reviewer's call, on this PR.
+
+## 3. Dispose of the friction log
 
 Every friction-log entry gets exactly one disposition: a follow-up issue, or
 `Dropped, because <reason>`. Draft them all first, as a table, then show the
-operator the table and the exact text of every follow-up before filing any. An entry about a
-`dnbg-*` plugin's own tooling is filed upstream under the always-on "When shipped
-tooling doesn't fit, tell the user" rule, and that rule needs the operator's
-approval of the exact text. File the approved follow-ups per `issue-workflow`'s
-`references/creating.md`. Without `AskUserQuestion`, the table and the follow-up
-texts are the question in `<skill-dir>/../issue-workflow/references/delegated.md`,
-posted on the parent; file nothing until it is answered.
+operator the table and the exact text of every follow-up before filing any. An
+entry about a `dnbg-*` plugin's own tooling is filed upstream under the
+always-on "When shipped tooling doesn't fit, tell the user" rule, and that rule
+needs the operator's approval of the exact text. File the approved follow-ups
+per `issue-workflow`'s `references/creating.md`. Without `AskUserQuestion`, the
+table and the follow-up texts are the question in
+`<skill-dir>/../issue-workflow/references/delegated.md`, posted on the parent;
+file nothing until it is answered.
 
-Step 4 writes the table into the parent body, in place of the friction log's
-bullets. Edit the body there, not now: a body edit after the verdict makes the
-check in step 1 fail, and step 1 is what a resumed closeout runs first.
+The table goes in the PR description, not the parent body. It is the friction
+log's final state, and the merged PR is what the closed parent links to:
 
 ```markdown
 | Entry | Disposition |
@@ -63,18 +62,18 @@ check in step 1 fail, and step 1 is what a resumed closeout runs first.
 | 2026-10-14: author side of a set review is manual | Dropped, because the multi-issue orchestrator now does it |
 ```
 
-## 3. Write the as-built design, through one PR
+## 4. Write the as-built design and open the PR
 
 `<doc path>` is `docs/design/<name>.md`, where `<name>` is the parent's title
 as a lowercase-dashed slug. If the repo already keeps designs somewhere else
-under `docs/`, use that location instead. Open the PR per `git-workflow`. Its body
-links the parent by URL, **without a closing keyword**: the parent closes in
-step 4 with a comment that cites the merged doc, and a keyword would close it at
-merge without that comment.
+under `docs/`, use that location instead. Open the PR as a draft per
+`git-workflow`, self-review included. Its description opens with
+`Closes <parent URL>`, so the merge closes the parent, and carries step 2's
+runs and step 3's table.
 
 The doc is the parent body as built, not as planned:
 
-- **Open with one line** linking the tracking issue and the `ACCEPTED` verdict.
+- **Open with one line** linking the tracking issue.
 - **Keep** Problem, Goals, Non-goals, Constraints, Requirements, Decisions, Open
   questions, and End-to-end acceptance criteria, with **every ID unchanged**,
   including retired entries and their markings. Children, PRs and commits cite
@@ -85,24 +84,33 @@ The doc is the parent body as built, not as planned:
   add it there. The log itself does not carry over.
 - **Settle each open question.** A decided one points at its `D#`. One still
   carrying its default records the default as what was built.
-- **Give each `A#` its evidence**, taken from the verdict's line for it.
+- **Give each `A#` what bears on it**: the merged PRs its `Contributes:` line
+  leads to, and its recorded run, by URL. Say nothing about whether they meet
+  it.
 - **Replace the candidate decomposition with a "Where it was built" table**: each
   child's title, its `Covers`, and its merged PR URLs.
 - **Drop execution state**: the decision log's states, `Depends on`, claims,
   the friction log, and Required reading.
 
-## 4. Close the parent
+## 5. Send it to review, and see it through
 
-Once the operator has merged the doc PR, read the merge commit with
-`gh pr view <pr> --repo <owner>/<repo> --json mergeCommit --jq .mergeCommit.oid`.
-Replace the friction log's bullets in the parent body with step 2's table, then
-close the parent with a comment that cites the doc at that commit and the
-verdict:
+Send it to review per `git-workflow`'s "After opening a draft PR". When it is
+out of draft, dispatch `reviewer` on the parent, in the background:
 
-```bash
-gh issue close <n> --repo <owner>/<repo> --reason completed --comment "Closed out.
-As-built design: https://github.com/<owner>/<repo>/blob/<merge-sha>/<doc path> (<doc PR URL>).
-Project review: <verdict comment URL>."
-```
+> Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
+> tracking issue, so grade the whole project on its closeout PR. You were
+> dispatched by an orchestrator, so follow `issue-workflow`'s
+> `references/delegated.md` wherever a skill asks the operator something.
 
-Then run `git-workflow`'s post-merge cleanup for the doc PR.
+Its review arrives on the PR, so handle every round as an author does, per
+`git-workflow`'s `references/review-rounds.md`. A finding on an `A#` with no
+recorded run is answered by running it and recording it in the description, as
+in step 2. A finding this PR cannot answer, such as unbuilt work that a new
+child would own, is an escalation, as `references/multi-issue.md`'s "Triage and
+the log" describes: what to build next is the operator's call. When the review
+is clean, give the operator the merge handoff per `git-workflow`'s
+`references/merge.md`. Never merge.
+
+The merge closes the parent. Run `git-workflow`'s post-merge cleanup, then go to
+`references/multi-issue.md`'s "Stop". If the PR closes unmerged, ask the
+operator whether to open a new one or stop.
