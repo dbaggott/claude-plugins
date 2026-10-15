@@ -723,17 +723,23 @@ remote_read_calls() {  # <SKILL.md>
 # Globbed rather than enumerated so a reference file added later is covered without
 # anyone remembering to come back here.
 @test "SKILL.md points at every one of its reference files" {
-  local s skill f bad=0
-  # Every skill with a references/ directory, so a new one is covered by adding its
-  # name rather than by copying the loop.
-  for s in reviewer issue-reviewer git-workflow orchestrate; do
+  local ps s plugin skill f bad=0
+  # Every skill whose references/ are reachable only from its own SKILL.md, as
+  # <plugin>/<skill>, so a new one is covered by adding its name rather than by
+  # copying the loop. issue-workflow is not here: other skills point at its
+  # references directly, and `issue-workflow SKILL.md still points at each of
+  # its paths` covers its own pointers.
+  for ps in dnbg-workflow/reviewer dnbg-workflow/issue-reviewer \
+            dnbg-workflow/git-workflow dnbg-workflow/orchestrate \
+            dnbg-practices/coding-practices; do
+    plugin=${ps%/*}; s=${ps#*/}
     local found=0
-    skill="$ROOT/dnbg-workflow/skills/$s/SKILL.md"
+    skill="$ROOT/$plugin/skills/$s/SKILL.md"
     # `nullglob` so an emptied references/ yields no iterations rather than one over
     # the literal pattern — without it the count below can never reach zero, and the
     # emptied case reports a missing pointer to a file named `*.md`.
     shopt -s nullglob
-    for f in "$ROOT/dnbg-workflow/skills/$s/references/"*.md; do
+    for f in "$ROOT/$plugin/skills/$s/references/"*.md; do
       found=$((found + 1))
       grep -q "$(basename "$f" | sed 's/\./\\./g')" "$skill" || {
         echo "$s/SKILL.md no longer names $(basename "$f") — nothing can reach it"
@@ -743,6 +749,30 @@ remote_read_calls() {  # <SKILL.md>
     shopt -u nullglob
     # Zero files is the one way this check goes quiet: every assertion is in the loop.
     [ "$found" -gt 0 ] || { echo "$s/references/ has no .md files at all"; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
+# coding-practices' references cite rules by ID (`C10`, `E2`) and the body says
+# an ID is never reused, so a renumbered or dropped rule turns every citation of
+# it into a pointer at the wrong rule with nothing going red. The body's bolded
+# IDs are the one definition; this holds the references to it.
+practice_ids() {  # <SKILL.md> -> the IDs the body defines, one per line
+  grep -oE '^- \*\*[A-Z][0-9]+\b' "$1" | sed 's/^- \*\*//'
+}
+
+@test "every rule ID a coding-practices reference cites is defined once in its SKILL.md" {
+  local dir="$ROOT/dnbg-practices/skills/coding-practices"
+  local defined dupes cited bad=0
+  defined=$(practice_ids "$dir/SKILL.md")
+  [ -n "$defined" ] || { echo "no rule IDs found in SKILL.md — the extractor broke"; false; }
+  dupes=$(printf '%s\n' "$defined" | sort | uniq -d)
+  [ -z "$dupes" ] || { echo "IDs defined more than once: $dupes"; bad=1; }
+  # A citation is a bare ID token; the letters are the groups the body defines.
+  cited=$(grep -ohE "\b[$(printf '%s\n' "$defined" | cut -c1 | sort -u | tr -d '\n')][0-9]+\b" "$dir/references/"*.md | sort -u)
+  local id
+  for id in $cited; do
+    printf '%s\n' "$defined" | grep -qx "$id" || { echo "references cite $id, which SKILL.md does not define"; bad=1; }
   done
   [ "$bad" -eq 0 ]
 }

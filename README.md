@@ -194,7 +194,7 @@ you wrote.
 | `reviewer` | `dnbg-workflow` | GitHub only | Reviewing a pushed PR under an independent GitHub App identity |
 | `reviewer-setup` | `dnbg-workflow` | GitHub only | One-time creation of that App (no cloud service, no shared secret) |
 | `velocity-tradeoff` | `dnbg-workflow` | **Any** | Opt-in: how to size work where the risk/benefit trade favors speed |
-| `coding-practices` | `dnbg-practices` | **Any** | Design, security, naming, logging, and the smells to stop on |
+| `coding-practices` | `dnbg-practices` | **Any** | Design, security, naming, comments, logging, and verification, as rules with IDs a review can cite |
 | `work-summary` | `dnbg-work-summary` | GitHub only | Turning your merged/open PRs into an audience-shaped recap |
 
 The planning flow has no skill of its own; it lives in the skills that do each
