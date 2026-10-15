@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Drive one GitHub issue to a merged PR from the main session — claim it, dispatch an author subagent and a reviewer subagent, answer the author's questions that the issue's own body answers, escalate the rest to the operator, log every answer on the issue, and stop when the PR merges. Given a tracking issue, does the same for each of its sub-issues in dependency order and ends on the whole-project review. Also closes out a finished tracking issue. Load when asked to orchestrate an issue or a tracking issue ("orchestrate the resolution of <issue URL>", "orchestrate <issue URL>", "drive <issue> with an author and a reviewer"), when restarting an orchestrator on an issue, or when asked to close out a tracking issue. Skip for resolving an issue yourself, which is `issue-workflow`, and for reviewing one, which is `reviewer`.
+description: Drive one GitHub issue to a merged PR from the main session — claim it, dispatch an author subagent and a reviewer subagent, answer the author's questions that the issue's own body answers, escalate the rest to the operator, log every answer on the issue, and stop when the PR merges. Given a tracking issue, does the same for each of its sub-issues in dependency order, ending on the closeout PR that resolves the parent. Load when asked to orchestrate an issue or a tracking issue ("orchestrate the resolution of <issue URL>", "orchestrate <issue URL>", "drive <issue> with an author and a reviewer"), or when restarting an orchestrator on an issue. Skip for resolving an issue yourself, which is `issue-workflow`, and for reviewing one, which is `reviewer`.
 ---
 
 # Orchestrate
@@ -22,8 +22,8 @@ competes with its owner's.
 
 A tracking issue is driven child by child, each through this flow, by the loop
 in `references/multi-issue.md`, which applies design changes per
-`references/design-change.md`. Closing out a finished tracking issue is a
-separate entry, in `references/closeout.md`. Every agent in a run, you included,
+`references/design-change.md`. Its parent is resolved by a closeout PR that you
+author, per `references/closeout.md`: the one artifact that is yours. Every agent in a run, you included,
 ends its part with a retrospective, per `references/retrospective.md`; read it
 before dispatching.
 

@@ -30,7 +30,10 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
    an issue, then run `issue-workflow`'s critical review on it: the parent is
    yours, not an author's, and a design you believe is wrong is an escalation
    before any dispatch.
-5. **Arm the set watch** (below), then run the loop.
+5. **Arm the set watch** (below), then run the loop. With every child already
+   closed, the loop goes straight to the closeout, whose step 1 continues a
+   predecessor's closeout PR. A parent already closed by that PR's merge has
+   only "Stop" left.
 
 ## The loop
 
@@ -54,7 +57,8 @@ closing, a row reaching `applied`, a spec verdict on a child.
    `result=ERROR` (`bad-args`, `unsupported-forge`, `not-found`, `issue-query`,
    `issue-query-shape`, or `set-overflow`) means the set was not read: dispatch
    nothing, say so, and stop.
-4. **`open=0`**: every child is closed. Go to "Project review".
+4. **`open=0`**: every child is closed. Once every child's agents have ended,
+   resolve the parent through its closeout PR, per `references/closeout.md`.
 5. **Dispatch** while fewer than three children are in flight, or the cap the
    operator set: take the next `ready` child, skipping any that a `decided` row
    still being applied reaches. Claim it first, with
@@ -102,7 +106,7 @@ Classify comments with `SKILL.md`'s table, and add these:
 | Comment | What it is | Action |
 | --- | --- | --- |
 | a spec or set review verdict from the bot on a child | the child may be ready, or need its body answered | run the loop; a `CHANGES REQUESTED` from a re-review is handled in `references/design-change.md` |
-| `**Project review, round <n>: …**` from the bot on the parent | the project's verdict | go to "Stop" |
+| `**Project review, round <n>: …**` from the bot on the parent | the link to a round of the closeout PR's review | none; you handle the round from the PR, per `references/closeout.md` |
 | from the operator, on the parent | a decision, or a remark | a decision is a `decided` row, then `references/design-change.md` |
 
 ## Triage and the log
@@ -160,28 +164,10 @@ table row whose child is closed and whose state is final into one comment
 opening `Decision log: archived rows`, and leave one row in its place pointing
 at that comment. `proposed` rows and `decided` rows not yet applied stay.
 
-## Project review
-
-When every child is closed and every child's agents have ended, write your own
-retrospective, once for the run, per `references/retrospective.md`, with the
-parent as its issue, and fold its project-level items into the parent. Do it
-now: the review grades the parent's body as it stands, and an edit after the
-verdict owes a new round. Then dispatch `reviewer` on the parent, in the
-background:
-
-> Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
-> tracking issue, so grade the whole project. You were dispatched by an
-> orchestrator, so follow `issue-workflow`'s `references/delegated.md` wherever
-> a skill asks the operator something.
-
-Its verdict arrives on the parent through the set watch, now on the parent
-alone.
-
 ## Stop
 
-Stop on the project verdict, and never judge the end-to-end criteria yourself.
-Leave the parent's body alone from here. Report under `SKILL.md`'s three headings, covering every child: its PR, and
-every escalation with its outcome. On `ACCEPTED`, tell the operator the project is
-ready for closeout: "close out `<parent URL>`" (`references/closeout.md`). On
-`CHANGES REQUESTED`, give the findings: what to build next is the operator's
-call. The reviewer keeps watching the parent, to review the closeout PR.
+Stop when the closeout PR has merged and its post-merge cleanup is done, or
+when the operator says to stop after it closed unmerged. Never judge the
+end-to-end criteria yourself: the reviewer grades them on that PR. Report under
+`SKILL.md`'s three headings, covering every child, with its PR, the closeout PR,
+and every escalation with its outcome.
