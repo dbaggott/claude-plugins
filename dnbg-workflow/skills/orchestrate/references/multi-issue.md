@@ -104,6 +104,7 @@ Classify comments with `SKILL.md`'s table, and add these:
 | Comment | What it is | Action |
 | --- | --- | --- |
 | a spec or set review verdict from the bot on a child | the child may be ready, or need its body answered | run the loop; a `CHANGES REQUESTED` from a re-review is handled in `references/design-change.md` |
+| `**Project review, round <n>: …**` from the bot on the parent | the link to a round of the closeout PR's review | none; you handle the round from the PR, per `references/closeout.md` |
 | from the operator, on the parent | a decision, or a remark | a decision is a `decided` row, then `references/design-change.md` |
 
 ## Triage and the log

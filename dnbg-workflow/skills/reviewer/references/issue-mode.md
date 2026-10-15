@@ -18,8 +18,9 @@ discipline the body's own labels set (`issue-workflow`): "Related (optional — 
 not read unless blocked)" links stay unread, depth 1 only.
 
 **Every `gh issue` command in this file runs under your own auth, not the
-bot's** — prefix each with `env -u GH_TOKEN`. The bot reviews PRs; the issue
-itself is the operator's, and the bot never writes to it. What the prefix
+bot's** — prefix each with `env -u GH_TOKEN`. The bot reviews; the issue itself
+is the operator's, and the only bot write to one is the project review's link
+under "A tracking issue" below, which posts through `gh api`. What the prefix
 guards is a call that mints a bot token and then touches the issue: `SKILL.md`
 has every `gh` write mint in its own tool call, so the token is only ever live
 inside one. The prefix costs
@@ -324,6 +325,22 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    than carried over: this overrides `SKILL.md`'s rule that a re-verdict body
    states only what changed, since these lines are what the operator merges
    on.
+
+   Then post one bot comment on the parent linking that review, so the
+   project's verdict is reachable from the issue it closes. Mint the token in
+   the same call that posts:
+
+   ```bash
+   GH_TOKEN="$("<skill-dir>/mint-token.sh" <owner>)" || exit 1
+   export GH_TOKEN
+   gh api repos/<repo>/issues/<parent>/comments -F body=@<path> --jq '"\(.user.login) \(.id)"'
+   ```
+
+   Its body is the review's first line, then the review's URL. The printed
+   login must be the bot's. If it is not, the token never arrived and the link
+   is under the operator's name: delete it with
+   `gh api -X DELETE repos/<repo>/issues/comments/<id>`, then fix the mint and
+   post again.
 7. **Keep watching the parent while you watch the PR**, with step 2's call on
    the parent alone, so a child added or reopened reaches you even when the PR
    does not move. On each of its returns, and before each new round, go back
