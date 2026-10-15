@@ -29,7 +29,7 @@ Read the per-source fields before treating `count=0` as none, as
 `closingIssuesReferences` include the parent is a predecessor's closeout PR.
 Continue it rather than opening a second, at the first of steps 4 to 6 its
 description does not carry; one out of draft resumes at step 6, with a reviewer
-dispatched if none is reviewing it. Run step 2 too while its description has
+dispatched as step 6 does if none is reviewing it. Run step 2 too while its description has
 no step-5 table; once it has one, write your retrospective at "Stop" instead,
 for `process-review` alone.
 
@@ -108,7 +108,8 @@ a drop is closed as not planned, citing the round.
 ## 6. Send it to review, and see it through
 
 Send it to review per `git-workflow`'s "After opening a draft PR". When it is
-out of draft, dispatch `reviewer` on the parent, in the background:
+out of draft, dispatch `reviewer` on the parent as
+`dnbg-workflow:orchestrated-reviewer`, in the background:
 
 > Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
 > tracking issue, so grade the whole project on its closeout PR. You were

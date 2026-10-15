@@ -6,6 +6,10 @@ older client installing the plugin and misbehaving quietly. Verified working on
 v2.1.226. ([Where the floor comes
 from](maintainers.md#where-the-version-floor-comes-from), if you need it.)
 
+`orchestrate`'s author and reviewer keep a 1-hour prompt cache only on a client
+that reads the experimental `cacheTtl` agent option, verified on v2.1.300. An
+older client runs them on the 5-minute cache, without any error.
+
 **Command-line tools.** Not all of them are needed for all of it — the first two
 are what the enforcement hooks run on, and the last three only matter if you use
 the reviewer bot:
