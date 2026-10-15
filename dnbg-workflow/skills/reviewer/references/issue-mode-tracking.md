@@ -50,8 +50,9 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
 4. **Find the closeout PR**: the open PR whose `closingIssuesReferences`
    include the parent. It is the only PR you review in this mode. Until one is
    out of draft, wait with step 2's call on the parent alone, re-running
-   `pr-sources.sh` on the parent at each return and passing every other PR it
-   finds in `--exclude`, and hold a draft back as `issue-mode.md` says.
+   `pr-sources.sh` on the parent at each return and passing the URL of every
+   other PR it finds in `--exclude`, and hold a draft back as `issue-mode.md`
+   says.
 5. **Grade every `A#` against that union and the closeout PR**, judged on the
    merged result, not on each PR alone. A criterion's `Contributes:` line says
    which children's PRs to read first, but it does not limit what you read. A
@@ -91,9 +92,9 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    `gh api -X DELETE repos/<repo>/issues/comments/<id>`, then fix the mint and
    post again.
 7. **Keep watching the parent while you watch the PR**, with step 2's call on
-   the parent alone and the closeout PR in its `--exclude`, since the PR's own
-   watch covers it, so a child added or reopened reaches you even when the PR
-   does not move. On each of its returns, and before each new round, go back
+   the parent alone and the closeout PR's URL in its `--exclude`, since the
+   PR's own watch covers it, so a child added or reopened reaches you even when
+   the PR does not move. On each of its returns, and before each new round, go back
    to step 1. A child open again is unbuilt work: request changes naming it,
    whatever the PR's diff. Report at each verdict, and keep watching after
    it: both watches run in the background, so a turn you end with them armed
