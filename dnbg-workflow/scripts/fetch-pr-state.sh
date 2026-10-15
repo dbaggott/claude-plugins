@@ -45,15 +45,19 @@ FORGE="${FORGE:-github}"
 
 # --- GitHub backend ---------------------------------------------------------
 
+# Both replies go to jq by file: they carry every review and comment body, and
+# one busy PR passes the per-argument cap on Linux.
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+
 # `statusCheckRollup` and `mergeStateStatus` ride along with the fields the tick
 # already needed, so covering merge state and checks costs no extra request.
-RAW=$(gh pr view "$PR" --repo "$REPO" \
-        --json state,isDraft,headRefOid,reviews,comments,statusCheckRollup,mergeStateStatus,reviewDecision \
-        2>/dev/null) || fail pr-view
+gh pr view "$PR" --repo "$REPO" \
+  --json state,isDraft,headRefOid,reviews,comments,statusCheckRollup,mergeStateStatus,reviewDecision \
+  > "$TMP/pr" 2>/dev/null || fail pr-view
 
 DEGRADED=""
-INLINE=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direction=desc" \
-           2>/dev/null) || { INLINE='[]'; DEGRADED="inline-comments"; }
+gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direction=desc" \
+  > "$TMP/inline" 2>/dev/null || { echo '[]' > "$TMP/inline"; DEGRADED="inline-comments"; }
 
 # GitHub overloads one status where GitLab names the cause directly, so the
 # counting that separates "a required check is still running" from "one failed"
@@ -61,7 +65,7 @@ INLINE=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direct
 #
 # Two rollup shapes: CheckRun carries .name/.status/.conclusion, StatusContext
 # .context/.state. A check that has not finished carries no conclusion.
-OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
+OUT=$(jq -cn --slurpfile prs "$TMP/pr" --slurpfile inlines "$TMP/inline" '
   # Four states, rather than whatever vocabulary a forge uses. A CheckRun carries .status and, once
   # finished, .conclusion; a StatusContext carries .state. Handing those through
   # raw makes every caller re-derive "is this passing", and a caller that misses
@@ -75,7 +79,9 @@ OUT=$(jq -cn --argjson pr "$RAW" --argjson inline "$INLINE" '
            or $c == "waiting" or $c == "requested" or $c == "expected" then "pending"
       else "failure" end;
 
-  ($pr.statusCheckRollup // []) | map({
+  $prs[0] as $pr
+  | $inlines[0] as $inline
+  | ($pr.statusCheckRollup // []) | map({
       name: (.name // .context // "?"),
       state: check_state
     }) as $checks
