@@ -3,14 +3,13 @@
 # exit. The issue-side sibling of watch-pr.sh, sharing its curve, its clock and
 # its re-arm contract.
 #
-#   watch-issue.sh <owner/repo> <n> [n...] --role=author|reviewer|orchestrator \
+#   watch-issue.sh <owner/repo> <n> [n...] --role=author|reviewer \
 #     [--since=<iso>] [--slug=<login>] [--exclude=<pr-url,…>] \
 #     [--wake-on=<kind,…>] [--exclude-login=<login,…>]
 #
 # Exactly one result line, then exit 0:
 #   result=ACTIVITY issues=<n,…> kinds=<comment|linked-pr|body-edit,…> \
-#     edited=<n:iso|n:none,…> [comments=<login:url,…>] [overflowed=<n,…>] \
-#     [closed=<n,…>] [missing=<n,…>] <re-arm fields> now=<iso>
+#     edited=<n:iso|n:none,…> [closed=<n,…>] [missing=<n,…>] <re-arm fields> now=<iso>
 #   result=CLOSED   issues=<n,…> [missing=<n,…>] [<re-arm fields>] now=<iso>
 #   result=IDLE     [missing=<n,…>] <re-arm fields> now=<iso>
 #   result=ERROR    reason=<source> now=<iso>
@@ -38,15 +37,11 @@
 # `--wake-on` picks the event kinds that wake the watch, from `comment`,
 # `linked-pr`, `body-edit` and `close`; without `close`, a closed issue is
 # watched like an open one. `--exclude-login` adds logins whose comments are
-# ignored, in both spellings as below, to the role's own. Each role is a preset
-# over the two; `--wake-on` replaces its kinds and `--exclude-login` adds to its
-# logins. The orchestrator's first-line filter, below, is not a flag:
-#
-#   author, reviewer  every kind; ignores `--slug`
-#   orchestrator      every kind but `body-edit`; ignores no login
+# ignored, in both spellings as below, to `--slug`. Without `--wake-on`, every
+# kind wakes the watch.
 #
 # A harness waiting for a body edit made under the operator's own login, which
-# no role's comment filter can single out, wakes on that alone:
+# no login filter can single out, wakes on that alone:
 #   --role=author --wake-on=body-edit,close
 #
 # `missing=` names numbers that resolve to no issue — a typo, a transfer, a PR
@@ -67,18 +62,6 @@
 # PR appearing, and the issue closing are four questions about one thing, and one
 # batched query answers all four for any number of issues. Splitting them would
 # buy separate result vocabularies and cost a request per question per tick.
-#
-# The orchestrator role takes no `--slug` and by default excludes no login: the author it
-# dispatched, the operator and the orchestrator itself all post under one account,
-# so it tells comments apart by their first line instead. It never wakes on what
-# only the orchestrator's own bookkeeping produces: a body edit, a comment opening
-# `Decision log:`, a `Claimed by` comment carrying this session's id
-# (`${CLAUDE_CODE_SESSION_ID:0:8}`), or the reviewer's `Claude Code is acting as
-# reviewer` note. A `Claimed by` with any other id is a sibling claiming the issue,
-# and wakes it. `comments=` lists every other comment inside the window, oldest
-# first, as its author's login and its URL. `overflowed=` names issues whose page
-# of comments may not reach back to `since`, so `comments=` can be missing some;
-# the caller reads those threads in full.
 #
 # ⚠️ THE EXCLUSION IS AN EXACT LOGIN MATCH — of both spellings, `<slug>` and
 # `<slug>[bot]`, since a GitHub App posts under the suffixed one — AND THE TWO
@@ -120,7 +103,7 @@ WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
 HERE="$(cd "$(dirname "$0")" && pwd)"
 fatal() { echo "result=ERROR reason=$1 now=$(poll_now_iso)"; exit 0; }
 
-case "$ROLE" in author|reviewer|orchestrator) ;; *) bad=1 ;; esac
+case "$ROLE" in author|reviewer) ;; *) bad=1 ;; esac
 [ -n "$REPO" ] || bad=1
 case "$REPO" in */*) ;; *) bad=1 ;; esac
 [ -n "$NUMS" ] || bad=1
@@ -129,18 +112,12 @@ case "$REPO" in */*) ;; *) bad=1 ;; esac
 if [ -z "$SLUG" ] && [ "$ROLE" = author ]; then
   SLUG=$(gh api user --jq .login 2>/dev/null) || SLUG=""
 fi
-if [ "$ROLE" = orchestrator ]; then
-  [ -z "$SLUG" ] || bad=1
-else
-  [ -n "$SLUG" ] || bad=1
-fi
+[ -n "$SLUG" ] || bad=1
 
 # Normalised to one sorted, comma-separated list each, so the re-arm line and the
 # result field carry the same value however the caller spelled it.
 csv() { tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^$' | sort -u | paste -sd, - || true; }
-if [ -z "$WAKE_ON" ]; then
-  case "$ROLE" in orchestrator) WAKE_ON=comment,linked-pr,close ;; *) WAKE_ON=comment,linked-pr,body-edit,close ;; esac
-fi
+WAKE_ON=${WAKE_ON:-comment,linked-pr,body-edit,close}
 WAKE_ON=$(printf '%s' "$WAKE_ON" | csv)
 [ -n "$WAKE_ON" ] || bad=1
 for k in $(printf '%s' "$WAKE_ON" | tr ',' ' '); do
@@ -168,22 +145,15 @@ SETTLE_MAX=${SETTLE_MAX:-300}
 
 poll_init
 
-SID="${CLAUDE_CODE_SESSION_ID:-}"; SID="${SID:0:8}"
 # Every login whose comments are ignored, each in both spellings. Exact matches
 # only — see the header.
 XL=$(printf '%s\n%s\n' "$SLUG" "$XLOGINS" | tr ',' '\n' \
   | jq -Rsc 'split("\n") | map(select(. != "")) | map(., . + "[bot]")')
 # Which comments count, as a jq function over one comment.
 # shellcheck disable=SC2016  # jq variables, bound by each caller's --arg flags.
-KEEP='def keep: (.author as $a | $xl | index($a) | not)
-  and (if $role == "orchestrator" then
-    (.head // "") as $h
-    | ($h | startswith("Decision log:")
-        or startswith("Claude Code is acting as reviewer")
-        or (test("^claimed by"; "i") and $sid != "" and contains("(" + $sid + ")"))) | not
-  else true end);'
+KEEP='def keep: .author as $a | $xl | index($a) | not;'
 
-hit_issues=""; hit_kinds=""; hit_overflow=""; closed_issues=""; new_prs=""; seen_missing=""
+hit_issues=""; hit_kinds=""; closed_issues=""; new_prs=""; seen_missing=""
 # What has already been accounted for. Without it the same comment satisfies the
 # wake condition on every tick, so the settle window is extended forever and the
 # watch never reports at all.
@@ -236,7 +206,7 @@ report_error() {
 # `NONE` as the override means every watched issue is gone, so there is nothing
 # to re-arm on and the line is omitted — the same reason CLOSED omits it.
 report_hit() {  # [closed-list] [issues-override|NONE]
-  local issues kinds edited comments="" overflowed="" fields=""
+  local issues kinds edited fields=""
   stamp_now
   if [ "${2:-}" != NONE ]; then
     watch_rearm "$(rearm_cmd "${2:-}")"; fields=$(rearm_fields "${2:-}")
@@ -245,13 +215,7 @@ report_hit() {  # [closed-list] [issues-override|NONE]
   kinds=$(printf '%s\n' "$hit_kinds" | tr ' ' '\n' | grep -v '^$' | sort -u | paste -sd, - || true)
   edited=$(printf '%s' "$last_json" | jq -r '
     [ .issues[] | "\(.number):\(.body_edited // "none")" ] | join(",")' 2>/dev/null || echo "")
-  if [ "$ROLE" = orchestrator ] && wakes comment; then
-    comments=$(printf '%s' "$last_json" | jq -r --arg s "$SINCE" --argjson xl "$XL" --arg role "$ROLE" --arg sid "$SID" "$KEEP"'
-      [ .issues[].comments[] | select(.at > $s) | select(keep) ] | sort_by(.at)
-      | map("\(.author):\(.url)") | join(",")' 2>/dev/null || echo "")
-    overflowed=$(printf '%s\n' "$hit_overflow" | tr ' ' '\n' | grep -v '^$' | sort -nu | paste -sd, - || true)
-  fi
-  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited${comments:+ comments=$comments}${overflowed:+ overflowed=$overflowed}${1:+ closed=$1}$(missing_field)$fields now=$NOW"
+  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited${1:+ closed=$1}$(missing_field)$fields now=$NOW"
   exit 0
 }
 
@@ -296,7 +260,7 @@ while :; do
 
   # An exact login match, never a substring — see the header.
   comment_hits=""; edit_hits=""; overflow=""; all_prs=""
-  wakes comment && comment_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --argjson xl "$XL" --arg role "$ROLE" --arg sid "$SID" "$KEEP"'
+  wakes comment && comment_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --argjson xl "$XL" "$KEEP"'
     [ .issues[] | select([ .comments[] | select(.at > $s) | select(keep) ] | length > 0)
       | .number ] | join(" ")')
   wakes body-edit && edit_hits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" '
@@ -313,7 +277,6 @@ while :; do
       | select(.comments_total > .comments_returned)
       | select((.comments | length) == 0 or (([ .comments[].at ] | min) > $s))
       | .number ] | join(" ")')
-  [ -z "$overflow" ] || hit_overflow="$hit_overflow $overflow"
 
   wakes linked-pr && all_prs=$(printf '%s' "$J" | jq -r '[.issues[].linked_prs[]] | unique | join("\n")')
   if [ -n "$all_prs" ] && [ -n "$EXCLUDE_LINES" ]; then
@@ -364,7 +327,7 @@ while :; do
 
   # Counted rather than merely present, so a SECOND comment extends the window
   # and the first one does not extend it forever.
-  sig=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --argjson xl "$XL" --arg role "$ROLE" --arg sid "$SID" \
+  sig=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --argjson xl "$XL" \
     --argjson wc "$(wakes comment && echo true || echo false)" \
     --argjson we "$(wakes body-edit && echo true || echo false)" \
     --argjson wl "$(wakes linked-pr && echo true || echo false)" "$KEEP"'

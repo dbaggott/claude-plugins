@@ -545,113 +545,16 @@ EOF
   [[ "${lines[-1]}" == *"result=ACTIVITY"* ]]
 }
 
-# The orchestrator's author, the operator and the orchestrator itself all post
-# under one login, so this role excludes none and names each comment's author.
-orch_comment() {  # <login> <iso> <url> [body]
-  jq -cn --arg a "$1" --arg t "$2" --arg u "$3" --arg b "${4:-}" \
-    '{author:{login:$a}, createdAt:$t, url:$u, body:$b}'
-}
-
-@test "the orchestrator role wakes on the operator's own login" {
-  repo "$(issue 163 "[$(orch_comment operator 2026-01-02T00:00:00Z https://x/c1)]")"
-  INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=comment"* ]]
-  [[ "${lines[-1]}" == *" comments=operator:https://x/c1 "* ]]
-}
-
-@test "the orchestrator role wakes on the bot's comment" {
-  repo "$(issue 163 "[$(orch_comment agent-reviewer-operator 2026-01-02T00:00:00Z https://x/c1)]")"
-  INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == *" comments=agent-reviewer-operator:https://x/c1 "* ]]
-}
-
-# Its own `Decision log:` row is reported like any comment, with its author, so
-# the caller can recognise and drop it; the script never reads bodies.
-@test "the orchestrator role lists every new comment with its author, oldest first" {
-  repo "$(issue 163 "[$(orch_comment operator 2026-01-03T00:00:00Z https://x/c2),
-    $(orch_comment agent-reviewer-operator 2026-01-02T00:00:00Z https://x/c1),
-    $(orch_comment operator 2025-12-01T00:00:00Z https://x/old)]")"
-  INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == *" comments=agent-reviewer-operator:https://x/c1,operator:https://x/c2 "* ]]
-}
-
-@test "the other roles carry no comments field" {
-  repo "$(issue 163 "[$(orch_comment human 2026-01-02T00:00:00Z https://x/c1)]")"
-  INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
-  [[ "${lines[-1]}" == result=ACTIVITY* ]]
-  [[ "${lines[-1]}" != *"comments="* ]]
-}
-
-@test "the orchestrator role refuses a slug rather than excluding it" {
-  repo "$(issue 163)"
-  run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z --slug=operator
-  [[ "$output" == *"reason=bad-args"* ]]
-}
-
-@test "the orchestrator role's re-arm line carries no slug" {
+@test "the retired orchestrator role is refused" {
+  local retired=orchestrator
   repo "$(issue 163)"
   INTERVAL=1 WINDOW=3 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == result=IDLE* ]]
-  [[ "$output" == *"--role=orchestrator --since=20"* ]]
-  [[ "$output" != *"--slug"* ]]
+    run "$WATCH" o/r 163 --role="$retired" --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=ERROR reason=bad-args"* ]]
 }
 
-# Under D4 the orchestrator is the body's only writer, so a body edit is its own
-# and waking on it spends a turn to learn nothing.
-@test "the orchestrator role does not wake on a body edit" {
-  repo "$(issue 163 '[]' '[]' OPEN 2026-01-02T00:00:00Z)"
-  INTERVAL=1 SETTLE=1 WINDOW=4 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == result=IDLE* ]]
-}
-
-@test "the orchestrator role never wakes on its own bookkeeping comments" {
-  export CLAUDE_CODE_SESSION_ID=c7f40c25-rest
-  repo "$(issue 163 "[
-    $(orch_comment operator 2026-01-02T00:00:00Z https://x/c1 $'Decision log: D4 \u2014 applied\n\nbody'),
-    $(orch_comment operator 2026-01-02T00:01:00Z https://x/c2 'Claimed by an agent session (c7f40c25).'),
-    $(orch_comment operator 2026-01-02T00:02:00Z https://x/c3 'Claude Code is acting as reviewer on this issue.')]")"
-  INTERVAL=1 SETTLE=1 WINDOW=4 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == result=IDLE* ]]
-}
-
-# A claim under another id is a second worker taking the issue mid-run.
-@test "the orchestrator role wakes on a sibling's claim" {
-  export CLAUDE_CODE_SESSION_ID=c7f40c25-rest
-  repo "$(issue 163 "[$(orch_comment operator 2026-01-02T00:00:00Z https://x/c1 'Claimed by an agent session (0badc0de).')]")"
-  INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == *" comments=operator:https://x/c1 "* ]]
-}
-
-@test "the orchestrator role lists a question beside the bookkeeping it drops" {
-  repo "$(issue 163 "[
-    $(orch_comment operator 2026-01-02T00:00:00Z https://x/c1 'Decision log: D4 \u2014 applied'),
-    $(orch_comment operator 2026-01-02T00:01:00Z https://x/c2 'Delegated question: which path?')]")"
-  INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == *" comments=operator:https://x/c2 "* ]]
-}
-
-@test "the orchestrator role names an overflowed page so the caller reads the thread" {
-  local c
-  c=$(jq -cn '[{author:{login:"operator"}, createdAt:"2026-01-02T00:00:00Z", url:"https://x/c9", body:"hi"}]')
-  jq -n --argjson c "$c" '{data:{repository:{i163:{number:163, state:"OPEN", lastEditedAt:null,
-      comments:{totalCount:40, nodes:$c},
-      closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}}}}}' > "$GQL"
-  INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == *" overflowed=163 "* ]]
-}
-
-# --wake-on and --exclude-login: the roles are presets over these two, so an
-# explicit flag narrows what the preset would wake on.
+# --wake-on and --exclude-login: an explicit flag narrows what the default
+# would wake on.
 
 @test "a body-edit-only watch wakes on a body edit" {
   repo "$(issue 163 '[]' '[]' OPEN 2026-01-02T00:00:00Z)"
@@ -689,13 +592,6 @@ orch_comment() {  # <login> <iso> <url> [body]
   [[ "${lines[-1]}" == result=IDLE* ]]
 }
 
-@test "the orchestrator role takes an excluded login" {
-  repo "$(issue 163 "$(comment helper 2026-01-02T00:00:00Z)")"
-  INTERVAL=1 SETTLE=1 WINDOW=4 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z --exclude-login=helper
-  [[ "${lines[-1]}" == result=IDLE* ]]
-}
-
 @test "the re-arm line carries both flags" {
   repo "$(issue 163)"
   INTERVAL=1 WINDOW=3 \
@@ -704,11 +600,11 @@ orch_comment() {  # <login> <iso> <url> [body]
   [[ "$output" == *" --wake-on=body-edit,close --exclude-login=a,b"* ]]
 }
 
-@test "a role's preset rides the re-arm line, so the next run keeps it" {
+@test "the default wake-on set rides the re-arm line, so the next run keeps it" {
   repo "$(issue 163)"
   INTERVAL=1 WINDOW=3 \
-    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
-  [[ "$output" == *" --wake-on=close,comment,linked-pr"* ]]
+    run "$WATCH" o/r 163 --role=reviewer --slug=bot --since=2026-01-01T00:00:00Z
+  [[ "$output" == *" --wake-on=body-edit,close,comment,linked-pr"* ]]
 }
 
 # A script re-arms from the result line's fields rather than parsing the command,
@@ -745,12 +641,4 @@ orch_comment() {  # <login> <iso> <url> [body]
   INTERVAL=1 WINDOW=4 \
     run "$WATCH" o/r 163 164 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
   [[ "${lines[-1]}" == "result=CLOSED issues=163 watching=164 "* ]]
-}
-
-@test "the orchestrator lists no comments on a wake it was not asked to take on them" {
-  repo "$(issue 163 "$(comment human 2026-01-02T00:00:00Z)" '["https://github.com/o/r/pull/9"]')"
-  INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 163 --role=orchestrator --wake-on=linked-pr --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=linked-pr "* ]]
-  [[ "${lines[-1]}" != *"comments="* ]]
 }
