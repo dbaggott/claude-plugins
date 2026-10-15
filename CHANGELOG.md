@@ -10,6 +10,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.12 — 2026-10-15
+
+Fixed `orchestrate` telling its author to continue an unrelated PR on start or
+restart. Every open PR that mentioned the issue was taken for the issue's own
+work, including a PR in another repo that only cited it. Now only a PR that
+closes the issue, or a multi-repo sibling tagged with the closing PR's branch
+name, is handed to the author; any other is named to you instead. PRs found at
+start no longer wake the orchestrator's issue watch the moment it is armed.
+
+
 ## dnbg-workflow 2026.10.11 — 2026-10-15
 
 `orchestrate` no longer watches the PR. It dispatches the reviewer when the
