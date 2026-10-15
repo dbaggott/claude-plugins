@@ -130,6 +130,22 @@ line() { tail -1 <<<"$1"; }
   [ "$(grep -c -- '-f owner=' "$ARGV")" -eq 2 ]
 }
 
+@test "a page whose snapshots total past ARG_MAX still diffs" {
+  # 24 snapshots of 50,000 characters, about 1.2 MB, over macOS's 1 MB ARG_MAX
+  # and far over Linux's 128 KB cap on any one argument.
+  local filler nodes=() i
+  filler=$(printf '%050000d' 0)
+  for (( i = 23; i >= 1; i-- )); do
+    nodes+=("$(edit "2026-10-05T00:00:$(printf %02d "$i")Z" bob "$filler"$'\n'"v$i")")
+  done
+  page first "" "$filler"$'\n'"v23" "${nodes[@]}" "$(edit "$T0" author "$filler"$'\n'"v0")"
+  [ "$(wc -c < "$PAGES/first.json")" -gt 1048576 ]
+
+  run "$DIFF" o/r 7 --since="$T0"
+  [ "$(line "$output")" = "result=OK base=$T0 head=2026-10-05T00:00:23Z editors=bob" ]
+  grep -qx -- '+v23' <<<"$output"
+}
+
 @test "a history that never reports its last page stops at the cap" {
   page first first 'x' "$(edit "$T1" alice 'x')"
   MAX_PAGES=3 run "$DIFF" o/r 7 --since="$T0"
