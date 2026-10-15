@@ -617,3 +617,108 @@ orch_comment() {  # <login> <iso> <url> [body]
     run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
   [[ "${lines[-1]}" == *" overflowed=163 "* ]]
 }
+
+# --wake-on and --exclude-login: the roles are presets over these two, so an
+# explicit flag narrows what the preset would wake on.
+
+@test "a body-edit-only watch wakes on a body edit" {
+  repo "$(issue 163 '[]' '[]' OPEN 2026-01-02T00:00:00Z)"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=author --wake-on=body-edit --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=body-edit "* ]]
+}
+
+@test "a body-edit-only watch wakes on nothing else" {
+  repo "$(issue 163 "$(comment human 2026-01-02T00:00:00Z)" '["https://github.com/o/r/pull/9"]' CLOSED)"
+  INTERVAL=1 SETTLE=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=author --wake-on=body-edit --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+@test "close in the wake-on set still reports the closure" {
+  repo "$(issue 163 '[]' '[]' CLOSED)"
+  INTERVAL=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=author --wake-on=body-edit,close --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=CLOSED issues=163"* ]]
+}
+
+@test "an unknown wake-on kind is refused" {
+  repo "$(issue 163)"
+  run "$WATCH" o/r 163 --role=author --wake-on=comments --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=ERROR reason=bad-args"* ]]
+}
+
+@test "an excluded login's comment wakes nothing, in either spelling" {
+  repo "$(issue 163 "$(jq -cn '[{author:{login:"helper"},createdAt:"2026-01-02T00:00:00Z",url:"u"},
+                                 {author:{login:"tool[bot]"},createdAt:"2026-01-02T00:00:00Z",url:"u"}]')")"
+  INTERVAL=1 SETTLE=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=reviewer --slug=bot --since=2026-01-01T00:00:00Z \
+      --exclude-login=helper --exclude-login=tool
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+@test "the orchestrator role takes an excluded login" {
+  repo "$(issue 163 "$(comment helper 2026-01-02T00:00:00Z)")"
+  INTERVAL=1 SETTLE=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z --exclude-login=helper
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
+@test "the re-arm line carries both flags" {
+  repo "$(issue 163)"
+  INTERVAL=1 WINDOW=3 \
+    run "$WATCH" o/r 163 --role=author --since=2026-01-01T00:00:00Z \
+      --wake-on=close,body-edit --exclude-login=b,a
+  [[ "$output" == *" --wake-on=body-edit,close --exclude-login=a,b"* ]]
+}
+
+@test "a role's preset rides the re-arm line, so the next run keeps it" {
+  repo "$(issue 163)"
+  INTERVAL=1 WINDOW=3 \
+    run "$WATCH" o/r 163 --role=orchestrator --since=2026-01-01T00:00:00Z
+  [[ "$output" == *" --wake-on=close,comment,linked-pr"* ]]
+}
+
+# A script re-arms from the result line's fields rather than parsing the command,
+# so every flag the re-arm line carries is a field, and `now=` is its `--since`.
+@test "the result line carries the re-arm flags as fields, now= being the next since" {
+  repo "$(issue 163 '[]' '["https://github.com/o/r/pull/9"]')"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=author --since=2026-01-01T00:00:00Z --exclude-login=helper
+  local result="${lines[-1]}" rearm since
+  [[ "$result" == *" watching=163 wake-on=body-edit,close,comment,linked-pr exclude=https://github.com/o/r/pull/9 exclude-login=helper now="* ]]
+  rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
+  since=$(grep -o -- '--since=[^ ]*' <<<"$rearm"); since=${since#--since=}
+  [ "$since" = "${result##* now=}" ]
+}
+
+@test "an empty exclusion is no field at all" {
+  repo "$(issue 163)"
+  INTERVAL=1 WINDOW=3 \
+    run "$WATCH" o/r 163 --role=reviewer --slug=bot --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=IDLE watching=163 wake-on=body-edit,close,comment,linked-pr now="* ]]
+}
+
+@test "a result with no re-arm line carries no re-arm fields" {
+  repo "$(issue 163 '[]' '[]' CLOSED)"
+  INTERVAL=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == "result=CLOSED issues=163 now="* ]]
+}
+
+# The fields carry the set the next run watches, which a closure narrows: a
+# script re-arming from its own original list would put the closed issue back.
+@test "the watching field drops a closed issue" {
+  repo "$(issue 163 '[]' '[]' CLOSED)" "$(issue 164)"
+  INTERVAL=1 WINDOW=4 \
+    run "$WATCH" o/r 163 164 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == "result=CLOSED issues=163 watching=164 "* ]]
+}
+
+@test "the orchestrator lists no comments on a wake it was not asked to take on them" {
+  repo "$(issue 163 "$(comment human 2026-01-02T00:00:00Z)" '["https://github.com/o/r/pull/9"]')"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=orchestrator --wake-on=linked-pr --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=linked-pr "* ]]
+  [[ "${lines[-1]}" != *"comments="* ]]
+}

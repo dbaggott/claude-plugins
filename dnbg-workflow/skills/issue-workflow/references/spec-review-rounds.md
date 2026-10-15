@@ -43,17 +43,21 @@ a fresh comment.
 ## Waiting for the next round
 
 Spawn the wait as a **background** task so idle polling never enters the
-conversation:
+conversation. Its `--since` follows the first-arm rule in `watch-issue.sh`'s header,
+taking the response's own timestamp from GitHub
+(`gh api repos/<owner>/<repo>/issues/comments/<id> --jq .created_at`, the id
+from the URL `gh issue comment` printed):
 
 ```bash
 "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
-  --role=author --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  --role=author --since=<your response comment's created_at>
 ```
 
 `--role=author` resolves the ignored login from `gh api user` when no `--slug` is
 given, so the watch ignores your own comments and wakes on the reviewer's. Arm it
-*after* posting the response — `--since` is stamped at arm time, so an earlier
-stamp wakes it on your own round.
+*after* posting the response. The first-arm rule's time is the comment's own,
+not your clock's, because a body edit carries no login to filter: a `since`
+before your last edit by GitHub's clock wakes the watch on your own round.
 
 Dispatch on the result:
 

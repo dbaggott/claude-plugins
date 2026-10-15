@@ -50,7 +50,7 @@ gh pr merge 48 --repo <owner>/examples --squash --delete-branch
 
 ## Watching for the merge
 
-**One script, no swap — but arm it for the longer wait.** `watch-pr.sh
+**One script, no swap — but re-arm it from its `── re-arm ──` line for the longer wait.** `watch-pr.sh
 --role=author` reports everything this stage needs: `CLOSED state=MERGED`, a
 conflict as `DIRTY`, and a block nothing pending will clear as
 `BLOCKED cause=terminal`. There is no merge-specific poller to reach for.
@@ -93,7 +93,7 @@ reviewer posted while you were composing the handoff, and dropping
 `--last-checks` re-fires a red check the caller was already told about on the
 merge watch's first tick.
 
-**Spawn it the moment a review comes back clean**, before telling the operator
+**Spawn it — the edited re-arm line above — the moment a review comes back clean**, before telling the operator
 the PR is ready — the claim "I am watching for the merge now" has to be about a
 watcher that is running.
 

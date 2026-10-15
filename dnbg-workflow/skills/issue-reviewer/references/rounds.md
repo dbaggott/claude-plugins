@@ -103,11 +103,12 @@ gh api graphql -f query='mutation($id: ID!) {
 ## Waiting for the author
 
 Spawn the wait as a **background** task so idle polling never enters the
-conversation:
+conversation. Its `--since` follows the first-arm rule in `watch-issue.sh`'s header: the
+`created_at` the post printed beside the login for your round's first comment.
 
 ```bash
 "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
-  --role=reviewer --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --role=reviewer --since=<your round's first created_at> \
   --slug="$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")"
 ```
 

@@ -8,7 +8,7 @@ review, before spawning anything. `SKILL.md` carries the flow up to that point;
 
 When the operator picks "Send to review" in `SKILL.md`'s picker, or otherwise signals the PR is ready (says "ready", "go", "mark it ready", etc.):
 
-1. Run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft.
+1. Note the time, then run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft. That time is the first arm's `since`, per the first-arm rule in `watch-issue.sh`'s header: the review responds to this step. A PR already out of draft was ready before this step, so its review responds to your last push instead: take `since` from your last commit, `gh pr view <num> --repo <repo> --json commits --jq '.commits[-1].committedDate'`, which is no later than the push.
 2. **Record the current head SHA.** Everything else the next arm needs comes back on the watch's own `── re-arm ──` line; this is a first arm, so there is nothing yet to carry.
 3. **Spawn `watch-pr.sh`** as a **background** task (Bash `run_in_background: true`). It blocks until something happens, so its idle polling never enters the conversation, and the harness wakes you when it returns.
 
@@ -23,7 +23,7 @@ HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
 # short. The slug is derived from your own account, so it is not passed.
 # --last-verdict= is empty here and only here: it says "no verdict handled yet".
 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
-  "$HEAD" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "" --role=author --last-verdict=
+  "$HEAD" "<the time you noted in step 1>" "" --role=author --last-verdict=
 ```
 
 **Re-arm from the line the watch prints, not from the clock.** Every result you
@@ -75,7 +75,7 @@ The `verdict=<state>` beside it says which verdict that is, so you can tell a cl
 "<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-handled-sha> <since-iso> <your-login>
 ```
 
-The same values you armed the watcher with — the SHA you last handled, the timestamp marking "handled up to here", and your own login, whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta — which is what the printed command already does on a first round.
+The same values the watcher was armed with — the SHA you last handled, the timestamp marking "handled up to here", and your own login, whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta — which is what the printed command already does on a first round.
 
 What the sections are for, and the mistake each one prevents:
 
@@ -89,7 +89,7 @@ Read the review payload and pick one of three responses based on content. Track 
 
 **Read the approving review's body before composing the handoff.** An approval is not always empty — reviewers put CI triage, deferred follow-ups and scope notes in it, and none of that reaches you as a finding. It is already in the packet, as the `"kind":"review"` object; skipping it means re-deriving from scratch what the reviewer has already written down, then reporting it as your own discovery.
 
-With the verdict confirmed and that body read, tell the operator the PR is ready to merge, then **immediately re-arm the watch for the merge wait** (see `references/merge.md`, which gives the wider window that stage needs) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per `references/merge.md` — hand over exactly one form, the one that will work:
+With the verdict confirmed and that body read, tell the operator the PR is ready to merge, then **immediately re-arm the watch for the merge wait** from its `── re-arm ──` line (see `references/merge.md`, which gives the wider window that stage needs) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per `references/merge.md` — hand over exactly one form, the one that will work:
 
 > Reviewer approved at <commit>. No actionable findings. Ready to merge: <full URL>.
 >
@@ -99,7 +99,7 @@ With the verdict confirmed and that body read, tell the operator the PR is ready
 >
 > Or merge from the browser. I'm watching for the merge now — go ahead whenever you like, including hours from now, and I'll run post-merge cleanup automatically once it lands (and flag a conflict if one develops while checks run). If several hours pass with no merge, I'll check back once to remind you.
 
-**Spawn the watcher before you send that message** — the "I'm watching for the merge now" line is a claim about a watcher that's actually running, so it must not go out on its own. If for any reason you don't spawn one (e.g. the PR is already merged by the time you'd report), drop that sentence and say what's actually true instead.
+**Spawn the watcher — that edited re-arm line — before you send that message** — the "I'm watching for the merge now" line is a claim about a watcher that's actually running, so it must not go out on its own. If for any reason you don't spawn one (e.g. the PR is already merged by the time you'd report), drop that sentence and say what's actually true instead.
 
 A "clean review" includes pure compliments and "noticed X looks good" observations. If you're unsure whether something is actionable, treat it as a finding (next case) rather than a no-op.
 
@@ -136,7 +136,7 @@ Recommendation by state:
 
 Picking "Auto-handle all rounds" makes auto-handling sticky for the rest of this PR's life *within the current session*. The model has no per-PR memory across sessions, so if the session ends mid-cycle and a new one resumes, the picker re-fires on the next review — re-asking on a session boundary is the right call rather than silently auto-handling something the new session doesn't have full context for. Picking "Address this round only" still fixes + pushes + re-arms, but the picker fires again on the next review instead of acting silently. The third option (merge-as-is or leave-sitting) stops the workflow on this PR — no fix, no watch.
 
-**Has findings, operator already opted in (picked "Auto-handle all rounds" earlier this session).** Don't re-ask. Address the findings, push the fix, re-arm the watch on the new head per the post-push rule above, and repeat. Mention briefly what you addressed and that you're watching for the next review, but don't wait for the operator to approve each round — that's what the opt-in covered.
+**Has findings, operator already opted in (picked "Auto-handle all rounds" earlier this session).** Don't re-ask. Address the findings, push the fix, re-arm the watch from its printed re-arm line with the new head, per the post-push rule above, and repeat. Mention briefly what you addressed and that you're watching for the next review, but don't wait for the operator to approve each round — that's what the opt-in covered.
 
 If at any point the operator says "stop" / "pause" / "let me drive", drop the auto-handling and revert to picker behavior for subsequent rounds.
 

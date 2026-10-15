@@ -75,7 +75,7 @@ start are the same path.
      operator says so.
 
    Pass every PR this step found, whatever its state or relevance, as
-   `--exclude` when you arm the issue watch, which otherwise wakes on each.
+   `--exclude` on the issue watch's first arm, since it otherwise wakes on each.
    Read the per-source fields before treating `count=0` as none, as
    `issue-workflow`'s `references/resolving.md` describes.
 4. **The log.** Read every comment on the issue. What is still open: a
@@ -156,11 +156,13 @@ Never poll in the conversation. Each event reaches you as one of these:
   telling it to re-arm its PR watch from the last `── re-arm ──` line it
   printed. Otherwise continue it with what the state shows is still owed.
 - **The issue watch**, armed once at start and re-armed from its own
-  `── re-arm ──` line, always in the background:
+  `── re-arm ──` line, always in the background. The first arm's `--since`
+  follows the first-arm rule in `watch-issue.sh`'s header: step 1's
+  `fetch-issue-set.sh` `now=`, taken before step 4 read the comments.
 
   ```bash
   "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> \
-    --role=orchestrator --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --role=orchestrator --since=<step 1's now=> \
     [--exclude=<step 3's PRs, comma-separated>]
   ```
 
