@@ -76,9 +76,6 @@ start are the same path.
      looks like the issue's work, and hand it to the author only if the
      operator says so.
 
-   Pass the URL of every PR this step found, whatever its state or relevance,
-   as `--exclude` on the issue watch's first arm, since it otherwise wakes on
-   each.
    Read the per-source fields before treating `count=0` as none, as
    `issue-workflow`'s `references/claiming.md` describes.
 4. **The log.** Read every comment on the issue. What is still open: a
@@ -136,76 +133,38 @@ it when the operator said they will review the PR themselves.
 > `<skill-dir>/references/retrospective.md`, and end your final report with a
 > **Retrospective** section giving the file's path.
 
-## Wait on two sources
+## Wait on subagent reports
 
-Never poll in the conversation. Each event reaches you as one of these:
+Never poll in the conversation, and arm no issue watch. Each event reaches you as a subagent ending its turn, and that turn's report is the event.
+Act on what it ends with:
 
-- **Subagent notifications.** Every turn an agent ends is a report. Act on what
-  it ends with:
-  - a question — triage it, under "Answer or escalate";
-  - the author's PR URL at send-to-review — dispatch the reviewer, unless one
-    is already reviewing that PR;
-  - the author's merge handoff — relay it, under "Relay the merge handoff";
-    its merge watch is armed;
-  - the author's reminder that the PR is still open and needs merging — relay
-    it the same way; its merge watch has stopped;
-  - the author's final report, or the reviewer's end — go to "Stop" once both
-    are in;
-  - the author's report that its PR closed unmerged — ask the operator whether
-    to dispatch a new author or stop;
-  - a wait on its own background work — an armed watch, or a background review
-    at self-review — which wakes it when it returns, so nothing.
+- a question — triage it, under "Answer or escalate";
+- the author's PR URL at send-to-review — dispatch the reviewer, unless one
+  is already reviewing that PR;
+- the author's merge handoff — relay it, under "Relay the merge handoff";
+  its merge watch is armed;
+- the author's reminder that the PR is still open and needs merging — relay
+  it the same way. Its merge watch has stopped, so read the PR again when the
+  operator says it merged and at each later report, and once it shows merged,
+  continue the author to its post-merge cleanup and final report;
+- the author's final report, or the reviewer's end — go to "Stop" once both
+  are in;
+- the author's report that its PR closed unmerged — ask the operator whether
+  to dispatch a new author or stop;
+- a wait on its own background work — an armed watch, or a background review
+  at self-review — which wakes it when it returns, so nothing.
 
-  A turn that ends on none of these while work remains is the safety net:
-  read the PR with `gh pr view <url> --json state,isDraft`. An open PR out of
-  draft means the agent has no watch left: continue it with `SendMessage`,
-  telling it to re-arm its PR watch from the last `── re-arm ──` line it
-  printed. Otherwise continue it with what the state shows is still owed.
-- **The issue watch**, armed once at start and re-armed from its own
-  `── re-arm ──` line, always in the background. The first arm's `--since`
-  follows the first-arm rule in `watch-issue.sh`'s header: step 1's
-  `fetch-issue-set.sh` `now=`, taken before step 4 read the comments.
-
-  ```bash
-  "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> \
-    --role=orchestrator --since=<step 1's now=> \
-    [--exclude=<step 3's PR URLs, comma-separated>]
-  ```
-
-  It wakes on comments, linked PRs, and the issue closing, never on a body edit
-  or on what only your own bookkeeping writes: `Decision log:` rows, your own
-  `Claimed by`, and the reviewer's assignment note. Everyone posts as one
-  account, so its `comments=<login:url,…>` field names each remaining comment's
-  author, and `overflowed=<n>` says the page did not reach back far enough, so
-  read that issue's thread in full. Read each comment and classify it by its
-  first line, then its author:
-
-  | Comment | What it is | Action |
-  | --- | --- | --- |
-  | opens with `Delegated question:` | a question from whichever subagent's report links that comment's URL; both post under the operator's login | triage it, under "Answer or escalate" |
-  | opens with `Claimed by` | another session claiming the issue mid-run | tell the operator and ask whether to stop |
-  | anything else from the reviewer bot | a review round or verdict | none; the author handles rounds |
-  | anything else under the operator's login | the operator, or the author's progress | read it; act only if it states a decision |
-
-  An operator comment that states a decision is a decision: log it as
-  `decided` and handle it as any decided row, under "Answer or escalate". One
-  that does not is noted and changes nothing.
-
-  `ERROR` is not a quiet issue: don't re-arm. `reason=bad-args` means the watch
-  refused your command's arguments, so fix them and re-run; any other reason,
-  check `gh auth status` and tell the operator. `IDLE` is re-armed. A
-  `linked-pr` wake for the author's PR needs nothing, since the author reports
-  it; any other PR is someone else's work on the issue, so tell the operator.
-  `CLOSED` is the issue closing, and the watch ends with it. If the author's last turn ended on a wait or on its
-  merge handoff, its final report follows. Otherwise its watch is gone, so take the safety net: read the
-  PR, and continue the author to run its post-merge cleanup and send its final
-  report when it merged, or ask the operator when it did not.
+A turn that ends on none of these while work remains is the safety net:
+read the PR with `gh pr view <url> --json state,isDraft`. An open PR out of
+draft means the agent has no watch left: continue it with `SendMessage`,
+telling it to re-arm its PR watch from the last `── re-arm ──` line it
+printed. Otherwise continue it with what the state shows is still owed.
 
 ## Answer or escalate
 
-A question reaches you twice, as the asking agent's report and as its
-`Delegated question:` comment. Handle it once, keyed by the comment's URL, and
-send the answer to the agent that asked.
+A question reaches you as the asking agent's report, which links its
+`Delegated question:` comment. That comment's URL is the question's key in the
+log. Send the answer to the agent that asked.
 
 Triage it against the design (step 5) under the allowlist in
 `references/triage.md`, which also gives the log row's exact shape:
@@ -246,7 +205,7 @@ Every wake re-sends this session's whole context, so after 40 wakes, or at the
 first context compaction, hand over to a fresh session. Wait until every author
 in flight has its PR out of draft or is waiting on the operator, so a fresh
 author can continue the pushed work. Then check every decision is on the issue,
-and in the parent under a tracking issue, stop your watches and subagents, and
+and in the parent under a tracking issue, stop your subagents, and
 tell the operator that you are restarting and why: they start a fresh session on
 the same URL, which resumes from GitHub and re-claims under "On start".
 

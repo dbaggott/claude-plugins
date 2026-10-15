@@ -31,9 +31,8 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
    an issue, then run `issue-workflow`'s critical review on it: the parent is
    yours, not an author's, and a design you believe is wrong is an escalation
    before any dispatch.
-5. **Arm the set watch** (below, under the first-arm rule), then run the loop. With every child already
-   closed, the loop goes straight to the closeout, whose step 1 continues a
-   predecessor's closeout PR. A parent already closed by that PR's merge has
+5. **Run the loop.** With every child already closed, the loop goes straight
+   to the closeout, whose step 1 continues a predecessor's closeout PR. A parent already closed by that PR's merge has
    only "Stop" left.
 
 ## The loop
@@ -72,8 +71,8 @@ closing, a row reaching `applied`, a spec verdict on a child.
    applied** means the run cannot progress: a cycle, a blocker outside the
    project, or a child held for a verdict or by someone else. Report each open
    child with its `reasons` and blockers, and stop. While a row is still being
-   applied, its re-review's verdict reaches you through the set watch, so wait
-   for it.
+   applied, its re-review's verdict reaches you as the `issue-reviewer`'s
+   report, so wait for it.
 
 A child is **in flight** while it is open and `claim-issue.sh` reads `OWN` on
 it, and after it closes until its author has sent its final report and its
@@ -83,32 +82,17 @@ child that closes without a merged PR: tell the operator.
 
 ## Waiting
 
-`SKILL.md`'s two sources, with one issue watch over the whole set instead of
-one per issue:
-
-```bash
-"<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <parent> <open child…> \
-  --role=orchestrator --since=<SKILL.md step 1's fetch-issue-set.sh now=>
-```
-
-Arm it with `--exclude` carrying the URLs of the PRs step 3 found on each
-child, and re-arm it from its `── re-arm ──` line, which drops each issue
-that closed. When the ready set shows an open child the watch does not cover, stop the watch
-and arm a new one over the set, with `--since` and `--exclude` from the stopped
-one's, adding the new child's PR URLs.
+`SKILL.md`'s "Wait on subagent reports", across every agent in flight, plus
+the reports of the `issue-reviewer` agents you dispatch
+(`references/design-change.md`, section 4). A spec or set review verdict on a
+child is that agent's report: run the loop, and handle a `CHANGES REQUESTED`
+from a re-review in `references/design-change.md`. The closeout PR's review is
+handled from the PR, per `references/closeout.md`.
 
 Keep, per child, what its author's last report said it is waiting for, when the
 report ends on a wait rather than a question or a result. Several authors can
 be waiting at once, and that record is what
 https://github.com/dbaggott/claude-plugins/issues/260's resume rule reads.
-
-Classify comments with `SKILL.md`'s table, and add these:
-
-| Comment | What it is | Action |
-| --- | --- | --- |
-| a spec or set review verdict from the bot on a child | the child may be ready, or need its body answered | run the loop; a `CHANGES REQUESTED` from a re-review is handled in `references/design-change.md` |
-| `**Project review, round <n>: …**` from the bot on the parent | the link to a round of the closeout PR's review | none; you handle the round from the PR, per `references/closeout.md` |
-| from the operator, on the parent | a decision, or a remark | a decision is a `decided` row, then `references/design-change.md` |
 
 ## Triage and the log
 
@@ -150,15 +134,17 @@ state cell included, is reading the body, changing it, and writing it back with
 the loop pauses until they answer, and the events that arrived meanwhile are
 handled after. Without it, post the question on the parent per
 `issue-workflow`'s `references/delegated.md` and end the turn with it as your
-report, leaving every watch armed. Only the child that asked waits; the rest of
-the loop keeps moving, and the operator's answer arrives as a comment on the
-parent through the set watch. Your own question's comment wakes the watch once.
-You know its URL, so skip it.
+report. Only the child that asked waits; the rest of the loop keeps moving as
+reports arrive. The operator's answer is a comment on the parent: at each loop
+while the question is open, read the parent's comments newer than it. With no
+agent left in flight to wake you, the turn you ended is the run's end, and a
+restart reads the answer under "On start". An answer is a `decided` row, then
+`references/design-change.md`.
 
 ## Systemic problems
 
 Scan the parent's log at each loop, and each review round on a child's PR as
-it arrives. Raise a finding when:
+its reviewer's report brings it. Raise a finding when:
 
 - questions from two different children cite the same `R#` or `D#`;
 - one decision has been `applied` more than three times, or the parent's `Q5`

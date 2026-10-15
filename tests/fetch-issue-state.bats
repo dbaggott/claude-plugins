@@ -129,14 +129,3 @@ line() { tail -1 <<<"$1"; }
   ! grep -q -- '-F owner=' "$ARGV"
   ! grep -q -- '-F repo=' "$ARGV"
 }
-
-@test "a comment carries its first line, not its body" {
-  jq -cn '{data:{repository:{i10:{number:10,state:"OPEN",lastEditedAt:null,
-     comments:{totalCount:2,nodes:[
-       {author:{login:"a"},createdAt:"2026-01-01T00:00:00Z",url:"u1",body:"Decision log: D4 — applied\r\n\nmore"},
-       {author:{login:"b"},createdAt:"2026-01-02T00:00:00Z",url:"u2",body:""}]},
-     closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}}}}}' > "$GQL"
-  run "$FETCH" o/r 10
-  [ "$(obj "$output" | jq -r '.issues[0].comments | map(.head) | join("|")')" = "Decision log: D4 — applied|" ]
-  [ "$(obj "$output" | jq -r '.issues[0].comments[0] | has("body")')" = false ]
-}

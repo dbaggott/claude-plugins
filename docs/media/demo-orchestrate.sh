@@ -25,7 +25,6 @@ beat 1.3
 say "${C_SAY}● Read the body and its comments. Its approach holds up, so I'll dispatch.${C_OFF}"
 beat 1.4
 say "${C_TOOL}● Agent${C_OFF}  author: resolve #42, send it to review, auto-handle rounds ${C_DIM}(background)${C_OFF}"
-say "${C_TOOL}● Bash${C_OFF}   watch-issue.sh acme/api 42 --role=orchestrator --since=… ${C_DIM}(background)${C_OFF}"
 beat 1.6
 
 say "${C_DIM}  ← author: Delegated question: retry the fetch, or fail fast?${C_OFF}"
@@ -56,19 +55,15 @@ say "${C_TOOL}● SendMessage${C_OFF} author: list it, per the row"
 beat 1.6
 
 say "${C_DIM}  ← author: sent pull/118 to review${C_OFF}"
-say "${C_DIM}  ← watch-pr.sh 118: READY${C_OFF}"
 say "${C_TOOL}● Agent${C_OFF}  reviewer: review #42 in issue mode ${C_DIM}(background)${C_OFF}"
 beat 1.6
-say "${C_DIM}  ← watch-pr.sh 118: ACTIVITY — CHANGES_REQUESTED; the author is on it${C_OFF}"
-beat 1.2
-say "${C_DIM}  ← watch-pr.sh 118: ACTIVITY — APPROVED${C_OFF}"
+say "${C_DIM}  ← author: review clean · merge handoff for pull/118${C_OFF}"
 say "${C_TOOL}● Bash${C_OFF}   pr-verdict.sh acme/api 118"
 say "${C_DIM}  ⎿ verdict=APPROVED at_head=1 reviewed_after_head=1${C_OFF}"
 say "${C_OK}● pull/118 is approved at its head and ready for you to merge.${C_OFF}"
 beat 2.2
 
-say "${C_DIM}  ← watch-pr.sh 118: CLOSED state=MERGED · issue 42 closed${C_OFF}"
-say "${C_DIM}  ← author: cleaned up · retrospective written${C_OFF}"
+say "${C_DIM}  ← author: pull/118 merged · cleaned up · retrospective written${C_OFF}"
 say "${C_DIM}  ← reviewer: review ended · retrospective written${C_OFF}"
 say "${C_TOOL}● Write${C_OFF}  ~/.claude/dnbg-retrospectives/acme/api/ ${C_DIM}— the orchestrator's own${C_OFF}"
 beat 1.4
