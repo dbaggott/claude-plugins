@@ -297,8 +297,11 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    The union is the `MERGED` ones. An open PR on a closed child is not part of
    it, so name that PR in the review.
 4. **Find the closeout PR**: the open PR whose `closingIssuesReferences`
-   include the parent. Until one is out of draft, run the discovery loop above
-   on the parent alone, holding a draft back as it says.
+   include the parent. It is the only PR you review in this mode. Until one is
+   out of draft, wait with step 2's call on the parent alone, re-running
+   `pr-sources.sh` on the parent at each return and passing every other PR it
+   finds in `--exclude`, and hold a draft back as the discovery loop above
+   says.
 5. **Grade every `A#` against that union and the closeout PR**, judged on the
    merged result, not on each PR alone. A criterion's `Contributes:` line says
    which children's PRs to read first, but it does not limit what you read. A
@@ -316,7 +319,13 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    `**Project review, round <n>: CHANGES REQUESTED**` when you request changes,
    then gives the merged-PR union by URL and **one line per `A#`, every one
    named**: met, with its evidence (a PR, a file at the merged commit, a
-   recorded run), or a finding. Every later round re-grades every criterion,
-   not only the ones that failed, and goes back to step 1 first, since a child
-   reopened while you watched is unbuilt work. The assignment ends when the
-   parent closes.
+   recorded run), or a finding with the ID `<parent>-B<n>`, or `<parent>-O<n>`
+   for an observation. Every round carries every `A#` line, re-graded rather
+   than carried over: this overrides `SKILL.md`'s rule that a re-verdict body
+   states only what changed, since these lines are what the operator merges
+   on.
+7. **Keep watching the parent while you watch the PR**, with step 2's call on
+   the parent alone, so a child added or reopened reaches you even when the PR
+   does not move. On each of its returns, and before each new round, go back
+   to step 1. A child open again is unbuilt work: request changes naming it,
+   whatever the PR's diff. The assignment ends when the parent closes.

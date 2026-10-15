@@ -106,7 +106,9 @@ the Stop report which roles have none.
 
 At Stop, once the agents' retrospectives are in, write one with
 `role: orchestrator` that answers the same prompt about your own run: the
-triage, the watches, the escalations, and the dispatches.
+triage, the watches, the escalations, and the dispatches. On a tracking issue
+it comes earlier, at `references/closeout.md`'s step 2, so its items reach the
+friction log before the closeout disposes of it.
 
 ## Fold project-level items into the parent
 
