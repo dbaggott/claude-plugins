@@ -111,9 +111,10 @@ done
 # Oldest first. The API lists newest first, so reversing before the stable sort
 # keeps two edits stamped in the same second in the order they were made. The
 # newest snapshot is the current body, taken from the issue itself so a deleted
-# newest revision still has one. The issue goes in by file: a page carries up to
-# 100 whole-body snapshots, which as one argument can pass ARG_MAX.
-printf '%s' "$ISSUE" > "$TMP/issue"
+# newest revision still has one. The issue goes in by file, since even its one
+# body can pass the per-argument cap on Linux.
+printf '%s' "$ISSUE" | jq -c 'del(.userContentEdits)' > "$TMP/issue" \
+  || fail issue-query-shape
 SNAPS=$(jq -cs --slurpfile issues "$TMP/issue" '
   $issues[0] as $issue
   | ($issue.author.login // "ghost") as $author

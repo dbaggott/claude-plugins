@@ -142,6 +142,7 @@ line() { tail -1 <<<"$1"; }
   [ "$(wc -c < "$PAGES/first.json")" -gt 1048576 ]
 
   run "$DIFF" o/r 7 --since="$T0"
+  [ "$status" -eq 0 ]
   [ "$(line "$output")" = "result=OK base=$T0 head=2026-10-05T00:00:23Z editors=bob" ]
   grep -qx -- '+v23' <<<"$output"
 }
