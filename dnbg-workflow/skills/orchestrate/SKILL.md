@@ -148,7 +148,8 @@ Never poll in the conversation. Each event reaches you as one of these:
     are in;
   - the author's report that its PR closed unmerged — ask the operator whether
     to dispatch a new author or stop;
-  - a wait on its own background work — its watch is armed, so nothing.
+  - a wait on its own background work — an armed watch, or a background review
+    at self-review — which wakes it when it returns, so nothing.
 
   A turn that ends on none of these while work remains is the safety net:
   read the PR with `gh pr view <url> --json state,isDraft`. An open PR out of
