@@ -617,10 +617,11 @@ PR to resume (it re-assesses current state and picks the watch back up).
    string against what GitHub returns, so a short SHA can never match; it is
    refused (`result=ERROR reason=bad-args`). `<last_verdict_sha>` is compared
    against `commit.oid` the same way and is refused the same way.
-2. **Spawn `watch-pr.sh`** as a **background** task, on a re-arm by running
-   its printed `── re-arm ──` line — it blocks until something happens, so its
-   idle polling never enters the conversation; the harness wakes you when it
-   returns:
+2. **Spawn `watch-pr.sh`** as a **background** task with `timeout: 7200000`, on
+   a re-arm by running its printed `── re-arm ──` line the same way. Without the
+   timeout a headless session stops the watch after 10 minutes, and it returns
+   no result line. It blocks until something happens, so its idle polling never
+   enters the conversation; the harness wakes you when it returns:
 
    ```bash
    # --last-verdict makes the verdict check level-triggered rather than counted

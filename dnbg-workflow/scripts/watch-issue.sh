@@ -11,7 +11,9 @@
 #   result=ACTIVITY issues=<n,…> kinds=<comment|linked-pr|body-edit,…> \
 #     edited=<n:iso|n:none,…> [closed=<n,…>] [missing=<n,…>] <re-arm fields> now=<iso>
 #   result=CLOSED   issues=<n,…> [missing=<n,…>] [<re-arm fields>] now=<iso>
-#   result=IDLE     [missing=<n,…>] <re-arm fields> now=<iso>
+#   result=IDLE     [missing=<n,…>] <re-arm fields> [window_left=<s>] now=<iso>
+#                   # window_left: only this run ended, at lib-poll.sh's WINDOW_CEILING;
+#                   # the window goes on in the re-arm line
 #   result=ERROR    reason=<source> now=<iso>
 #
 # THE RE-ARM CONTRACT. Results a caller re-arms from carry a `── re-arm ──` line,
@@ -21,8 +23,8 @@
 # command: `now=` is the next `--since`, and the re-arm fields are
 # `watching=<n,…>` (the issues the next run watches, closed and missing ones
 # dropped), `wake-on=<kind,…>`, then `exclude=<pr-url,…>` and
-# `exclude-login=<login,…>` when non-empty. A result with no re-arm line carries
-# no re-arm fields.
+# `exclude-login=<login,…>` when non-empty, and an IDLE's `window_left=` is the
+# next run's WINDOW_LEFT. A result with no re-arm line carries no re-arm fields.
 #
 # THE FIRST-ARM RULE, the contract's first clause: a first arm has no printed
 # line, so its `--since` is the time of your own last action that the awaited
@@ -164,6 +166,7 @@ settle_until=0; settle_cap=0
 # line's `now=` are one value: a script re-arming from `now=` must get exactly
 # what an agent running the line gets.
 NOW=""
+split_left=""
 stamp_now() { NOW=$(poll_now_iso); }
 
 rearm_exclude() {
@@ -174,8 +177,8 @@ rearm_exclude() {
 rearm_cmd() {  # [issues-override]
   local ex nums="${1:-$NUMS}"
   ex=$(rearm_exclude)
-  printf 'WINDOW=%s "%s/watch-issue.sh" %s%s --role=%s --since=%s%s%s --wake-on=%s%s' \
-    "$WINDOW" "$HERE" "$REPO" "$nums" "$ROLE" "$NOW" \
+  printf '%s "%s/watch-issue.sh" %s%s --role=%s --since=%s%s%s --wake-on=%s%s' \
+    "$(poll_window_env "$split_left")" "$HERE" "$REPO" "$nums" "$ROLE" "$NOW" \
     "${SLUG:+ --slug=$SLUG}" "${ex:+ --exclude=$ex}" "$WAKE_ON" "${XLOGINS:+ --exclude-login=$XLOGINS}"
 }
 
@@ -193,8 +196,9 @@ missing_field() { [ -n "$seen_missing" ] && printf ' missing=%s' "$seen_missing"
 
 report_idle() {
   stamp_now
+  split_left=$(poll_split_left)
   watch_rearm "$(rearm_cmd)"
-  echo "result=IDLE$(missing_field)$(rearm_fields) now=$NOW"; exit 0
+  echo "result=IDLE$(missing_field)$(rearm_fields)$(poll_window_field "$split_left") now=$NOW"; exit 0
 }
 
 report_error() {

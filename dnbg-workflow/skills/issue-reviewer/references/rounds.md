@@ -102,9 +102,11 @@ gh api graphql -f query='mutation($id: ID!) {
 
 ## Waiting for the author
 
-Spawn the wait as a **background** task so idle polling never enters the
-conversation. Its `--since` follows the first-arm rule in `watch-issue.sh`'s header: the
-`created_at` the post printed beside the login for your round's first comment.
+Spawn the wait as a **background** task with `timeout: 7200000`, and every
+re-arm of it the same way, so idle polling never enters the conversation.
+Without the timeout a headless session stops the watch after 10 minutes, and it
+returns no result line. Its `--since` follows the first-arm rule in
+`watch-issue.sh`'s header: the `created_at` the post printed beside the login for your round's first comment.
 
 ```bash
 "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
@@ -126,7 +128,9 @@ catch-all**:
   stamp, so the ordering check costs no extra call.
 - **`CLOSED`** — the issue was closed rather than answered. Say so and stop.
 - **`IDLE`** — the deadline elapsed. Re-arm; after a second empty window, tell the
-  operator nothing has landed rather than waiting silently.
+  operator nothing has landed rather than waiting silently. An `IDLE` carrying
+  `window_left=` is one run of a window too long for a single run, not an empty
+  window: re-arm and don't count it.
 - **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
   re-arm**, and do not report that the author has not responded: you do not
   know that. Check `gh auth status` and that the numbers resolve, then tell the

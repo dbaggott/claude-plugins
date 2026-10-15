@@ -1411,3 +1411,66 @@ MD
   [[ "$output" == *"site.md:11: does not say"* ]]
   [[ "$output" != *"site.md:4:"* ]]
 }
+
+# A headless session stops a background command at its Bash `timeout`, 600 s
+# when none is passed, and a watch stopped that way prints no result line. So
+# every spawn site has to pass one, and lib-poll.sh's WINDOW_CEILING, the most a
+# run lasts before its settle, has to fit inside it with the settle to spare.
+#
+# spawn_timeouts <file>... prints `<file>:<line>: <ms>` per fenced block that
+# invokes a watcher, `<ms>` being the `timeout: <ms>` named in that block or in
+# the text since the block before it, or `none`.
+spawn_timeouts() {  # <file>...
+  awk '
+    function flushfence(    ctx, ms) {
+      if (fence ~ /watch-(pr|issue)\.sh/) {
+        ctx = lead " " fence; ms = "none"
+        if (match(ctx, /timeout: [0-9]+/)) ms = substr(ctx, RSTART + 9, RLENGTH - 9)
+        printf "%s:%d: %s\n", FILENAME, fstart, ms
+      }
+      fence = ""; lead = ""
+    }
+    FNR == 1 { infence = 0; lead = ""; fence = "" }
+    /^[[:space:]]*```/ {
+      if (infence) { infence = 0; flushfence() } else { infence = 1; fstart = FNR }
+      next
+    }
+    infence { fence = fence " " $0; next }
+    { lead = lead " " $0 }
+  ' "$@"
+}
+
+@test "every watch spawn site passes the same timeout, and the ceiling fits inside it" {
+  local sites ms ceiling settle
+  sites=$(spawn_timeouts $(find "$ROOT/dnbg-workflow/skills" -name '*.md' | sort))
+  echo "$sites"
+  [ -n "$sites" ] || { echo "no spawn sites found — the extractor broke"; false; }
+  [ -z "$(grep ': none$' <<<"$sites")" ] || { echo "a spawn site passes no timeout"; false; }
+  ms=$(sed 's/.*: //' <<<"$sites" | sort -u)
+  [ "$(wc -l <<<"$ms")" -eq 1 ] || { echo "spawn sites disagree on the timeout: $ms"; false; }
+
+  ceiling=$(sed -n 's/^WINDOW_CEILING=\${WINDOW_CEILING:-\([0-9]*\)}$/\1/p' "$ROOT/dnbg-workflow/scripts/lib-poll.sh")
+  settle=$(sed -n 's/^SETTLE_MAX=\${SETTLE_MAX:-\([0-9]*\)}$/\1/p' "$ROOT/dnbg-workflow/scripts/watch-pr.sh")
+  [ -n "$ceiling" ] && [ -n "$settle" ] || { echo "could not read WINDOW_CEILING or SETTLE_MAX"; false; }
+  [ $(( (ceiling + settle) * 1000 )) -lt "$ms" ] || {
+    echo "WINDOW_CEILING ${ceiling}s + SETTLE_MAX ${settle}s does not fit in timeout: $ms"; false; }
+}
+
+@test "a spawn site with no timeout, or one only a later block names, is caught" {
+  cat > "$BATS_TEST_TMPDIR/site.md" <<'MD'
+Spawn it in the background:
+
+```bash
+watch-pr.sh o/r 1 --role=author
+```
+
+Then, with `timeout: 7200000`:
+
+```bash
+watch-issue.sh o/r 1 --role=author --since=<when you posted>
+```
+MD
+  run spawn_timeouts "$BATS_TEST_TMPDIR/site.md"
+  [[ "$output" == *"site.md:3: none"* ]]
+  [[ "$output" == *"site.md:9: 7200000"* ]]
+}

@@ -77,6 +77,22 @@ poll_broken() {   # $1 = consecutive failures, $2 = awake seconds when the strea
 # reviewer's watch, a problem for the author's), so only the number lives here.
 WINDOW=${WINDOW:-21600}
 
+# How long one run may last, in WALL-CLOCK seconds, whatever WINDOW says. A
+# headless Claude Code session stops a background command at its Bash `timeout`
+# (600 s when none is passed, 7200 s at most), and a watch stopped that way
+# prints no result line. So a window longer than this is served as several runs:
+# the run that reaches the ceiling reports IDLE with `window_left=`, and its
+# re-arm line carries the remainder as WINDOW_LEFT. The skills spawn every watch
+# with the 7200 s maximum, and the gap to this ceiling is room for a burst seen
+# just before it to settle; tests/coupling.bats pins the two together. Wall-clock
+# rather than awake time because the harness's deadline is not ours to see, and
+# wall time is never less than awake time.
+WINDOW_CEILING=${WINDOW_CEILING:-6300}
+
+# How much of WINDOW this run still owes. Unset on a first arm; a run cut short
+# by the ceiling hands the remainder to the next one through its re-arm line.
+WINDOW_LEFT=${WINDOW_LEFT:-$WINDOW}
+
 # A nap that overshoots by more than this is read as a machine suspend rather
 # than a busy scheduler. Generous on purpose: over-counting a loaded machine's
 # late wake as suspend costs a few seconds of clock, while under-counting a real
@@ -84,6 +100,12 @@ WINDOW=${WINDOW:-21600}
 POLL_SUSPEND_SLACK=${POLL_SUSPEND_SLACK:-30}
 
 _poll_die() { echo "watch: $*" >&2; exit 1; }
+
+for _poll_knob in WINDOW WINDOW_LEFT WINDOW_CEILING; do
+  case ${!_poll_knob} in
+    ''|*[!0-9]*|0) _poll_die "$_poll_knob must be a positive integer (got '${!_poll_knob}')" ;;
+  esac
+done
 
 # ## Tracing a watch that vanishes (on by default)
 #
@@ -118,7 +140,7 @@ _poll_die() { echo "watch: $*" >&2; exit 1; }
 #
 # `WATCH_LOG=off` opts out. Any other value is an explicit path.
 #
-# Defaulting also covers every caller for free, including the six spawn sites in the
+# Defaulting also covers every caller for free, including every spawn site in the
 # skills and any written later — wiring the knob into those instead would leave each
 # new spawn site silently opted out again.
 _poll_trace_default() {
@@ -246,7 +268,7 @@ poll_trace_init() {
   # status that caused it rather than as a clean finish.
   # shellcheck disable=SC2064
   trap 'poll_log "EXIT code=$?"' EXIT
-  poll_log "START script=$(basename "$0") args=[${_poll_argv}] parent=$(_poll_parent) window=${WINDOW}s curve=${POLL_CURVE}"
+  poll_log "START script=$(basename "$0") args=[${_poll_argv}] parent=$(_poll_parent) window=${WINDOW}s left=${WINDOW_LEFT}s ceiling=${WINDOW_CEILING}s curve=${POLL_CURVE}"
 }
 
 # Breakpoints, split into parallel arrays at source time so a malformed knob
@@ -327,14 +349,35 @@ poll_reset() { _poll_baseline=$(poll_awake); }
 
 poll_interval() { poll_interval_at "$(poll_quiet)"; }
 
-poll_timed_out() { [ "$(poll_awake)" -ge "$WINDOW" ]; }
+# Wall-clock seconds since poll_init — the ceiling's input, not the window's.
+poll_wall() { echo $(( $(date +%s) - _poll_start )); }
+
+poll_timed_out() {
+  [ "$(poll_awake)" -ge "$WINDOW_LEFT" ] || [ "$(poll_wall)" -ge "$WINDOW_CEILING" ]
+}
+
+# On a run that has timed out, the part of the window it leaves unserved: empty
+# when the window itself ran out, a number when the ceiling cut the run short.
+poll_split_left() {
+  local left=$(( WINDOW_LEFT - $(poll_awake) ))
+  [ "$left" -gt 0 ] && echo "$left" || true
+}
+
+# The re-arm line's environment prefix, and the IDLE result's field, for a run
+# that ends with <left> seconds of window unserved (empty for none).
+poll_window_env() { printf 'WINDOW=%s%s' "$WINDOW" "${1:+ WINDOW_LEFT=$1}"; }
+poll_window_field() { printf '%s' "${1:+ window_left=$1}"; }
 
 poll_now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
 # Sleep one interval, then reconcile the clock with what actually elapsed.
 poll_nap() {
-  local iv before after over
+  local iv before after over to_ceiling
   iv=$(poll_interval)
+  # Never sleep through the ceiling: a nap at the 300 s cap that started just
+  # under it would spend most of the margin the ceiling keeps for the settle.
+  to_ceiling=$(( WINDOW_CEILING - $(poll_wall) ))
+  [ "$to_ceiling" -lt "$iv" ] && iv=$(( to_ceiling > 1 ? to_ceiling : 1 ))
   # Before the sleep, not after: a watch is killed mid-sleep far more often than
   # mid-poll, and a line written afterwards is the one line that would be missing.
   _poll_log_tick "$iv"

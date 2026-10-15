@@ -27,8 +27,10 @@ away for hours, and a watch that idles out at 30 minutes leaves the merge
 uncaught and the post-merge cleanup unrun — the exact case this stage exists for.
 
 **Take the `── re-arm ──` line the review watch just printed, change `WINDOW=` to
-`21600`, and add `--merge-stage`.** That line already carries the head it
-observed, `since` set to its own `now`, the verdict it reported and the checks it
+`21600`, and add `--merge-stage`.** Spawn it, and every re-arm of it, in the
+background with `timeout: 7200000`: without it a headless session stops the
+watch after 10 minutes, and it returns no result line. That line already
+carries the head it observed, `since` set to its own `now`, the verdict it reported and the checks it
 named — so this is a two-token edit:
 
 ```bash
@@ -52,6 +54,11 @@ merge watch's first tick.
 **Spawn it — the edited re-arm line above — the moment a review comes back clean**, before telling the operator
 the PR is ready — the claim "I am watching for the merge now" has to be about a
 watcher that is running.
+
+An `IDLE` carrying `window_left=` does not end the wait. Six hours is longer
+than one run may last, so the watch ends each run at its ceiling and carries the
+rest of the window on its re-arm line. Re-arm from that line without waking
+anyone.
 
 On a bare `result=IDLE` here — six hours of laptop-open time with no merge, and
 no `merge=` field naming a cause — wake **once** and say the PR is still open and

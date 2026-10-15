@@ -42,8 +42,11 @@ a fresh comment.
 
 ## Waiting for the next round
 
-Spawn the wait as a **background** task so idle polling never enters the
-conversation. Its `--since` follows the first-arm rule in `watch-issue.sh`'s header,
+Spawn the wait as a **background** task with `timeout: 7200000`, and every
+re-arm of it the same way, so idle polling never enters the conversation.
+Without the timeout a headless session stops the watch after 10 minutes, and it
+returns no result line. Its `--since` follows the first-arm rule in
+`watch-issue.sh`'s header,
 taking the response's own timestamp from GitHub
 (`gh api repos/<owner>/<repo>/issues/comments/<id> --jq .created_at`, the id
 from the URL `gh issue comment` printed):
