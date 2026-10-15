@@ -87,8 +87,8 @@ date: <YYYY-MM-DD>
 
 ## Asking the agents for one
 
-Both dispatch recipes in `SKILL.md` carry the request, so it costs no extra
-turn. When a final report
+Each agent's own instructions carry the request, so it costs no extra turn.
+When a final report
 arrives without that section, or the path it gives does not exist, continue that
 agent once with `SendMessage`:
 

@@ -107,34 +107,21 @@ already the author's: a subagent shares your session id, so its pickup reads
 `OWN`.
 
 > Resolve `<issue URL>`, send it to review when you're done, and auto-handle any
-> reviewer feedback; never merge. You were dispatched by an orchestrator, so
-> follow `issue-workflow`'s `references/delegated.md` wherever a skill asks
-> the operator something. The issue is already claimed under your session id.
+> reviewer feedback. The issue is already claimed under your session id.
 > [Continue `<PR URL>`, which is already open for it.] [Promote these decided
-> rows into the issue body, linking each: `<row URLs>`.] When you send the PR to
-> review, end your turn with its URL. When the review is clean, re-arm your
-> merge watch and end your turn with your merge handoff. If the PR closes
-> unmerged, end your turn saying so. When it merges, finish
-> the post-merge cleanup, write a retrospective per
-> `<skill-dir>/references/retrospective.md`, and report under Summary,
-> Observations, Actionable, and Retrospective, the last giving the file's path.
+> rows into the issue body, linking each: `<row URLs>`.]
 
 The first bracketed line goes in only when step 3 found an open `closes` or
 `sibling` PR, or the operator handed one over, the second
-only for `decided` rows the body does not yet carry. In both recipes,
-`<skill-dir>` is written out as the absolute path, since the agent has not
-loaded this skill.
+only for `decided` rows the body does not yet carry. Each agent's own
+instructions carry delegated mode, the retrospective, and for the author never
+merging and what each turn ends on, so neither recipe repeats them.
 
 **The reviewer**, when the author's turn ends with its PR URL at
 send-to-review, or at once when step 3 found the PR already out of draft. Skip
 it when the operator said they will review the PR themselves.
 
-> Act as the reviewer on `<issue URL>`, in `reviewer`'s issue mode. You were
-> dispatched by an orchestrator, so follow `issue-workflow`'s
-> `references/delegated.md` wherever a skill asks the operator something. When
-> your review ends, write a retrospective per
-> `<skill-dir>/references/retrospective.md`, and end your final report with a
-> **Retrospective** section giving the file's path.
+> Act as the reviewer on `<issue URL>`, in `reviewer`'s issue mode.
 
 ## Wait on subagent reports
 
