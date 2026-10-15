@@ -16,8 +16,9 @@ dispatch and ordering, questions and answers, the decision log, retrospectives,
 and the safety nets for an agent that died or stalled. Artifacts are the PR and
 whether it can merge, CI, the branch, the issue body while an author is
 resolving it, and the review verdict. Every judgment about an artifact is the
-author's or the reviewer's: relay it and record it. A second reading of your own
-is where a relay starts contradicting the agent that owns the artifact.
+author's or the reviewer's: relay it and record it. Read an artifact's state
+only to decide whom to dispatch, wake, or ask, never to form a view of it that
+competes with its owner's.
 
 A tracking issue is driven child by child, each through this flow, by the loop
 in `references/multi-issue.md`, which applies design changes per
@@ -97,7 +98,8 @@ already the author's: a subagent shares your session id, so its pickup reads
 > the operator something. The issue is already claimed under your session id.
 > [Continue `<PR URL>`, which is already open for it.] When you send the PR to
 > review, end your turn with its URL. When the review is clean, re-arm your
-> merge watch and end your turn with your merge handoff. When it merges, finish
+> merge watch and end your turn with your merge handoff. If the PR closes
+> unmerged, end your turn saying so. When it merges, finish
 > the post-merge cleanup, write a retrospective per
 > `<skill-dir>/references/retrospective.md`, and report under Summary,
 > Observations, Actionable, and Retrospective, the last giving the file's path.
@@ -124,19 +126,20 @@ Never poll in the conversation. Each event reaches you as one of these:
 - **Subagent notifications.** Every turn an agent ends is a report. Act on what
   it ends with:
   - a question — triage it, under "Answer or escalate";
-  - the author's PR URL at send-to-review — dispatch the reviewer;
+  - the author's PR URL at send-to-review — dispatch the reviewer, unless one
+    is already reviewing that PR;
   - the author's merge handoff — relay it, under "Relay the merge handoff";
-  - the author's final report — go to "Stop";
+  - the author's final report, or the reviewer's end — go to "Stop" once both
+    are in;
   - the author's report that its PR closed unmerged — ask the operator whether
     to dispatch a new author or stop;
   - a wait on its own background work — its watch is armed, so nothing.
 
-  A turn that ends on none of these while work remains is the safety net, and
-  the one place you read the PR yourself:
-  `gh pr view <url> --json state,isDraft`. An open PR out of draft means the
-  agent has no watch left: continue it with `SendMessage`, telling it to re-arm
-  its PR watch from the last `── re-arm ──` line it printed. Otherwise continue
-  it with what the state shows is still owed.
+  A turn that ends on none of these while work remains is the safety net:
+  read the PR with `gh pr view <url> --json state,isDraft`. An open PR out of
+  draft means the agent has no watch left: continue it with `SendMessage`,
+  telling it to re-arm its PR watch from the last `── re-arm ──` line it
+  printed. Otherwise continue it with what the state shows is still owed.
 - **The issue watch**, armed once at start and re-armed from its own
   `── re-arm ──` line, always in the background:
 
@@ -165,9 +168,13 @@ Never poll in the conversation. Each event reaches you as one of these:
   that does not is noted and changes nothing.
 
   `ERROR` is not a quiet issue: don't re-arm; check `gh auth status` and tell
-  the operator. `IDLE` is re-armed. A `linked-pr` wake needs nothing, since the
-  author reports its own PR. `CLOSED` is the issue closing: the author's final
-  report is the merge signal, so wait for it.
+  the operator. `IDLE` is re-armed. A `linked-pr` wake for the author's PR
+  needs nothing, since the author reports it; any other PR is someone else's
+  work on the issue, so tell the operator. `CLOSED` is the issue closing, and
+  the watch ends with it. If the author's last turn ended on a wait, its final
+  report follows. Otherwise its watch is gone, so take the safety net: read the
+  PR, and continue the author to run its post-merge cleanup and send its final
+  report when it merged, or ask the operator when it did not.
 
 ## Answer or escalate
 
@@ -220,8 +227,9 @@ the same URL, which resumes from GitHub and re-claims under "On start".
 
 ## Stop
 
-Stop on the author's final report, which comes after the merge and its
-post-merge cleanup, once the reviewer has ended. Collect both agents'
+Stop once the author's final report, which follows the merge and its
+post-merge cleanup, and the reviewer's end are both in. If the issue is still
+open then, say so in the report. Collect both agents'
 retrospectives, write your own, and fold the project-level items into the
 parent, all per `references/retrospective.md`. Then report the cycle under
 three headings:
