@@ -686,7 +686,7 @@ orch_comment() {  # <login> <iso> <url> [body]
   INTERVAL=1 SETTLE=1 WINDOW=10 \
     run "$WATCH" o/r 163 --role=author --since=2026-01-01T00:00:00Z --exclude-login=helper
   local result="${lines[-1]}" rearm since
-  [[ "$result" == *" wake-on=body-edit,close,comment,linked-pr exclude=https://github.com/o/r/pull/9 exclude-login=helper now="* ]]
+  [[ "$result" == *" watching=163 wake-on=body-edit,close,comment,linked-pr exclude=https://github.com/o/r/pull/9 exclude-login=helper now="* ]]
   rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
   since=$(grep -o -- '--since=[^ ]*' <<<"$rearm"); since=${since#--since=}
   [ "$since" = "${result##* now=}" ]
@@ -696,7 +696,7 @@ orch_comment() {  # <login> <iso> <url> [body]
   repo "$(issue 163)"
   INTERVAL=1 WINDOW=3 \
     run "$WATCH" o/r 163 --role=reviewer --slug=bot --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == "result=IDLE wake-on=body-edit,close,comment,linked-pr now="* ]]
+  [[ "${lines[-1]}" == "result=IDLE watching=163 wake-on=body-edit,close,comment,linked-pr now="* ]]
 }
 
 @test "a result with no re-arm line carries no re-arm fields" {
@@ -704,4 +704,21 @@ orch_comment() {  # <login> <iso> <url> [body]
   INTERVAL=1 WINDOW=4 \
     run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
   [[ "${lines[-1]}" == "result=CLOSED issues=163 now="* ]]
+}
+
+# The fields carry the set the next run watches, which a closure narrows: a
+# script re-arming from its own original list would put the closed issue back.
+@test "the watching field drops a closed issue" {
+  repo "$(issue 163 '[]' '[]' CLOSED)" "$(issue 164)"
+  INTERVAL=1 WINDOW=4 \
+    run "$WATCH" o/r 163 164 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
+  [[ "${lines[-1]}" == "result=CLOSED issues=163 watching=164 "* ]]
+}
+
+@test "the orchestrator lists no comments on a wake it was not asked to take on them" {
+  repo "$(issue 163 "$(comment human 2026-01-02T00:00:00Z)" '["https://github.com/o/r/pull/9"]')"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --role=orchestrator --wake-on=linked-pr --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=linked-pr "* ]]
+  [[ "${lines[-1]}" != *"comments="* ]]
 }

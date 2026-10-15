@@ -20,8 +20,10 @@
 # `now`, and any newly-seen PR folded into `--exclude`. An agent runs that line;
 # a script reads the same values from the result line instead of parsing the
 # command: `now=` is the next `--since`, and the re-arm fields are
-# `wake-on=<kind,…>`, then `exclude=<pr-url,…>` and `exclude-login=<login,…>`
-# when non-empty. A result with no re-arm line carries no re-arm fields.
+# `watching=<n,…>` (the issues the next run watches, closed and missing ones
+# dropped), `wake-on=<kind,…>`, then `exclude=<pr-url,…>` and
+# `exclude-login=<login,…>` when non-empty. A result with no re-arm line carries
+# no re-arm fields.
 #
 # THE FIRST-ARM RULE, the contract's first clause: a first arm has no printed
 # line, so its `--since` is the time of your own last action that the awaited
@@ -34,10 +36,11 @@
 # happened yet.
 #
 # `--wake-on` picks the event kinds that wake the watch, from `comment`,
-# `linked-pr`, `body-edit` and `close`; without `close`, a closed issue stays in
-# the set and reports nothing. `--exclude-login` adds logins whose comments are
+# `linked-pr`, `body-edit` and `close`; without `close`, a closed issue is
+# watched like an open one. `--exclude-login` adds logins whose comments are
 # ignored, in both spellings as below, to the role's own. Each role is a preset
-# over the two, which the flags override:
+# over the two; `--wake-on` replaces its kinds and `--exclude-login` adds to its
+# logins. The orchestrator's first-line filter, below, is not a flag:
 #
 #   author, reviewer  every kind; ignores `--slug`
 #   orchestrator      every kind but `body-edit`; ignores no login
@@ -158,8 +161,7 @@ SETTLE_MAX=${SETTLE_MAX:-300}
 # written after a comma — can never equal a URL the poll produces, and the entry
 # is silently ignored. That is the hot loop the exclusion exists to prevent, with
 # no diagnostic.
-EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | tr ',' '\n' \
-  | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^$' || true)
+EXCLUDE_LINES=$(printf '%s' "$EXCLUDE" | csv | tr ',' '\n')
 
 poll_init
 
@@ -204,11 +206,12 @@ rearm_cmd() {  # [issues-override]
     "${SLUG:+ --slug=$SLUG}" "${ex:+ --exclude=$ex}" "$WAKE_ON" "${XLOGINS:+ --exclude-login=$XLOGINS}"
 }
 
-# The re-arm line's flags as result-line fields, for a caller that is a script.
-rearm_fields() {
-  local ex
+# The re-arm line's arguments as result-line fields, for a caller that is a script.
+rearm_fields() {  # [issues-override]
+  local ex nums
   ex=$(rearm_exclude)
-  printf ' wake-on=%s%s%s' "$WAKE_ON" "${ex:+ exclude=$ex}" "${XLOGINS:+ exclude-login=$XLOGINS}"
+  nums=$(printf '%s' "${1:-$NUMS}" | tr ' ' ',' | csv)
+  printf ' watching=%s wake-on=%s%s%s' "$nums" "$WAKE_ON" "${ex:+ exclude=$ex}" "${XLOGINS:+ exclude-login=$XLOGINS}"
 }
 
 # Reported on whatever result the watch reaches, so a number that resolves to
@@ -233,13 +236,13 @@ report_hit() {  # [closed-list] [issues-override|NONE]
   local issues kinds edited comments="" overflowed="" fields=""
   stamp_now
   if [ "${2:-}" != NONE ]; then
-    watch_rearm "$(rearm_cmd "${2:-}")"; fields=$(rearm_fields)
+    watch_rearm "$(rearm_cmd "${2:-}")"; fields=$(rearm_fields "${2:-}")
   fi
   issues=$(printf '%s\n' "$hit_issues" | tr ' ' '\n' | grep -v '^$' | sort -nu | paste -sd, - || true)
   kinds=$(printf '%s\n' "$hit_kinds" | tr ' ' '\n' | grep -v '^$' | sort -u | paste -sd, - || true)
   edited=$(printf '%s' "$last_json" | jq -r '
     [ .issues[] | "\(.number):\(.body_edited // "none")" ] | join(",")' 2>/dev/null || echo "")
-  if [ "$ROLE" = orchestrator ]; then
+  if [ "$ROLE" = orchestrator ] && wakes comment; then
     comments=$(printf '%s' "$last_json" | jq -r --arg s "$SINCE" --argjson xl "$XL" --arg role "$ROLE" --arg sid "$SID" "$KEEP"'
       [ .issues[].comments[] | select(.at > $s) | select(keep) ] | sort_by(.at)
       | map("\(.author):\(.url)") | join(",")' 2>/dev/null || echo "")
@@ -351,7 +354,7 @@ while :; do
     stamp_now
     fields=""
     if [ -n "$remaining" ]; then
-      watch_rearm "$(rearm_cmd " $remaining")"; fields=$(rearm_fields)
+      watch_rearm "$(rearm_cmd " $remaining")"; fields=$(rearm_fields " $remaining")
     fi
     echo "result=CLOSED issues=$closed_issues$(missing_field)$fields now=$NOW"; exit 0
   fi
@@ -359,11 +362,12 @@ while :; do
   # Counted rather than merely present, so a SECOND comment extends the window
   # and the first one does not extend it forever.
   sig=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --argjson xl "$XL" --arg role "$ROLE" --arg sid "$SID" \
-    --arg wake ",$WAKE_ON," "$KEEP"'
-    def on($k): $wake | contains("," + $k + ",");
-    [ (if on("comment") then [ .issues[].comments[] | select(.at > $s) | select(keep) ] | length else 0 end),
-      (if on("body-edit") then [ .issues[] | select((.body_edited // "") > $s) ] | length else 0 end),
-      (if on("linked-pr") then [ .issues[].linked_prs[] ] | length else 0 end) ] | join("/")')
+    --argjson wc "$(wakes comment && echo true || echo false)" \
+    --argjson we "$(wakes body-edit && echo true || echo false)" \
+    --argjson wl "$(wakes linked-pr && echo true || echo false)" "$KEEP"'
+    [ (if $wc then [ .issues[].comments[] | select(.at > $s) | select(keep) ] | length else 0 end),
+      (if $we then [ .issues[] | select((.body_edited // "") > $s) ] | length else 0 end),
+      (if $wl then [ .issues[].linked_prs[] ] | length else 0 end) ] | join("/")')
   changed=0
   if [ -n "$hit_issues" ] && [ "$sig" != "$obs_sig" ]; then changed=1; obs_sig="$sig"; fi
 

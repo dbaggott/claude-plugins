@@ -989,6 +989,8 @@ EOF
   # `since` must be the one passed in, not this run's `now`.
   local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
   [[ "$rearm" == *"2026-01-01T00:00:00Z"* ]]
+  # And the result line says so, for a caller that reads it rather than the line.
+  [[ "${lines[-1]}" == *" since=2026-01-01T00:00:00Z now="* ]]
 }
 
 # A quiet IDLE still advances, which is the whole re-arm contract.
@@ -997,6 +999,7 @@ EOF
   [[ "${lines[-1]}" == result=IDLE* ]]
   local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
   [[ "$rearm" != *"2026-01-01T00:00:00Z"* ]]
+  [[ "${lines[-1]}" != *" since="* ]]
 }
 
 # --- the verdict field means "stands at HEAD" ----------------------------------

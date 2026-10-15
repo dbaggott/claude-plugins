@@ -8,7 +8,7 @@ review, before spawning anything. `SKILL.md` carries the flow up to that point;
 
 When the operator picks "Send to review" in `SKILL.md`'s picker, or otherwise signals the PR is ready (says "ready", "go", "mark it ready", etc.):
 
-1. Note the time, then run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft. That time is the first arm's `since`, per the first-arm rule in `watch-issue.sh`'s header: the review responds to this step.
+1. Note the time, then run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft. That time is the first arm's `since`, per the first-arm rule in `watch-issue.sh`'s header: the review responds to this step. A PR already out of draft was ready before this step, so its review responds to your last push instead, and `since` is the time you pushed.
 2. **Record the current head SHA.** Everything else the next arm needs comes back on the watch's own `── re-arm ──` line; this is a first arm, so there is nothing yet to carry.
 3. **Spawn `watch-pr.sh`** as a **background** task (Bash `run_in_background: true`). It blocks until something happens, so its idle polling never enters the conversation, and the harness wakes you when it returns.
 

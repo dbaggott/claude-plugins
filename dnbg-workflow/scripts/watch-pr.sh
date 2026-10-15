@@ -25,13 +25,14 @@
 #   result=BLOCKED  cause=terminal now=<iso>                # nothing pending will clear it
 #                                                           # — author role WITH --merge-stage only
 #   result=CLOSED   state=MERGED|CLOSED                     # finished — stop watching
-#   result=IDLE     [merge=behind|blocked|unrecognised:<v>] now=<iso>
+#   result=IDLE     [merge=behind|blocked|unrecognised:<v>] [since=<iso>] now=<iso>
 #   result=ERROR    reason=<source> now=<iso>               # the watch is broken — do NOT re-arm
 #
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
 # carrying the next invocation, whose `since` is that result's `now=` — except an
 # IDLE still holding an unreported burst, which hands back the `since` it was
-# armed with so the next run re-observes what this one held. The first arm has
+# armed with, as its `since=` field, so the next run re-observes what this one
+# held. The first arm has
 # no line to copy, so its `since` follows the first-arm rule in watch-issue.sh's
 # header. A burst also carries `── next ──`, the pr-round.sh call that reads
 # it in full. CLOSED, ERROR, DIRTY and BLOCKED carry
@@ -209,13 +210,15 @@ verdict_field() {
 # run was given — the hold survives, and the next run re-observes what this one
 # saw instead of it being filtered out by an advanced `since`.
 report_idle() {
+  local held=""
   NOW=$(poll_now_iso)
   if have_burst; then
     watch_rearm "$(rearm_cmd "$ORIG_HEAD" "$ORIG_SINCE" "$ORIG_VERDICT")"
+    held=" since=$ORIG_SINCE"
   else
     watch_rearm "$(rearm_cmd)"
   fi
-  echo "result=IDLE${idle_merge:+ merge=$idle_merge} now=$NOW"; exit 0
+  echo "result=IDLE${idle_merge:+ merge=$idle_merge}$held now=$NOW"; exit 0
 }
 
 # Whether anything is still worth waking the caller for. A settle can outlive its
