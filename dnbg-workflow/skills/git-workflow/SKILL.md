@@ -150,9 +150,13 @@ When one logical change spans repos (e.g. an infrastructure change plus the appl
 
    The mention is the only thing that makes a sibling discoverable from the issue — every route back to it is driven by the mention, so a sibling that omits it cannot be found from the issue at all, and anyone working from that issue sees a set that looks complete and is not. The branch name pairs the PRs to each other; the issue URL ties the set to the issue. Both are needed.
 
-Single-repo PRs (the common case) stay untagged — the tag's presence is itself the signal that siblings exist in other repos.
+Single-repo PRs (the common case) stay untagged, apart from the project tag below — a tag that is a branch name is itself the signal that siblings exist in other repos.
 
 If a change turns multi-repo midway — the first PR is already open when you discover a second repo needs to change — reuse its branch name for the new worktree and retitle the open PR to add the tag (`gh pr edit <num> --repo <repo> --title "..."`) when you open the sibling.
+
+## Project tag
+
+A PR resolving an issue whose title starts with a `[<slug>]` tag — a tracking issue or one of its children, per `issue-workflow`'s `references/tracking-issue.md` — carries the same tag: `[<slug>] <title>`. A multi-repo PR already carrying `[<branch-name>]` keeps that tag and gets no second one.
 
 ## After opening a draft PR
 

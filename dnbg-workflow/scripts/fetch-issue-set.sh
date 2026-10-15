@@ -5,7 +5,7 @@
 #
 # Prints the object, then exactly one result line, then exits 0:
 #   {"parent":{"url":…,"number":…,"title":…,"body":…,"state":…,"created":…,
-#              "body_edited":…},
+#              "body_edited":…,"labels":["<name>",…]},
 #    "children":[{…the same fields…,"blocked_by":["<issue url>",…]}]}
 #   result=OK now=<iso> children=<count>
 #   result=ERROR reason=bad-args|unsupported-forge|not-found|issue-query|issue-query-shape|set-overflow now=<iso>
@@ -15,8 +15,8 @@
 # same owner, where a bare number names a different issue. A parent with no
 # sub-issues is `children: []`, not an error.
 #
-# `set-overflow` means a page came back short of its total — more sub-issues, or
-# more blockers on one child, than one query asks for — so the snapshot would
+# `set-overflow` means a page came back short of its total — more sub-issues,
+# blockers or labels on one issue than one query asks for — so the snapshot would
 # silently omit part of the set. A null node, such as an issue the token cannot
 # see, is `issue-query-shape`: the set was not fully read either way.
 #
@@ -43,7 +43,8 @@ OWNER="${REPO%%/*}"; NAME="${REPO##*/}"
 
 # GitHub caps a parent at 100 sub-issues, so one page holds any set.
 # shellcheck disable=SC2016  # GraphQL variables, bound by the flags below.
-Q='fragment Fields on Issue { url number title body state createdAt lastEditedAt }
+Q='fragment Fields on Issue { url number title body state createdAt lastEditedAt
+                              labels(first: 100) { totalCount nodes { name } } }
 query($owner:String!, $repo:String!, $n:Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $n) {
@@ -79,16 +80,18 @@ fi
 printf '%s' "$ISSUE" | jq -e '
   def page: (.totalCount | type) == "number" and (.nodes | type) == "array"
             and all(.nodes[]; type == "object");
-  (.subIssues | page) and all(.subIssues.nodes[]; .blockedBy | page)' \
+  (.labels | page) and (.subIssues | page)
+  and all(.subIssues.nodes[]; (.labels | page) and (.blockedBy | page))' \
   >/dev/null 2>&1 || fail issue-query-shape
 printf '%s' "$ISSUE" | jq -e '
-  (.subIssues.nodes | length) == .subIssues.totalCount
-  and all(.subIssues.nodes[]; (.blockedBy.nodes | length) == .blockedBy.totalCount)' \
+  def full: (.nodes | length) == .totalCount;
+  (.labels | full) and (.subIssues | full)
+  and all(.subIssues.nodes[]; (.labels | full) and (.blockedBy | full))' \
   >/dev/null 2>&1 || fail set-overflow
 
 OUT=$(printf '%s' "$ISSUE" | jq -c '
   def fields: {url, number, title, body, state, created: .createdAt,
-               body_edited: .lastEditedAt};
+               body_edited: .lastEditedAt, labels: [.labels.nodes[].name]};
   { parent: fields,
     children: [ .subIssues.nodes[] | fields + {blocked_by: [.blockedBy.nodes[].url]} ] }' \
   2>/dev/null) || fail issue-query-shape

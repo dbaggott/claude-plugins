@@ -62,6 +62,26 @@ line() { tail -1 <<<"$1"; }
   head -1 "$BODIES/edited-1" | grep -q '^This is a \*\*tracking issue\*\*'
 }
 
+@test "every title carries the project tag, the parent's in the tracking-issue form" {
+  run "$CREATE" o/r
+  grep -qF -- '--title [notes-export] Tracking issue: Notes export' "$LOG"
+  [ "$(grep -c -- '--title \[notes-export\] ' "$LOG")" -eq 4 ]
+}
+
+@test "the project label is minted and put on the parent before any child is filed" {
+  run "$CREATE" o/r
+  grep -qx "label create project:notes-export --repo o/r --force --color 5319E7 --description Child of the notes-export tracking issue ($U/1)" "$LOG"
+  grep -qx "issue edit $U/1 --repo o/r --add-label project:notes-export" "$LOG"
+  [ "$(grep -n 'label create' "$LOG" | cut -d: -f1)" -lt "$(grep -n -- '--title \[notes-export\] Export script' "$LOG" | cut -d: -f1)" ]
+}
+
+@test "the planted label gap is present: the import child alone is filed without the label" {
+  run "$CREATE" o/r
+  grep -- '--title \[notes-export\] Export script ' "$LOG" | grep -q -- '--label project:notes-export'
+  grep -- '--title \[notes-export\] Export checker ' "$LOG" | grep -q -- '--label project:notes-export'
+  [ "$(grep -- '--title \[notes-export\] Import script ' "$LOG" | grep -c -- '--label')" -eq 0 ]
+}
+
 @test "the planted coverage gap is present: R4 is in no Covers line and unmarked" {
   local fix="${BATS_TEST_DIRNAME}/evals/set-review/fixtures"
   grep -q '^- \*\*R4\.\*\*' "$fix/parent.md"

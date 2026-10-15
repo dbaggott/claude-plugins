@@ -42,8 +42,9 @@ too.
 
 ## 3. Write the as-built design and open the PR
 
-`<doc path>` is `docs/design/<name>.md`, where `<name>` is the parent's title
-as a lowercase-dashed slug. If the repo already keeps designs somewhere else
+`<doc path>` is `docs/design/<name>.md`, where `<name>` is the parent's
+description — its title after the `[<slug>] Tracking issue: ` prefix — as a
+lowercase-dashed slug. If the repo already keeps designs somewhere else
 under `docs/`, use that location instead. Open the PR as a draft per
 `git-workflow`, self-review included, drafting its description in a file from
 `mktemp` per that skill's "Writing the PR description". The description opens with
