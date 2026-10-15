@@ -45,7 +45,8 @@ too.
 `<doc path>` is `docs/design/<name>.md`, where `<name>` is the parent's title
 as a lowercase-dashed slug. If the repo already keeps designs somewhere else
 under `docs/`, use that location instead. Open the PR as a draft per
-`git-workflow`, self-review included. Its description opens with
+`git-workflow`, self-review included, drafting its description in a file from
+`mktemp` per that skill's "Writing the PR description". The description opens with
 `Closes <parent URL>`, so the merge closes the parent.
 
 The doc is the parent body as built, not as planned:

@@ -218,7 +218,9 @@ nothing closes it, because re-validating is never atomic with posting.
 
 Rounds post under the bot identity. Mint the token in the same call that spends
 it: an agent harness starts a fresh shell per call, so a mint in an earlier call
-is not in scope for this one and the post silently runs as you.
+is not in scope for this one and the post silently runs as you. `<path>` is a
+file from `mktemp`, never a name you chose: every agent an orchestrator
+dispatches shares its scratchpad.
 
 ```bash
 GH_TOKEN="$("<skill-dir>/../reviewer/mint-token.sh" <owner>)" || exit 1
