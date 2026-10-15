@@ -130,10 +130,10 @@ Append the table row with:
   --row='| <date> | <ID> | <child URL or —> | <entry> | <state> |'
 ```
 
-`result=OK` means the row is in the body, and re-running a call whose outcome
-you did not see never adds it twice. `write-lost` means a concurrent write won
-every attempt: run it again. `section-missing` or `table-missing` means the
-parent has no decision log to append to, which is an escalation.
+`result=OK` means the row is in the body. A re-run never adds it twice, so on
+`write-lost`, `write` or `issue-query` run it once more, and escalate if it
+fails again. `section-missing` or `table-missing` means the parent has no
+decision log to append to, which is an escalation.
 
 Every `decided` row, an answer to one child's question included, is finished
 through `references/design-change.md`, whose last step marks it `applied`. A
@@ -172,10 +172,10 @@ raised again.
 
 ## Keep the log under the body limit
 
-Before writing the parent, if its body passes 50,000 characters (the
-`body_chars` of the last `log-row.sh` result), move every table row whose child
-is closed and whose state is final into one comment opening `Decision log:
-archived rows`, and leave one row in its place pointing at that comment. `proposed` rows and `decided` rows not yet applied stay.
+After each write to the parent, if its body passes 50,000 characters, which
+`log-row.sh` prints as `body_chars`, move every table row whose child is closed
+and whose state is final into one comment opening `Decision log: archived
+rows`, and leave one row in its place pointing at that comment. `proposed` rows and `decided` rows not yet applied stay.
 
 ## Stop
 

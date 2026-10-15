@@ -129,7 +129,7 @@ item naming its source. The parent may live in another repo, so take
 ```
 
 A sibling's orchestrator may be writing the same parent, and the script confirms
-its write survived. `result=ERROR reason=write-lost` means a concurrent write
-won every attempt: run it again, which adds only the bullets still missing. On
-`section-missing` the parent has nowhere to put them. Say so in the Stop report
-instead.
+its write survived. A re-run adds only the bullets still missing, so on
+`write-lost`, `write` or `issue-query` run it once more. If it fails again, or
+on `section-missing`, where the parent has nowhere to put them, say so in the
+Stop report instead.

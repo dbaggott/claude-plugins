@@ -126,6 +126,41 @@ EOF
   [ "$(edits)" = 0 ]
 }
 
+@test "a line given twice in one call is appended once" {
+  body "$TRACKING"
+  run "$LOG" o/r 7 --bullet="Friction log" --text='x' --text='x'
+  [[ "$output" == "result=OK appended=1 "* ]]
+  [ "$(grep -cx -- '- x' "$BODY")" = 1 ]
+}
+
+@test "a body with no final newline gains none" {
+  body $'## Friction log\n- a'
+  run "$LOG" o/r 7 --bullet="Friction log" --text='b'
+  [[ "$output" == "result=OK appended=1 "* ]]
+  [ "$(od -An -c "$BODY" | tr -d ' \n')" = '##Frictionlog\n-a\n-b' ]
+}
+
+# A fenced example table, or a fenced copy of the row, is not the log.
+@test "lines inside a code fence are neither the anchor nor already present" {
+  body $'## Decision log\n\n| a |\n| --- |\n| r1 |\n\nExample:\n\n```\n| r2 |\n~~~\n| r3 |\n```\n'
+  run "$LOG" o/r 7 --table="Decision log" --row='| r2 |'
+  [[ "$output" == "result=OK appended=1 "* ]]
+  [ "$(sed -n 6p "$BODY")" = '| r2 |' ]
+  [ "$(grep -cx '| r2 |' "$BODY")" = 2 ]
+}
+
+@test "a heading with a backslash is matched literally" {
+  body $'## Notes \\ misc\n- a\n'
+  run "$LOG" o/r 7 --bullet='Notes \ misc' --text='b'
+  [[ "$output" == "result=OK appended=1 "* ]]
+}
+
+@test "seven hashes are not a heading" {
+  body $'####### Friction log\n- a\n'
+  run "$LOG" o/r 7 --bullet="Friction log" --text='b'
+  [[ "$output" == "result=ERROR reason=section-missing "* ]]
+}
+
 @test "a write a concurrent writer replaced is made again on the new body" {
   body "$TRACKING"
   LOSE=1 run "$LOG" o/r 7 --bullet="Friction log" --text='kept'
