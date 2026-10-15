@@ -117,7 +117,8 @@ already the author's: a subagent shares your session id, so its pickup reads
 > unmerged, end your turn saying so. When it merges, finish
 > the post-merge cleanup, write a retrospective per
 > `<skill-dir>/references/retrospective.md`, and report under Summary,
-> Observations, Actionable, and Retrospective, the last giving the file's path.
+> Observations, Actionable, and Retrospective, the first three carrying what
+> changed since your handoff and the last giving the file's path.
 
 The first bracketed line goes in only when step 3 found an open `closes` or
 `sibling` PR, or the operator handed one over, the second
@@ -225,7 +226,8 @@ three headings:
 - **Observations** — what the log shows: questions answered without the
   operator, and anything that recurred. Give each retrospective's path, and name
   any role that left none.
-- **Actionable** — what the operator may want to do, including any author or
-  reviewer report item that needs them.
+- **Actionable** — what the operator may want to do, including any item in the
+  author's handoff, the author's final report, or the reviewer's report that
+  needs them.
 
 Never merge.

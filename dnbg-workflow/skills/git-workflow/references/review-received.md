@@ -30,7 +30,7 @@ Read the review payload and pick one of three responses based on content: the cl
 
 With the verdict confirmed and that body read, tell the operator the PR is ready to merge, then **immediately re-arm the watch for the merge wait** from its `── re-arm ──` line (see `references/merge-wait.md`, which gives the wider window that stage needs) so the merge is caught whenever they trigger it — no round-trip if they merge right away, no unwatched gap if they step away first. Include the full URL (browser path) alongside the merge command (CLI path), framed as equals. Compose `<merge command>` per `references/merge.md` — hand over exactly one form, the one that will work — and follow it with the report that file's "The report that goes with the command" defines:
 
-> Reviewer approved at <commit>. No actionable findings. Ready to merge: <full URL>.
+> Reviewer approved at <commit>. Ready to merge: <full URL>.
 >
 > ```
 > <merge command>

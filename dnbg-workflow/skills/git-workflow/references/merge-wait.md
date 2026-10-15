@@ -55,7 +55,7 @@ watcher that is running.
 
 On a bare `result=IDLE` here — six hours of laptop-open time with no merge, and
 no `merge=` field naming a cause — wake **once** and say the PR is still open and
-still needs merging, with the URL and the merge command re-composed. Then stop;
+still needs merging, with the URL, the merge command re-composed, and the handoff report's Actionable items repeated. Then stop;
 do not silently re-arm. An `IDLE` carrying a `merge=` field is the exception: it
 names a cause and has a remedy, so it is re-armed rather than stopped —
 `merge=behind` wants an "Update branch" click, and `merge=unrecognised:<value>`
