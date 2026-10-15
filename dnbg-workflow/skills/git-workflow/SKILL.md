@@ -174,7 +174,7 @@ Always review incoming changes after rebasing or merging. Don't assume the prior
 Optional — everything above is actionable without them.
 
 - **Your project's coding standards.** The comment bar and the
-  `enforceable > prose > nothing` ordering used in `references/review-rounds.md` come
+  `enforceable > prose > nothing` ordering used in `references/review-findings.md` come
   from somewhere; if your project has no standards of its own, `dnbg-practices`
   is a **separate plugin** in this marketplace that carries them —
   `/plugin install dnbg-practices@dnbg`. Nothing here assumes you have it.
