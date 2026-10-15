@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.15 — 2026-10-15
+
+An orchestrator running a tracking issue now appends decision-log rows and
+friction-log bullets with one script call instead of fetching, hand-editing and
+rewriting the whole parent body. The script confirms the write survived a
+concurrent edit, retries when it didn't, never adds a line twice, and reports the
+body's length for the archive threshold.
+
+
 ## dnbg-workflow 2026.10.14 — 2026-10-15
 
 Fixed a first watch that could never fire. Every skill armed its first issue or
