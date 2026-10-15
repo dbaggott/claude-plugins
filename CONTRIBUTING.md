@@ -119,7 +119,7 @@ a `not ok` filter: the pipe reports the filter's status, not bats', and a last
 line of `# bats warning: Executed 0 instead of expected N tests` means nothing
 ran.
 
-Two of those are narrower than the CI step they stand for, so a green run here
+Two of the commands above are narrower than the CI step they stand for, so a green run here
 is good evidence rather than a guarantee. The `jq` lines are only the JSON-parse
 part of the manifest checks, which also compare marketplace and manifest
 descriptions and confirm every version is semver-parseable; and
