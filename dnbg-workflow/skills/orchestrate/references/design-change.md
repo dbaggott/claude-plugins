@@ -45,9 +45,10 @@ the steps below.
 
 ## 4. Re-review what changed materially
 
-When the ready set's `parent.spec_review` is true, dispatch `issue-reviewer` on
-the children whose acceptance criteria changed, or whose body changed in a
-section their `Covers` line cites. The rest are not re-reviewed.
+When the ready set's `parent.spec_review` is true, dispatch `issue-reviewer`, as
+`dnbg-workflow:orchestrated-reviewer`, on the children whose acceptance
+criteria changed, or whose body changed in a section their `Covers` line cites.
+The rest are not re-reviewed.
 
 > Review `<child URLs>` as a set against their parent `<parent URL>`. This is a
 > re-review after the design change in `<row link>`. You were dispatched by an
