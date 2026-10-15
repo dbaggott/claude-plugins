@@ -102,8 +102,9 @@ for d in "${path_dirs[@]}"; do
     m="$OUT/path-mirror/$mirror_n"
     mkdir -p "$m"
     # One `ln` per batch rather than per file: this runs once per eval test, over
-    # directories as large as /usr/bin.
-    find "$d" -mindepth 1 -maxdepth 1 ! -name gh ! -name '.*' \
+    # directories as large as /usr/bin. `-H` follows $d itself when it is a
+    # symlink, as Ubuntu's /bin is.
+    find -H "$d" -mindepth 1 -maxdepth 1 ! -name gh ! -name '.*' \
       -exec sh -c 'ln -sf "$@" "$0"' "$m/" {} +
     d=$m
   fi

@@ -18,14 +18,15 @@ load reap
 setup_clock() {
   export CLOCK="$BATS_TEST_TMPDIR/clock"; echo 0 > "$CLOCK"
   # Stubs here name "$BASH" as their interpreter rather than `env bash`, and the
-  # per-tick ones read files with builtins rather than `cat`: on CI's runner every
-  # process a tick spawns is a cost the whole suite pays.
+  # per-tick ones read their state with `read` rather than `cat`: on CI's runner
+  # every process a tick spawns is a cost the whole suite pays.
   { echo "#!$BASH"; cat; } > "$STUB/date" <<'EOF'
-off=0; [ -f "$CLOCK" ] && off=$(<"$CLOCK")
+off=0; [ -f "$CLOCK" ] && read -r off < "$CLOCK"
 if [ "$1" = "+%s" ]; then echo $(( 1700000000 + off )); else exec /bin/date "$@"; fi
 EOF
   { echo "#!$BASH"; cat; } > "$STUB/sleep" <<'EOF'
-echo $(( $(<"$CLOCK") + ${1:-0} )) > "$CLOCK"
+read -r now < "$CLOCK"
+echo $(( now + ${1:-0} )) > "$CLOCK"
 EOF
   chmod +x "$STUB/date" "$STUB/sleep"
 }
@@ -39,8 +40,8 @@ setup() {
   setup_clock
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$*" in *"api user"*) echo operator; exit 0 ;; esac
-t=0; [ -f "$TICKS" ] && t=$(<"$TICKS"); t=$((t + 1)); echo "$t" > "$TICKS"
-cat "$GQL"
+t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"; t=$((t + 1)); echo "$t" > "$TICKS"
+IFS= read -r -d '' body < "$GQL"; printf '%s' "$body"
 [ -f "$GQL_EXIT" ] && exit 1
 exit 0
 EOF
@@ -417,7 +418,7 @@ comment() {  # <login> <iso>
 @test "an issue closing does not drop a pending burst on its siblings" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$*" in *"api user"*) echo operator; exit 0 ;; esac
-t=0; [ -f "$TICKS" ] && t=$(<"$TICKS"); t=$((t + 1)); echo "$t" > "$TICKS"
+t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"; t=$((t + 1)); echo "$t" > "$TICKS"
 if [ "$t" = 1 ]; then st5=OPEN; else st5=CLOSED; fi
 jq -cn --arg st5 "$st5" '{data:{repository:{
   i5:{number:5,state:$st5,lastEditedAt:null,comments:{totalCount:0,nodes:[]},
@@ -443,7 +444,7 @@ EOF
 @test "a burst reported alongside the last issue closing carries no re-arm" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$*" in *"api user"*) echo operator; exit 0 ;; esac
-t=0; [ -f "$TICKS" ] && t=$(<"$TICKS"); t=$((t + 1)); echo "$t" > "$TICKS"
+t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"; t=$((t + 1)); echo "$t" > "$TICKS"
 if [ "$t" = 1 ]; then st=OPEN; else st=CLOSED; fi
 jq -cn --arg st "$st" '{data:{repository:{
   i7:{number:7,state:$st,lastEditedAt:null,
@@ -498,7 +499,7 @@ EOF
 @test "two issues going missing at different times are both named" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$*" in *"api user"*) echo operator; exit 0 ;; esac
-t=0; [ -f "$TICKS" ] && t=$(<"$TICKS"); t=$((t + 1)); echo "$t" > "$TICKS"
+t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"; t=$((t + 1)); echo "$t" > "$TICKS"
 # #9 unresolvable from the start; #10 goes on tick 3.
 if [ "$t" -ge 3 ]; then ten=null; else ten='{"number":10,"state":"OPEN","lastEditedAt":null,
   "comments":{"totalCount":0,"nodes":[]},

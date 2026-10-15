@@ -41,16 +41,17 @@ sha40() { printf '%040d' "$1"; }
 # Other `date` formats (the ISO stamp in a result line, the trace's timestamps) pass
 # through to the real binary, since nothing here asserts on them.
 setup_clock() {
-  export CLOCK="$BATS_TEST_TMPDIR/clock"; echo 0 > "$CLOCK"
+  export CLOCK="$BATS_TEST_TMPDIR/clock" CLOCK_BASE=1700000000; echo 0 > "$CLOCK"
   # Stubs here name "$BASH" as their interpreter rather than `env bash`, and the
-  # per-tick ones read files with builtins rather than `cat`: on CI's runner every
-  # process a tick spawns is a cost the whole suite pays.
+  # per-tick ones read their state with `read` rather than `cat`: on CI's runner
+  # every process a tick spawns is a cost the whole suite pays.
   { echo "#!$BASH"; cat; } > "$STUB/date" <<'EOF'
-off=0; [ -f "$CLOCK" ] && off=$(<"$CLOCK")
-if [ "$1" = "+%s" ]; then echo $(( 1700000000 + off )); else exec /bin/date "$@"; fi
+off=0; [ -f "$CLOCK" ] && read -r off < "$CLOCK"
+if [ "$1" = "+%s" ]; then echo $(( CLOCK_BASE + off )); else exec /bin/date "$@"; fi
 EOF
   { echo "#!$BASH"; cat; } > "$STUB/sleep" <<'EOF'
-echo $(( $(<"$CLOCK") + ${1:-0} )) > "$CLOCK"
+read -r now < "$CLOCK"
+echo $(( now + ${1:-0} )) > "$CLOCK"
 EOF
   chmod +x "$STUB/date" "$STUB/sleep"
 }
@@ -62,15 +63,15 @@ setup() {
   setup_clock
   # MODE_* files control the stub: presence means "this source fails".
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
-or_default() { if [ -f "$1" ]; then printf '%s' "$(<"$1")"; else printf '%s' "$2"; fi; }
-echo "$(date +%s) $*" >> "$CALLS"
+or_default() { local v=$2; [ -f "$1" ] && IFS= read -r -d '' v < "$1"; printf '%s' "$v"; }
+read -r off < "$CLOCK"; echo "$(( CLOCK_BASE + off )) $*" >> "$CALLS"
 # One poll is one `pr view`, so that is what counts as a tick — and the
 # stub is the only thing in the test that sees one. Anything a test wants to happen
 # "later in the watch" is scheduled by tick count rather than by backgrounding a
 # `sleep`: with the clock stubbed there is no real time for a background job to wait
 # in, and its `sleep` would corrupt the shared clock file besides.
 if [ "$2" = view ]; then
-  t=$(( $(or_default "$TICKS" 0) + 1 )); echo "$t" > "$TICKS"
+  t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"; t=$((t + 1)); echo "$t" > "$TICKS"
   if [ -n "${AT_TICK:-}" ] && [ "$t" -ge "$AT_TICK" ]; then
     printf '%s' "${AT_TICK_VALUE:-}" > "$AT_TICK_FILE"
   fi
@@ -78,7 +79,7 @@ fi
 case "$1 $2" in
   "pr view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
-    n=$(or_default "$HEADCOUNT" 0)
+    n=0; [ -f "$HEADCOUNT" ] && read -r n < "$HEADCOUNT"
     printf '{"state":"%s","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":[],"statusCheckRollup":%s,"mergeStateStatus":"%s","reviewDecision":"%s"}' \
       "$(or_default "$PRSTATE" OPEN)" \
       "$(or_default "$DRAFT_FILE" false)" "$n" \
@@ -107,8 +108,8 @@ EOF
   export REVIEWS="$BATS_TEST_TMPDIR/reviews"
   # NOT `DRAFT`: watch-pr.sh assigns its own `DRAFT` from the payload, and an
   # assignment to an already-exported name keeps the export — so the stub, a
-  # grandchild of the watch, would receive `DRAFT=true` in place of this path,
-  # `cat` it, fail, and report every tick after the first as not-a-draft.
+  # grandchild of the watch, would receive `DRAFT=true` in place of this path, find
+  # no such file, and report every tick after the first as not-a-draft.
   export DRAFT_FILE="$BATS_TEST_TMPDIR/draft"
   export TICKS="$BATS_TEST_TMPDIR/ticks"
 }
@@ -138,7 +139,7 @@ reviews() {  # <state> <commit-sha> <login>
 # (b) the counter must reset on success, or a flaky link trips a false ERROR.
 @test "intermittent failures do not trip ERROR" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
-n=$(( $(cat "$CALLS.n" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$CALLS.n"
+n=0; [ -f "$CALLS.n" ] && read -r n < "$CALLS.n"; n=$((n + 1)); echo "$n" > "$CALLS.n"
 case "$1 $2" in
   "pr view") [ "$n" -le 2 ] && exit 1
              echo '{"state":"OPEN","isDraft":false,"headRefOid":"0000000000000000000000000000000000000000","reviews":[],"comments":[]}' ;;
@@ -587,7 +588,7 @@ EOF
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
   "pr view")
-    n=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$TICKS"
+    n=0; [ -f "$TICKS" ] && read -r n < "$TICKS"; n=$((n + 1)); echo "$n" > "$TICKS"
     h=0; [ "$n" -ge 2 ] && h=1
     printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[]}' "$h" ;;
   "api "*|"api")
@@ -1120,16 +1121,16 @@ EOF
 # an empty summary.
 @test "a degraded inline fetch does not blank the activity summary" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
-echo "$(date +%s) $*" >> "$CALLS"
+read -r off < "$CLOCK"; echo "$(( CLOCK_BASE + off )) $*" >> "$CALLS"
 if [ "$2" = view ]; then
-  t=$(( $(cat "$TICKS" 2>/dev/null || echo 0) + 1 )); echo "$t" > "$TICKS"
+  t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"; t=$((t + 1)); echo "$t" > "$TICKS"
 fi
 case "$1 $2" in
   "pr view")
     printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[],"statusCheckRollup":[],"mergeStateStatus":"CLEAN","reviewDecision":""}' 0 ;;
   "api "*|"api")
     # Answers on tick 1, then goes blind — the degraded case.
-    t=$(cat "$TICKS" 2>/dev/null || echo 0)
+    t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"
     [ "$t" -ge 2 ] && exit 1
     echo '[{"user":{"login":"someone"},"created_at":"2026-06-01T00:00:00Z","id":7,"path":"a.sh","line":3,"body":"x"}]' ;;
   *) exit 1 ;;

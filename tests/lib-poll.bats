@@ -35,16 +35,17 @@ setup_clock() {
   # exact expectations into flaky ranges. Other date formats (the ISO stamp in a
   # result line) pass through, since nothing asserts on them.
   # Stubs here name "$BASH" as their interpreter rather than `env bash`, and the
-  # per-tick ones read files with builtins rather than `cat`: on CI's runner every
-  # process a tick spawns is a cost the whole suite pays.
+  # per-tick ones read their state with `read` rather than `cat`: on CI's runner
+  # every process a tick spawns is a cost the whole suite pays.
   { echo "#!$BASH"; cat; } > "$STUB/date" <<'EOF'
-off=0; [ -f "$CLOCK" ] && off=$(<"$CLOCK")
+off=0; [ -f "$CLOCK" ] && read -r off < "$CLOCK"
 if [ "$1" = "+%s" ]; then echo $(( 1700000000 + off )); else exec /bin/date "$@"; fi
 EOF
   { echo "#!$BASH"; cat; } > "$STUB/sleep" <<'EOF'
 jump=0
-if [ -s "$SUSPEND" ]; then jump=$(<"$SUSPEND"); : > "$SUSPEND"; fi
-echo $(( $(<"$CLOCK") + ${1:-0} + jump )) > "$CLOCK"
+if [ -s "$SUSPEND" ]; then read -r jump < "$SUSPEND"; : > "$SUSPEND"; fi
+read -r now < "$CLOCK"
+echo $(( now + ${1:-0} + jump )) > "$CLOCK"
 EOF
   chmod +x "$STUB/date" "$STUB/sleep"
   export PATH="$STUB:$PATH"
