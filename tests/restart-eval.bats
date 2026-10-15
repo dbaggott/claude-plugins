@@ -161,9 +161,12 @@ decided_parent() {  # <r2: new|old> <row-state|"">
 
 @test "kill_tree kills a process and every descendant" {
   bash -c 'bash -c "sleep 30 & sleep 30 & wait" & sleep 30 & wait' 3>&- &
-  local top=$! pids
-  sleep 1
-  pids=$(pgrep -P "$top"; for p in $(pgrep -P "$top"); do pgrep -P "$p" || true; done)
+  local top=$! pids i=0
+  while :; do
+    pids=$(pgrep -P "$top"; for p in $(pgrep -P "$top"); do pgrep -P "$p" || true; done)
+    [ "$(wc -w <<< "$pids")" -lt 3 ] && [ "$i" -lt 100 ] || break
+    sleep 0.1; i=$((i + 1))
+  done
   [ "$(wc -w <<< "$pids")" -ge 3 ]
   kill_tree "$top"
   wait "$top" 2> /dev/null || true

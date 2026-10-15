@@ -352,9 +352,13 @@ EOF
     poll_init; for _ in 1 2 3; do poll_nap; done" &
   local pid=$! i=0
   echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
-  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
-  # The sleep is the child of the watch; find it before the watch dies.
-  local nap; nap=$(pgrep -P "$pid" 2>/dev/null | head -1)
+  # The sleep is the child of the watch; find it before the watch dies. Matched by
+  # name, because the watch's command substitutions are children too, and one of
+  # those exits on its own and passes the reap assertion without testing it.
+  local nap=""
+  while [ -z "$nap" ] && [ "$i" -lt 150 ]; do
+    nap=$(pgrep -x -P "$pid" sleep 2>/dev/null | head -1); [ -n "$nap" ] || sleep 0.1; i=$((i + 1))
+  done
   [ -n "$nap" ] || skip "could not observe the nap child on this platform"
   kill -TERM "$pid"; wait "$pid" 2>/dev/null || true
   # Re-raising kills the shell; without the reap the sleep outlives it by up to a
@@ -375,8 +379,10 @@ EOF
     poll_init; for _ in 1 2 3; do poll_nap; done" &
   local pid=$! i=0
   echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
-  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
-  [ -s "$log" ] || { echo "child never started tracing"; return 1; }
+  # Wait for the tick, not for any line: `poll_init` traces a start line first, and
+  # a kill that lands between the two leaves no heartbeat to assert on.
+  while ! grep -q ' tick interval=' "$log" 2>/dev/null && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
+  grep -q ' tick interval=' "$log" || { echo "child never ticked"; return 1; }
 
   kill -KILL "$pid"
   local st=0; wait "$pid" 2>/dev/null || st=$?
