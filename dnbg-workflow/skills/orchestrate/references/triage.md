@@ -82,7 +82,8 @@ After a `decided` row, the issue body changes so a cold reader of it sees the
 decision without the log: the section the decision affects, such as the
 "Proposed approach" or an acceptance criterion, changes and links the row.
 
-The author makes that edit, never you: the message carrying the answer tells
-it to, and a row decided before dispatch goes in the dispatch prompt instead.
+On the issue whose question the row answers, the author makes that edit, never
+you: the message carrying the answer tells it to, and a row decided before
+dispatch goes in the dispatch prompt instead.
 An `applied`
 row changes nothing in the body, since the decision it applies is already there.
