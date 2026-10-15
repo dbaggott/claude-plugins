@@ -39,6 +39,18 @@
 # `tests/lib-poll.bats` pins both the breakpoints and the two properties that
 # outlive any particular shape — never slower than 60s inside the first 90
 # minutes, never slower than the cap ever.
+#
+# ## The heartbeat
+#
+# A watch writes nothing to stdout until its result, so the task output of a
+# healthy watch mid-wait looks exactly like that of a killed one. `poll_nap`
+# therefore prints `alive at=<iso> awake=<n>s` every HEARTBEAT awake seconds,
+# and those lines are the only stdout before the result. The beat is on its
+# own clock, not once per tick, because the curve backs off to its slowest
+# exactly where a long wait most needs evidence of life.
+#
+# It is printed by the poll loop itself, never by a background helper: a helper
+# would outlive a killed watch and keep reporting it alive.
 
 # INTERVAL pins the curve flat at one value. Kept as its own knob because a test
 # wants a fixed rate, and writing `POLL_CURVE=0:1` in every test would couple
@@ -77,6 +89,9 @@ poll_broken() {   # $1 = consecutive failures, $2 = awake seconds when the strea
 # reviewer's watch, a problem for the author's), so only the number lives here.
 WINDOW=${WINDOW:-21600}
 
+# Seconds between heartbeat lines — see the header.
+HEARTBEAT=${HEARTBEAT:-60}
+
 # A nap that overshoots by more than this is read as a machine suspend rather
 # than a busy scheduler. Generous on purpose: over-counting a loaded machine's
 # late wake as suspend costs a few seconds of clock, while under-counting a real
@@ -94,9 +109,10 @@ _poll_die() { echo "watch: $*" >&2; exit 1; }
 #
 # It exists because a vanished watch leaves no evidence anywhere else, which is
 # not obvious until you go looking for it. A background task reported as killed
-# has an EMPTY output file, because a watch writes its one result line at exit and
-# a watch that was killed never reached it. macOS keeps nothing either: the
-# unified log does not record ordinary process signals or exits, and dtrace's
+# has no result line, because a watch writes its result at exit and a watch that
+# was killed never reached it; its heartbeats say roughly when it stopped, never
+# why. macOS keeps nothing either: the unified log does not record ordinary
+# process signals or exits, and dtrace's
 # `proc:::signal-send` — the only probe that names WHO signalled WHOM — needs SIP
 # disabled. So a watch that stopped could not be diagnosed after the fact at all.
 #
@@ -106,9 +122,9 @@ _poll_die() { echo "watch: $*" >&2; exit 1; }
 #   EXIT code=<n>   it stopped itself — a `set -e` death, or a normal result
 #   neither         SIGKILL, or the process group went down underneath it
 #
-# The absence only means anything against a heartbeat, which is why the tick line
-# earns its place: without one, "the watch died silently" and "the watch was never
-# running" produce identical logs.
+# The absence only means anything against a record of the watch running, which is
+# why the tick line earns its place: without one, "the watch died silently" and
+# "the watch was never running" produce identical logs.
 #
 # On by default, and that is the whole point — an opt-in knob is off exactly when
 # it matters. The failure this traces is intermittent and unreproducible: it never
@@ -285,6 +301,9 @@ _poll_parse_curve() {
   _poll_t=("${ts[@]}"); _poll_i=("${is[@]}")
 }
 _poll_parse_curve
+# A leading zero is refused too: arithmetic reads `08` as bad octal and kills the
+# watch mid-nap rather than here.
+case $HEARTBEAT in ''|0*|*[!0-9]*) _poll_die "HEARTBEAT must be a whole number of seconds, at least 1 (got '$HEARTBEAT')" ;; esac
 
 # The curve as a pure function: interval for a given quiet-time, in seconds.
 # Public because it is the whole shape of the thing and deserves a test that
@@ -306,10 +325,10 @@ poll_interval_at() {
   echo "${_poll_i[$((n - 1))]}"
 }
 
-_poll_start=0; _poll_suspended=0; _poll_baseline=0
+_poll_start=0; _poll_suspended=0; _poll_baseline=0; _poll_beat=0
 
 # Call once, after the knobs are set and before the loop.
-poll_init() { _poll_start=$(date +%s); _poll_suspended=0; _poll_baseline=0; poll_trace_init; }
+poll_init() { _poll_start=$(date +%s); _poll_suspended=0; _poll_baseline=0; _poll_beat=0; poll_trace_init; }
 
 # Awake seconds since poll_init.
 poll_awake() { echo $(( $(date +%s) - _poll_start - _poll_suspended )); }
@@ -331,9 +350,24 @@ poll_timed_out() { [ "$(poll_awake)" -ge "$WINDOW" ]; }
 
 poll_now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
-# Sleep one interval, then reconcile the clock with what actually elapsed.
+# Prints a heartbeat if one is due. A write error is swallowed: the line is
+# evidence about the watch, and losing one is cheaper than ending the watch
+# under `set -e`.
+_poll_heartbeat() {
+  local a
+  a=$(poll_awake)
+  [ $(( a - _poll_beat )) -ge "$HEARTBEAT" ] || return 0
+  # Snapped to the boundary it was due on, so a wake that runs a second late
+  # does not push every later beat back with it.
+  _poll_beat=$(( a - (a - _poll_beat) % HEARTBEAT ))
+  printf 'alive at=%s awake=%ss\n' "$(poll_now_iso)" "$a" 2>/dev/null || true
+}
+
+# Sleep one interval, then reconcile the clock with what actually elapsed. The
+# interval is slept in pieces that end on heartbeat boundaries, so a beat falls
+# due mid-nap rather than only between polls.
 poll_nap() {
-  local iv before after over
+  local iv left piece before after over
   iv=$(poll_interval)
   # Before the sleep, not after: a watch is killed mid-sleep far more often than
   # mid-poll, and a line written afterwards is the one line that would be missing.
@@ -354,17 +388,31 @@ poll_nap() {
   # caller that backgrounds a job and reads `$!` after a nap would get the sleep.
   # The pid is kept in `_poll_napper` rather than left in `$!` so the signal
   # handler can reap it, and so that this is stated rather than discovered.
-  before=$(date +%s)
-  sleep "$iv" &
-  _poll_napper=$!
-  wait "$_poll_napper" 2>/dev/null || true
-  _poll_napper=""
-  after=$(date +%s)
-  over=$(( after - before - iv ))
-  if [ "$over" -gt "$POLL_SUSPEND_SLACK" ]; then
-    _poll_suspended=$(( _poll_suspended + over ))
-    poll_reset
-    poll_log "suspend over=${over}s banked=${_poll_suspended}s"
-  fi
+  _poll_heartbeat
+  left=$iv
+  while [ "$left" -gt 0 ]; do
+    piece=$(( HEARTBEAT - ($(poll_awake) - _poll_beat) ))
+    # The clock can pass a boundary between the beat check and this read; a
+    # piece below 1 would make `sleep` fail and `left` grow.
+    [ "$piece" -ge 1 ] || piece=1
+    [ "$piece" -le "$left" ] || piece=$left
+    before=$(date +%s)
+    sleep "$piece" &
+    _poll_napper=$!
+    wait "$_poll_napper" 2>/dev/null || true
+    _poll_napper=""
+    after=$(date +%s)
+    over=$(( after - before - piece ))
+    if [ "$over" -gt "$POLL_SUSPEND_SLACK" ]; then
+      _poll_suspended=$(( _poll_suspended + over ))
+      poll_reset
+      poll_log "suspend over=${over}s banked=${_poll_suspended}s"
+      # The rest of the nap is dropped: just back from a suspend is when a poll
+      # is most wanted, and the reset above has already put the curve at its floor.
+      return 0
+    fi
+    left=$(( left - piece ))
+    _poll_heartbeat
+  done
   return 0
 }

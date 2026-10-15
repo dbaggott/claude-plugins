@@ -370,9 +370,9 @@ EOF
   ! kill -0 "$nap" 2>/dev/null
 }
 
-@test "a SIGKILL leaves a heartbeat and neither a signal nor an exit line" {
+@test "a SIGKILL leaves a tick line and neither a signal nor an exit line" {
   # Row three of the table, and the only outcome that is an absence. The whole
-  # design rests on "heartbeat, but no SIGNAL and no EXIT" meaning an uncatchable
+  # design rests on "a tick line, but no SIGNAL and no EXIT" meaning an uncatchable
   # kill, so it is the row most exposed to silent regression: anything that later
   # buffers the tick line, or adds a trap catching what should be uncatchable, turns
   # a real SIGKILL into "the watch was never running" with every other test green.
@@ -382,14 +382,14 @@ EOF
   local pid=$! i=0
   echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
   # Wait for the tick, not for any line: `poll_init` traces a start line first, and
-  # a kill that lands between the two leaves no heartbeat to assert on.
+  # a kill that lands between the two leaves no tick line to assert on.
   while ! grep -q ' tick interval=' "$log" 2>/dev/null && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
   grep -q ' tick interval=' "$log" || { echo "child never ticked"; return 1; }
 
   kill -KILL "$pid"
   local st=0; wait "$pid" 2>/dev/null || st=$?
   [ "$st" -eq 137 ]                        # uncatchable, so the status says so
-  grep -q ' tick interval=' "$log"         # ...the heartbeat is what dates the death
+  grep -q ' tick interval=' "$log"         # ...the tick line is what dates the death
   ! grep -q 'SIGNAL=' "$log"               # ...and neither handler can have run
   ! grep -q 'EXIT code=' "$log"
 }
@@ -580,4 +580,71 @@ EOF
   local j=0
   while kill -0 "$pid" 2>/dev/null && [ "$j" -lt 40 ]; do sleep 0.1; j=$((j + 1)); done
   ! kill -0 "$pid" 2>/dev/null
+}
+
+# --- the heartbeat ----------------------------------------------------------
+
+# The beat is the only stdout before a result, so a wait shorter than one beat
+# must stay silent: the watch's quiet is still the default.
+@test "a wait shorter than one heartbeat prints nothing" {
+  setup_clock
+  run bash -c "export WATCH_LOG=off HEARTBEAT=60; . '$LIB'
+    poll_init; poll_nap; poll_nap"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+# At the 300s cap a once-per-tick beat would go quiet for five minutes, so the
+# beat has to fall due mid-nap. Each line names the awake second it was printed
+# at, which makes the cadence checkable exactly.
+@test "the heartbeat keeps its own cadence when the curve is at the cap" {
+  setup_clock
+  run bash -c "export WATCH_LOG=off HEARTBEAT=60 POLL_CURVE='0:300'; . '$LIB'
+    poll_init; poll_nap; poll_nap"
+  [ "$status" -eq 0 ]
+  local awake
+  awake=$(sed -n 's/^alive at=[0-9T:Z-]* awake=\([0-9]*\)s$/\1/p' <<<"$output" | paste -sd' ' -)
+  [ "$awake" = "60 120 180 240 300 360 420 480 540 600" ]
+  # Nothing else reaches stdout.
+  [ "$(grep -vc '^alive ' <<<"$output")" -eq 0 ]
+}
+
+# Time spent polling counts toward the next beat, so slow polls do not stretch
+# the gap between lines.
+@test "time outside the nap counts toward the next heartbeat" {
+  setup_clock
+  run bash -c "export WATCH_LOG=off HEARTBEAT=60 POLL_CURVE='0:300'; . '$LIB'
+    poll_init; sleep 50; poll_nap"
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == *" awake=60s" ]]
+}
+
+@test "a suspend mid-nap ends the nap without printing the missed beats" {
+  setup_clock
+  echo 100000 > "$SUSPEND"
+  run bash -c "export WATCH_LOG=off HEARTBEAT=60 POLL_CURVE='0:300'; . '$LIB'
+    poll_init; poll_nap; echo awake=\$(poll_awake)"
+  [ "$status" -eq 0 ]
+  [ "$output" = "awake=60" ]
+}
+
+@test "a HEARTBEAT that is zero, padded or not a number is refused at source time" {
+  local v
+  for v in 0 08 abc; do
+    run bash -c "export HEARTBEAT='$v'; . '$LIB'"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"HEARTBEAT must be"* ]]
+  done
+}
+
+# A late wake shifts the line it lands on, not the grid: the next beat is still
+# due on the next boundary.
+@test "a late wake does not drift the heartbeat cadence" {
+  setup_clock
+  run bash -c "export WATCH_LOG=off HEARTBEAT=60 POLL_CURVE='0:300'; . '$LIB'
+    poll_init; sleep 61; poll_nap"
+  [ "$status" -eq 0 ]
+  local awake
+  awake=$(sed -n 's/^alive at=[0-9T:Z-]* awake=\([0-9]*\)s$/\1/p' <<<"$output" | paste -sd' ' -)
+  [ "$awake" = "61 120 180 240 300 360" ]
 }

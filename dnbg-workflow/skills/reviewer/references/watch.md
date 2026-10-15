@@ -91,8 +91,9 @@ indistinguishably from silence.
 
 `CLOSED`, `ERROR`, `DIRTY` and `BLOCKED` print no re-arm line, because none of
 the four clears without a human. (Those are author-role results; a reviewer sees
-only `CLOSED` and `ERROR` of them.) A killed task prints nothing at all — that is
-the one case where you rebuild the arguments yourself, per the bullet above.
+only `CLOSED` and `ERROR` of them.) A killed task prints no result line, at most
+the `alive` heartbeats it printed while running — that is the one case where you
+rebuild the arguments yourself, per the bullet above.
 
 The same applies after a watch is **paused and resumed** — an operator interrupt,
 a session restart. The gap is invisible from the watcher's side, so re-establish

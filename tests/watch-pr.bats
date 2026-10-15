@@ -152,6 +152,15 @@ EOF
   [[ "$output" == *"result=IDLE"* ]]
 }
 
+# Every watcher inherits the heartbeat from the library; this pins that the PR
+# watch's own stdout carries it ahead of the result, unparsed by anything.
+@test "a wait longer than one heartbeat prints a liveness line before the result" {
+  HEARTBEAT=2 INTERVAL=1 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "alive at="* ]]
+  [[ "${lines[-1]}" == result=IDLE* ]]
+}
+
 # (c) the insidious one: the primary poll stays healthy, so the watch looks fine
 # while thread replies silently never register.
 @test "a failing inline-comments query reports ERROR naming that source" {
