@@ -20,7 +20,8 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
    operator has said the predecessor is gone. Any other holder is not part of
    this run: leave the child alone, and it waits like a blocker outside the
    project. For each child you hold, run `SKILL.md`'s steps 3 to 5 on it, then
-   dispatch a fresh author, and a reviewer when its PR is out of draft.
+   dispatch a fresh author, and a reviewer when its PR is out of draft, per
+   `SKILL.md`'s "Dispatch the author, then the reviewer".
 3. **Read the parent's log**: its decision-log table, and the
    `Decision log: archived rows` comment if it has one. A `proposed` row is an
    escalation still waiting, and a `decided` row is work to finish before any

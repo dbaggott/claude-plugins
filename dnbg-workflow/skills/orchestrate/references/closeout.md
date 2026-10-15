@@ -29,7 +29,7 @@ Read the per-source fields before treating `count=0` as none, as
 `closingIssuesReferences` include the parent is a predecessor's closeout PR.
 Continue it rather than opening a second, at the first of steps 4 to 6 its
 description does not carry; one out of draft resumes at step 6, with a reviewer
-dispatched if none is reviewing it. Run step 2 too while its description has
+dispatched as step 6 does if none is reviewing it. Run step 2 too while its description has
 no step-5 table; once it has one, write your retrospective at "Stop" instead,
 for `process-review` alone.
 
