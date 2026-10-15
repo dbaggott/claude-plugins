@@ -97,8 +97,8 @@ already the author's: a subagent shares your session id, so its pickup reads
 > the operator something. The issue is already claimed under your session id.
 > [Continue `<PR URL>`, which is already open for it.] When you send the PR to
 > review, end your turn with its URL. When the review is clean, re-arm your
-> merge watch and end your turn with your merge handoff. When it merges, finish the post-merge
-> cleanup, write a retrospective per
+> merge watch and end your turn with your merge handoff. When it merges, finish
+> the post-merge cleanup, write a retrospective per
 > `<skill-dir>/references/retrospective.md`, and report under Summary,
 > Observations, Actionable, and Retrospective, the last giving the file's path.
 
@@ -106,9 +106,9 @@ The bracketed line goes in only when step 3 found an open PR. In both recipes,
 `<skill-dir>` is written out as the absolute path, since the agent has not
 loaded this skill.
 
-**The reviewer**, when the author's turn ends with its PR URL at send-to-review,
-or at once when step 3 found the PR already out of draft. Skip it when the operator said
-they will review the PR themselves.
+**The reviewer**, when the author's turn ends with its PR URL at
+send-to-review, or at once when step 3 found the PR already out of draft. Skip
+it when the operator said they will review the PR themselves.
 
 > Act as the reviewer on `<issue URL>`, in `reviewer`'s issue mode. You were
 > dispatched by an orchestrator, so follow `issue-workflow`'s
@@ -127,6 +127,8 @@ Never poll in the conversation. Each event reaches you as one of these:
   - the author's PR URL at send-to-review — dispatch the reviewer;
   - the author's merge handoff — relay it, under "Relay the merge handoff";
   - the author's final report — go to "Stop";
+  - the author's report that its PR closed unmerged — ask the operator whether
+    to dispatch a new author or stop;
   - a wait on its own background work — its watch is armed, so nothing.
 
   A turn that ends on none of these while work remains is the safety net, and
@@ -189,9 +191,8 @@ Every answer, every escalation outcome, and every application of a decision
 already in the log to a new case is a row. Applying a prior decision without a
 row is the failure the log exists to prevent.
 
-A `decided` row is promoted into the issue body by the body's writer, per
-`references/triage.md`: the author, once one is dispatched, told to in the
-message that carries the answer; you, only before then.
+A `decided` row is promoted into the issue body per `references/triage.md`,
+which says whether you or the author writes it.
 
 ## Relay the merge handoff
 
@@ -220,9 +221,10 @@ the same URL, which resumes from GitHub and re-claims under "On start".
 ## Stop
 
 Stop on the author's final report, which comes after the merge and its
-post-merge cleanup, once the reviewer has ended. Collect both agents' retrospectives, write your own, and fold the
-project-level items into the parent, all per `references/retrospective.md`. Then
-report the cycle under three headings:
+post-merge cleanup, once the reviewer has ended. Collect both agents'
+retrospectives, write your own, and fold the project-level items into the
+parent, all per `references/retrospective.md`. Then report the cycle under
+three headings:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the
