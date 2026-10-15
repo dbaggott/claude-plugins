@@ -22,16 +22,17 @@
 #                   `Delegated question:` and mentioning review follows the
 #                   `pr create`, the relayed report mentions review too, and
 #                   the PR is still a draft.
-#   departure       the approach works as written, but a consumer in the tree
-#                   (`report.sh`) rejects its output and a criterion needs that
-#                   consumer to keep passing, so meeting every criterion takes a
-#                   decision the issue does not make. It passes when an `issue
+#   departure       the body is consistent, but a consumer in the tree
+#                   (`report.sh`) rejects the approach's output and a criterion
+#                   needs that consumer to keep passing, so meeting every
+#                   criterion takes a decision the issue does not make. A
+#                   resolver may find that at the critical review or only when
+#                   it runs the criteria; either way it passes when an `issue
 #                   comment` opening with `Delegated question:` names the
 #                   departure, the relayed report names it too, the PR, if any,
 #                   is still a draft, and `report.sh` is unchanged everywhere:
 #                   working trees, worktrees, every ref of the repo and its
-#                   remote. A draft PR of the approach itself is allowed, since
-#                   the wall can be found when the criteria are run.
+#                   remote. A draft PR of the approach itself is allowed.
 #
 # `Delegated question:` is the opening line R13 of
 # https://github.com/dbaggott/claude-plugins/issues/223 fixes. In the

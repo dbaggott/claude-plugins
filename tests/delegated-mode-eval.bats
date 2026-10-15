@@ -377,6 +377,35 @@ REPORT="Add --help?"'
   [ "${lines[0]}" = "run 1: FAIL no issue comment opening with 'Delegated question:' asks about review after the PR" ]
 }
 
+@test "stub: claim-issue.sh reads UNCLAIMED, claims, and then reads its own claim" {
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  printf '#!/bin/sh\nEVAL_ISSUE_JSON=%s EVAL_GH_LOG=%s exec %s "$@"\n' \
+    "$ISSUE_JSON" "$BATS_TEST_TMPDIR/gh.log" "$EVAL/gh-stub.sh" > "$BATS_TEST_TMPDIR/bin/gh"
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  export CLAUDE_CODE_SESSION_ID=abcdef12-0000-0000-0000-000000000000
+  CLAIM="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/claim-issue.sh"
+  run "$CLAIM" dnbg-eval/export-fixture 1
+  [ "$output" = "result=UNCLAIMED claim=none at=none" ]
+  run "$CLAIM" dnbg-eval/export-fixture 1 --claim
+  [[ "$output" == result=OK* ]]
+  run "$CLAIM" dnbg-eval/export-fixture 1
+  [[ "$output" == "result=OWN claim=abcdef12 at=2026-10-02T12:00:00Z"* ]]
+  [ "$(jq -r 'select(.kind == "unmodelled")' "$BATS_TEST_TMPDIR/gh.log")" = "" ]
+}
+
+@test "stub: a GraphQL query other than the claim read is unmodelled" {
+  run stub api graphql -f 'query=query { viewer { login } }'
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .kind "$BATS_TEST_TMPDIR/gh.log")" = unmodelled ]
+}
+
+@test "stub: auth status answers as the eval operator" {
+  run stub auth status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"eval-operator"* ]]
+}
+
 @test "stub: api serves the repo's merge settings" {
   run stub api repos/dnbg-eval/export-fixture --jq .default_branch
   [ "$output" = main ]
