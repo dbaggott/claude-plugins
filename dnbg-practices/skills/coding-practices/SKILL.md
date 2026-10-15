@@ -36,8 +36,8 @@ rule leaves a gap.
 - **E7 Every poll loop has a deadline and a guard on an unsatisfiable
   condition.** Otherwise it spins forever once the state it waits for becomes
   unreachable.
-- **E8 An error silenced to make a test pass is a bug-shaped object.**
-  Understand why it fires, then handle it, fix the cause, or let it propagate.
+- **E8 An error silenced without understanding why it fires is a bug-shaped
+  object.** Understand it, then handle it, fix the cause, or let it propagate.
 - **E9 One-time setup lives in the PR that introduced the dependency**, not in
   a README or a source comment. Steps a maintainer must be able to repeat go
   in onboarding docs or the infrastructure-as-code module that does the setup.

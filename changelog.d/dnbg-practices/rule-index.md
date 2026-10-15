@@ -1,4 +1,4 @@
-`coding-practices` now loads at roughly a third of its former size. The body is
+`coding-practices` now loads at well under half its former size. The body is
 an index of rules, each with a stable ID (`C10`, `V3`) that a review finding can
 cite instead of restating the rule. The long form moved to references the body
 points at, each with the trigger for opening it: the comment bar case by
