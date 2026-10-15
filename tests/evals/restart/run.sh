@@ -300,7 +300,7 @@ clean_up() {
   for f in a b parent; do
     [ -s "$dir/$f" ] || continue
     url=$(cat "$dir/$f")
-    for pr in $("$SCRIPTS/pr-sources.sh" "$REPO" "${url##*/}" 2> /dev/null | grep '^https://' || true); do
+    for pr in $("$SCRIPTS/pr-sources.sh" "$REPO" "${url##*/}" 2> /dev/null | awk '/^https:/ { print $1 }'); do
       [ "$(gh pr view "$pr" --json state --jq .state 2> /dev/null)" = OPEN ] \
         && { gh pr close "$pr" --delete-branch --comment "Closed by the restart eval at the end of its run." > /dev/null 2>&1 || true; }
     done

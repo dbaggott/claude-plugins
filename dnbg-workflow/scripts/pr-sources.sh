@@ -6,10 +6,19 @@
 #
 #   pr-sources.sh <owner/repo> <issue>
 #
-# Prints the deduped union as one URL per line, then a result line, then exits 0:
-#   <url>
+# Prints the deduped union, one PR per line, then a result line, then exits 0:
+#   <url> relevance=<closes|sibling|mention|unknown>
 #   ...
 #   result=OK count=<n> closing=<s> search=<s> timeline=<s>
+#
+# `relevance` says whether a PR is the issue's own work, so a caller acting on the
+# union need not re-derive it:
+#   closes   — it carries a closing reference to the issue;
+#   sibling  — a tagged multi-repo sibling: its title starts with `[<head branch>]`,
+#              the pairing `git-workflow`'s "Multi-repo changes" requires;
+#   mention  — neither; it only cites the issue;
+#   unknown  — the PR could not be read, and the closing source did not list it.
+# A PR both closing and tagged reads `closes`.
 #
 #   result=ERROR reason=bad-args      # nothing was queried
 #   result=ERROR reason=all-sources   # every source failed; the URL list is empty
@@ -105,7 +114,8 @@ fi
 #    pair spanning two repos, and `--repo` can only ever return siblings in the
 #    same one — it silently drops the half you most need. Over-inclusion (an
 #    unrelated repo of the same owner mentioning the issue) is the safe
-#    direction; judge relevance from the PR, don't narrow the query.
+#    direction; `relevance` below judges it from the PR, so don't narrow the
+#    query.
 search=ok
 search_urls=""
 if RAWS=$(gh search prs --owner "$OWNER" "https://github.com/$REPO/issues/$ISSUE" \
@@ -128,5 +138,26 @@ fi
 urls=$(printf '%s\n%s\n%s\n' "$closing_urls" "$xref_urls" "$search_urls" \
          | grep -v '^[[:space:]]*$' | sort -u || true)
 
-[ -n "$urls" ] && printf '%s\n' "$urls"
+# One read per PR, rather than trusting the closing source alone: that source can
+# fail while the rest answer, and the PR's own closing references still say
+# whether it closes the issue.
+ISSUE_URL="https://github.com/$REPO/issues/$ISSUE"
+relevance_of() {  # <pr-url>
+  printf '%s\n' "$closing_urls" | grep -qxF "$1" && { echo closes; return; }
+  local j
+  j=$(gh pr view "$1" --json title,headRefName,closingIssuesReferences 2>/dev/null) \
+    || { echo unknown; return; }
+  echo "$j" | jq -r --arg issue "$ISSUE_URL" '
+      if any((.closingIssuesReferences // [])[];
+             (.url // "" | ascii_downcase) == ($issue | ascii_downcase)) then "closes"
+      elif (.headRefName // "") as $h
+           | $h != "" and ((.title // "") | startswith("[" + $h + "]")) then "sibling"
+      else "mention" end' 2>/dev/null || echo unknown
+}
+
+if [ -n "$urls" ]; then
+  while IFS= read -r u; do
+    printf '%s relevance=%s\n' "$u" "$(relevance_of "$u")"
+  done <<<"$urls"
+fi
 echo "result=OK count=$(printf '%s' "$urls" | grep -c . || true) closing=$closing search=$search timeline=$timeline"

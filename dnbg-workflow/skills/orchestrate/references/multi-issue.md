@@ -86,9 +86,11 @@ one per issue:
   --role=orchestrator --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
-Re-arm it from its `── re-arm ──` line, which drops each issue that closed.
+Arm it with `--exclude` carrying the mentions step 3 found on each child, and
+re-arm it from its `── re-arm ──` line, which drops each issue that closed.
 When the ready set shows an open child the watch does not cover, stop the watch
-and arm a new one over the set, with `--since` from the stopped one's.
+and arm a new one over the set, with `--since` and `--exclude` from the stopped
+one's, adding the new child's mentions.
 
 Keep, per child, what its author's last report said it is waiting for, when the
 report ends on a wait rather than a question or a result. Several authors can

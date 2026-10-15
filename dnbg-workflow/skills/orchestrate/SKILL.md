@@ -65,9 +65,18 @@ start are the same path.
      `--claim`, which re-marks it under your id. On no, stop.
    - `ERROR` — the claim could not be read. Say so and stop.
 3. **Open PRs.** `pr-sources.sh <owner>/<repo> <n>`, then
-   `gh pr view <url> --json state,isDraft,headRefOid` on each. An open PR is a
-   predecessor's work, which the author you dispatch continues rather than
-   restarts. Read the per-source fields before treating `count=0` as none, as
+   `gh pr view <url> --json state,isDraft,headRefOid` on each. It lists every
+   PR that mentions the issue, in any repo of the owner, so go by `relevance=`:
+   - `closes` or `sibling` — an open one is a predecessor's work, which the
+     author you dispatch continues rather than restarts;
+   - `mention`, or `unknown` when the PR could not be read — not shown to be
+     the issue's work. Name each open one to the operator, saying when one
+     looks like the issue's work, and hand it to the author only if the
+     operator says so.
+     Pass every `mention`, open or not, as `--exclude` when you arm the issue
+     watch, which otherwise wakes on each.
+
+   Read the per-source fields before treating `count=0` as none, as
    `issue-workflow`'s `references/resolving.md` describes.
 4. **The log.** Read every comment on the issue. What is still open: a
    `Delegated question:` that no row's **Question** line links, a `proposed`
@@ -105,7 +114,8 @@ already the author's: a subagent shares your session id, so its pickup reads
 > `<skill-dir>/references/retrospective.md`, and report under Summary,
 > Observations, Actionable, and Retrospective, the last giving the file's path.
 
-The first bracketed line goes in only when step 3 found an open PR, the second
+The first bracketed line goes in only when step 3 found an open `closes` or
+`sibling` PR, or the operator handed one over, the second
 only for `decided` rows the body does not yet carry. In both recipes,
 `<skill-dir>` is written out as the absolute path, since the agent has not
 loaded this skill.
@@ -150,7 +160,8 @@ Never poll in the conversation. Each event reaches you as one of these:
 
   ```bash
   "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> \
-    --role=orchestrator --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    --role=orchestrator --since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    [--exclude=<step 3's mentions, comma-separated>]
   ```
 
   It wakes on comments, linked PRs, and the issue closing, never on a body edit
