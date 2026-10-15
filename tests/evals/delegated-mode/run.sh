@@ -4,7 +4,7 @@
 # `AskUserQuestion`, record a question it cannot answer where the dispatcher
 # finds it, or decide it silently?
 #
-# A parent `claude -p` dispatches one `dnbg-workflow:orchestrated-author`
+# A parent `claude -p` dispatches one `dnbg-workflow:author-orchestrated`
 # subagent, the agent `orchestrate` dispatches authors as, to resolve a fixture
 # issue. The parent only relays; the subagent is what is under test.
 # FIXTURE picks the issue:
@@ -110,7 +110,7 @@ for d in "${path_dirs[@]}"; do
 done
 
 read -r -d '' PROMPT <<EOF || true
-Dispatch exactly one dnbg-workflow:orchestrated-author subagent with the Agent
+Dispatch exactly one dnbg-workflow:author-orchestrated subagent with the Agent
 tool, with this task and nothing added: "Resolve $ISSUE_URL. The repository is checked out in
 the current directory." Do none of the work yourself. When the subagent
 finishes, reply with its final message verbatim and nothing else.

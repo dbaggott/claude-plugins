@@ -46,7 +46,7 @@ the steps below.
 ## 4. Re-review what changed materially
 
 When the ready set's `parent.spec_review` is true, dispatch `issue-reviewer`, as
-`dnbg-workflow:orchestrated-reviewer`, on the children whose acceptance
+`dnbg-workflow:reviewer-orchestrated`, on the children whose acceptance
 criteria changed, or whose body changed in a section their `Covers` line cites.
 The rest are not re-reviewed.
 

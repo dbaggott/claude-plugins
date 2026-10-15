@@ -94,8 +94,8 @@ alongside the dispatch.
 ## Dispatch the author, then the reviewer
 
 Each goes through the Agent tool, in the background, as this plugin's agent for
-its role: the author as `dnbg-workflow:orchestrated-author`, the reviewer as
-`dnbg-workflow:orchestrated-reviewer`.
+its role: the author as `dnbg-workflow:author-orchestrated`, the reviewer as
+`dnbg-workflow:reviewer-orchestrated`.
 A background subagent that ends its turn with a watch still running is woken
 when that watch returns, so each keeps its own watch across its turns.
 Each also shares your scratchpad directory, so a draft file at a chosen name
