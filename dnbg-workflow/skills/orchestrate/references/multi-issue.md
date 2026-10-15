@@ -90,9 +90,9 @@ one per issue:
   --role=orchestrator --since=<SKILL.md step 1's fetch-issue-set.sh now=>
 ```
 
-Arm it with `--exclude` carrying the URLs of the PRs step 3 found on each child, and
-re-arm it from its `── re-arm ──` line, which drops each issue that closed.
-When the ready set shows an open child the watch does not cover, stop the watch
+Arm it with `--exclude` carrying the URLs of the PRs step 3 found on each
+child, and re-arm it from its `── re-arm ──` line, which drops each issue
+that closed. When the ready set shows an open child the watch does not cover, stop the watch
 and arm a new one over the set, with `--since` and `--exclude` from the stopped
 one's, adding the new child's PR URLs.
 

@@ -188,10 +188,10 @@ Never poll in the conversation. Each event reaches you as one of these:
 
   `ERROR` is not a quiet issue: don't re-arm. `reason=bad-args` is your own
   command refused before it polled, so fix it and re-run; any other reason,
-  check `gh auth status` and tell the operator. `IDLE` is re-armed. A `linked-pr` wake for the author's PR
-  needs nothing, since the author reports it; any other PR is someone else's
-  work on the issue, so tell the operator. `CLOSED` is the issue closing, and
-  the watch ends with it. If the author's last turn ended on a wait or on its
+  check `gh auth status` and tell the operator. `IDLE` is re-armed. A
+  `linked-pr` wake for the author's PR needs nothing, since the author reports
+  it; any other PR is someone else's work on the issue, so tell the operator.
+  `CLOSED` is the issue closing, and the watch ends with it. If the author's last turn ended on a wait or on its
   merge handoff, its final report follows. Otherwise its watch is gone, so take the safety net: read the
   PR, and continue the author to run its post-merge cleanup and send its final
   report when it merged, or ask the operator when it did not.
