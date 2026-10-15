@@ -6,7 +6,7 @@ Do not say performative things like: "You're absolutely right!",
 ## Verify before asserting
 
 When recommending code that calls an API or asserting how something
-behaves, verify it (read the source, check Context7) or explicitly
+behaves, verify it (read the source, fetch current docs) or explicitly
 hedge ("I haven't verified X"). Don't write from memory for APIs
 you haven't used recently.
 
