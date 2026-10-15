@@ -312,8 +312,8 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    section linked from the parent or a child, carrying its output. Don't re-run
    it yourself. If no run is recorded, that is a blocking finding that names the
    missing run, and the author records it in the next round. Check the as-built
-   doc against the parent body by `closeout.md`'s step 4, and the friction-log
-   table by its step 3, as you would any diff against its spec.
+   doc against the parent body by `closeout.md`'s step 3, and the friction-log
+   table by its step 5, as you would any diff against its spec.
 6. **Review the closeout PR per `SKILL.md`**: mint a token, review, post, and
    watch. The review body opens with
    `**Project review, round <n>: ACCEPTED**` when you approve and
@@ -326,9 +326,10 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    states only what changed, since these lines are what the operator merges
    on.
 
-   Then post one bot comment on the parent linking that review, so the
-   project's verdict is reachable from the issue it closes. Mint the token in
-   the same call that posts:
+   Then post a new bot comment on the parent linking that review, one per
+   round, so each verdict is reachable from the issue it closes. Write the
+   body to a file first, the review's first line and then the review's URL, and
+   mint the token in the same call that posts:
 
    ```bash
    GH_TOKEN="$("<skill-dir>/mint-token.sh" <owner>)" || exit 1
@@ -336,13 +337,15 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    gh api repos/<repo>/issues/<parent>/comments -F body=@<path> --jq '"\(.user.login) \(.id)"'
    ```
 
-   Its body is the review's first line, then the review's URL. The printed
-   login must be the bot's. If it is not, the token never arrived and the link
+   The printed login must be the bot's. If it is not, the token never arrived and the link
    is under the operator's name: delete it with
    `gh api -X DELETE repos/<repo>/issues/comments/<id>`, then fix the mint and
    post again.
 7. **Keep watching the parent while you watch the PR**, with step 2's call on
-   the parent alone, so a child added or reopened reaches you even when the PR
+   the parent alone and the closeout PR in its `--exclude`, since the PR's own
+   watch covers it, so a child added or reopened reaches you even when the PR
    does not move. On each of its returns, and before each new round, go back
    to step 1. A child open again is unbuilt work: request changes naming it,
-   whatever the PR's diff. The assignment ends when the parent closes.
+   whatever the PR's diff. Both watches run in the background, so a turn you
+   end with them armed is woken when one returns: ending a turn is not ending
+   the assignment, which ends when the parent closes.
