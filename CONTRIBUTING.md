@@ -101,7 +101,9 @@ applied — you cannot set labels from a fork.
 
 ```bash
 shellcheck $(find . \( -name '*.sh' -o -name '*.bash' \) -not -path './.git/*')
-parallel --version | grep -q 'GNU parallel' && npx --yes bats@1.13.0 -j 8 tests/
+if parallel --version 2>/dev/null | grep -q 'GNU parallel'; then
+  npx --yes bats@1.13.0 -j 8 tests/
+else echo 'No GNU parallel: run npx --yes bats@1.13.0 tests/ instead'; fi
 jq empty .claude-plugin/marketplace.json
 jq -r '.plugins[].source' .claude-plugin/marketplace.json \
   | xargs -I{} find {} -name '*.json' | xargs -n1 jq empty
@@ -110,13 +112,12 @@ actionlint                                  # brew install actionlint
 docs/media/check-render.sh                  # README demos; a hook reword stales one
 ```
 
-The bats line is CI's: `-j` needs GNU `parallel` (moreutils ships an unrelated
-one, which the guard rejects), and without it bats runs no tests at all. The
-guard fails silently, so if that line prints nothing, run
-`npx --yes bats@1.13.0 tests/` serially instead. Judge a run by
-bats' own exit status and its last line, never by piping it into a `not ok`
-filter: the pipe reports the filter's status, not bats', and a last line of
-`bats warning: Executed 0 instead of expected N tests` means nothing ran.
+The bats command is CI's, behind CI's guard: `-j` needs GNU `parallel`
+(moreutils ships an unrelated one), and without it bats runs no tests at all.
+Judge a run by bats' own exit status and its last line, never by piping it into
+a `not ok` filter: the pipe reports the filter's status, not bats', and a last
+line of `# bats warning: Executed 0 instead of expected N tests` means nothing
+ran.
 
 Two of those are narrower than the CI step they stand for, so a green run here
 is good evidence rather than a guarantee. The `jq` lines are only the JSON-parse
