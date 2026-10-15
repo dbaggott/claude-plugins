@@ -221,7 +221,7 @@ is not in scope for this one and the post silently runs as you.
 ```bash
 GH_TOKEN="$("<skill-dir>/../reviewer/mint-token.sh" <owner>)" || exit 1
 export GH_TOKEN
-gh api repos/<repo>/issues/<n>/comments -F body=@<path> --jq .user.login
+gh api repos/<repo>/issues/<n>/comments -F body=@<path> --jq '.user.login + " " + .created_at'
 ```
 
 ⚠️ **The printed login is the identity check, and it must be the bot's.** A

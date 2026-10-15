@@ -157,11 +157,12 @@ Never poll in the conversation. Each event reaches you as one of these:
   printed. Otherwise continue it with what the state shows is still owed.
 - **The issue watch**, armed once at start and re-armed from its own
   `── re-arm ──` line, always in the background. The first arm's `--since`
-  follows the first-arm rule in `watch-issue.sh`'s header: the time you noted before step 4 read the comments.
+  follows the first-arm rule in `watch-issue.sh`'s header: step 1's
+  `fetch-issue-set.sh` `now=`, taken before step 4 read the comments.
 
   ```bash
   "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> \
-    --role=orchestrator --since=<the time you noted before step 4> \
+    --role=orchestrator --since=<step 1's now=> \
     [--exclude=<step 3's PRs, comma-separated>]
   ```
 

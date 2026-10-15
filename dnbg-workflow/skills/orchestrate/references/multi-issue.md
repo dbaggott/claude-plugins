@@ -87,7 +87,7 @@ one per issue:
 
 ```bash
 "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <parent> <open child…> \
-  --role=orchestrator --since=<the time you noted before the reads on start>
+  --role=orchestrator --since=<SKILL.md step 1's fetch-issue-set.sh now=>
 ```
 
 Arm it with `--exclude` carrying the PRs step 3 found on each child, and

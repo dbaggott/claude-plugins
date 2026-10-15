@@ -513,7 +513,7 @@ jq -n --arg body "<summary / non-inline findings as markdown>" \
       {path: "db/users.py",  line: 88, body: "<merge-blocking finding>"}
     ]}' \
   | gh api repos/<repo>/pulls/<n>/reviews --input - \
-      --jq '{state, commit_id, user: .user.login}'
+      --jq '{state, commit_id, user: .user.login, submitted_at}'
 ```
 
 For comment bodies that themselves contain quotes/newlines, pass each via its own
@@ -603,9 +603,9 @@ whatever changed meanwhile. If you quit the session, re-invoke the skill on the
 PR to resume (it re-assesses current state and picks the watch back up).
 
 1. **Record state** after each action: the HEAD SHA you last reviewed, a
-   timestamp marking "handled up to here" (on the first arm, the time you noted
-   just before posting the review, per the first-arm rule in `watch-issue.sh`'s
-   header; a re-arm runs the printed `── re-arm ──` line, which carries it, per
+   timestamp marking "handled up to here" (on the first arm, the review's
+   `submitted_at`, which the post above prints, per the first-arm rule in
+   `watch-issue.sh`'s header; a re-arm runs the printed `── re-arm ──` line, which carries it, per
    `references/watch.md`), and the SHA of the verdict you last handled — nothing
    yet, on a first arm.
 

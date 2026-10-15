@@ -1206,7 +1206,7 @@ arm_violations() {  # <file>...
       fence = ""
     }
     BEGIN {
-      ARM = "(spawn|re-arm|arm)(s|ed|ing)? (it|them|(the|a|one) (fresh |new |second )?(background )?(issue |pr |set |merge )?(watch|watcher|wait|poll)|`?watch-(pr|issue)\\.sh)"
+      ARM = "(spawn|re-arm|arm)(s|ed)? (it|them|(the|a|one) (fresh |new |second )?(background )?(issue |pr |set |merge )?(watch|watcher|wait|poll)|`?watch-(pr|issue)\\.sh)"
     }
     FNR == 1 { flush(); infence = 0 }
     /^[[:space:]]*```/ {
