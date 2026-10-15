@@ -11,6 +11,15 @@ the issue's body already answers, take the rest to the operator, and record
 every answer on the issue. The operator's attention goes only to escalations and
 the merge.
 
+**You own coordination state, never artifact state.** Coordination is claims,
+dispatch and ordering, questions and answers, the decision log, retrospectives,
+and the safety nets for an agent that died or stalled. Artifacts are the PR and
+whether it can merge, CI, the branch, the body of the issue being resolved,
+and the review verdict. Every judgment about an artifact is the
+author's or the reviewer's: relay it and record it. Read an artifact's state
+only to decide whom to dispatch, wake, or ask, never to form a view of it that
+competes with its owner's.
+
 A tracking issue is driven child by child, each through this flow, by the loop
 in `references/multi-issue.md`, which applies design changes per
 `references/design-change.md`. Closing out a finished tracking issue is a
@@ -66,9 +75,9 @@ start are the same path.
    last row.
 5. **The design.** Read the issue body. Its "Proposed approach", rejected
    alternatives, acceptance criteria, and open questions with their defaults
-   are what you triage against. Run `issue-workflow`'s critical review on it
-   now: a body you believe is wrong is an escalation before any dispatch, not a
-   problem to hand the author.
+   are what you triage against. Don't probe it against the tree or review it:
+   both are the author's at pickup, under `issue-workflow`, and what the author
+   finds reaches you as a question.
 
 Then answer anything step 4 found open, under "Answer or escalate", before or
 alongside the dispatch.
@@ -87,19 +96,23 @@ already the author's: a subagent shares your session id, so its pickup reads
 > reviewer feedback; never merge. You were dispatched by an orchestrator, so
 > follow `issue-workflow`'s `references/delegated.md` wherever a skill asks
 > the operator something. The issue is already claimed under your session id.
-> [Continue `<PR URL>`, which is already open for it.] When you send the PR to
-> review, end your turn with its URL. When it merges, finish the post-merge
-> cleanup, write a retrospective per
+> [Continue `<PR URL>`, which is already open for it.] [Promote these decided
+> rows into the issue body, linking each: `<row URLs>`.] When you send the PR to
+> review, end your turn with its URL. When the review is clean, re-arm your
+> merge watch and end your turn with your merge handoff. If the PR closes
+> unmerged, end your turn saying so. When it merges, finish
+> the post-merge cleanup, write a retrospective per
 > `<skill-dir>/references/retrospective.md`, and report under Summary,
 > Observations, Actionable, and Retrospective, the last giving the file's path.
 
-The bracketed line goes in only when step 3 found an open PR. In both recipes,
+The first bracketed line goes in only when step 3 found an open PR, the second
+only for `decided` rows the body does not yet carry. In both recipes,
 `<skill-dir>` is written out as the absolute path, since the agent has not
 loaded this skill.
 
-**The reviewer**, when the PR leaves draft (the PR watch's `READY`), or at once
-when step 3 found the PR already out of draft. Skip it when the operator said
-they will review the PR themselves.
+**The reviewer**, when the author's turn ends with its PR URL at
+send-to-review, or at once when step 3 found the PR already out of draft. Skip
+it when the operator said they will review the PR themselves.
 
 > Act as the reviewer on `<issue URL>`, in `reviewer`'s issue mode. You were
 > dispatched by an orchestrator, so follow `issue-workflow`'s
@@ -108,17 +121,30 @@ they will review the PR themselves.
 > `<skill-dir>/references/retrospective.md`, and end your final report with a
 > **Retrospective** section giving the file's path.
 
-## Wait on three sources
+## Wait on two sources
 
 Never poll in the conversation. Each event reaches you as one of these:
 
-- **Subagent notifications.** The author's questions arrive as its turn-end
-  report, and so do "sent to review" and its final report. A notification that
-  says the agent is waiting on its own background work means its watch is
-  armed. One that says it finished with no question in its report, while its PR
-  is open and out of draft, means it has no watch left: continue it with
-  `SendMessage`, telling it to re-arm its PR watch from the last `── re-arm ──`
-  line it printed.
+- **Subagent notifications.** Every turn an agent ends is a report. Act on what
+  it ends with:
+  - a question — triage it, under "Answer or escalate";
+  - the author's PR URL at send-to-review — dispatch the reviewer, unless one
+    is already reviewing that PR;
+  - the author's merge handoff — relay it, under "Relay the merge handoff";
+    its merge watch is armed;
+  - the author's reminder that the PR is still open and needs merging — relay
+    it the same way; its merge watch has stopped;
+  - the author's final report, or the reviewer's end — go to "Stop" once both
+    are in;
+  - the author's report that its PR closed unmerged — ask the operator whether
+    to dispatch a new author or stop;
+  - a wait on its own background work — its watch is armed, so nothing.
+
+  A turn that ends on none of these while work remains is the safety net:
+  read the PR with `gh pr view <url> --json state,isDraft`. An open PR out of
+  draft means the agent has no watch left: continue it with `SendMessage`,
+  telling it to re-arm its PR watch from the last `── re-arm ──` line it
+  printed. Otherwise continue it with what the state shows is still owed.
 - **The issue watch**, armed once at start and re-armed from its own
   `── re-arm ──` line, always in the background:
 
@@ -143,40 +169,17 @@ Never poll in the conversation. Each event reaches you as one of these:
   | anything else under the operator's login | the operator, or the author's progress | read it; act only if it states a decision |
 
   An operator comment that states a decision is a decision: log it as
-  `decided`, promote it into the body, and send it to any agent it affects. One
+  `decided` and handle it as any decided row, under "Answer or escalate". One
   that does not is noted and changes nothing.
-- **The PR watch**, armed once a PR exists (the issue watch's `linked-pr`, or
-  the author's report), in the background, with the same author role the author
-  uses, so it sees the bot's reviews and the PR's state. Add `--was-draft` while
-  the PR is a draft:
 
-  ```bash
-  WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <pr> \
-    "<head>" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "" --role=author --last-verdict= \
-    [--was-draft]
-  ```
-
-  `<head>` is the full SHA from `gh pr view <pr> --json headRefOid`. Re-arm
-  from its `── re-arm ──` line, carrying `verdict_sha` into `--last-verdict`
-  when a result names one. What a result asks of you:
-  - `READY` — the PR left draft: dispatch the reviewer.
-  - `ACTIVITY` — a review round. The author handles it; if its last
-    notification said it finished, continue it as above. When
-    `pr-verdict.sh <owner>/<repo> <pr>` reads `verdict=APPROVED at_head=1
-    reviewed_after_head=1`, tell the operator the PR is ready to merge, with
-    its URL.
-  - `CLOSED state=MERGED` — go to "Stop". `CLOSED state=CLOSED` — tell the
-    operator the PR was closed unmerged and ask whether to dispatch a new
-    author or stop.
-  - `DIRTY` — tell the operator. Re-spawn the watch once the author reports the
-    conflict resolved.
-  - `IDLE` — routine while a round is being worked; re-arm.
-  - `ERROR` — the watch cannot see. Do not re-arm; check `gh auth status` and
-    tell the operator.
-
-The issue watch's `ERROR`, `IDLE`, and `CLOSED` follow the same rules: `ERROR`
-is not a quiet issue, `IDLE` is re-armed, and `CLOSED` is the issue closing, so
-check the PR's state and go to "Stop" if it merged.
+  `ERROR` is not a quiet issue: don't re-arm; check `gh auth status` and tell
+  the operator. `IDLE` is re-armed. A `linked-pr` wake for the author's PR
+  needs nothing, since the author reports it; any other PR is someone else's
+  work on the issue, so tell the operator. `CLOSED` is the issue closing, and
+  the watch ends with it. If the author's last turn ended on a wait or on its
+  merge handoff, its final report follows. Otherwise its watch is gone, so take the safety net: read the
+  PR, and continue the author to run its post-merge cleanup and send its final
+  report when it merged, or ask the operator when it did not.
 
 ## Answer or escalate
 
@@ -200,17 +203,41 @@ Every answer, every escalation outcome, and every application of a decision
 already in the log to a new case is a row. Applying a prior decision without a
 row is the failure the log exists to prevent.
 
-After each `decided` row, promote the decision into the issue body per
-`issue-workflow`'s maintenance rule, so a cold reader of the body sees it
-without reading the log.
+A `decided` row is promoted into the issue body by the author, per
+`references/triage.md`.
+
+## Relay the merge handoff
+
+The author ends a turn with its handoff once the review is clean. Read
+`pr-verdict.sh <owner>/<repo> <pr>`. At `verdict=APPROVED at_head=1
+reviewed_after_head=1`, forward the handoff as it stands: the merge command
+exactly as the author composed it, on its own line in a fenced block, and the
+author's report beneath, adding only the verdict and its `verdict_sha`. Any
+other reading, continue the author with it.
+
+Never recompose the command and never hold it for checks: `git-workflow`'s
+`references/merge.md` chose the form for the state the author read, including
+checks still running. A report that says the review is clean but carries no
+handoff: continue the author and ask for one.
+
+## Restart on schedule
+
+Every wake re-sends this session's whole context, so after 40 wakes, or at the
+first context compaction, hand over to a fresh session. Wait until every author
+in flight has its PR out of draft or is waiting on the operator, so a fresh
+author can continue the pushed work. Then check every decision is on the issue,
+and in the parent under a tracking issue, stop your watches and subagents, and
+tell the operator that you are restarting and why: they start a fresh session on
+the same URL, which resumes from GitHub and re-claims under "On start".
 
 ## Stop
 
-Stop when the PR has merged and the issue is closed. Wait for the author's final
-report, since its post-merge cleanup is part of the run, and for the reviewer to
-end. Collect both agents' retrospectives, write your own, and fold the
-project-level items into the parent, all per `references/retrospective.md`. Then
-report the cycle under three headings:
+Stop once the author's final report, which follows the merge and its
+post-merge cleanup, and the reviewer's end are both in. If the issue is still
+open then, say so in the report. Collect both agents'
+retrospectives, write your own, and fold the project-level items into the
+parent, all per `references/retrospective.md`. Then report the cycle under
+three headings:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the

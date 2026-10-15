@@ -38,6 +38,11 @@ decision into it with a link to the row, as `references/triage.md` promotes a
 decided row. The link is the child's record of it: a decision raised on the
 parent gets no `Decision log:` comment on the children it reaches.
 
+A child in flight is its author's to edit. `SendMessage` the author the
+change, the edit it makes to the body, and the row's URL, and ask it to end its
+turn once the edit is in. That report is when the child counts as updated, for
+the steps below.
+
 ## 4. Re-review what changed materially
 
 When the ready set's `parent.spec_review` is true, dispatch `issue-reviewer` on
@@ -49,16 +54,19 @@ section their `Covers` line cites. The rest are not re-reviewed.
 > orchestrator, so follow `issue-workflow`'s `references/delegated.md`
 > wherever a skill asks the operator something.
 
-A child whose latest verdict is newer than your edit in step 3 has had its
-re-review. Answer the rounds as the bodies' writer, per `issue-workflow`'s
+For an in-flight child, dispatch the re-review only once its author has
+reported the edit. A child whose latest verdict is newer than its step 3 edit has had its
+re-review. Answer the rounds as the bodies' writer, relaying them to the author
+for a child in flight, per `issue-workflow`'s
 `references/spec-review-rounds.md`. A finding that asks for a design change is
 an escalation. A re-reviewed child is not dispatched until its latest verdict
 reads `READY`.
 
 ## 5. Tell the agents working on it
 
-`SendMessage` the author and the reviewer of every reached child in flight: the
-change, what in their child's body it changed, and the row's URL.
+`SendMessage` the reviewer of every reached child in flight: the change, what
+in its child's body it changed, and the row's URL. Step 3 already told the
+author.
 
 ## 6. Mark the row applied
 

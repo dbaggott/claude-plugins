@@ -26,7 +26,10 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
    escalation still waiting, and a `decided` row is work to finish before any
    dispatch (`references/design-change.md`). Read every comment on the parent
    newer than the last row for decisions the operator gave there.
-4. **Review the design.** `SKILL.md`'s step 5, run on the parent's body.
+4. **Review the design.** Read the parent's body as `SKILL.md`'s step 5 reads
+   an issue, then run `issue-workflow`'s critical review on it: the parent is
+   yours, not an author's, and a design you believe is wrong is an escalation
+   before any dispatch.
 5. **Arm the set watch** (below), then run the loop.
 
 ## The loop
@@ -75,7 +78,7 @@ child that closes without a merged PR: tell the operator.
 
 ## Waiting
 
-`SKILL.md`'s three sources, with one issue watch over the whole set instead of
+`SKILL.md`'s two sources, with one issue watch over the whole set instead of
 one per issue:
 
 ```bash
@@ -85,8 +88,7 @@ one per issue:
 
 Re-arm it from its `── re-arm ──` line, which drops each issue that closed.
 When the ready set shows an open child the watch does not cover, stop the watch
-and arm a new one over the set, with `--since` from the stopped one's. Each PR
-gets its own PR watch, as in `SKILL.md`.
+and arm a new one over the set, with `--since` from the stopped one's.
 
 Keep, per child, what its author's last report said it is waiting for, when the
 report ends on a wait rather than a question or a result. Several authors can
@@ -119,9 +121,10 @@ Every `decided` row, an answer to one child's question included, is finished
 through `references/design-change.md`, whose last step marks it `applied`. A
 row left at `decided` reads as unfinished work on every later loop and restart.
 
-You are the parent body's only writer. Edit it by reading the body, changing
-it, and writing it back with `gh issue edit <parent> --body-file <file>`, and
-re-read it just before each write.
+You are the parent body's only writer. A child's body is its author's, per
+`SKILL.md`; you edit one only in a design change's sweep of a child not yet
+dispatched (`references/design-change.md`). Edit a body by reading it, changing it, and writing it back with
+`gh issue edit <n> --body-file <file>`, and re-read it just before each write.
 
 **An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
 the loop pauses until they answer, and the events that arrived meanwhile are
@@ -154,16 +157,6 @@ Before writing the parent, if its body passes 50,000 characters, move every
 table row whose child is closed and whose state is final into one comment
 opening `Decision log: archived rows`, and leave one row in its place pointing
 at that comment. `proposed` rows and `decided` rows not yet applied stay.
-
-## Restart on schedule
-
-Every wake re-sends this session's whole context, so after 40 wakes, or at the
-first context compaction, hand over to a fresh session. Wait until every author
-in flight has its PR out of draft or is waiting on the operator, so a fresh
-author can continue the pushed work. Then check every decision is in the
-parent, stop your watches and subagents, and tell the operator that you are
-restarting and why: they start a fresh session on the parent's URL, which
-resumes from the parent and re-claims under "On start".
 
 ## Project review
 
