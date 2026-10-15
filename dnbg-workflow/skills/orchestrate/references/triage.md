@@ -43,16 +43,20 @@ a difference between the two is itself an escalation.
 ## Run a branch-loaded session
 
 Launch it as a background Bash task, from a local clone of the repository the
-run targets:
+run targets, with the prompt on stdin so the shell expands nothing in it:
 
 ```bash
-cd <clone> && claude -p --verbose --output-format stream-json \
-  --session-id <uuid> --permission-mode <mode> \
-  --plugin-dir <worktree>/<plugin> \
-  "<prompt>" > <log> 2>&1
+cd <clone> && env -u CLAUDE_CODE_SESSION_ID claude -p --verbose \
+  --output-format stream-json --session-id <uuid> --setting-sources "" \
+  --permission-mode <mode> --plugin-dir <worktree>/<plugin> \
+  <<< "<prompt>" > <log> 2>&1
 ```
 
+- **`env -u CLAUDE_CODE_SESSION_ID`** keeps your session id out of the run, which
+  would otherwise claim issues as you and read your claims as its own.
 - **`<uuid>`** comes from `uuidgen`, so you hold the id to resume it by.
+- **`--setting-sources ""`** keeps the installed copy of the plugin out, so the
+  run loads the branch's and nothing else's.
 - **`<mode>`** is your own session's permission mode, since a headless session
   cannot answer a prompt. If yours is not `bypassPermissions`, ask the operator
   which mode the run gets in (f)'s one message.
@@ -66,13 +70,15 @@ it themselves.
 
 **When the session exits before its merge.** A print session ends once its main
 turn has nothing left to wait on, which can be its merge handoff, and its
-subagents' watches end with it. Wait for the operator's merge, then resume it:
+subagents' watches end with it. Its exit wakes you: relay the merge handoff from
+the log's final `result` line, and when the operator says the PR merged, read it
+to confirm, then resume the session:
 
 ```bash
-cd <clone> && claude -p --verbose --output-format stream-json \
-  --resume <uuid> --permission-mode <mode> \
-  --plugin-dir <worktree>/<plugin> \
-  "<PR URL> merged. Continue your author and reviewer to their final reports, then Stop." \
+cd <clone> && env -u CLAUDE_CODE_SESSION_ID claude -p --verbose \
+  --output-format stream-json --resume <uuid> --setting-sources "" \
+  --permission-mode <mode> --plugin-dir <worktree>/<plugin> \
+  <<< "<PR URL> merged. SendMessage your author and reviewer by their agent ids to finish, then Stop." \
   >> <log> 2>&1
 ```
 
@@ -80,10 +86,11 @@ Read its outcome from the log's final `result` lines.
 
 **Evidence about processes.** The author's record comes from the forge and the
 `init` line. When a criterion is about processes, such as no `<script>` spawned
-by role X, sample `ps -axo pid,ppid,command` on an interval until the run's
-process exits. Attribute each process by its arguments, the target repository
-and issue, never by a bare `pgrep`: other sessions on this machine run the same
-scripts. The samples go to the author for its record.
+by role X, start a second background task beside the run that appends
+`ps -axo pid,ppid,command` to a scratchpad file every few seconds and ends when
+the run's process does. Attribute each process by its arguments, the target
+repository and issue, never by a bare `pgrep`: other sessions on this machine
+run the same scripts. The samples go to the author for its record.
 
 ## The row
 
