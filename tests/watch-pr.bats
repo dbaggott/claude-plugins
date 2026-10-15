@@ -876,6 +876,16 @@ EOF
   [[ "${lines[-1]}" == "result=CHECKS checks='lint'"* ]]
 }
 
+# Until the live run's copy of a `needs:` job appears, the cancelled one is the
+# newest there is.
+@test "a cancelled check with no live copy yet is not a CHECKS wake" {
+  echo '[{"name":"ci-required","workflowName":"CI","status":"COMPLETED","conclusion":"CANCELLED","startedAt":"0001-01-01T00:00:00Z","completedAt":"2026-01-01T00:01:00Z"},
+         {"name":"lint","workflowName":"CI","status":"IN_PROGRESS","conclusion":"","startedAt":"2026-01-01T00:01:00Z"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=6 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "${lines[-1]}" != *"checks="* ]]
+}
+
 @test "a failed run superseded by a pending one is not a CHECKS wake" {
   echo '[{"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"},
          {"name":"lint","workflowName":"CI","status":"IN_PROGRESS","conclusion":"","startedAt":"2026-01-01T00:01:00Z"}]' > "$ROLLUP"

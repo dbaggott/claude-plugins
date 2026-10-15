@@ -68,9 +68,14 @@ line() { tail -1 <<<"$1"; }
                {"name":"b","status":"COMPLETED","conclusion":"TIMED_OUT"}]'
   run "$FETCH" o/r 1
   [ "$(obj "$output" | jq -r '.merge.cause')" = checks_failing ]
-  # Finished, but only the timeout is a failure: a cancelled run says nothing
-  # about the code.
-  [ "$(obj "$output" | jq -r '[.checks[].state] | join(",")')" = "neutral,failure" ]
+  [ "$(obj "$output" | jq -r '[.checks[].state] | join(",")')" = "cancelled,failure" ]
+}
+
+# Cancelled is kept apart from failure for the watch, but it still blocks a merge.
+@test "a cancelled newest check alone still blocks as failing" {
+  pr BLOCKED '[{"name":"test","status":"COMPLETED","conclusion":"CANCELLED"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '.merge.cause')" = checks_failing ]
 }
 
 # A second workflow run on one head leaves the first run's checks in the rollup.
@@ -92,6 +97,15 @@ line() { tail -1 <<<"$1"; }
   [ "$(obj "$output" | jq -r '[.checks[].state] | join(",")')" = "pending,pending" ]
 }
 
+# The superseded run's needs: job was still queued when it was cancelled, so it
+# never started; the live run's copy then started and failed.
+@test "a check cancelled before it started is older than the live run's" {
+  pr BLOCKED '[{"name":"ci-required","workflowName":"CI","status":"COMPLETED","conclusion":"CANCELLED","startedAt":"0001-01-01T00:00:00Z","completedAt":"2026-01-01T00:01:00Z"},
+               {"name":"ci-required","workflowName":"CI","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:05:00Z","completedAt":"2026-01-01T00:06:00Z"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -c '.checks')" = '[{"name":"ci-required","state":"failure"}]' ]
+}
+
 @test "same-named checks in different workflows are both kept" {
   pr BLOCKED '[{"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"2026-01-01T00:05:00Z"},
                {"name":"lint","workflowName":"Docs","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"}]'
@@ -105,17 +119,18 @@ line() { tail -1 <<<"$1"; }
   [ "$(obj "$output" | jq -r '.merge.cause')" = terminal ]
 }
 
-# Four states out, whatever the forge calls them. A running CheckRun and a
+# Five states out, whatever the forge calls them. A running CheckRun and a
 # PENDING StatusContext are the same thing to a caller, and a caller that had to
 # tell them apart would read one of them as failed.
-@test "check states are normalised to success, failure, pending or neutral" {
+@test "check states are normalised to success, failure, cancelled, pending or neutral" {
   pr BLOCKED '[{"name":"a","status":"COMPLETED","conclusion":"SUCCESS"},
                {"name":"b","status":"IN_PROGRESS","conclusion":""},
                {"name":"c","status":"COMPLETED","conclusion":"TIMED_OUT"},
                {"name":"d","status":"COMPLETED","conclusion":"SKIPPED"},
-               {"context":"e","state":"PENDING"}]'
+               {"context":"e","state":"PENDING"},
+               {"name":"f","status":"COMPLETED","conclusion":"CANCELLED"}]'
   run "$FETCH" o/r 1
-  [ "$(obj "$output" | jq -r '[.checks[].state] | join(",")')" = "success,pending,failure,neutral,pending" ]
+  [ "$(obj "$output" | jq -r '[.checks[].state] | join(",")')" = "success,pending,failure,neutral,pending,cancelled" ]
 }
 
 # Two rollup shapes reach the same field. A StatusContext carries no
