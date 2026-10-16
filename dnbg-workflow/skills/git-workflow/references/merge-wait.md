@@ -49,7 +49,8 @@ re-arm carries the flag forward for you.
 Don't re-assemble it by hand. Reading the clock for `since` drops whatever the
 reviewer posted while you were composing the handoff, and dropping
 `--last-checks` re-fires a red check the caller was already told about on the
-merge watch's first tick.
+merge watch's first tick. When there is no line to edit, "No re-arm line" below
+builds it from GitHub instead.
 
 **Spawn it — the edited re-arm line above — the moment a review comes back clean**, before telling the operator
 the PR is ready — the claim "I am watching for the merge now" has to be about a
@@ -71,6 +72,34 @@ means the schema moved and wants the enum capture re-run.
 When the operator says anything about the merge — kicking it off or asserting it
 is done — verify the state before acting on the words, per
 `references/post-merge.md`.
+
+### No re-arm line
+
+The review watch was killed without a result, or you took the PR over from an
+author who armed it: either way there is no line to edit. Read what the merge
+watch needs from GitHub:
+
+```bash
+"<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
+gh pr view <num> --repo <owner>/<repo> --json reviews \
+  --jq '[.reviews[] | select(.state == "APPROVED")] | last | .submittedAt'
+```
+
+Go on only when the first prints `verdict=APPROVED at_head=1
+reviewed_after_head=1`, with `review_decision` empty or `APPROVED`. Anything
+less means the review is not clean, and the watch to arm is the review one in
+`references/review-rounds.md`. Then spawn this in place of the edited re-arm
+line, in the background with `timeout: 7200000`:
+
+```bash
+WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
+  <head> <submittedAt> "" --role=author --last-verdict=<verdict_sha> --merge-stage
+```
+
+`<head>` and `<verdict_sha>` are those fields of the `pr-verdict.sh` line, both
+full SHAs. `since` is the approval's `submittedAt` rather than the clock, so a
+comment posted after the approval still wakes the watch. Leave `--last-checks`
+off: nobody has told you about a red check, so the first tick should.
 
 ### On `result=BLOCKED cause=terminal`
 
