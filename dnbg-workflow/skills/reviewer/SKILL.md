@@ -508,35 +508,43 @@ their own diff.
 
 **Post one atomic review, through the reviews endpoint, pinned to the SHA you
 reviewed.** The verdict *and* every inline comment land as a single review (one
-review per invocation, not a verdict review plus N separate comment threads). A
-verdict-only review is the same payload with `comments` left out.
+review per invocation, not a verdict review plus N separate comment threads).
 
-`commit_id` is the `<head-sha>` you read the diff at. Without it GitHub attaches
-the review to whatever HEAD is when the POST lands, so a commit pushed while you
-were writing gets a verdict on code you never read. The call re-reads the head
-first and stops if it moved.
+`commit_id` is the full 40-character `<head-sha>` you read the diff at — a
+short one never equals `headRefOid`, so the check below would fail every time.
+Without it GitHub attaches the review to whatever HEAD is when the POST lands,
+so a commit pushed while you were writing gets a verdict on code you never read.
+The call re-reads the head first and stops if it moved; a push in the moment
+between that read and the POST still leaves the review pinned to `<head-sha>`,
+and the watch's next tick sees the newer HEAD.
 
 Write the review body, and each inline comment's body, to its own file from
 `mktemp` (in the scratchpad, when the harness names one) with your file-writing
 tool, and hand each to `jq --rawfile`. Nothing then passes through the shell's
 quoting, so an apostrophe or a newline in a finding cannot break the command —
-which an inline `--arg "<body>"` does:
+which an inline `--arg "<body>"` does. The payload is built before the POST, so
+a file jq cannot read stops the call rather than posting an empty request:
 
 ```bash
 GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
 export GH_TOKEN
 HEAD_NOW="$(gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid)" || exit 1
 [ "$HEAD_NOW" = "<head-sha>" ] || { echo "HEAD moved: <head-sha> -> $HEAD_NOW"; exit 1; }
-jq -n --arg sha "<head-sha>" --rawfile body <body-file> \
+PAYLOAD="$(jq -n --arg sha "<head-sha>" --arg event "<APPROVE or REQUEST_CHANGES>" \
+      --rawfile body <body-file> \
       --rawfile c1 <comment-1-file> --rawfile c2 <comment-2-file> \
-  '{commit_id: $sha, event: "REQUEST_CHANGES", body: $body,
+  '{commit_id: $sha, event: $event,
+    body: ($body + "\n<!-- reviewed-sha: \($sha) -->\n"),
     comments: [
       {path: "api/server.go", line: 42, body: $c1},
       {path: "db/users.py",  line: 88, body: $c2}
-    ]}' \
-  | gh api repos/<repo>/pulls/<n>/reviews --input - \
-      --jq '{state, commit_id, user: .user.login, submitted_at}'
+    ]}')" || exit 1
+gh api repos/<repo>/pulls/<n>/reviews --input - <<<"$PAYLOAD" \
+  --jq '{state, commit_id, user: .user.login, submitted_at}'
 ```
+
+For a verdict-only review, drop the `comments` array and the `--rawfile` lines
+that feed it.
 
 **If HEAD moved, the review you wrote is not the one to post.** Read the commits
 since `<head-sha>`, revise the verdict, body and findings to cover them, and run
@@ -584,8 +592,8 @@ only — repeating it on each inline comment says nothing the review body doesn'
 With no note, take the version from nowhere else and leave the stamp off; a
 wrong stamp is worse than an absent one, since analysis cannot tell them apart.
 
-**Stamp the SHA you reviewed the same way, on its own line, always** — this one
-needs no note and has no version to get wrong:
+**The recipe stamps the SHA you reviewed the same way, from `$sha`, always** —
+so the body file carries no SHA of its own to fall out of step with `commit_id`:
 
 ```
 <!-- reviewed-sha: <full 40-character SHA> -->
