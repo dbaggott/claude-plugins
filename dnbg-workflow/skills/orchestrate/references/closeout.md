@@ -81,6 +81,14 @@ a run meets its `A#` is the reviewer's call, on this PR.
 
 ## 5. Dispose of the friction log
 
+First fold in the items a child's orchestrator relayed because it was not the
+parent's writer: the comments on the parent whose first line reads
+`Friction log items from <child URL>` (`issue-workflow`'s
+`references/tracking-issue.md`, "Who writes the body"), posted by your own login
+(`gh api user --jq .login`) about a child in the set. Pass each bullet to one
+`log-row.sh --bullet="Friction log"` call as a `--text` without its leading
+`- `. The call adds only the bullets the log does not already carry.
+
 Every friction-log entry gets exactly one disposition: a follow-up issue, or
 `Dropped, because <reason>`. Draft them all first, as a table, then show the
 operator the table and the exact text of every follow-up before filing any. An
