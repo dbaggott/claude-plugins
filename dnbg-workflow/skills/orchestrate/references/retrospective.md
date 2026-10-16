@@ -138,6 +138,7 @@ A re-run adds only the bullets still missing, so on `write-lost`, `write` or
 `issue-query` run it once more. If it fails again, or on `section-missing`,
 where the parent has nowhere to put them, say so in the Stop report instead.
 
-**Otherwise**, post the same bullets as one comment on the parent, whose first
-line is exactly `Friction log items from <issue URL>`, and say in the Stop
-report that they await folding by the parent's writer.
+**Otherwise**, post the same bullets, each `- ` followed by one `--text` value,
+as one comment on the parent whose first line is exactly
+`Friction log items from <issue URL>`, and say in the Stop report that they
+await folding by the parent's writer.

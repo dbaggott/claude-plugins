@@ -68,10 +68,11 @@ marking of the row `applied`, which is step 6 here. A finding that asks for a de
 an escalation. A re-reviewed child is not dispatched until its latest verdict
 reads `READY`.
 
-When the re-review's reviewer ends, its retrospective takes the parent as its
-issue. Fold that file's project-level items into the parent's friction log per
-`references/retrospective.md`'s "Fold project-level items into the parent",
-naming `reviewer on <parent URL>` as their source.
+When the re-review's reviewer ends, before step 6, take the retrospective path
+its final report gives. That file's issue is the parent, so the fold section's
+trigger in `references/retrospective.md` does not fire: apply that section's
+selection rule and its `log-row.sh` call yourself, as the parent's writer,
+naming `reviewer on <parent URL>` as the source.
 
 ## 5. Tell the agents working on it
 
