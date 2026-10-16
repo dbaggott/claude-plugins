@@ -44,6 +44,15 @@ from that moment: the receipt is fixed and the reviewer is reading against it. A
 edit you genuinely need afterwards opens a **new round** — make it, then say so in
 a fresh comment.
 
+**A fix that edits another issue already at `READY` reopens that issue's round**,
+as when a finding on one child is fixed in a sibling. Make the edit and post its
+note before the response on the issue that carried the finding, so the response
+stays your latest post, and add that issue to the watch below. The note names the
+finding, by its ID and the URL of the comment carrying it, then the section that
+changed, and ends `No blocking findings were open here.`
+
+> Edited "Acceptance criteria" for `281-B2` (<comment URL>). No blocking findings were open here.
+
 ## Waiting for the next round
 
 Spawn the wait as a **background** task with `timeout: 7200000`, and every
