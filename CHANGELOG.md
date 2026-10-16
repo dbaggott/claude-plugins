@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.44 — 2026-10-16
+
+The reviewer's issue mode no longer arms an issue-level wait while every open PR it found is under its own PR watch, as in an orchestrated run, so a merge wakes it once rather than twice. It arms the wait only when no PR is open or one is held as a draft, with `since` taken after its "acting as reviewer" comment so that comment cannot wake it. A replacement reviewer that finds that comment already on the issue does not post another.
+
+
 ## dnbg-workflow 2026.10.43 — 2026-10-16
 
 The reviewer now removes the directories `fetch-tree.sh` extracts PR trees into
