@@ -32,12 +32,15 @@ So the assignment is a loop, not a pass:
 either — it is equally discovery-time, and it only finds siblings sharing a
 branch name, so a later follow-up PR on its own branch is invisible to it.
 
-**Arm the issue wait only when a discovery pass finds no open PR, or holds one
-back as a draft.** While every open PR it found is one you reviewed, under its
-own `watch-pr.sh` (the single-PR case an orchestrated reviewer starts in), arm
-none: step 3 re-discovers at each return of that watch, its `CLOSED` included,
-and a later pass that finds no open PR, or a draft to hold, arms it then, its
-`since` taken under the first-arm rule as below.
+**Arm the issue wait only when a discovery pass leaves no PR to review, or holds
+one back as a draft.** A PR triaged as not resolving the issue is not one to
+review. While every PR to review is one you review and watch with its own
+`watch-pr.sh` (the single-PR case an orchestrated reviewer starts in), arm none:
+step 3 re-discovers at each return of that watch, its `CLOSED` included, and a
+later pass that leaves no PR to review, or a draft to hold, arms it then, its
+`since` taken under the first-arm rule as below. The same test decides each
+re-arm, and when the last held draft is marked ready, stop the wait by its task
+id.
 
 **When discovery finds nothing yet, wait — and load `SKILL.md` step 1's standards
 during that wait**, not when the first PR lands: the wait is the one stretch of
@@ -47,16 +50,17 @@ Spawn the wait as a **background** task with `timeout: 7200000`, and every
 re-arm of it the same way, so the idle polling never enters the conversation.
 Without the timeout a headless session stops the watch after 10 minutes, and it
 returns no result line. Its `--since` follows the first-arm rule in
-`watch-issue.sh`'s header, and is the `now=` of the result that started the
-discovery pass leading to the arm, so a PR opened while you looked still wakes
-it. On the first pass that is `issue-mode.md`'s `fetch-issue-set.sh` snapshot,
-which follows the "acting as reviewer" comment, so your own comment never wakes
-the wait: don't stamp `since` before posting it. On a later pass it is the
-`now=` of the PR watch's return.
+`watch-issue.sh`'s header, and is taken before the discovery pass leading to
+the arm, so a PR opened while you looked still wakes it. On the first pass it is
+the `now=` of `issue-mode.md`'s `fetch-issue-set.sh` snapshot, which that file
+takes after posting the "acting as reviewer" comment, so the wait counts only
+what follows that comment: don't stamp `since` before posting it. On a later
+pass it is the `since` the returning PR watch was armed with, since its
+`CLOSED` carries no `now=`.
 
 ```bash
 "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
-  --role=reviewer --since=<the snapshot's now=> \
+  --role=reviewer --since=<as above> \
   --slug="$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")" \
   [--exclude=<url,url,...>]
 ```
