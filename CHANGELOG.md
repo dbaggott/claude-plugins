@@ -10,6 +10,21 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.45 — 2026-10-16
+
+An orchestrator folding a child's retrospective into its tracking issue now edits the parent's Friction log only when it orchestrates the parent. A child orchestrator working the issue alone posts the items as a comment on the parent, opening `Friction log items from <child URL>`, and the closeout folds those comments into the log before disposing of it; `process-review` reads them too. `issue-workflow`'s tracking-issue reference now states that, while the children are being worked, the parent's orchestrator is the body's only writer, and a merge sweep comments on such a parent rather than editing it. The retrospective of a design change's re-review is now folded into the parent's Friction log as well.
+
+The reviewer now posts every review through the reviews endpoint with the body
+read from a file (`jq --rawfile`), so a finding containing an apostrophe or a
+newline no longer breaks the posting command. The review is pinned to the SHA
+that was read (`commit_id`), so a commit pushed while the reviewer was writing no
+longer receives a verdict on code nobody read; the head is also re-read just
+before posting, and a move sends the reviewer back to cover the new commits. The
+`<!-- reviewed-sha -->` stamp is now written from that same SHA. The unpinned
+`gh pr review` verdict-only form is gone; a verdict-only review is the same
+payload without inline comments.
+
+
 ## dnbg-workflow 2026.10.44 — 2026-10-16
 
 The reviewer's issue mode no longer arms an issue-level wait while every open PR it found is under its own PR watch, as in an orchestrated run, so a merge wakes it once rather than twice. It arms the wait only when no PR is open or one is held as a draft, with `since` taken after its "acting as reviewer" comment so that comment cannot wake it. A replacement reviewer that finds that comment already on the issue does not post another.
