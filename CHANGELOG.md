@@ -10,6 +10,18 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.46 — 2026-10-16
+
+The PR watch's `result=CHECKS` now names the failing tests, as
+`failed_tests='<names>'`, when the failed job's log carries TAP `not ok` lines,
+so an author no longer digs them out of the log by hand.
+
+`git-workflow` now says what to do when a check fails in a test the diff doesn't
+touch: rerun the failed jobs once and wait on the rerun. A pass is a flake to
+report, not a change to the PR; a second failure on the same head is
+investigated as a finding.
+
+
 ## dnbg-workflow 2026.10.45 — 2026-10-16
 
 An orchestrator folding a child's retrospective into its tracking issue now edits the parent's Friction log only when it orchestrates the parent. A child orchestrator working the issue alone posts the items as a comment on the parent, opening `Friction log items from <child URL>`, and the closeout folds those comments into the log before disposing of it; `process-review` reads them too. `issue-workflow`'s tracking-issue reference now states that, while the children are being worked, the parent's orchestrator is the body's only writer, and a merge sweep comments on such a parent rather than editing it. The retrospective of a design change's re-review is now folded into the parent's Friction log as well.
