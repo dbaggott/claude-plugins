@@ -10,6 +10,14 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.39 — 2026-10-16
+
+`reviewer` now tells the agent how to write batched shell reads that survive
+zsh. Where the Bash tool runs zsh, a separator like `echo =====` or a path like
+`"$SHA:src/x"` used to abort the whole batch and cost a round trip. Sessions
+whose shell is bash are unaffected.
+
+
 ## dnbg-workflow 2026.10.38 — 2026-10-16
 
 Picking up an issue now asks one question when the issue belongs to a project.
