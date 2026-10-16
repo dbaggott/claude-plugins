@@ -169,7 +169,8 @@ A turn that ends on none of these while work remains, other than an agent
 that died on an error (below), is the safety net: read the PR with `gh pr
 view <url> --json state,isDraft`. An open PR out of draft means the agent
 has no watch left: continue it with `SendMessage`, telling it to re-arm its PR
-watch from the last `── re-arm ──` line it printed. Otherwise continue it with what the state shows is still owed.
+watch from the last `── re-arm ──` line it printed. Otherwise continue it
+with what the state shows is still owed.
 
 **An agent died on an error** when its task ends `failed` on an API or usage
 limit error rather than with a report. Resume it with `SendMessage`, telling it
