@@ -1,10 +1,11 @@
 # Git workflow: watch results
 
 Part of the `git-workflow` skill. Read this whenever an author-side
-`watch-pr.sh` returns, at the review stage or the merge stage, before branching
-on what it said. `references/review-rounds.md` starts the watch and says how to
-re-arm from its `── re-arm ──` line; `references/merge-wait.md` adds what
-changes at the merge stage.
+`watch-pr.sh` returns, before branching on what it said.
+`references/review-rounds.md` starts the watch and says how to re-arm from its
+`── re-arm ──` line. At the merge stage, `references/merge-wait.md` governs
+re-arming, `IDLE`, `DIRTY` and `BLOCKED cause=terminal`; the other entries here
+apply there too.
 
 ## Branch on `result=`
 
@@ -15,8 +16,8 @@ After any `alive` heartbeat lines, the script prints a summary of the activity i
 - **`activity=1` on any burst** — comments or replies landed alongside whatever the result names. **Handle them in this same pass**, per `references/review-received.md`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good. `activity=0` means the burst was something else (a verdict, a check), so there is no conversation to go looking for.
 - **`result=CLOSED`** — merged or closed. Stop watching; if `state=MERGED`, run the post-merge cleanup in `references/post-merge.md`.
 - **`result=ERROR reason=<source>`** — the watch itself is broken: that source failed repeatedly, so it cannot see. **Do not re-arm** — you would poll straight back into the same failure. Check `gh auth status` and the `<num>`/`<repo>` pair, then tell the operator. Unlike `IDLE` this means nothing about the PR; the watch never got a look at it.
-- **`result=ERROR reason=bad-args`** — the watch refused to start because an argument could not do its job. Usually a re-arm's argument: an abbreviated `<last_head>` or `--last-verdict` value (see the note below — both take a full 40-character SHA), a missing `--role`, or a trailing flag outside the accepted set. Fix it and re-spawn. **The exception is auth**: this role derives its own login from `gh api user`, and a failure there produces an empty slug, which the watch refuses. So unlike the other bad arguments, `gh auth status` is worth a look when nothing in the command line is obviously wrong.
-- **`result=IDLE`** — the window elapsed with nothing. **Here this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (The reviewer role treats `IDLE` as routine, which is why the role is an argument rather than a caller convention.)
+- **`result=ERROR reason=bad-args`** — the watch refused to start because an argument could not do its job. Usually a re-arm's argument: an abbreviated `<last_head>` or `--last-verdict` value (see the full-SHA note in `references/review-rounds.md` — both take a full 40-character SHA), a missing `--role`, or a trailing flag outside the accepted set. Fix it and re-spawn. **The exception is auth**: this role derives its own login from `gh api user`, and a failure there produces an empty slug, which the watch refuses. So unlike the other bad arguments, `gh auth status` is worth a look when nothing in the command line is obviously wrong.
+- **`result=IDLE`** — the window elapsed with nothing. **At the review stage this means something is probably wrong** — a reviewer that never replied, or the wrong `<num>`/`<repo>`. Wake once and tell the operator; do **not** silently re-arm. (The reviewer role treats `IDLE` as routine, which is why the role is an argument rather than a caller convention.)
 
   **An `IDLE` carrying `window_left=` is not this.** A run also ends at a wall-clock ceiling, which a long suspend reaches with most of the window unspent. Re-arm from its line, and neither report it nor count it.
 
