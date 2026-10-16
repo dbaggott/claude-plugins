@@ -7,8 +7,8 @@ dispatched it.
 
 ## When it applies
 
-You are in delegated mode when `AskUserQuestion` is not among your tools, as in
-any subagent. Decide on that alone. The operator saying they will be away, a
+Without `AskUserQuestion` among your tools, as in any subagent, you are in
+delegated mode. Decide on that alone. The operator saying they will be away, a
 long silence, or an automated-looking task does not put you in delegated mode;
 with the tool present, ask the way the site says.
 

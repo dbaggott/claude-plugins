@@ -1664,3 +1664,61 @@ collector_prefixes() {  # <file> -> each prefix the file filters comments on
       echo "$f filters on '$found', not triage.md's '$prefix'"; false; }
   done
 }
+
+# `work-summary` carries its own copy of the delegated-mode rule, because the
+# `dnbg-work-summary` plugin cannot reach `issue-workflow/references/delegated.md`.
+# The copy is worded for a recap, which has no issue or PR to post a question on,
+# so the two files are not compared byte for byte. What is pinned is the rule's
+# load-bearing phrases: each must appear in both, so a change to one of them in
+# either file fails here and sends someone to check the other.
+DELEGATED_RULE="$ROOT/dnbg-workflow/skills/issue-workflow/references/delegated.md"
+DELEGATED_COPY="$ROOT/dnbg-work-summary/skills/work-summary/SKILL.md"
+DELEGATED_PHRASES=(
+  'Without `AskUserQuestion`'
+  'take the default'
+  'Never choose silently'
+  'end the turn with the question as your report'
+)
+
+# Whitespace collapsed, so a phrase that wraps across a line break still matches.
+collapsed() {  # <file>
+  tr -s '[:space:]' ' ' < "$1"
+}
+
+delegated_copy_agrees() {  # <delegated.md> <work-summary SKILL.md>
+  local f p text missing=0
+  for f in "$1" "$2"; do
+    text=$(collapsed "$f")
+    for p in "${DELEGATED_PHRASES[@]}"; do
+      [[ "$text" == *"$p"* ]] && continue
+      echo "'$p' is missing from $f"
+      missing=1
+    done
+  done
+  [ "$missing" -eq 0 ] || {
+    echo "the delegated-mode rule and work-summary's copy of it must both carry each phrase"
+    return 1
+  }
+}
+
+@test "work-summary's copy of the delegated-mode rule carries the rule's phrases" {
+  run delegated_copy_agrees "$DELEGATED_RULE" "$DELEGATED_COPY"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "removing any one phrase from either file is caught, and named" {
+  local p text side
+  for p in "${DELEGATED_PHRASES[@]}"; do
+    for side in rule copy; do
+      cp "$DELEGATED_RULE" "$BATS_TEST_TMPDIR/rule.md"
+      cp "$DELEGATED_COPY" "$BATS_TEST_TMPDIR/copy.md"
+      text=$(collapsed "$BATS_TEST_TMPDIR/$side.md")
+      printf '%s\n' "${text//"$p"/}" > "$BATS_TEST_TMPDIR/$side.md"
+      run delegated_copy_agrees "$BATS_TEST_TMPDIR/rule.md" "$BATS_TEST_TMPDIR/copy.md"
+      [ "$status" -ne 0 ] || { echo "removing '$p' from the $side passed"; false; }
+      [[ "$output" == *"'$p' is missing from $BATS_TEST_TMPDIR/$side.md"* ]] || {
+        echo "removing '$p' from the $side did not name it: $output"; false; }
+    done
+  done
+}
