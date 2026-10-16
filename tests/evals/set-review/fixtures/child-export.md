@@ -9,7 +9,7 @@ There is no sample `notes/` to work against, and no machine-readable form of the
 
 ### Proposed approach
 
-Add the sample `notes/` R0 describes. Add `scripts/export.sh [dir]`, defaulting to `notes/`. For each `<dir>/*.md`, globbed under `LC_ALL=C` so the order is bytewise, take the slug from the filename, the title from the first line with its `# ` stripped, and the body from everything after the blank line that follows it. Build the object with `jq -n`, so quoting is `jq`'s job and not the script's, and write it to `export.json` in the current working directory.
+Add the sample `notes/` R0 describes. Add `scripts/export.sh [dir] [out]`, with R1's defaults. For each `<dir>/*.md`, globbed under `LC_ALL=C` so the order is bytewise, take the slug from the filename, the title from the first line with its `# ` stripped, and the body from everything after the blank line that follows it. Build the object with `jq -n`, so quoting is `jq`'s job and not the script's, and write it to `out`.
 
 ### Acceptance criteria
 

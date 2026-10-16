@@ -1668,9 +1668,9 @@ collector_prefixes() {  # <file> -> each prefix the file filters comments on
 # `work-summary` carries its own copy of the delegated-mode rule, because the
 # `dnbg-work-summary` plugin cannot reach `issue-workflow/references/delegated.md`.
 # The copy is worded for a recap, which has no issue or PR to post a question on,
-# so the two files are not compared byte for byte. What is pinned is the rule's
-# load-bearing phrases: each must appear in both, so a change to one of them in
-# either file fails here and sends someone to check the other.
+# so the two are not compared byte for byte. What is pinned is the rule's
+# load-bearing phrases: each must appear in the rule and in the copy, so a change
+# to one of them on either side fails here and sends someone to check the other.
 DELEGATED_RULE="$ROOT/dnbg-workflow/skills/issue-workflow/references/delegated.md"
 DELEGATED_COPY="$ROOT/dnbg-work-summary/skills/work-summary/SKILL.md"
 DELEGATED_PHRASES=(
@@ -1679,21 +1679,31 @@ DELEGATED_PHRASES=(
   'Never choose silently'
   'end the turn with the question as your report'
 )
+# The copy is the one paragraph of SKILL.md that names itself a copy. Matching the
+# whole file would let the phrases' other uses there, such as the time-zone
+# prompt's "Without `AskUserQuestion`", stand in for a copy that lost them.
+DELEGATED_COPY_MARKER='A copy of the rule in'
+
+delegated_copy_paragraph() {  # <SKILL.md>
+  awk -v RS= -v m="$DELEGATED_COPY_MARKER" 'index($0, m)' "$1"
+}
 
 # Whitespace collapsed, so a phrase that wraps across a line break still matches.
-collapsed() {  # <file>
-  tr -s '[:space:]' ' ' < "$1"
+delegated_collapsed() {  # stdin
+  tr -s '[:space:]' ' '
 }
 
 delegated_copy_agrees() {  # <delegated.md> <work-summary SKILL.md>
-  local f p text missing=0
-  for f in "$1" "$2"; do
-    text=$(collapsed "$f")
-    for p in "${DELEGATED_PHRASES[@]}"; do
-      [[ "$text" == *"$p"* ]] && continue
-      echo "'$p' is missing from $f"
-      missing=1
-    done
+  local rule copy p missing=0
+  rule=$(delegated_collapsed < "$1")
+  copy=$(delegated_copy_paragraph "$2" | delegated_collapsed)
+  [ -n "$copy" ] || {
+    echo "no paragraph in $2 says '$DELEGATED_COPY_MARKER'"
+    return 1
+  }
+  for p in "${DELEGATED_PHRASES[@]}"; do
+    [[ "$rule" == *"$p"* ]] || { echo "'$p' is missing from $1"; missing=1; }
+    [[ "$copy" == *"$p"* ]] || { echo "'$p' is missing from the copy in $2"; missing=1; }
   done
   [ "$missing" -eq 0 ] || {
     echo "the delegated-mode rule and work-summary's copy of it must both carry each phrase"
@@ -1707,18 +1717,25 @@ delegated_copy_agrees() {  # <delegated.md> <work-summary SKILL.md>
   [ "$status" -eq 0 ]
 }
 
-@test "removing any one phrase from either file is caught, and named" {
-  local p text side
+@test "removing any one phrase from the rule, or from the copy's paragraph, is caught" {
+  local p text rule="$BATS_TEST_TMPDIR/rule.md" copy="$BATS_TEST_TMPDIR/copy.md"
   for p in "${DELEGATED_PHRASES[@]}"; do
-    for side in rule copy; do
-      cp "$DELEGATED_RULE" "$BATS_TEST_TMPDIR/rule.md"
-      cp "$DELEGATED_COPY" "$BATS_TEST_TMPDIR/copy.md"
-      text=$(collapsed "$BATS_TEST_TMPDIR/$side.md")
-      printf '%s\n' "${text//"$p"/}" > "$BATS_TEST_TMPDIR/$side.md"
-      run delegated_copy_agrees "$BATS_TEST_TMPDIR/rule.md" "$BATS_TEST_TMPDIR/copy.md"
-      [ "$status" -ne 0 ] || { echo "removing '$p' from the $side passed"; false; }
-      [[ "$output" == *"'$p' is missing from $BATS_TEST_TMPDIR/$side.md"* ]] || {
-        echo "removing '$p' from the $side did not name it: $output"; false; }
-    done
+    text=$(delegated_collapsed < "$DELEGATED_RULE")
+    printf '%s\n' "${text//"$p"/}" > "$rule"
+    run delegated_copy_agrees "$rule" "$DELEGATED_COPY"
+    [ "$status" -ne 0 ] || { echo "removing '$p' from the rule passed"; false; }
+    [[ "$output" == *"'$p' is missing from $rule"* ]] || {
+      echo "removing '$p' from the rule did not name it: $output"; false; }
+
+    # Only the copy's paragraph is edited, so the phrase's uses elsewhere in
+    # SKILL.md stay and the check has to be scoped to see it gone.
+    awk -v RS= -v ORS='\n\n' -v m="$DELEGATED_COPY_MARKER" -v p="$p" '
+      index($0, m) { gsub(/[[:space:]]+/, " "); i = index($0, p)
+                     if (i) $0 = substr($0, 1, i - 1) substr($0, i + length(p)) }
+      { print }' "$DELEGATED_COPY" > "$copy"
+    run delegated_copy_agrees "$DELEGATED_RULE" "$copy"
+    [ "$status" -ne 0 ] || { echo "removing '$p' from the copy passed"; false; }
+    [[ "$output" == *"'$p' is missing from the copy in $copy"* ]] || {
+      echo "removing '$p' from the copy did not name it: $output"; false; }
   done
 }

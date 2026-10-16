@@ -13,7 +13,7 @@ Add `scripts/import.sh <file> <dir>`. Refuse a `<dir>` that exists and is not em
 
 ### Acceptance criteria
 
-- Export the sample `notes/`, import it into an empty directory, and export that directory: the two `export.json` files are byte-identical.
+- Export the sample `notes/`, import it into an empty directory, and export that directory to a second file: the two exports are byte-identical.
 - Importing into a directory that already holds a file exits non-zero and leaves that file unchanged.
 
 ### Required reading

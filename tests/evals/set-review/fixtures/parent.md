@@ -22,7 +22,7 @@ Notes are kept as Markdown files under `notes/`, one per note. Nothing can read 
 ## Requirements
 
 - **R0.** A note is `notes/<slug>.md`: the line `# <title>`, one blank line, then the body to end of file. The repo carries a sample `notes/` of at least three notes in this format, one of whose bodies contains a double quote and a backslash.
-- **R1.** `scripts/export.sh` writes every note to `export.json` as `{"notes": [{"slug", "title", "body"}]}`, ordered by slug compared bytewise.
+- **R1.** `scripts/export.sh [dir] [out]` writes every note in `dir` (default `notes/`) to `out` (default `export.json` in the current working directory) as `{"notes": [{"slug", "title", "body"}]}`, ordered by slug compared bytewise.
 - **R2.** `scripts/check-export.sh <file>` exits non-zero, naming the first offending note, when the file is not in R1's shape.
 - **R3.** `scripts/import.sh <file> <dir>` writes an export's notes into `<dir>` in R0's format, refusing a `<dir>` that is not empty, so that exporting the imported notes reproduces the original export byte for byte.
 - **R4.** Every script prints usage and exits 2 when called with the wrong number of arguments.
