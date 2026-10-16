@@ -1,1 +1,1 @@
-`git-workflow`'s self-review now runs `/code-review` with the worktree's absolute path ahead of the range. A session whose working directory is another repo, as an orchestrated author's often is, previously got an empty review because neither end of the range exists there.
+`git-workflow`'s self-review now points `/code-review` and its own `git diff` at the worktree's absolute path. A session whose working directory is another repo, as a dispatched author's often is, previously reviewed the wrong diff or none, since the branch does not exist there.

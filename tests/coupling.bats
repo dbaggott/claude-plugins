@@ -1069,6 +1069,9 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
     echo "step 7 no longer names the data-only floor"; false; }
   grep -q 'background review' <<<"$step" || {
     echo "step 7 no longer has a dispatched author report its wait on the review"; false; }
+  grep -q '/code-review <worktree-path> origin/' <<<"$step" || {
+    echo "step 7's /code-review no longer names the worktree path, so a session"
+    echo "  working from another repo reviews the wrong diff or none"; false; }
   grep -q 'background review' "$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md" || {
     echo "orchestrate no longer reads an author's wait on a background review as a wait"
     false; }
