@@ -10,7 +10,9 @@
 # Exactly one result line, then exit 0:
 #   result=COMMITS  new_head=<sha> activity=0|1 now=<iso>   # someone pushed
 #   result=ACTIVITY activity=1 now=<iso>                    # review/comment/reply, not the caller's
-#   result=CHECKS   checks='<names>' now=<iso>              # only a check stopped passing
+#   result=CHECKS   checks='<names>' [failed_tests='<names>'] now=<iso>
+#                   # only a check stopped passing; failed_tests is best effort,
+#                   # the `not ok` lines of the failing jobs' logs, `; `-joined
 #
 # Any burst also carries `checks='<names>'` when a check on the head is failing,
 # so a wake that is primarily something else still says the build is red. The
@@ -245,6 +247,30 @@ report_error() {
   exit 0
 }
 
+# Read only on a checks-only wake, so it costs no tick. A check with no Actions
+# job link, a log gh cannot fetch, or a runner that prints no TAP leaves the
+# field off rather than failing the report.
+#
+# The jobs endpoint rather than `gh run view --job`, which refuses while any
+# other job in the run is still going — the usual state when one fails first.
+# An older gh has no `--allow-escape-sequences`, and prints escapes without it.
+# Only a line the runner itself printed counts: it starts with the log's
+# timestamp, where a test's echoed output is indented under it.
+failed_tests() {
+  printf '%s' "$last_json" | jq -r '.checks[] | select(.state == "failure") | .url // empty' \
+  | sed -n 's|.*/actions/runs/[0-9]*/job/\([0-9][0-9]*\).*|\1|p' | sort -u \
+  | while read -r job; do
+      gh api --allow-escape-sequences "repos/$REPO/actions/jobs/$job/logs" 2>/dev/null \
+        || gh api "repos/$REPO/actions/jobs/$job/logs" 2>/dev/null || true
+    done \
+  | awk '{ sub(/\r$/, ""); gsub("\033\\[[0-9;]*m", "") }
+         match($0, /^[0-9][-0-9T:.Z]* not ok [0-9]+/) {
+           t = substr($0, RSTART + RLENGTH); sub(/^ (- )?/, "", t)
+           if (t != "" && !seen[t]++) out = out (out == "" ? "" : "; ") t
+         }
+         END { printf "%s", out }'
+}
+
 report_burst() {
   local checks_only=0
   if [ -n "$saw_checks" ] && [ "$saw_ready" = 0 ] && [ "$saw_commits" = 0 ] \
@@ -270,7 +296,9 @@ report_burst() {
   # handled — so reducing an unhandled verdict to CHECKS loses it until the IDLE
   # backstop notices an approval standing at HEAD, a window later.
   if [ "$checks_only" = 1 ]; then
-    echo "result=CHECKS checks=$(shq "$saw_checks")$mg now=$NOW"
+    local ft
+    ft=$(failed_tests) || ft=""
+    echo "result=CHECKS checks=$(shq "$saw_checks")${ft:+ failed_tests=$(shq "$ft")}$mg now=$NOW"
     exit 0
   fi
   if [ "$saw_ready" = 1 ]; then

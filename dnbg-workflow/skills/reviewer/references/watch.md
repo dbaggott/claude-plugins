@@ -28,10 +28,10 @@ verdict together. **Run it first; it is what their handling below reads from.**
   directory, or ran `fetch-tree.sh`** — a checkout an earlier session made and
   this one resumed included. A review that read only through `gh` calls and
   never ran `fetch-tree.sh` has nothing to remove.
-- **`CHECKS`** (`checks='<names>'`) — a check on the watched head stopped
-  passing, and nothing else came with it. Not your finding to fix and not a
-  re-review: note it in your next reply if it touches what you asked for,
-  otherwise re-arm. The names are shell-quoted because forge check names
+- **`CHECKS`** (`checks='<names>'`, and `failed_tests='<names>'` when the job
+  log names them) — a check on the watched head stopped passing, and nothing
+  else came with it. Not your finding to fix and not a re-review: note it in
+  your next reply if it touches what you asked for, otherwise re-arm. The names are shell-quoted because forge check names
   contain spaces.
 - **`IDLE`** — nothing within the polling window, or, with `window_left=`, a run
   cut short at the watch's wall-clock ceiling. Re-arm from the printed line either way.
