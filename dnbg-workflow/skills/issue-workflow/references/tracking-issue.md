@@ -161,3 +161,12 @@ touches are re-reviewed, not the whole body; acceptance stands.
 
 An accepted design is decomposed into its children per
 `references/decomposing.md`.
+
+## Who writes the body
+
+From acceptance until the closeout, the body has one writer: the session
+orchestrating the parent, `orchestrate`'s multi-issue mode. An edit replaces the
+whole body, so a second writer can silently undo the first. Anyone else, a
+child's orchestrator or author included, posts what the body should carry as a
+comment on the parent, for that writer to fold in. With no session orchestrating
+the parent, the comments wait for the one that does.

@@ -121,7 +121,11 @@ design, its children, or the conventions they share, and any tooling friction
 that cost this run real time. Leave out minor plugin-wide friction, which the
 files keep for `process-review`.
 
-Add them to the parent body's **Friction log** in one call, a dated bullet per
+Only the parent's writer edits its body (`issue-workflow`'s
+`references/tracking-issue.md`, "Who writes the body").
+
+**If this session orchestrates the parent** (`references/multi-issue.md`), add
+the items to the parent body's **Friction log** in one call, a dated bullet per
 item naming its source. The parent may live in another repo, so take
 `<owner>/<repo>` and `<parent>` from its URL:
 
@@ -130,8 +134,10 @@ item naming its source. The parent may live in another repo, so take
   --text='**<YYYY-MM-DD>.** <item> (<role> on <issue URL>)' [--text=…]
 ```
 
-A sibling's orchestrator may be writing the same parent, and the script confirms
-its write survived. A re-run adds only the bullets still missing, so on
-`write-lost`, `write` or `issue-query` run it once more. If it fails again, or
-on `section-missing`, where the parent has nowhere to put them, say so in the
-Stop report instead.
+A re-run adds only the bullets still missing, so on `write-lost`, `write` or
+`issue-query` run it once more. If it fails again, or on `section-missing`,
+where the parent has nowhere to put them, say so in the Stop report instead.
+
+**Otherwise**, post the same bullets as one comment on the parent, whose first
+line is exactly `Friction log items from <issue URL>`, and say in the Stop
+report that they await folding by the parent's writer.

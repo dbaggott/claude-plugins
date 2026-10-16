@@ -68,6 +68,11 @@ marking of the row `applied`, which is step 6 here. A finding that asks for a de
 an escalation. A re-reviewed child is not dispatched until its latest verdict
 reads `READY`.
 
+When the re-review's reviewer ends, its retrospective takes the parent as its
+issue. Fold that file's project-level items into the parent's friction log per
+`references/retrospective.md`'s "Fold project-level items into the parent",
+naming `reviewer on <parent URL>` as their source.
+
 ## 5. Tell the agents working on it
 
 `SendMessage` the reviewer of every reached child in flight: the change, what

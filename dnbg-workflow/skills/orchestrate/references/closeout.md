@@ -38,7 +38,10 @@ for `process-review` alone.
 Write your own retrospective, once for the run, per
 `references/retrospective.md` with the parent as its issue, and fold its
 project-level items into the parent's friction log, so step 5 disposes of them
-too.
+too. In the same `log-row.sh` call, fold the bullets of every comment on the
+parent whose first line reads `Friction log items from <child URL>`: items a
+child's orchestrator relayed because it was not the parent's writer. The call
+adds only the bullets the log does not already carry.
 
 ## 3. Write the as-built design and open the PR
 

@@ -28,10 +28,12 @@ Read every file in the batch in full. A file missing `role` or `issue` in its
 frontmatter, or missing any of the four headings, goes under **Unreadable** in
 the report with what it lacks, and counts toward nothing.
 
-**Given a tracking issue URL, read its friction log too.** Fetch the body with
-`gh issue view <url> --json body` and take the bullets under its **Friction
-log** heading. Each bullet is one more source: sort it under whichever of the
-four headings fits, and cite it as `friction log <date>`. This step is
+**Given a tracking issue URL, read its friction log too.** Fetch it with
+`gh issue view <url> --json body,comments` and take the bullets under the
+body's **Friction log** heading, and those of each comment whose first line
+reads `Friction log items from <child URL>`, which a child's orchestrator posts
+when it is not the parent's writer. Count a bullet found in both once. Each bullet is one more source: sort it under whichever of
+the four headings fits, and cite it as `friction log <date>`. This step is
 GitHub-only; for a URL on another host, say so and review the files alone.
 
 ## 2. Find the patterns
