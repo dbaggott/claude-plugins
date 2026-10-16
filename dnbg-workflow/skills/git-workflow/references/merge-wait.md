@@ -97,7 +97,7 @@ A red build is not among the causes here: the fetch separates that out, and it
 reaches you as `result=CHECKS` with the failing names. Like every result, that
 one ends the run — **re-arm from its printed line or the merge wait is over**.
 A failure in a test the diff doesn't touch gets the one rerun that
-`references/review-rounds.md` gives it under `result=CHECKS`.
+`references/watch-results.md` gives it under `result=CHECKS`.
 Reading the rollup again after a terminal block finds nothing.
 
 On `result=DIRTY`, surface the conflict and ask (without `AskUserQuestion`:
