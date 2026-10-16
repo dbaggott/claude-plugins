@@ -99,7 +99,7 @@ OUT=$(printf '%s\n%s\n' "$RAW" "$INLINE" | jq -cn '
   | map(max_by(recency) | {
       name: (.name // .context // "?"),
       state: check_state
-    }) as $checks
+    } + ((.detailsUrl // .targetUrl // "") as $u | if $u == "" then {} else {url: $u} end)) as $checks
   | ($checks | map(select(.state == "pending"))) as $running
   | {
       state:  ($pr.state // ""),

@@ -106,6 +106,14 @@ line() { tail -1 <<<"$1"; }
   [ "$(obj "$output" | jq -c '.checks')" = '[{"name":"ci-required","state":"failure"}]' ]
 }
 
+# The link is what reads a failed check's log, for either rollup shape.
+@test "a check carries its link when the forge gives one" {
+  pr BLOCKED '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://example.test/job/1"},
+               {"context":"ci/legacy","state":"FAILURE","targetUrl":"https://example.test/2"}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -r '[.checks[].url] | join(",")')" = "https://example.test/job/1,https://example.test/2" ]
+}
+
 @test "same-named checks in different workflows are both kept" {
   pr BLOCKED '[{"name":"lint","workflowName":"CI","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"2026-01-01T00:05:00Z"},
                {"name":"lint","workflowName":"Docs","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2026-01-01T00:00:00Z"}]'

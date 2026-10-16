@@ -93,10 +93,12 @@ case "$1 $2" in
     # poll gets exercised.
     [ -f "$FAIL_COMMENTS" ] && exit 1
     echo '[]' ;;
+  "run view") [ -f "$RUNLOG" ] || exit 1; cat "$RUNLOG" ;;
   *) exit 1 ;;
 esac
 EOF
   chmod +x "$STUB/gh"
+  export RUNLOG="$BATS_TEST_TMPDIR/runlog"
   export PRSTATE="$BATS_TEST_TMPDIR/prstate"
   export ROLLUP="$BATS_TEST_TMPDIR/rollup"
   export MERGESTATE="$BATS_TEST_TMPDIR/mergestate"
@@ -930,6 +932,30 @@ EOF
   # And it survives the round trip: the name the next arm parses back out has to
   # equal this one, or the standing failure is reported again forever.
   [[ "$rearm" == *"--last-checks='it'\\''s red'"* ]]
+}
+
+# --- naming the failing test, so a caller need not dig it out of the log --------
+
+# The log lines are as `gh run view --log-failed` prints them: job, step and a
+# timestamp, tab-separated ahead of the runner's own output.
+@test "a checks-only wake names the failing tests from the job log" {
+  echo '[{"name":"hook-tests","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/o/r/actions/runs/11/job/22"}]' > "$ROLLUP"
+  printf 'hook-tests\tRun\t2026-10-16T02:12:45Z ok 382 a passing test\n' > "$RUNLOG"
+  printf 'hook-tests\tRun\t2026-10-16T02:12:45Z not ok 383 the reaper kills a process\r\n' >> "$RUNLOG"
+  printf 'hook-tests\tRun\t2026-10-16T02:12:46Z # (in test file tests/reap.bats, line 9)\n' >> "$RUNLOG"
+  printf "hook-tests\tRun\t2026-10-16T02:12:47Z not ok 390 it's red, twice\n" >> "$RUNLOG"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='hook-tests' failed_tests='the reaper kills a process; it'\\''s red, twice' now="* ]]
+  grep -q "run view --job 22 --repo o/r --log-failed" "$CALLS"
+}
+
+# Best effort: a log gh cannot fetch costs the field, never the report.
+@test "a failed log that cannot be read leaves failed_tests off" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/o/r/actions/runs/11/job/22"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='ci' now="* ]]
 }
 
 # --- a block only a human clears is not a state to re-arm on -------------------
