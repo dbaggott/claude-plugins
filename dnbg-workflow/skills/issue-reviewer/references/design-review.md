@@ -33,6 +33,15 @@ posting. This adds checks to each pass, and changes what the round comment says.
 
 ## Judgment additions
 
+- **A constraint whose method is cheap is re-run, not only read.** A body can
+  name a method without anyone having run it, and a claim reached some other way
+  survives every read-through. A method is cheap when it is one read-only query
+  or command you can run as you are: a `gh api` read, a `--help`, a grep or read
+  of the tree. Run it and compare what it returns with what the constraint says.
+  A mismatch is blocking, quoting both. A method that is an experiment, takes
+  more than one command, needs credentials you lack, or has a side effect, such
+  as a write, a post or a spawned session, is left to the mechanical pass, which checks
+  only that it is named.
 - **Every requirement is checkable.** Could a reviewer of the work say whether a
   result meets it? One that cannot be failed cannot be accepted either.
 - **Every decision carries a rationale, and a reversal condition or `none
@@ -65,4 +74,5 @@ Name the mode in the comment's first line — `**Spec review (design mode), roun
 
 List every check above in the comment, each with its outcome — the findings it
 produced by ID, or `none`. A `READY` that names no checks cannot be told apart
-from one where they were skipped.
+from one where they were skipped. The re-run check's outcome also names the
+constraints it re-ran.
