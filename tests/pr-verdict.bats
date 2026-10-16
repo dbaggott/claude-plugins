@@ -160,6 +160,22 @@ field() { sed -n "s/.*[ ]$1=\([^ ]*\).*/\1/p" <<<"$2"; }
   [ "$(field at_head "$output")" = 0 ]
 }
 
+@test "verdict_at is the standing verdict's submission time, not a later comment's" {
+  pr_reviews aaa '[{"state":"APPROVED","commit":{"oid":"aaa"},"submittedAt":"2020-06-02T00:00:00Z"},
+                   {"state":"COMMENTED","commit":{"oid":"aaa"},"submittedAt":"2020-06-03T00:00:00Z"}]'
+  run "$VERDICT" o/r 1
+  [ "$(field verdict_at "$output")" = 2020-06-02T00:00:00Z ]
+}
+
+# verdict_sha and verdict_at are both empty here, so a field that collapsed into
+# its neighbour would shift at_head's or verdict_sha's value.
+@test "no verdict leaves verdict_sha and verdict_at empty without shifting a field" {
+  pr_reviews aaa '[]'
+  run "$VERDICT" o/r 1
+  [[ "$output" == *" verdict_sha= at_head=0 "* ]]
+  [[ "$output" == *" verdict_at=" ]]
+}
+
 @test "reviewDecision is passed through so a caller can tell the two regimes apart" {
   printf '{"headRefOid":"aaa","reviewDecision":"APPROVED","reviews":[]}' > "$STATEFILE"
   run "$VERDICT" o/r 1

@@ -8,7 +8,7 @@
 #
 # Prints exactly one result line, then exits 0:
 #   result=OK head=<sha> verdict=<state> verdict_sha=<sha> at_head=0|1 \
-#     reviewed_after_head=0|1|unknown review_decision=<state>
+#     reviewed_after_head=0|1|unknown review_decision=<state> verdict_at=<iso>
 #   result=ERROR reason=bad-args|pr-view|pr-view-shape
 #
 # `verdict=APPROVED at_head=1 reviewed_after_head=1` is the only combination that
@@ -108,7 +108,8 @@ if ! OUT=$(echo "$J" | jq -r '
           elif ($v.submittedAt // "") == "" then "unknown"
           elif $v.submittedAt > $h.committedDate then "1"
           else "0" end),
-         $v.commit.oid // ""] | @tsv' 2>/dev/null); then
+         $v.commit.oid // "",
+         $v.submittedAt // ""] | join("\u001f")' 2>/dev/null); then
   echo "result=ERROR reason=pr-view-shape"
   exit 0
 fi
@@ -121,9 +122,9 @@ fi
 
 DECISION=$(echo "$J" | jq -r '.reviewDecision // ""' 2>/dev/null || true)
 
-# `verdict_sha` is read last because it is the only one of the three that can be
-# empty, and a tab IFS collapses an empty field between two others.
-IFS=$'\t' read -r VERDICT REVIEWED_AFTER VSHA <<EOF
+# A non-whitespace IFS, because `verdict_sha` and `verdict_at` can both be empty
+# and a whitespace IFS collapses an empty field into its neighbour.
+IFS=$'\x1f' read -r VERDICT REVIEWED_AFTER VSHA VAT <<EOF
 $OUT
 EOF
 
@@ -131,4 +132,4 @@ AT_HEAD=0
 [ -n "$VSHA" ] && [ "$VSHA" = "$HEAD" ] && AT_HEAD=1
 
 echo "result=OK head=$HEAD verdict=$VERDICT verdict_sha=$VSHA at_head=$AT_HEAD" \
-     "reviewed_after_head=$REVIEWED_AFTER review_decision=$DECISION"
+     "reviewed_after_head=$REVIEWED_AFTER review_decision=$DECISION verdict_at=$VAT"

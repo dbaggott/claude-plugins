@@ -75,31 +75,32 @@ is done — verify the state before acting on the words, per
 
 ### No re-arm line
 
-The review watch was killed without a result, or you took the PR over from an
-author who armed it: either way there is no line to edit. Read what the merge
-watch needs from GitHub:
+When the review watch was killed without a result, or you took over a PR whose
+watch another author ran, there is no `── re-arm ──` line to edit. Build the
+merge watch from GitHub instead:
 
 ```bash
 "<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
-gh pr view <num> --repo <owner>/<repo> --json reviews \
-  --jq '[.reviews[] | select(.state == "APPROVED")] | last | .submittedAt'
 ```
 
-Go on only when the first prints `verdict=APPROVED at_head=1
-reviewed_after_head=1`, with `review_decision` empty or `APPROVED`. Anything
-less means the review is not clean, and the watch to arm is the review one in
-`references/review-rounds.md`. Then spawn this in place of the edited re-arm
-line, in the background with `timeout: 7200000`:
+Go on only when its line has `verdict=APPROVED`, `at_head=1` and
+`reviewed_after_head=1`, with `review_decision` empty or `APPROVED`. A
+`reviewed_after_head=unknown` is the operator's to decide, as `SKILL.md` says.
+Anything else means the review is not clean, and the watch to arm is the
+review one in `references/review-rounds.md`. Then spawn this in place of the
+edited re-arm line, in the background with `timeout: 7200000`:
 
 ```bash
 WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
-  <head> <submittedAt> "" --role=author --last-verdict=<verdict_sha> --merge-stage
+  <head> <verdict_at> "" --role=author --last-verdict=<verdict_sha> --merge-stage
 ```
 
-`<head>` and `<verdict_sha>` are those fields of the `pr-verdict.sh` line, both
-full SHAs. `since` is the approval's `submittedAt` rather than the clock, so a
-comment posted after the approval still wakes the watch. Leave `--last-checks`
-off: nobody has told you about a red check, so the first tick should.
+`<head>`, `<verdict_at>` and `<verdict_sha>` are those fields of the
+`pr-verdict.sh` line. `since` is the approval's time rather than the clock, so a
+comment posted after the approval still wakes the watch, and one already
+answered wakes it too: check the thread before replying again. Leave
+`--last-checks` off, since no printed value is left to carry, and a red check
+already reported comes back on the first tick.
 
 ### On `result=BLOCKED cause=terminal`
 
