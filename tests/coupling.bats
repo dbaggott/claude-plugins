@@ -384,6 +384,21 @@ DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
   done
 }
 
+# merge-wait.md names pr-verdict.sh elsewhere, for a terminal block, so the
+# check is scoped to the "No re-arm line" section and to its fenced commands.
+@test "the merge stage without a re-arm line reads pr-verdict.sh and arms the merge-stage watch" {
+  local f="$ROOT/dnbg-workflow/skills/git-workflow/references/merge-wait.md" section
+  section=$(awk '/^### No re-arm line$/{inside=1; next} inside && /^##/{exit} inside' "$f")
+  [ -n "$section" ] || { echo "merge-wait.md has no '### No re-arm line' section"; false; }
+  printf '%s\n' "$section" > "$BATS_TEST_TMPDIR/section.md"
+  pr_command_lines "$BATS_TEST_TMPDIR/section.md" | grep -q 'pr-verdict\.sh' || {
+    echo "the No re-arm line recipe never runs pr-verdict.sh"; false; }
+  # The arm is a continued command, so its lines are joined before matching.
+  pr_command_lines "$BATS_TEST_TMPDIR/section.md" | tr '\n' ' ' \
+    | grep -q -- 'WINDOW=21600 [^#]*--merge-stage' || {
+    echo "the No re-arm line recipe does not arm WINDOW=21600 ... --merge-stage"; false; }
+}
+
 # Claims have one implementation, so a coder's pickup and an orchestrator's read
 # the same marks the same way.
 @test "the claim sites call claim-issue.sh rather than carrying the gh commands" {

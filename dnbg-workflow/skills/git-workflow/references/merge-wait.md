@@ -49,7 +49,8 @@ re-arm carries the flag forward for you.
 Don't re-assemble it by hand. Reading the clock for `since` drops whatever the
 reviewer posted while you were composing the handoff, and dropping
 `--last-checks` re-fires a red check the caller was already told about on the
-merge watch's first tick.
+merge watch's first tick. When there is no line to edit, "No re-arm line" below
+builds it from GitHub instead.
 
 **Spawn it — the edited re-arm line above — the moment a review comes back clean**, before telling the operator
 the PR is ready — the claim "I am watching for the merge now" has to be about a
@@ -71,6 +72,35 @@ means the schema moved and wants the enum capture re-run.
 When the operator says anything about the merge — kicking it off or asserting it
 is done — verify the state before acting on the words, per
 `references/post-merge.md`.
+
+### No re-arm line
+
+When the review watch was killed without a result, or you took over a PR whose
+watch another author ran, there is no `── re-arm ──` line to edit. Build the
+merge watch from GitHub instead:
+
+```bash
+"<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
+```
+
+Go on only when its line has `verdict=APPROVED`, `at_head=1` and
+`reviewed_after_head=1`, with `review_decision` empty or `APPROVED`. A
+`reviewed_after_head=unknown` is the operator's to decide, as `SKILL.md` says.
+Anything else means the review is not clean, and the watch to arm is the
+review one in `references/review-rounds.md`. Then spawn this in place of the
+edited re-arm line, in the background with `timeout: 7200000`:
+
+```bash
+WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
+  <head> <verdict_at> "" --role=author --last-verdict=<verdict_sha> --merge-stage
+```
+
+`<head>`, `<verdict_at>` and `<verdict_sha>` are those fields of the
+`pr-verdict.sh` line. `since` is the approval's time rather than the clock, so a
+comment posted after the approval still wakes the watch, and one already
+answered wakes it too: check the thread before replying again. Leave
+`--last-checks` off, since no printed value is left to carry, and a red check
+already reported comes back on the first tick.
 
 ### On `result=BLOCKED cause=terminal`
 
