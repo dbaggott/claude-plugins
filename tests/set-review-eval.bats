@@ -70,9 +70,12 @@ line() { tail -1 <<<"$1"; }
 
 @test "the project label is minted and put on the parent before any child is filed" {
   run "$CREATE" o/r
-  grep -qx "label create project:notes-export --repo o/r --force --color 5319E7 --description Child of the notes-export tracking issue ($U/1)" "$LOG"
+  grep -qx "label create project:notes-export --repo o/r --force --color 5319E7 --description Tracked by $U/1" "$LOG"
   grep -qx "issue edit $U/1 --repo o/r --add-label project:notes-export" "$LOG"
-  [ "$(grep -n 'label create' "$LOG" | cut -d: -f1)" -lt "$(grep -n -- '--title \[notes-export\] Export script' "$LOG" | cut -d: -f1)" ]
+  local first_child
+  first_child=$(grep -n -- '--title \[notes-export\] Export script' "$LOG" | cut -d: -f1)
+  [ "$(grep -n 'label create' "$LOG" | cut -d: -f1)" -lt "$first_child" ]
+  [ "$(grep -n -- '--add-label project:notes-export' "$LOG" | cut -d: -f1)" -lt "$first_child" ]
 }
 
 @test "the planted label gap is present: the import child alone is filed without the label" {

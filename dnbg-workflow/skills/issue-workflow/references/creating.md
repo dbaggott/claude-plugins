@@ -62,7 +62,7 @@ Labels sort along independent axes; an issue carries one from each that applies,
 Two more axes are applied by other flows rather than here:
 
 - **Claim** (`assigned:*`) — who is working it, applied by the claiming flow in `references/claiming.md`.
-- **Project** (`project:<slug>`) — which tracking issue it belongs to, on the parent and every child. `references/decomposing.md` mints it and applies it when the children are filed; a plain issue carries none.
+- **Project** (`project:<slug>`) — which tracking issue it belongs to, on the parent and every child. `references/decomposing.md` mints it and applies it when the children are filed. A child filed later carries it too, and its title takes the parent's `[<slug>]` tag. A plain issue carries none.
 
 ### Reporting a gap upstream
 

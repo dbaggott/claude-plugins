@@ -71,7 +71,7 @@ PARENT=$(create "[$SLUG] Tracking issue: Notes export" "$TMP/parent.md") || fail
 filed "$PARENT" || fail create-failed
 
 gh label create "$LABEL" --repo "$REPO" --force --color 5319E7 \
-  --description "Child of the $SLUG tracking issue ($PARENT)" >/dev/null 2>&1 || fail create-failed
+  --description "Tracked by $PARENT" >/dev/null 2>&1 || fail create-failed
 gh issue edit "$PARENT" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1 || fail create-failed
 
 # <fixture-name> <title> [label] -> the child's URL. The export child goes

@@ -112,11 +112,12 @@ Compute these rather than eyeballing them:
   body's argument rests on what sits at it, an observation when the surrounding
   prose still locates the thing.
 - **In a tracking set, every issue carries the project's handles.** The parent's
-  title is `[<slug>] Tracking issue: <description>` and it carries the label
-  `project:<slug>`, per `issue-workflow`'s `references/tracking-issue.md`; each
-  child's title starts with the same `[<slug>] ` and its `labels` include the
-  same label. A child missing either is a finding on that child. A parent whose
-  title has no tag is a finding on the parent, and leaves the children with
+  title is `[<slug>] Tracking issue: <description>`, per `issue-workflow`'s
+  `references/tracking-issue.md`, and once it has children it carries the label
+  `project:<slug>`, which decomposition mints. Each child's title starts with
+  the same `[<slug>] ` and its `labels` include the same label. A child missing
+  either is a finding on that child. A parent missing the tag, or the label once
+  it has children, is a finding on the parent; with no tag, the children have
   nothing to check against.
 
 **Triage every match before reporting it** — a check that cries wolf on quoted

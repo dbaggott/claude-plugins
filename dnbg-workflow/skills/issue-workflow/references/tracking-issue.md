@@ -12,8 +12,10 @@ Start the body with the words `This is a **tracking issue**`, verbatim; the
 rest of the sentence is yours. That opening is what routes a spec review of it
 to the design checks, in `issue-reviewer`'s `references/design-review.md`.
 
-Choose a **project slug** when filing: short, lowercase-dashed, and fixed for
-the project's life. Title the issue `[<slug>] Tracking issue: <description>`.
+Choose a **project slug** when filing: lowercase-dashed, at most 42
+characters so `project:<slug>` fits GitHub's 50-character label name, and fixed
+for the project's life. A slug whose `project:<slug>` label already exists in
+the repository belongs to another project, so choose another. Title the issue `[<slug>] Tracking issue: <description>`.
 The sub-issue link shows only on issue pages and in the API; the tag is what
 carries the project name into issue lists, search results, notification
 subjects and PR titles.

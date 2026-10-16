@@ -78,7 +78,7 @@ label there and put it on the parent:
 
 ```bash
 gh label create "project:<slug>" --repo <owner/repo> --force --color 5319E7 \
-  --description "Child of the <slug> tracking issue (<parent URL>)"
+  --description "Tracked by <parent URL>"
 gh issue edit <parent> --repo <owner/repo> --add-label "project:<slug>"
 ```
 
