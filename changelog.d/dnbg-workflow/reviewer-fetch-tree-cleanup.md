@@ -1,3 +1,4 @@
-The reviewer now removes the directory `fetch-tree.sh` extracts a PR's tree into
-when the PR closes. It used to stay in the system temp directory, since the
-cleanup named only worktrees and clones.
+The reviewer now removes the directories `fetch-tree.sh` extracts PR trees into
+when the PR closes, and the script removes its own directory when a fetch fails.
+They used to stay in the system temp directory. A tree fetched by a session that
+quit before the PR closed still stays there.
