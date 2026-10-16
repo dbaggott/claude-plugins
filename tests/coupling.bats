@@ -1337,13 +1337,13 @@ MD
 
 # An orchestrator's subagents share its scratchpad, so a body drafted at a name
 # the agent chose is one a sibling can overwrite before the next `--body-file`
-# publishes it. Every site that hands gh a body file therefore names the file as
+# publishes it. Every site that reads a drafted body file therefore names it as
 # a placeholder and says, in its own paragraph or the one leading into its
 # fenced block, that it comes from `mktemp`.
 #
 # draft_file_violations <file>... prints `<file>:<line>: <why>` per violation.
-# A site is `--body-file`, gh's `-F <file>` short form, `--input` or `body=@`,
-# with its argument; `--input -` reads stdin and `-F key=value` sets a field, so
+# A site is `--body-file`, gh's `-F <file>` short form, `--input`, `body=@` or
+# jq's `--rawfile <name>`, with its argument; `--input -` reads stdin and `-F key=value` sets a field, so
 # neither is one. An argument that is neither a `<placeholder>` nor a shell
 # variable is a fixed name. A fenced block's lead-in is the paragraph right
 # before it, so a block straight after another block has none.
@@ -1351,9 +1351,9 @@ draft_file_violations() {  # <file>...
   awk '
     function check(line, n, ctx,    s, tok, arg) {
       s = line
-      while (match(s, /(--body-file|--input|body=@|(^|[ `(])-F )[ =]?(<[^>]*>|[^ `\047")]*)/)) {
+      while (match(s, /(--body-file|--input|--rawfile [A-Za-z_][A-Za-z_0-9]* |body=@|(^|[ `(])-F )[ =]?(<[^>]*>|[^ `\047")]*)/)) {
         tok = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
-        arg = tok; sub(/^.*(--body-file|--input|body=@|-F )[ =]?/, "", arg)
+        arg = tok; sub(/^.*(--body-file|--input|--rawfile [A-Za-z_][A-Za-z_0-9]* |body=@|-F )[ =]?/, "", arg)
         if (arg == "-" || (tok ~ /-F $/) || arg ~ /=/) continue
         if (arg != "" && arg !~ /^<[^>]+>$/ && arg !~ /^"?\$/)
           printf "%s:%d: names a fixed draft file (%s)\n", file, n, arg
@@ -1423,6 +1423,35 @@ jq -n '{}' | gh api repos/o/r/pulls/1/reviews --input -
 MD
   run draft_file_violations "$BATS_TEST_TMPDIR/site.md"
   [ -z "$output" ]
+}
+
+@test "a --rawfile body named by a fixed file is caught" {
+  printf '%s\n' 'Write it in a file from `mktemp`, then `jq -n --rawfile body review.md`.' \
+    > "$BATS_TEST_TMPDIR/site.md"
+  run draft_file_violations "$BATS_TEST_TMPDIR/site.md"
+  [[ "$output" == *"site.md:1: names a fixed draft file (review.md)"* ]]
+}
+
+# An inline `--arg body "<…>"` breaks the shell command on the first apostrophe
+# or newline in a finding, and a payload with no `commit_id` attaches the verdict
+# to whatever HEAD is when the POST lands, not the one that was read.
+@test "reviewer posts from --rawfile files, pinned to the reviewed SHA after re-reading the head" {
+  local skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md" cmds f
+  cmds=$(pr_command_lines "$skill")
+  grep -q -- '--rawfile body <body-file>' <<<"$cmds" || {
+    echo "reviewer/SKILL.md's post recipe no longer reads the body with --rawfile"; false; }
+  grep -q 'commit_id: \$sha' <<<"$cmds" && grep -q -- '--arg sha "<head-sha>"' <<<"$cmds" || {
+    echo "reviewer/SKILL.md's post recipe no longer pins commit_id to <head-sha>"; false; }
+  grep -q '\[ "\$HEAD_NOW" = "<head-sha>" \]' <<<"$cmds" || {
+    echo "reviewer/SKILL.md's post recipe no longer re-reads the head before posting"; false; }
+  grep -q 'reviewed-sha: \\(\$sha)' <<<"$cmds" || {
+    echo "reviewer/SKILL.md's post recipe no longer stamps reviewed-sha from \$sha"; false; }
+  for f in "$ROOT"/dnbg-workflow/skills/reviewer/*.md "$ROOT"/dnbg-workflow/skills/reviewer/references/*.md \
+           "$ROOT"/dnbg-workflow/agents/reviewer-orchestrated.md; do
+    if pr_command_lines "$f" | grep -nE -- '--arg body|gh pr review '; then
+      echo "${f#"$ROOT"/} posts a review with an inline body or without commit_id"; return 1
+    fi
+  done
 }
 
 @test "a short-form -F file, a multi-word placeholder and the file it is in are read right" {
