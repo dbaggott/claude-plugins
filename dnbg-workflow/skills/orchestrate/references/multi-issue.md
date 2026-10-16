@@ -38,7 +38,8 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
 ## The loop
 
 Run it after start and after every event that can change the answer: a child
-closing, a row reaching `applied`, a spec verdict on a child.
+closing, a child leaving flight (below), a row reaching `applied`, a spec
+verdict on a child.
 
 1. **Finish every `decided` row not yet `applied`**, per
    `references/design-change.md`.
