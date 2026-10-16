@@ -16,9 +16,11 @@
 #                    PR's head commit and changed files
 #
 # Modelled: issue view/list/edit/comment, label create, pr list/create/view/
-# edit/comment/ready, search prs, and GET-only api: user, the repo, the issue,
-# its comments and its timeline. The one PR is the one `pr create` opened; it
-# is a draft until `pr ready`.
+# edit/comment/ready, search prs, auth status, GET-only api: user, the repo,
+# the issue, its comments and its timeline, and the one GraphQL query
+# claim-issue.sh reads the claim with. The one PR is the one `pr create`
+# opened; it is a draft until `pr ready`. Comments written through the stub
+# carry one fixed `createdAt`.
 # Anything else, an api write included, is logged as
 # `unmodelled` and exits 1, so a path the stub does not know about fails the run
 # with the call named instead of being answered with something plausible.
@@ -51,7 +53,7 @@ ARGV=("$@")
 CMD=""
 
 # Flags the modelled commands take a value for. Anything else is positional.
-JSON_FIELDS="" JQ="" BODY="" BODY_FILE="" HEAD_REF="" PAGINATE_SLURP=0 METHOD=GET API_FIELDS=0
+JSON_FIELDS="" JQ="" BODY="" BODY_FILE="" HEAD_REF="" PAGINATE_SLURP=0 METHOD=GET API_FIELDS=0 GQL_QUERY=""
 POSITIONAL=()
 VALUE_FLAGS=" --json -q --jq -b --body -F --body-file -R --repo -t --title -B --base -H --head -l --label
   --add-label --remove-label -a --assignee --add-assignee --remove-assignee -c --color --description
@@ -67,11 +69,17 @@ while [ "$#" -gt 0 ]; do
     --jq=*) JQ=${1#--jq=}; shift ;;
     -b|--body) BODY=$2; shift 2 ;;
     --body=*) BODY=${1#--body=}; shift ;;
-    -F|--body-file) BODY_FILE=$2; shift 2 ;;
+    -F|--body-file)
+      # `-F` is a field on `gh api` and a body file everywhere else.
+      if [ "${POSITIONAL[0]-}" = api ]; then API_FIELDS=1; else BODY_FILE=$2; fi
+      shift 2 ;;
     --body-file=*) BODY_FILE=${1#--body-file=}; shift ;;
     --slurp) PAGINATE_SLURP=1; shift ;;
     -X|--method) METHOD=$2; shift 2 ;;
-    -f|--raw-field|--field|--input) API_FIELDS=1; shift 2 ;;
+    -f|--raw-field|--field|--input)
+      API_FIELDS=1
+      case "$2" in query=*) GQL_QUERY=${2#query=} ;; esac
+      shift 2 ;;
     -H|--head) HEAD_REF=$2; shift 2 ;;
     --head=*) HEAD_REF=${1#--head=}; shift ;;
     -R|--repo|-t|--title|-B|--base|-l|--label|--add-label|--remove-label \
@@ -112,7 +120,8 @@ served_issue() {
       | map(select(. != null) | split(",")[]);
     ($log | map(select(.cmd == "issue edit") | .args)) as $edits
     | with_entries(select(.key | startswith("_") | not))
-    | .comments += [$log[] | select(.cmd == "issue comment") | {author: {login: "eval-operator"}, body}]
+    | .comments += [$log[] | select(.cmd == "issue comment")
+                    | {author: {login: "eval-operator"}, body, createdAt: "2026-10-02T12:00:00Z"}]
     | .assignees = ([.assignees[].login]
         + [$edits[] | flag_values("--add-assignee")[] | if . == "@me" then "eval-operator" else . end]
         | unique | map({login: .}))
@@ -179,6 +188,21 @@ case "$CMD" in
   "api user")
     log read
     echo '{"login":"eval-operator"}' | emit
+    ;;
+  "auth status")
+    log read
+    printf 'github.com\n  Logged in to github.com account eval-operator\n'
+    ;;
+  "api graphql")
+    # The claim read: assignees, labels and comments of the one issue.
+    case "$GQL_QUERY" in
+      *"issue(number:"*"assignees("*"labels("*"comments("*) ;;
+      *) unmodelled ;;
+    esac
+    log read
+    served_issue | jq '{data: {repository: {issue: {
+        assignees: {nodes: .assignees}, labels: {nodes: .labels},
+        comments: {nodes: [.comments[] | {body, createdAt}]}}}}}' | emit
     ;;
   "api "*)
     if [ "$API_FIELDS" = 1 ] || [ -n "$BODY_FILE" ] || [ "$METHOD" != GET ]; then unmodelled; fi

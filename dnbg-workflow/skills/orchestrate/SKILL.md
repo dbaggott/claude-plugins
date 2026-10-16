@@ -128,8 +128,12 @@ as a subagent ending its turn, and that turn's report is the event. Act on what
 it ends with:
 
 - a question — triage it, under "Answer or escalate";
-- the author's PR URL at send-to-review — dispatch the reviewer, unless one
-  is already reviewing that PR;
+- the author's PR URL at send-to-review — a departure reported rather than
+  asked, in that report, the issue's comments since dispatch or the PR
+  description, goes under "Answer or escalate" first, and an answer other
+  than the change as built sends the author back, so the reviewer waits for
+  its next send-to-review; otherwise dispatch the reviewer, unless one is
+  already reviewing that PR;
 - the author's merge handoff — relay it, under "Relay the merge handoff";
   its merge watch is armed;
 - the author's reminder that the PR is still open and needs merging — relay
@@ -154,6 +158,11 @@ printed. Otherwise continue it with what the state shows is still owed.
 A question reaches you as the asking agent's report, which links its
 `Delegated question:` comment. That comment's URL is the question's key in the
 log. Send the answer to the agent that asked.
+
+A departure from the design that an author reports as made rather than asks is
+a question it skipped. Triage it the same way, with the comment or the PR that
+reports it as the row's **Question**; an answer other than the change as built
+sends the author back to rework it.
 
 Triage it against the design (step 5) under the allowlist in
 `references/triage.md`, which also gives the log row's exact shape:
