@@ -1,0 +1,1 @@
+`git-workflow`'s self-review now runs `/code-review` with the worktree's absolute path ahead of the range. A session whose working directory is another repo, as an orchestrated author's often is, previously got an empty review because neither end of the range exists there.
