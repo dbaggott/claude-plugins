@@ -56,8 +56,8 @@ Below the command, report the cycle under exactly these three headings, in this 
 
 - **Summary** — what happened. The PR by full URL, what it ships as-built, and how the cycle went (rounds, verdicts, anything the review changed about the work). Self-contained: the operator may have been away since sending it to review.
 - **Observations** — informational, and nothing for them to do. Something surprising in the code you touched, an assumption the change now rests on, a check that passed for a reason worth knowing.
-- **Actionable** — findings deferred with "Merge as-is", a follow-up the reviewer raised that you didn't take, setup or config the merged change will need, an out-of-scope defect you left alone. One line each, naming the concrete next step and where. Out of scope is what qualifies a deferral, not merely having decided against it.
+- **Actionable** — findings deferred with "Merge as-is", a follow-up the reviewer raised that you didn't take, setup or config the merged change will need, an out-of-scope defect you left alone. One line each, naming the concrete next step and where. Out of scope is what qualifies a deferral, not merely having decided against it. Write each item as a follow-up entry per `<skill-dir>/../followup-review/references/entry.md`, and name the entry's path on the item's line.
 
-Don't act on that list — filing and fixing are the operator's call, and `issue-workflow` covers the filing once they make it.
+Beyond writing those entries, don't act on that list — filing and fixing are the operator's call, and `issue-workflow` covers the filing once they make it.
 
 This report is the baseline the post-merge report in `references/post-merge.md` is a delta against.

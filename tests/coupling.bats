@@ -201,6 +201,12 @@ EOF
     echo "retrospective_dir default disagrees: manifest '$from_manifest', lib.sh '$DEFAULT_RETROSPECTIVE_DIR'"
     false
   }
+
+  from_manifest=$(jq -r '.userConfig.followup_dir.default' "$manifest")
+  [ "$from_manifest" = "$DEFAULT_FOLLOWUP_DIR" ] || {
+    echo "followup_dir default disagrees: manifest '$from_manifest', lib.sh '$DEFAULT_FOLLOWUP_DIR'"
+    false
+  }
 }
 
 # `version_stamp` is pinned separately rather than as another arm above, because
@@ -235,7 +241,7 @@ EOF
 # defaults" draws its line at mechanical-vs-behavioral, and the behavioral side —
 # drafts always, the send-to-review picker and its fixed option order, the
 # `[<branch-name>]` sibling title tag, "only a human merges" — is meant to have no
-# key at all. Nothing else notices a fifth key appearing, so the surface is
+# key at all. Nothing else notices a new key appearing, so the surface is
 # pinned by equality: a new knob is a decision to make deliberately, and this is
 # the test that makes someone make it.
 #
@@ -247,10 +253,10 @@ EOF
 # above writes onto a PR title people read, and stays an opinion because it is
 # there to be read. "The operator might prefer otherwise" is not a ground either,
 # or every behavioral choice above qualifies.
-@test "the plugin exposes exactly the five intended configuration keys" {
+@test "the plugin exposes exactly the six intended configuration keys" {
   local keys
   keys=$(jq -r '.userConfig | keys_unsorted[]' "$ROOT/dnbg-workflow/.claude-plugin/plugin.json" | sort | tr '\n' ' ')
-  [ "$keys" = "claim_label owners retrospective_dir version_stamp worktree_path " ] || {
+  [ "$keys" = "claim_label followup_dir owners retrospective_dir version_stamp worktree_path " ] || {
     echo "userConfig keys are: $keys"
     echo "adding one means deciding it is mechanical, or that it governs what gets published — see docs/configuration.md"
     false
@@ -842,6 +848,29 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   [ -n "$rel" ] || { echo "retrospective.md names no manifest path"; false; }
   jq -e '.version | length > 0' "$ROOT/dnbg-workflow/skills/orchestrate/$rel" >/dev/null || {
     echo "<skill-dir>/$rel does not resolve to a manifest with a version"; false; }
+}
+
+# The same path, from the follow-up entry format. Its writers come from three
+# skills, and `<skill-dir>/../../` reaches the manifest from any of them.
+@test "the manifest path entry.md reads plugin_version from resolves" {
+  local tmpl="$ROOT/dnbg-workflow/skills/followup-review/references/entry.md"
+  local rel
+  rel=$(grep -oE '"<skill-dir>/[^"]*plugin\.json"' "$tmpl" | tr -d '"' | sed 's|^<skill-dir>/||')
+  [ -n "$rel" ] || { echo "entry.md names no manifest path"; false; }
+  jq -e '.version | length > 0' "$ROOT/dnbg-workflow/skills/git-workflow/$rel" >/dev/null || {
+    echo "<skill-dir>/$rel does not resolve to a manifest with a version"; false; }
+}
+
+# Each report with an Actionable section writes its items as follow-up entries,
+# and one reference owns the format and the one-writer rule. A site that stops
+# citing it either drops the entries or grows its own copy of the rule.
+@test "every Actionable report site cites the follow-up entry format" {
+  local entry="followup-review/references/entry.md" f
+  [ -f "$ROOT/dnbg-workflow/skills/$entry" ] || { echo "$entry is missing"; false; }
+  for f in git-workflow/references/merge.md reviewer/references/watch.md orchestrate/SKILL.md; do
+    grep -q "<skill-dir>/\.\./$entry" "$ROOT/dnbg-workflow/skills/$f" || {
+      echo "$f no longer cites <skill-dir>/../$entry"; false; }
+  done
 }
 
 # A `description:` whose value contains an unquoted `: ` is not a description with

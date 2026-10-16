@@ -145,10 +145,12 @@ routinely leaves the section empty.
 - **Actionable** — a non-blocking finding the author didn't take, a thread you
   resolved on the author's reasoning that you still think deserves a follow-up,
   a coverage gap the merged diff carries. One line each, naming the concrete
-  next step and where.
+  next step and where. Write each item as a follow-up entry per
+  `<skill-dir>/../followup-review/references/entry.md`, which says which items
+  the author writes instead, and name the entry's path on the item's line.
 
-Don't act on that list — you are the reviewer, and filing or fixing is somebody
-else's side of the flow.
+Beyond writing those entries, don't act on that list — you are the reviewer, and
+filing or fixing is somebody else's side of the flow.
 
 In the issue-scoped mode this report fires **per PR**, as each one closes, and
 says nothing about the assignment being over — re-discovery decides that. Report

@@ -87,21 +87,26 @@ EOF
 CONFIGURED_WORKTREE_PATH="${CLAUDE_PLUGIN_OPTION_WORKTREE_PATH:-}"
 CONFIGURED_CLAIM_LABEL="${CLAUDE_PLUGIN_OPTION_CLAIM_LABEL:-}"
 CONFIGURED_RETROSPECTIVE_DIR="${CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR:-}"
+CONFIGURED_FOLLOWUP_DIR="${CLAUDE_PLUGIN_OPTION_FOLLOWUP_DIR:-}"
 
 WORKTREE_PATH_BAD=""
 CLAIM_LABEL_BAD=""
 RETROSPECTIVE_DIR_BAD=""
+FOLLOWUP_DIR_BAD=""
 [ -n "$CONFIGURED_WORKTREE_PATH" ] &&
   WORKTREE_PATH_BAD=$(worktree_path_rejection "$CONFIGURED_WORKTREE_PATH")
 [ -n "$CONFIGURED_CLAIM_LABEL" ] &&
   CLAIM_LABEL_BAD=$(claim_label_rejection "$CONFIGURED_CLAIM_LABEL")
 [ -n "$CONFIGURED_RETROSPECTIVE_DIR" ] &&
-  RETROSPECTIVE_DIR_BAD=$(retrospective_dir_rejection "$CONFIGURED_RETROSPECTIVE_DIR")
+  RETROSPECTIVE_DIR_BAD=$(outside_repo_dir_rejection "$CONFIGURED_RETROSPECTIVE_DIR")
+[ -n "$CONFIGURED_FOLLOWUP_DIR" ] &&
+  FOLLOWUP_DIR_BAD=$(outside_repo_dir_rejection "$CONFIGURED_FOLLOWUP_DIR")
 
 # Rejections first. A reader who sees only the override note below would take the
 # default it names as their configuration working, when in fact their value was
 # thrown away — so the reason has to arrive before, not after.
-if [ -n "$WORKTREE_PATH_BAD" ] || [ -n "$CLAIM_LABEL_BAD" ] || [ -n "$RETROSPECTIVE_DIR_BAD" ]; then
+if [ -n "$WORKTREE_PATH_BAD" ] || [ -n "$CLAIM_LABEL_BAD" ] || [ -n "$RETROSPECTIVE_DIR_BAD" ] ||
+   [ -n "$FOLLOWUP_DIR_BAD" ]; then
   printf '\n## dnbg-workflow: INVALID configuration (ignored)\n\n'
 fi
 
@@ -127,16 +132,22 @@ The configured retrospective directory \`$CONFIGURED_RETROSPECTIVE_DIR\` cannot 
 used: $RETROSPECTIVE_DIR_BAD. **Using \`$DEFAULT_RETROSPECTIVE_DIR\` instead.**
 EOF
 
+[ -n "$FOLLOWUP_DIR_BAD" ] && cat <<EOF
+The configured follow-up directory \`$CONFIGURED_FOLLOWUP_DIR\` cannot be used:
+$FOLLOWUP_DIR_BAD. **Using \`$DEFAULT_FOLLOWUP_DIR\` instead.**
+EOF
+
 WORKTREE_PATH=$(resolve_worktree_path)
 CLAIM_LABEL=$(resolve_claim_label)
 RETROSPECTIVE_DIR=$(resolve_retrospective_dir)
+FOLLOWUP_DIR=$(resolve_followup_dir)
 
 # Compared against the defaults rather than against "was anything set", so an
 # operator who configures a knob to the value it already had gets no note. There
 # is nothing to override in that case, and a note claiming otherwise would be
 # noise the reader has to work out is a no-op.
 if [ "$WORKTREE_PATH" != "$DEFAULT_WORKTREE_PATH" ] || [ "$CLAIM_LABEL" != "$DEFAULT_CLAIM_LABEL" ] ||
-   [ "$RETROSPECTIVE_DIR" != "$DEFAULT_RETROSPECTIVE_DIR" ]; then
+   [ "$RETROSPECTIVE_DIR" != "$DEFAULT_RETROSPECTIVE_DIR" ] || [ "$FOLLOWUP_DIR" != "$DEFAULT_FOLLOWUP_DIR" ]; then
   printf '\n## dnbg-workflow: configuration overrides\n\n'
   printf 'These win over the skills. Where a skill spells out a default below and this note names something else, use what this note says.\n\n'
 fi
@@ -160,6 +171,12 @@ EOF
 - **Retrospectives live under \`$RETROSPECTIVE_DIR/\`**, not the
   \`$DEFAULT_RETROSPECTIVE_DIR/\` that \`orchestrate\` and \`process-review\` spell
   out. Write and read them in \`$RETROSPECTIVE_DIR/<owner>/<repo>/\`.
+EOF
+
+[ "$FOLLOWUP_DIR" != "$DEFAULT_FOLLOWUP_DIR" ] && cat <<EOF
+- **Follow-up entries live under \`$FOLLOWUP_DIR/\`**, not the
+  \`$DEFAULT_FOLLOWUP_DIR/\` that \`followup-review\` spells out. Write and read
+  them in \`$FOLLOWUP_DIR/<owner>/<repo>/\`.
 EOF
 
 exit 0

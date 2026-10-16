@@ -193,6 +193,7 @@ you wrote.
 | `issue-reviewer` | `dnbg-workflow` | GitHub only | Reviewing an issue body as a spec, in rounds, before anyone picks it up |
 | `orchestrate` | `dnbg-workflow` | GitHub only | Driving one issue, or every child of a tracking issue, to merged PRs with author and reviewer subagents |
 | `process-review` | `dnbg-workflow` | GitHub only | Finding patterns across orchestration retrospectives and drafting upstream issues |
+| `followup-review` | `dnbg-workflow` | GitHub only | Sweeping the follow-up entries agents keep for each Actionable item, and filing or dropping each with you |
 | `reviewer` | `dnbg-workflow` | GitHub only | Reviewing a pushed PR under an independent GitHub App identity |
 | `reviewer-setup` | `dnbg-workflow` | GitHub only | One-time creation of that App (no cloud service, no shared secret) |
 | `velocity-tradeoff` | `dnbg-workflow` | **Any** | Opt-in: how to size work where the risk/benefit trade favors speed |
