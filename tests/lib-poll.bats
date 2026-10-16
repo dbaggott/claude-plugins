@@ -23,6 +23,16 @@ setup() {
   contain_traces
 }
 
+# Prints the pid of watch $1's nap `sleep` once it exists; fails if none appears.
+# Matched by name, because the watch's command substitutions are children too.
+nap_child() {
+  local nap="" i=0
+  while [ -z "$nap" ] && [ "$i" -lt 150 ]; do
+    nap=$(pgrep -x -P "$1" sleep 2>/dev/null | head -1); [ -n "$nap" ] || sleep 0.1; i=$((i + 1))
+  done
+  [ -n "$nap" ] && echo "$nap"
+}
+
 # A clock we control. `sleep N` advances it by N instead of sleeping; if a
 # SUSPEND file holds a number, the next sleep also jumps by that much and clears
 # it — which is exactly what a laptop lid does to a poll loop.
@@ -400,7 +410,7 @@ EOF
   # its own rather than becoming another 6-hour orphan.
   bash -c "export WATCH_LOG='$log' WINDOW=600 POLL_CURVE='0:30'; . '$LIB'
     poll_init; for _ in 1 2 3; do poll_nap; done" &
-  local pid=$! i=0
+  local pid=$!
   echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
   # Signal only once the nap's `sleep` exists, not as soon as START is written. On
   # bash 5.2 a trapped signal that lands while the watch is still expanding the
@@ -408,11 +418,7 @@ EOF
   # all (see the tracing header in lib-poll.sh), which is a bash defect rather than
   # what this test is about. Generously bounded, because it is setup: the 3s
   # deadline below is the assertion and stays tight.
-  local nap=""
-  while [ -z "$nap" ] && [ "$i" -lt 150 ]; do
-    nap=$(pgrep -x -P "$pid" sleep 2>/dev/null | head -1); [ -n "$nap" ] || sleep 0.1; i=$((i + 1))
-  done
-  [ -n "$nap" ] || { echo "child never reached its nap"; return 1; }
+  nap_child "$pid" >/dev/null || { echo "child never reached its nap"; return 1; }
   kill -TERM "$pid"
 
   # The deadline is the assertion. The nap is 30s; a foreground `sleep` defers
@@ -446,16 +452,13 @@ EOF
   local log="$BATS_TEST_TMPDIR/trace.log"
   bash -c "export WATCH_LOG='$log' WINDOW=600 POLL_CURVE='0:30'; . '$LIB'
     poll_init; for _ in 1 2 3; do poll_nap; done" &
-  local pid=$! i=0
+  local pid=$!
   echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
-  # The sleep is the child of the watch; find it before the watch dies. Matched by
-  # name, because the watch's command substitutions are children too, and one of
-  # those exits on its own and passes the reap assertion without testing it.
-  local nap=""
-  while [ -z "$nap" ] && [ "$i" -lt 150 ]; do
-    nap=$(pgrep -x -P "$pid" sleep 2>/dev/null | head -1); [ -n "$nap" ] || sleep 0.1; i=$((i + 1))
-  done
-  [ -n "$nap" ] || skip "could not observe the nap child on this platform"
+  # The sleep is the child of the watch; find it before the watch dies. By name,
+  # because a command substitution child exits on its own and would pass the reap
+  # assertion without testing it.
+  local nap
+  nap=$(nap_child "$pid") || skip "could not observe the nap child on this platform"
   kill -TERM "$pid"; wait "$pid" 2>/dev/null || true
   # Re-raising kills the shell; without the reap the sleep outlives it by up to a
   # full interval — 300s at the cap.
