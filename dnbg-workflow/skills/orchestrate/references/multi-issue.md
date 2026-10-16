@@ -76,8 +76,9 @@ closing, a row reaching `applied`, a spec verdict on a child.
 
 A child is **in flight** while it is open and `claim-issue.sh` reads `OWN` on
 it, and after it closes until its author has sent its final report and its
-reviewer has ended. At that end, collect both agents' retrospectives and fold
-their project-level items into the parent, per `references/retrospective.md`. A
+reviewer has ended. At that end, apply the sweep its author's final report
+carries (below), collect both agents' retrospectives, and fold their
+project-level items into the parent, per `references/retrospective.md`. A
 child that closes without a merged PR: tell the operator.
 
 ## Waiting
@@ -125,11 +126,12 @@ through `references/design-change.md`, whose last step marks it `applied`. A
 row left at `decided` reads as unfinished work on every later loop and restart.
 
 You are the parent body's only writer. A child's body is its author's, per
-`SKILL.md`; you edit one only in a design change's sweep of a child not yet
-dispatched (`references/design-change.md`). Any other body edit, a row's
-state cell included, is reading the body, changing it, and writing it back with
-`gh issue edit <n> --body-file <file>`, re-read just before each write. `<file>`
-comes from `mktemp`, per `git-workflow`'s "Writing the PR description".
+`SKILL.md`; you edit one only while it is not yet dispatched, in a design
+change's sweep (`references/design-change.md`) or a merge's (below). Any other
+body edit, a row's state cell included, is reading the body, changing it, and
+writing it back with `gh issue edit <n> --body-file <file>`, re-read just before
+each write. `<file>` comes from `mktemp`, per `git-workflow`'s "Writing the PR
+description".
 
 **An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
 the loop pauses until they answer, and the events that arrived meanwhile are
@@ -141,6 +143,15 @@ while the question is open, read the parent's comments newer than it. With no
 agent left in flight to wake you, the turn you ended is the run's end, and a
 restart reads the answer under "On start". An answer is a `decided` row, then
 `references/design-change.md`.
+
+## A merge's sweep of the children its issue blocks
+
+A child's author's final report names, for each sibling its issue blocks, the
+items in that sibling's body its merge shipped. Mark each shipped, with the
+PR's URL, as `issue-workflow`'s "Maintaining issues" does: yourself in a child
+not yet dispatched, and through its author for a child in flight, as
+`references/design-change.md` step 3 relays an edit. Marking shipped work
+changes no design, so it takes no log row and no re-review.
 
 ## Systemic problems
 
