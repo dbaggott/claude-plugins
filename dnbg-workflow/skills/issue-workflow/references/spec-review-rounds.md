@@ -44,6 +44,14 @@ from that moment: the receipt is fixed and the reviewer is reading against it. A
 edit you genuinely need afterwards opens a **new round** — make it, then say so in
 a fresh comment.
 
+**An edit to an issue already at `READY` reopens its round too**, as when a fix
+for a finding on one child reaches a sibling. Comment on it after the edit,
+though it had no findings: name the finding that caused the edit, by its ID and
+the URL of the comment carrying it, then the section that changed, and end with
+`No findings were open here.`
+
+> Edited "Acceptance criteria" for `281-B2` (<comment URL>). No findings were open here.
+
 ## Waiting for the next round
 
 Spawn the wait as a **background** task with `timeout: 7200000`, and every
