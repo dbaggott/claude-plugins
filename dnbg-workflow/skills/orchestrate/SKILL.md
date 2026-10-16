@@ -229,9 +229,10 @@ Stop once the author's final report, which follows the merge and its
 post-merge cleanup, and the reviewer's end are both in. If the issue is still
 open then, say so in the report. In each sibling the author's final report
 names, mark shipped the items it lists, with the PR's URL, as `issue-workflow`'s
-"Maintaining issues" does. Collect both agents' retrospectives, write your own,
-and fold the project-level items into the parent, all per
-`references/retrospective.md`. Then report the cycle under three headings:
+"Maintaining issues" does, which comments them instead on a sibling someone
+else has claimed. Under a tracking issue, `references/multi-issue.md` says how.
+Collect both agents' retrospectives, write your own, and fold the project-level
+items into the parent, all per `references/retrospective.md`. Then report the cycle under three headings:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the
