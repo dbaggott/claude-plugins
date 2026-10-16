@@ -66,8 +66,9 @@ sub-issues with it** — asked to review one, the set is it and every child:
 "<skill-dir>/../../scripts/fetch-issue-set.sh" <owner>/<repo> <parent>
 ```
 
-It prints one object — `parent`, then `children`, each with `body`, `state`,
-`created` and `body_edited`, and per child the `blocked_by` URLs — then
+It prints one object — `parent`, then `children`, each with `title`, `body`,
+`state`, `created`, `body_edited` and `labels`, and per child the `blocked_by`
+URLs — then
 `result=OK now=<iso> children=<count>`. `now` is your read time. On `ERROR`,
 `reason=not-found` is a parent number that resolves to no issue and
 `set-overflow` a set larger than one query returns; `issue-query`,
@@ -110,6 +111,14 @@ Compute these rather than eyeballing them:
   named at that line is the one there. A drifted line number is a finding when the
   body's argument rests on what sits at it, an observation when the surrounding
   prose still locates the thing.
+- **In a tracking set, every issue carries the project's handles.** The parent's
+  title is `[<slug>] Tracking issue: <description>`, per `issue-workflow`'s
+  `references/tracking-issue.md`, and once it has children it carries the label
+  `project:<slug>`, which decomposition mints. Each child's title starts with
+  the same `[<slug>] ` and its `labels` include the same label. A child missing
+  either is a finding on that child. A parent missing the tag, or the label once
+  it has children, is a finding on the parent; with no tag, the children have
+  nothing to check against.
 
 **Triage every match before reporting it** — a check that cries wolf on quoted
 examples is one a reviewer learns to skim. These questions settle almost all of it:

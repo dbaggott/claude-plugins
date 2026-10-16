@@ -12,6 +12,18 @@ Start the body with the words `This is a **tracking issue**`, verbatim; the
 rest of the sentence is yours. That opening is what routes a spec review of it
 to the design checks, in `issue-reviewer`'s `references/design-review.md`.
 
+Choose a **project slug** when filing: lowercase-dashed, at most 42
+characters so `project:<slug>` fits GitHub's 50-character label name, and fixed
+for the project's life. A slug whose `project:<slug>` label already exists in
+the repository belongs to another project, so choose another. Title the issue `[<slug>] Tracking issue: <description>`.
+The sub-issue link shows only on issue pages and in the API; the tag is what
+carries the project name into issue lists, search results, notification
+subjects and PR titles.
+
+The slug also names the project's label, `project:<slug>`, which the parent
+and every child carry. `references/decomposing.md` mints it and applies it
+when the children are filed.
+
 ## Sections
 
 Required, in this order, even while a log is still empty:

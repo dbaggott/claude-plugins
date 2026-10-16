@@ -35,9 +35,12 @@ design author's first guess:
   are one child, or a third holds what they share: the dependencies form no
   cycle.
 
-## 2. Write each child's body
+## 2. Write each child's title and body
 
-Per `creating.md`, opening with the parent and three fixed lines:
+The title is `[<slug>] <description>`, with the parent's slug, read from its
+own title (`tracking-issue.md`, "Declare it"). A parent filed without a tag
+gets one first: choose the slug there and retitle the parent to that form. The
+body is per `creating.md`, opening with the parent and three fixed lines:
 
 ```markdown
 Sub-issue of <parent URL> (the design). Section IDs below refer to that body.
@@ -73,11 +76,23 @@ run, per `creating.md`.
 
 ## 4. File the children and set their relationships
 
+Children live in the parent's repository. Before filing any, mint the project
+label there and put it on the parent:
+
+```bash
+gh label create "project:<slug>" --repo <owner/repo> --force --color 5319E7 \
+  --description "Tracked by <parent URL>"
+gh issue edit <parent> --repo <owner/repo> --add-label "project:<slug>"
+```
+
+`--force` updates a label that already exists rather than failing on it, so run
+the call without checking for the label first.
+
 File in dependency order, blockers first, so every `Depends on` line names real
 URLs. A body that mentions a child filed after it, outside `Depends on`, gets
-that URL in an edit once the child exists. Children live in the parent's
-repository. For each, file it per
-`creating.md` (labels included), then set its relationships with one call:
+that URL in an edit once the child exists. For each, file it per `creating.md`
+(labels included, `project:<slug>` among them), then set its relationships with
+one call:
 
 ```bash
 "<skill-dir>/../../scripts/set-issue-relations.sh" <owner/repo> <child> --parent=<parent> [--blocked-by=<n,...>]

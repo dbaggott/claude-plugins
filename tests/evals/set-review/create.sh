@@ -6,18 +6,22 @@
 #   tests/evals/set-review/create.sh [owner/repo]   # default dbaggott/dnbg-watch-testbed
 #
 # Files fixtures/ as a scratch tracking issue with its sub-issues and one
-# blocked-by edge, then prints the parent's URL. Review that URL with
-# `issue-reviewer`. The review passes when its round comments report each planted
-# defect on the issue SKILL.md's attach rules name:
+# blocked-by edge, under the project slug `notes-export`, then prints the
+# parent's URL. Review that URL with `issue-reviewer`. The review passes when its
+# round comments report each planted defect on the issue SKILL.md's attach rules
+# name:
 #
 #   - Coverage gap, on the parent: R4 is in no child's `Covers` line and carries
 #     no end-to-end or deferred marking.
 #   - Unrealized dependency, on the checker child: its first acceptance criterion
 #     runs against the output of the export child's script, and the checker has
 #     neither a blocked-by edge nor a `Depends on` entry for it.
+#   - Missing project label, on the import child: its title carries the
+#     `[notes-export]` tag, and it is filed without `project:notes-export`.
 #
 # The import child's edge to the export child is real and declared, so a review
-# that flags it has misread the check.
+# that flags it has misread the check; the export and checker children carry
+# both the tag and the label.
 #
 # Nothing here grades: the round comments are the result, read by hand. Close the
 # scratch issues once they have been read.
@@ -48,28 +52,39 @@ DATE=$(date -u +%Y-%m-%d)
 # shellcheck source=../render.sh
 . "$HERE/../render.sh"
 
-# <title> <body-file> -> the new issue's URL
+SLUG=notes-export
+LABEL="project:$SLUG"
+
+# <title> <body-file> [label] -> the new issue's URL
 create() {
-  gh issue create --repo "$REPO" --title "$1" --body-file "$2" 2>/dev/null | tail -1
+  local label="${3:-}"
+  # shellcheck disable=SC2086  # empty, or `--label` and one quoted word
+  gh issue create --repo "$REPO" --title "$1" --body-file "$2" ${label:+--label "$label"} \
+    2>/dev/null | tail -1
 }
 
 # The parent is filed first so the children can cite it, and its design is
 # written once their URLs exist.
 echo "This is a **tracking issue**; its design is written once its children are filed." \
   > "$TMP/parent.md"
-PARENT=$(create "[set-review eval] Notes export" "$TMP/parent.md") || fail create-failed
+PARENT=$(create "[$SLUG] Tracking issue: Notes export" "$TMP/parent.md") || fail create-failed
 filed "$PARENT" || fail create-failed
 
-# <fixture-name> <title> -> the child's URL. The export child goes first, since
-# the import child cites it.
+gh label create "$LABEL" --repo "$REPO" --force --color 5319E7 \
+  --description "Tracked by $PARENT" >/dev/null 2>&1 || fail create-failed
+gh issue edit "$PARENT" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1 || fail create-failed
+
+# <fixture-name> <title> [label] -> the child's URL. The export child goes
+# first, since the import child cites it.
 child() {
   render "$FIX/child-$1.md" PARENT="$PARENT" CHILD_EXPORT="${EXPORT:-}" > "$TMP/$1.md"
-  create "[set-review eval] $2" "$TMP/$1.md"
+  create "[$SLUG] $2" "$TMP/$1.md" "${3:-}"
 }
-EXPORT=$(child export "Export script") || fail create-failed
+EXPORT=$(child export "Export script" "$LABEL") || fail create-failed
 filed "$EXPORT" || fail create-failed
-CHECK=$(child check "Export checker") || fail create-failed
+CHECK=$(child check "Export checker" "$LABEL") || fail create-failed
 filed "$CHECK" || fail create-failed
+# The planted label gap: tagged, unlabelled.
 IMPORT=$(child import "Import script") || fail create-failed
 filed "$IMPORT" || fail create-failed
 

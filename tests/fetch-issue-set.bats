@@ -23,22 +23,26 @@ EOF
   export PATH="$STUB:$PATH"
 }
 
-issue() {  # <n> <state> <lastEditedAt|null> [blocker-n...] -> one issue node
+# <n> <state> <lastEditedAt|null> [blocker-n...] -> one issue node, labelled
+# `project:p` and `area:x`
+issue() {
   local n="$1" state="$2" edited="$3"; shift 3
   printf '%s\n' "$@" | jq -cs --argjson n "$n" --arg s "$state" --arg e "$edited" --arg u "$U" '
     map(select(. != "")) as $b
     | {url: "\($u)/\($n)", number: $n, title: "t\($n)", body: "body \($n)", state: $s,
        createdAt: "2026-10-01T00:00:00Z",
        lastEditedAt: (if $e == "null" then null else $e end),
+       labels: {totalCount: 2, nodes: [{name: "project:p"}, {name: "area:x"}]},
        blockedBy: {totalCount: ($b | length), nodes: ($b | map({url: "\($u)/\(.)"}))}}'
 }
-# <total> [child-node...] -> the answer for parent 1
+# <total> [child-node...] -> the answer for parent 1, labelled `project:p`
 answer() {
   local total="$1"; shift
   printf '%s\n' "$@" | jq -cs --argjson t "$total" --arg u "$U" '
     {data: {repository: {issue: {
       url: "\($u)/1", number: 1, title: "parent", body: "design", state: "OPEN",
       createdAt: "2026-10-01T00:00:00Z", lastEditedAt: "2026-10-02T00:00:00Z",
+      labels: {totalCount: 1, nodes: [{name: "project:p"}]},
       subIssues: {totalCount: $t, nodes: map(select(. != null))}}}}}' > "$ANSWER"
 }
 object() { head -1 <<<"$1"; }
@@ -55,6 +59,13 @@ line() { tail -1 <<<"$1"; }
     = "[{\"number\":2,\"state\":\"OPEN\",\"blocked_by\":[]},{\"number\":3,\"state\":\"CLOSED\",\"blocked_by\":[\"$U/2\"]}]" ]
 }
 
+@test "labels arrive as names, on the parent and on each child" {
+  answer 1 "$(issue 2 OPEN null)"
+  run "$FETCH" o/r 1
+  [ "$(object "$output" | jq -c '[.parent.labels, .children[0].labels]')" \
+    = '[["project:p"],["project:p","area:x"]]' ]
+}
+
 @test "a never-edited body is a null body_edited, with created for its age" {
   answer 1 "$(issue 2 OPEN null)"
   run "$FETCH" o/r 1
@@ -66,7 +77,7 @@ line() { tail -1 <<<"$1"; }
   answer 1 "$(issue 2 OPEN null 3)"
   run "$FETCH" o/r 1
   [ "$(object "$output" | jq -c '[paths | map(strings) | .[]] | unique')" \
-    = '["blocked_by","body","body_edited","children","created","number","parent","state","title","url"]' ]
+    = '["blocked_by","body","body_edited","children","created","labels","number","parent","state","title","url"]' ]
 }
 
 @test "a parent with no sub-issues is an empty set, not an error" {
@@ -85,6 +96,16 @@ line() { tail -1 <<<"$1"; }
 
 @test "one child with more blockers than returned is set-overflow" {
   answer 1 "$(issue 2 OPEN null 3 | jq -c '.blockedBy.totalCount = 60')"
+  run "$FETCH" o/r 1
+  [[ "$(line "$output")" == "result=ERROR reason=set-overflow now="* ]]
+}
+
+@test "more labels than returned, on the parent or a child, is set-overflow" {
+  answer 1 "$(issue 2 OPEN null)"
+  jq -c '.data.repository.issue.labels.totalCount = 101' "$ANSWER" > "$ANSWER.x" && mv "$ANSWER.x" "$ANSWER"
+  run "$FETCH" o/r 1
+  [[ "$(line "$output")" == "result=ERROR reason=set-overflow now="* ]]
+  answer 1 "$(issue 2 OPEN null | jq -c '.labels.totalCount = 101')"
   run "$FETCH" o/r 1
   [[ "$(line "$output")" == "result=ERROR reason=set-overflow now="* ]]
 }
@@ -118,7 +139,7 @@ line() { tail -1 <<<"$1"; }
   [[ "$output" == "result=ERROR reason=issue-query-shape now="* ]]
 }
 
-@test "a null sub-issue or a null blocker is issue-query-shape, not set-overflow" {
+@test "a null sub-issue, blocker page or label page is issue-query-shape, not set-overflow" {
   answer 1 null
   jq -c '.data.repository.issue.subIssues.nodes = [null]' "$ANSWER" > "$ANSWER.x" && mv "$ANSWER.x" "$ANSWER"
   run "$FETCH" o/r 1
@@ -127,6 +148,9 @@ line() { tail -1 <<<"$1"; }
   run "$FETCH" o/r 1
   [[ "$output" == "result=ERROR reason=issue-query-shape now="* ]]
   answer 1 "$(issue 2 OPEN null 3 | jq -c '.blockedBy.nodes = [null]')"
+  run "$FETCH" o/r 1
+  [[ "$output" == "result=ERROR reason=issue-query-shape now="* ]]
+  answer 1 "$(issue 2 OPEN null | jq -c '.labels = null')"
   run "$FETCH" o/r 1
   [[ "$output" == "result=ERROR reason=issue-query-shape now="* ]]
 }
