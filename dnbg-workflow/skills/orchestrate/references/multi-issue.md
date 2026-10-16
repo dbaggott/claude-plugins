@@ -22,12 +22,12 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
    project. For each child you hold, run `SKILL.md`'s steps 3 to 5 on it, then
    dispatch a fresh author, and a reviewer when its PR is out of draft, per
    `SKILL.md`'s "Dispatch the author, then the reviewer".
-3. **Read the parent's log**: its decision-log table, and the
-   `Decision log: archived rows` comment if it has one, then collect every
-   child's rows ("Collect the children's rows"). A `proposed` row is an
+3. **Read the parent's log**: its decision-log table, and any
+   `Decision log: archived rows` comment. Read every comment on the parent
+   newer than the last row for decisions the operator gave there, then collect
+   every child's rows ("Collect the children's rows"). A `proposed` row is an
    escalation still waiting, and a `decided` row is work to finish before any
-   dispatch (`references/design-change.md`). Read every comment on the parent
-   newer than the last row for decisions the operator gave there.
+   dispatch (`references/design-change.md`).
 4. **Review the design.** Read the parent's body as `SKILL.md`'s step 5 reads
    an issue, then run `issue-workflow`'s critical review on it: the parent is
    yours, not an author's, and a design you believe is wrong is an escalation
@@ -156,14 +156,15 @@ comments. Collecting from every child takes the children from
 each child:
 
 1. Read its comments with
-   `gh api --paginate repos/<owner>/<repo>/issues/<child>/comments`, in the
-   child's own repo, and keep those by your login (`gh api user --jq .login`)
-   whose first line starts with `Decision log: `. Never read the parent's this
-   way: that prefix opens other comments there.
-2. Append each one whose URL neither the table nor the archived-rows comment
+   `gh api --paginate repos/<child owner>/<child repo>/issues/<child>/comments`,
+   all three taken from the child's URL, since a child can live in another
+   repo. Keep those whose first line starts with `Decision log: `. Never read
+   the parent's this way: that prefix opens other comments there.
+2. Append each one whose URL neither the table nor an archived-rows comment
    links, with `log-row.sh` as above:
-   `| <comment date> | <ID> | <child URL> | <answer> (<comment URL>) | <state> |`.
-   The ID and state are its first line's, the answer its **Answer**.
+   `| <date> | <ID> | <child URL> | <answer> (<comment URL>) | <state> |`.
+   The ID and state are its first line's, and the answer its **Answer**, with
+   each `|` escaped as `\|`.
 
 ## A merge's sweep of its siblings
 

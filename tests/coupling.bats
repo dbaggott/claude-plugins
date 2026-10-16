@@ -1606,7 +1606,7 @@ row_prefix() {  # <triage.md> -> the text before the first placeholder in the ro
 }
 
 collector_prefixes() {  # <file> -> each prefix the file filters comments on
-  grep -o 'first line starts with `[^`]*`' "$1" | sed 's/^[^`]*`//; s/`$//'
+  tr -s '\n ' ' ' <"$1" | grep -o 'first line starts with `[^`]*`' | sed 's/^[^`]*`//; s/`$//'
 }
 
 @test "the decision-log collectors filter on the prefix triage.md's row starts with" {
