@@ -102,3 +102,30 @@ field() { sed -n "s/.*[ ]$1=\([^ ]*\).*/\1/p" <<<"$2"; }
   run "$FETCH" acme/repo
   [ "$output" = "result=ERROR reason=bad-args" ]
 }
+
+# A default directory is the script's own, and an ERROR line names no `dir=` for
+# the caller to remove, so the script removes it.
+# macOS `mktemp -d` ignores TMPDIR, so a stub records where each one went.
+@test "a failed fetch removes the directory it made" {
+  export MKTEMP_LOG="$BATS_TEST_TMPDIR/made"
+  cat > "$STUB/mktemp" <<'EOF2'
+#!/usr/bin/env bash
+d="$BATS_TEST_TMPDIR/tmp.$RANDOM$RANDOM"; mkdir "$d"; echo "$d" >> "$MKTEMP_LOG"; echo "$d"
+EOF2
+  chmod +x "$STUB/mktemp"
+  echo bad > "$MODE"
+  run "$FETCH" acme/repo deadbeef
+  [ "$output" = "result=ERROR reason=fetch" ]
+  echo hollow > "$MODE"
+  run "$FETCH" acme/repo abc123
+  [ "$output" = "result=ERROR reason=empty" ]
+  [ "$(wc -l < "$MKTEMP_LOG")" -eq 2 ]
+  while read -r d; do [ ! -e "$d" ] || return 1; done < "$MKTEMP_LOG"
+}
+
+@test "a failed fetch leaves an explicit target directory in place" {
+  echo bad > "$MODE"
+  run "$FETCH" acme/repo deadbeef "$BATS_TEST_TMPDIR/target"
+  [ "$output" = "result=ERROR reason=fetch" ]
+  [ -d "$BATS_TEST_TMPDIR/target" ]
+}

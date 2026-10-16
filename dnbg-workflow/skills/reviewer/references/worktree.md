@@ -36,12 +36,18 @@ end like any other checkout you created.
 
 Reviewing can leave a checkout behind
 — a worktree made to run a type-checker, a temporary clone, files pulled into a
-scratch directory. Remove exactly what *you* created:
+scratch directory, the tree `fetch-tree.sh` extracted. Remove exactly what *you*
+created:
 
 ```bash
 git worktree remove .worktrees/review-<n>   # only if you created it
 git worktree prune
+rm -rf <dir>   # each result=OK dir= from a fetch-tree.sh call given no dir
 ```
+
+`fetch-tree.sh` makes a new directory under the system temp directory on every
+such call, and nothing else removes it. A directory you passed it is one you
+chose, so remove it only if you created it.
 
 Two boundaries, and they matter more than the cleanup itself:
 
@@ -53,7 +59,10 @@ Two boundaries, and they matter more than the cleanup itself:
 
 A session that quits mid-review leaves its `.worktrees/review-<n>` behind —
 expected, not a leak, since re-invoking resumes the watch and still cleans up at
-`CLOSED`. Remove it by hand only if the review is being abandoned.
+`CLOSED`. Remove it by hand only if the review is being abandoned. Its
+`fetch-tree.sh` trees are another matter: the resumed session has no record of
+their `dir=`, so they stay in the system temp directory, and it removes only the
+trees it fetched itself.
 
-Reviewing entirely through `gh` leaves nothing to remove, which is the normal
-case and the reason to prefer it.
+Reviewing through `gh` calls alone, with no `fetch-tree.sh` tree, leaves nothing
+to remove, which is the normal case and the reason to prefer it.

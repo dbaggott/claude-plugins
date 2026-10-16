@@ -25,8 +25,9 @@ verdict together. **Run it first; it is what their handling below reads from.**
 - **`CLOSED`** — the PR merged or closed. Stop watching, then finish under
   "Report the review, in three sections" below. **Read
   `references/worktree.md` only if this *review* made a checkout or a scratch
-  directory** — including one an earlier session made and this one resumed. A
-  review run entirely through `gh` has nothing to remove.
+  directory, or ran `fetch-tree.sh`** — a checkout an earlier session made and
+  this one resumed included. A review that read only through `gh` calls and
+  never ran `fetch-tree.sh` has nothing to remove.
 - **`CHECKS`** (`checks='<names>'`) — a check on the watched head stopped
   passing, and nothing else came with it. Not your finding to fix and not a
   re-review: note it in your next reply if it touches what you asked for,

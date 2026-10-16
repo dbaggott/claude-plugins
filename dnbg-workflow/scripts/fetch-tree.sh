@@ -9,9 +9,10 @@
 #   result=OK dir=<path> files=<n>
 #   result=ERROR reason=bad-args|fetch|empty
 #
-# `dir` defaults to a fresh mktemp -d. An explicit one is created if absent and
-# must be empty, so a second fetch cannot silently blend two SHAs into one tree
-# that matches neither.
+# `dir` defaults to a fresh mktemp -d, which an ERROR removes again, since its
+# result line names no `dir=` for the caller to clean up. An explicit one is
+# created if absent and must be empty, so a second fetch cannot silently blend
+# two SHAs into one tree that matches neither.
 #
 # ⚠️ AN EMPTY TREE IS AN ERROR, NOT AN EMPTY ANSWER. This is the whole reason the
 # fetch is a script, and the two guards below catch different failures — neither
@@ -39,8 +40,10 @@ if [ -z "$REPO" ] || [ -z "$SHA" ] || [ "$#" -gt 3 ] || [ "${REPO%/*}" = "$REPO"
   exit 0
 fi
 
+MADE=
 if [ -z "$DIR" ]; then
   DIR=$(mktemp -d)
+  MADE=1
 else
   mkdir -p "$DIR" || { echo "result=ERROR reason=bad-args"; exit 0; }
   if [ -n "$(ls -A "$DIR" 2>/dev/null)" ]; then
@@ -49,20 +52,24 @@ else
   fi
 fi
 
+fetch_failed() {
+  if [ -n "$MADE" ]; then rm -rf "$DIR"; fi
+  echo "result=ERROR reason=$1"
+  exit 0
+}
+
 # Piping gh straight into tar avoids landing a second copy on disk. `pipefail` is
 # already set, so a 404 from gh fails the pipeline even though tar is what exits
 # last — but the empty check below is what the caller actually relies on, since a
 # partial or malformed archive can extract nothing while both sides exit 0.
 if ! gh api "repos/$REPO/tarball/$SHA" 2>/dev/null \
      | tar xz -C "$DIR" --strip-components=1 2>/dev/null; then
-  echo "result=ERROR reason=fetch"
-  exit 0
+  fetch_failed fetch
 fi
 
 FILES=$(find "$DIR" -type f | wc -l | tr -d ' ')
 if [ "$FILES" -eq 0 ]; then
-  echo "result=ERROR reason=empty"
-  exit 0
+  fetch_failed empty
 fi
 
 echo "result=OK dir=$DIR files=$FILES"
