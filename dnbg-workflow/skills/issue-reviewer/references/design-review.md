@@ -40,8 +40,8 @@ posting. This adds checks to each pass, and changes what the round comment says.
   of the tree. Run it and compare what it returns with what the constraint says.
   A mismatch is blocking, quoting both. A method that is an experiment, takes
   more than one command, needs credentials you lack, or has a side effect, such
-  as a write, a post or a spawned session, is left to the mechanical pass, which checks
-  only that it is named.
+  as a write, a post or a spawned session, is left to the mechanical pass,
+  which checks only that it is named.
 - **Every requirement is checkable.** Could a reviewer of the work say whether a
   result meets it? One that cannot be failed cannot be accepted either.
 - **Every decision carries a rationale, and a reversal condition or `none
