@@ -10,6 +10,14 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.43 — 2026-10-16
+
+The reviewer now removes the directories `fetch-tree.sh` extracts PR trees into
+when the PR closes, and the script removes its own directory when a fetch fails.
+They used to stay in the system temp directory. A tree fetched by a session that
+quit before the PR closed still stays there.
+
+
 ## dnbg-workflow 2026.10.42 — 2026-10-16
 
 In an issue-set review, when a fix for one issue's finding edits another issue
