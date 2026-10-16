@@ -17,6 +17,22 @@ that dispatched you. No operator is present, so follow `issue-workflow`'s
 `references/delegated.md` wherever a skill asks the operator something. Never
 merge.
 
+Push the branch and open the draft PR as soon as the first commit exists,
+before the self-review, and push after each commit, since the orchestrator may
+be restarted and an unpushed branch is the one state its successor cannot see.
+The self-review, including the wait for the code-review tool's result, still
+comes before you ask to send the PR to review.
+
+When your prompt names a PR to continue, work on its branch rather than a new
+one: in the worktree the prompt names, reading `git status` and `git diff`
+there first, since the predecessor may have died mid-edit; otherwise with
+`git worktree add .worktrees/<branch> <branch>` in place of `git-workflow`'s
+step 4, which would start a new branch at the default branch.
+
+Stop a background task of yours, such as a watch or a background review, with
+the harness's task-stop tool by its id, never with `pkill -f` or a pattern:
+several agents watch one PR, and a pattern reaches theirs too.
+
 End each turn on what your prompt or the orchestrator's latest message asks
 for, and otherwise on the event that ended it:
 
