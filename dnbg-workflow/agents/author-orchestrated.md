@@ -44,4 +44,7 @@ for, and otherwise on the event that ended it:
   `${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/references/retrospective.md`, and
   report under Summary, Observations, Actionable, and Retrospective, the first
   three carrying what changed since your handoff and the last giving the file's
-  path.
+  path. In the merge's issue sweep, an open issue that is a sub-issue of your
+  issue's parent (`gh issue view <n> --json parent,body`) is a sibling, whose
+  body is not yours to edit: under Summary, give its URL and each item in its
+  body this merge shipped, for the orchestrator to apply.

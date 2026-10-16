@@ -38,7 +38,8 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
 ## The loop
 
 Run it after start and after every event that can change the answer: a child
-closing, a row reaching `applied`, a spec verdict on a child.
+closing, a child leaving flight (below), a row reaching `applied`, a spec
+verdict on a child.
 
 1. **Finish every `decided` row not yet `applied`**, per
    `references/design-change.md`.
@@ -61,7 +62,8 @@ closing, a row reaching `applied`, a spec verdict on a child.
    resolve the parent through its closeout PR, per `references/closeout.md`.
 5. **Dispatch** while fewer than three children are in flight, or the cap the
    operator set: take the next `ready` child, skipping any that a `decided` row
-   still being applied reaches. Claim it first, with
+   still being applied reaches, or whose blocker is still in flight, since its
+   body may yet need that blocker's merge sweep (below). Claim it first, with
    `claim-issue.sh <owner>/<repo> <child> --claim` and the same `--label` and
    `--stamp` as any claim. The claim is what keeps the next ready set from
    offering the child again, so a child whose claim did not return `result=OK`
@@ -76,8 +78,9 @@ closing, a row reaching `applied`, a spec verdict on a child.
 
 A child is **in flight** while it is open and `claim-issue.sh` reads `OWN` on
 it, and after it closes until its author has sent its final report and its
-reviewer has ended. At that end, collect both agents' retrospectives and fold
-their project-level items into the parent, per `references/retrospective.md`. A
+reviewer has ended. At that end, apply the sweep its author's final report
+carries (below), collect both agents' retrospectives, and fold their
+project-level items into the parent, per `references/retrospective.md`. A
 child that closes without a merged PR: tell the operator.
 
 ## Waiting
@@ -126,10 +129,12 @@ row left at `decided` reads as unfinished work on every later loop and restart.
 
 You are the parent body's only writer. A child's body is its author's, per
 `SKILL.md`; you edit one only in a design change's sweep of a child not yet
-dispatched (`references/design-change.md`). Any other body edit, a row's
-state cell included, is reading the body, changing it, and writing it back with
-`gh issue edit <n> --body-file <file>`, re-read just before each write. `<file>`
-comes from `mktemp`, per `git-workflow`'s "Writing the PR description".
+dispatched (`references/design-change.md`), or in a merge's sweep of a child no
+one holds (below). Any other
+body edit, a row's state cell included, is reading the body, changing it, and
+writing it back with `gh issue edit <n> --body-file <file>`, re-read just before
+each write. `<file>` comes from `mktemp`, per `git-workflow`'s "Writing the PR
+description".
 
 **An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
 the loop pauses until they answer, and the events that arrived meanwhile are
@@ -141,6 +146,23 @@ while the question is open, read the parent's comments newer than it. With no
 agent left in flight to wake you, the turn you ended is the run's end, and a
 restart reads the answer under "On start". An answer is a `decided` row, then
 `references/design-change.md`.
+
+## A merge's sweep of its siblings
+
+A child's author's final report names each open sibling its merge's issue
+sweep reached, with the items in that sibling's body its merge shipped. This
+replaces `SKILL.md`'s "Stop" for that sweep. Mark each item shipped, with the
+PR's URL, as `issue-workflow`'s "Maintaining issues" does, by who holds the
+sibling:
+
+- **No one** — edit its body yourself.
+- **Its author in this run** — `SendMessage` it the PR's URL and the items to
+  mark shipped in its body.
+- **Anyone else** — comment them on it, as that section does for an issue
+  someone else has claimed.
+
+Marking shipped work changes no design, so it takes no log row and no
+re-review.
 
 ## Systemic problems
 
