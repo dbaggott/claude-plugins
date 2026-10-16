@@ -35,6 +35,10 @@ what you claimed, and report a fix missing that is not.
 A finding answered with neither is undispositioned, and a round of those is what
 halts the review.
 
+Once a tracking issue's children are filed, a response that applies a
+decision-log row edits each child the row reaches to match first, then the
+parent, whose edit changes the entries and sets the row's state to `applied`.
+
 **Do not edit the body again after posting the response.** The body is quiescent
 from that moment: the receipt is fixed and the reviewer is reading against it. An
 edit you genuinely need afterwards opens a **new round** — make it, then say so in

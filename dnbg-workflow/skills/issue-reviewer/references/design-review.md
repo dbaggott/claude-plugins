@@ -25,6 +25,11 @@ posting. This adds checks to each pass, and changes what the round comment says.
 - **Every constraint names the method that verified it.**
 - **Every decision-log row has the columns, and one of the states,
   `tracking-issue.md` defines.**
+- **Once the decomposition table links filed children, no `decided` row
+  precedes the row that recorded the filing**, whose Entry opens `Children
+  filed`. The filing marks every earlier row `applied`, per `issue-workflow`'s
+  `references/decomposing.md` step 5; one left at `decided` is work
+  `orchestrate` finishes before it dispatches.
 
 ## Judgment additions
 
