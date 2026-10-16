@@ -52,9 +52,14 @@ prefix is only ever needed on the bare `gh issue` commands in issue mode.
 **Record the assignment, but do not claim the issue.** Setting an assignee or an
 `assigned:*` label marks the issue as *being implemented* — `issue-workflow`'s
 pickup check reads those as "someone is already on it" and stops a coder from
-starting. A reviewer must not produce that signal. Leave a comment instead:
+starting. A reviewer must not produce that signal. Leave a comment instead,
+unless one is already there: a replacement reviewer inherits its predecessor's
+assignment, and one comment records it.
 
 ```bash
+env -u GH_TOKEN gh issue view <n> --repo <repo> --json comments --jq \
+  '[.comments[].body | select(startswith("Claude Code is acting as reviewer on this issue."))] | length'
+# post only when that printed 0
 env -u GH_TOKEN gh issue comment <n> --repo <repo> \
   --body "Claude Code is acting as reviewer on this issue."
 ```
