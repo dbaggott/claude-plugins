@@ -1640,3 +1640,27 @@ MD
   grep -q 'on its branch' <<<"$prompt" && grep -q '`<path>`' <<<"$prompt" || {
     echo "orchestrate's dispatch prompt no longer names the PR's branch and the predecessor's worktree"; false; }
 }
+
+# A child orchestrated on its own writes its decisions only as `Decision log:`
+# comments on itself, and the parent's orchestrator collects them by their first
+# line. A collector filtering on another prefix than the one triage.md writes
+# collects nothing, silently.
+row_prefix() {  # <triage.md> -> the text before the first placeholder in the row's first line
+  awk '/^## The row/ { s = 1 } s && /^```/ { getline; print; exit }' "$1" | sed 's/<.*//'
+}
+
+collector_prefixes() {  # <file> -> each prefix the file filters comments on
+  tr -s '\n ' ' ' <"$1" | grep -o 'first line starts with `[^`]*`' | sed 's/^[^`]*`//; s/`$//'
+}
+
+@test "the decision-log collectors filter on the prefix triage.md's row starts with" {
+  local refs="$ROOT/dnbg-workflow/skills/orchestrate/references" prefix f found
+  prefix=$(row_prefix "$refs/triage.md")
+  [ -n "$prefix" ] || { echo "no row fence found under triage.md's '## The row'"; false; }
+  for f in multi-issue.md closeout.md; do
+    found=$(collector_prefixes "$refs/$f")
+    [ -n "$found" ] || { echo "$f names no collector prefix"; false; }
+    [ "$(sort -u <<<"$found")" = "$prefix" ] || {
+      echo "$f filters on '$found', not triage.md's '$prefix'"; false; }
+  done
+}

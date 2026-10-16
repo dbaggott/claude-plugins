@@ -154,8 +154,10 @@ Decision log: D4 — applied
 **Basis:** allowlist (a). D4's rationale, "body edits are whole-body replaces and two writers clobber each other", names this case.
 ```
 
-Under a tracking issue, each row is also a row of the parent's decision-log
-table, per `references/multi-issue.md`.
+Under a tracking issue you orchestrate, each row is also a row of the parent's
+decision-log table, per `references/multi-issue.md`. Orchestrating only a child,
+write the comment alone: the parent's orchestrator collects it from the child
+(`issue-workflow`'s `references/tracking-issue.md`, "Who writes the body").
 
 An escalation gets two rows: `proposed` when you ask, and `decided` with the
 operator's answer when it arrives. A restart reads a `proposed` row with nothing

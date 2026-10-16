@@ -58,7 +58,9 @@ The doc is the parent body as built, not as planned:
   including retired entries and their markings. Children, PRs and commits cite
   these IDs, and once the issue closes the doc is the only place they still
   resolve.
-- **Fold the decision log into the entries it changed.** Each entry reads in
+- **Fold the decision log into the entries it changed**, after collecting the
+  children's comments whose first line starts with `Decision log: `, per
+  `references/multi-issue.md`, "Collect the children's rows". Each entry reads in
   its final form. If a row's reason is not already in the entry's `Because:`,
   add it there. The log itself does not carry over.
 - **Settle each open question.** A decided one points at its `D#`. One still
