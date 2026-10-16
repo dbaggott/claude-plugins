@@ -1,8 +1,9 @@
 # Git workflow: a review comes in
 
-Part of the `git-workflow` skill. Read this when the review watch from
-`references/review-rounds.md` reports a review. A clean review ends here with the
-merge handoff; a review with findings continues in `references/review-findings.md`.
+Part of the `git-workflow` skill. Read this when the review watch reports a
+review (`result=ACTIVITY` in `references/watch-results.md`). A clean review ends
+here with the merge handoff; a review with findings continues in
+`references/review-findings.md`.
 
 ## When a review comes in
 
