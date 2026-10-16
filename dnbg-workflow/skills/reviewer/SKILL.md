@@ -225,6 +225,14 @@ gh api graphql -f query='{ search(query: "repo:<repo> is:pr is:merged", type: IS
   nodes { ... on PullRequest { url closingIssuesReferences(first: 20) { totalCount } } } } }'
 ```
 
+The Bash tool may run zsh, where some bash habits abort the whole call. A word
+starting with `=` is command expansion: separate output with
+`printf '%s\n' '-----'`, not `echo =====`, and compare with `=`, not `==`, in
+`[ ]`. A colon after an unbraced variable starts a modifier: write
+`"${SHA}:src/x"`, not `"$SHA:src/x"`. An unmatched glob is an error: quote any
+argument holding `?`, `*` or `[`, as an API URL or a jq path does. Separately,
+an unquoted `$VAR` is not word-split, so a loop over it sees one item.
+
 The per-call token mint under "Get a bot token" is not redundancy to collapse —
 an extra API call, not an extra round trip, and merging those blocks posts under
 the wrong identity.
