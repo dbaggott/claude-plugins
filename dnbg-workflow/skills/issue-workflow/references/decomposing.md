@@ -35,8 +35,9 @@ design author's first guess:
 ## 2. Write each child's title and body
 
 The title is `[<slug>] <description>`, with the parent's slug, read from its
-own title (`tracking-issue.md`, "Declare it"). The body is per `creating.md`,
-opening with the parent and three fixed lines:
+own title (`tracking-issue.md`, "Declare it"). A parent filed without a tag
+gets one first: choose the slug there and retitle the parent to that form. The
+body is per `creating.md`, opening with the parent and three fixed lines:
 
 ```markdown
 Sub-issue of <parent URL> (the design). Section IDs below refer to that body.
