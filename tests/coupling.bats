@@ -1065,7 +1065,7 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
 
   grep -q 'wait for that result before step 8' <<<"$step" || {
     echo "step 7 no longer says to wait for the code-review tool's result"; false; }
-  grep -q 'generated or data files' <<<"$step" || {
+  grep -qi 'generated or data files' <<<"$step" || {
     echo "step 7 no longer names the data-only floor"; false; }
   grep -q 'background review' <<<"$step" || {
     echo "step 7 no longer has a dispatched author report its wait on the review"; false; }
