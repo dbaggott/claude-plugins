@@ -1,0 +1,1 @@
+`git-workflow`'s self-review now points `/code-review` and its own `git diff` at the worktree's absolute path. A session whose working directory is another repo, as a dispatched author's often is, previously reviewed the wrong diff or none, since the branch does not exist there.
