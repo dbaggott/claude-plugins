@@ -23,7 +23,8 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
    dispatch a fresh author, and a reviewer when its PR is out of draft, per
    `SKILL.md`'s "Dispatch the author, then the reviewer".
 3. **Read the parent's log**: its decision-log table, and the
-   `Decision log: archived rows` comment if it has one. A `proposed` row is an
+   `Decision log: archived rows` comment if it has one, then collect every
+   child's rows ("Collect the children's rows"). A `proposed` row is an
    escalation still waiting, and a `decided` row is work to finish before any
    dispatch (`references/design-change.md`). Read every comment on the parent
    newer than the last row for decisions the operator gave there.
@@ -39,7 +40,7 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
 
 Run it after start and after every event that can change the answer: a child
 closing, a child leaving flight (below), a row reaching `applied`, a spec
-verdict on a child.
+verdict on a child. On a child closing, first collect that child's rows (below).
 
 1. **Finish every `decided` row not yet `applied`**, per
    `references/design-change.md`.
@@ -146,6 +147,23 @@ while the question is open, read the parent's comments newer than it. With no
 agent left in flight to wake you, the turn you ended is the run's end, and a
 restart reads the answer under "On start". An answer is a `decided` row, then
 `references/design-change.md`.
+
+## Collect the children's rows
+
+A child worked outside this run has its rows only as its own `Decision log:`
+comments. Collecting from every child takes the children from
+`fetch-issue-set.sh`, run as `references/design-change.md` step 2 runs it. For
+each child:
+
+1. Read its comments with
+   `gh api --paginate repos/<owner>/<repo>/issues/<child>/comments`, in the
+   child's own repo, and keep those by your login (`gh api user --jq .login`)
+   whose first line starts with `Decision log: `. Never read the parent's this
+   way: that prefix opens other comments there.
+2. Append each one whose URL neither the table nor the archived-rows comment
+   links, with `log-row.sh` as above:
+   `| <comment date> | <ID> | <child URL> | <answer> (<comment URL>) | <state> |`.
+   The ID and state are its first line's, the answer its **Answer**.
 
 ## A merge's sweep of its siblings
 

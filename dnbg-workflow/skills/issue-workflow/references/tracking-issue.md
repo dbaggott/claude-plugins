@@ -167,10 +167,14 @@ An accepted design is decomposed into its children per
 Once its children are being worked, until the closeout, the body has one
 writer: the session orchestrating the parent, `orchestrate`'s multi-issue mode.
 An edit replaces the whole body, so a second writer can silently undo the first.
-Anyone else, a child's orchestrator or author included, posts what the body
-should carry as a comment on the parent, for that writer to fold in. With no
-session orchestrating the parent, the comments wait for the one that does.
+Anyone else, a child's orchestrator or author included, leaves what the body
+should carry where its record already lives, for that writer to collect, and
+posts it as a comment on the parent only when it has no such record. With no
+session orchestrating the parent, it waits for the one that does.
 
-Friction-log items relayed this way go in one comment whose first line is
-exactly `Friction log items from <child URL>`, followed by one bullet per item,
-each on a single line in the friction log's own form.
+A decision-log row needs no comment on the parent: it is already the child's
+`Decision log:` comment (`orchestrate`'s `references/triage.md`, "The row"),
+which the writer collects. Friction-log items live in local retrospective files,
+not on GitHub, so they are relayed in one comment whose first line is exactly
+`Friction log items from <child URL>`, followed by one bullet per item, each on
+a single line in the friction log's own form.
