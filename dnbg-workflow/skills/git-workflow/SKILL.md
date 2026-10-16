@@ -51,7 +51,13 @@ per plugin.
 
    Fix a finding in this branch by default. Decline one that is wrong or out of scope, with a one-line reason. One pass: the fixes go to the reviewer with everything else rather than back through the tool.
 
-   The standards pass is the whole stage when the harness has no code-review tool, or when the diff is only generated or data files with no logic in them. Config a program acts on, such as hook matchers or CI conditions, is logic. Size alone never qualifies. Say the defect pass was skipped, and why, when you announce the PR and in the PR description, which for a data-only diff names the files.
+   The standards pass is the whole stage when the harness has no code-review tool, or when every hunk of the diff is one of these:
+
+   - **Generated or data files** with no logic in them. Config a program acts on, such as hook matchers or CI conditions, is logic.
+   - **Prose no agent follows as instructions**, such as a user-facing README or a changelog fragment. Prose that instructs an agent is logic: a SKILL.md and its references, a rules file, an agent definition, a CLAUDE.md, and any file one of those sends an agent to for what to do, such as a CONTRIBUTING.md.
+   - **A rename the issue specifies in full**, in any file, as long as each hunk only swaps the old name for the new one or rewraps the line it lands on. Its standards pass checks that the new name was not already taken, and greps the tree for the old one, which may stay only in released history such as CHANGELOG.md.
+
+   Size alone never qualifies. Say the defect pass was skipped, and why, when you announce the PR and in the PR description, which names the files for generated, data or prose hunks and the issue for a rename.
 8. Push, and **open the PR as a draft** (`gh pr create --draft ...`).
 9. After each commit, update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description.
 10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker. Without `AskUserQuestion`, follow `<skill-dir>/../issue-workflow/references/delegated.md`.
