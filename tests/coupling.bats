@@ -1351,9 +1351,9 @@ draft_file_violations() {  # <file>...
   awk '
     function check(line, n, ctx,    s, tok, arg) {
       s = line
-      while (match(s, /(--body-file|--input|body=@|(^|[ `(])-F )[ =]?(<[^>]*>|[^ `\047")]*)/)) {
+      while (match(s, /(--body-file|--input|--rawfile [A-Za-z_][A-Za-z_0-9]* |body=@|(^|[ `(])-F )[ =]?(<[^>]*>|[^ `\047")]*)/)) {
         tok = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
-        arg = tok; sub(/^.*(--body-file|--input|body=@|-F )[ =]?/, "", arg)
+        arg = tok; sub(/^.*(--body-file|--input|--rawfile [A-Za-z_][A-Za-z_0-9]* |body=@|-F )[ =]?/, "", arg)
         if (arg == "-" || (tok ~ /-F $/) || arg ~ /=/) continue
         if (arg != "" && arg !~ /^<[^>]+>$/ && arg !~ /^"?\$/)
           printf "%s:%d: names a fixed draft file (%s)\n", file, n, arg
@@ -1423,6 +1423,30 @@ jq -n '{}' | gh api repos/o/r/pulls/1/reviews --input -
 MD
   run draft_file_violations "$BATS_TEST_TMPDIR/site.md"
   [ -z "$output" ]
+}
+
+@test "a --rawfile body named by a fixed file is caught" {
+  printf '%s\n' 'Write it in a file from `mktemp`, then `jq -n --rawfile body review.md`.' \
+    > "$BATS_TEST_TMPDIR/site.md"
+  run draft_file_violations "$BATS_TEST_TMPDIR/site.md"
+  [[ "$output" == *"site.md:1: names a fixed draft file (review.md)"* ]]
+}
+
+# An inline `--arg body "<…>"` breaks the shell command on the first apostrophe
+# or newline in a finding, and a payload with no `commit_id` attaches the verdict
+# to whatever HEAD is when the POST lands, not the one that was read.
+@test "reviewer posts from --rawfile files, pinned to the reviewed SHA after re-reading the head" {
+  local skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md" cmds
+  cmds=$(pr_command_lines "$skill")
+  grep -q -- '--rawfile body <body-file>' <<<"$cmds" || {
+    echo "reviewer/SKILL.md's post recipe no longer reads the body with --rawfile"; false; }
+  grep -q 'commit_id: \$sha' <<<"$cmds" && grep -q -- '--arg sha "<head-sha>"' <<<"$cmds" || {
+    echo "reviewer/SKILL.md's post recipe no longer pins commit_id to <head-sha>"; false; }
+  grep -q '\[ "\$HEAD_NOW" = "<head-sha>" \]' <<<"$cmds" || {
+    echo "reviewer/SKILL.md's post recipe no longer re-reads the head before posting"; false; }
+  if grep -nE -- '--arg body|gh pr review ' <<<"$cmds"; then
+    echo "reviewer/SKILL.md posts a review with an inline body or without commit_id"; false
+  fi
 }
 
 @test "a short-form -F file, a multi-word placeholder and the file it is in are read right" {

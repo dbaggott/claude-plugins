@@ -506,32 +506,44 @@ surfaces checked.
 ratify the author's reasoning back at them or restate fixes they can read in
 their own diff.
 
-**Post one atomic review.** When you have inline findings, use the reviews
-endpoint so the verdict *and* all inline comments land as a single review (one
-review per invocation, not a verdict review plus N separate comment threads).
-Build the payload with `jq -n` and pipe it to `--input -` — hand-escaping a
-multi-paragraph body inside literal JSON is easy to get subtly wrong, and `--arg`
-handles the quoting for you:
+**Post one atomic review, through the reviews endpoint, pinned to the SHA you
+reviewed.** The verdict *and* every inline comment land as a single review (one
+review per invocation, not a verdict review plus N separate comment threads). A
+verdict-only review is the same payload with `comments` left out.
+
+`commit_id` is the `<head-sha>` you read the diff at. Without it GitHub attaches
+the review to whatever HEAD is when the POST lands, so a commit pushed while you
+were writing gets a verdict on code you never read. The call re-reads the head
+first and stops if it moved.
+
+Write the review body, and each inline comment's body, to its own file from
+`mktemp` (in the scratchpad, when the harness names one) with your file-writing
+tool, and hand each to `jq --rawfile`. Nothing then passes through the shell's
+quoting, so an apostrophe or a newline in a finding cannot break the command —
+which an inline `--arg "<body>"` does:
 
 ```bash
 GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
 export GH_TOKEN
-jq -n --arg body "<summary / non-inline findings as markdown>" \
-  '{event: "REQUEST_CHANGES", body: $body,
+HEAD_NOW="$(gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid)" || exit 1
+[ "$HEAD_NOW" = "<head-sha>" ] || { echo "HEAD moved: <head-sha> -> $HEAD_NOW"; exit 1; }
+jq -n --arg sha "<head-sha>" --rawfile body <body-file> \
+      --rawfile c1 <comment-1-file> --rawfile c2 <comment-2-file> \
+  '{commit_id: $sha, event: "REQUEST_CHANGES", body: $body,
     comments: [
-      {path: "api/server.go", line: 42, body: "<merge-blocking finding>"},
-      {path: "db/users.py",  line: 88, body: "<merge-blocking finding>"}
+      {path: "api/server.go", line: 42, body: $c1},
+      {path: "db/users.py",  line: 88, body: $c2}
     ]}' \
   | gh api repos/<repo>/pulls/<n>/reviews --input - \
       --jq '{state, commit_id, user: .user.login, submitted_at}'
 ```
 
-For comment bodies that themselves contain quotes/newlines, pass each via its own
-`--arg` too (or build the JSON in a file from `mktemp` and use `--input <file>`). A
-literal `<<'JSON'` heredoc only works when every body is simple.
+**If HEAD moved, the review you wrote is not the one to post.** Read the commits
+since `<head-sha>`, revise the verdict, body and findings to cover them, and run
+the call again with the new SHA as `<head-sha>`.
 
 `event` is `APPROVE` or `REQUEST_CHANGES` (never `COMMENT`); each `comments`
-entry attaches to a line of the PR's latest commit. **Read the `user` the `--jq`
+entry attaches to a line of the `commit_id` commit. **Read the `user` the `--jq`
 prints — `agent-reviewer-<owner>[bot]`, not your own login.** Your own login
 means the mint didn't reach this call and the review just went out under your
 name. A submitted review can't be withdrawn, so re-post under the bot and tell
@@ -549,7 +561,7 @@ gh api repos/<repo>/pulls/<n>/reviews \
   --jq '.[] | {id, state, commit_id, user: .user.login, submitted_at}'
 ```
 
-Your POST landed if a review from the bot sits at the head SHA with the state you
+Your POST landed if a review from the bot sits at `<head-sha>` with the state you
 sent — then don't re-post. List unfiltered: a filter narrowed to the SHA or the
 login answers empty both when nothing posted and when the filter was wrong.
 
@@ -583,21 +595,6 @@ A force-push rewrites a review's `commit_id` (`pr-verdict.sh` holds the
 mechanism), so it stops recording what you looked at. A review body is never
 rewritten, which makes this the only durable record and you the only party that
 knows it first-hand.
-
-For a **verdict-only** review (no inline findings), the simpler form is
-equivalent — mint in the same call here too:
-
-```bash
-GH_TOKEN="$("<skill-dir>/mint-token.sh" "<owner>")" || exit 1
-export GH_TOKEN
-gh pr review <n> --repo <repo> --approve --body "<non-blocking observations>"
-# or
-gh pr review <n> --repo <repo> --request-changes --body "<findings as markdown>"
-```
-
-`gh pr review` prints nothing that names the author, so this is the one posting
-path without the free identity check the reviews endpoint gives. Use the payload
-form above when you want it back.
 
 Don't post a stream of individual top-level comments, and don't follow the
 review with a top-level comment that recaps it.

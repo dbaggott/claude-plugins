@@ -4,7 +4,7 @@
 # commands that post the review, so the review posts under the bot identity
 # rather than your own account.
 #
-#   GH_TOKEN="$(.../mint-token.sh <owner>)" gh pr review <n> --repo <owner>/<repo> ...
+#   GH_TOKEN="$(.../mint-token.sh <owner>)" gh api repos/<owner>/<repo>/pulls/<n>/reviews --input - ...
 #
 # The optional first argument is the target repo's owner (org or personal login;
 # `owner/repo` is also accepted and trimmed). The bot may be installed on several
