@@ -122,13 +122,16 @@ already the author's: a subagent shares your session id, so its pickup reads
 > reviewer feedback. The issue is already claimed under your session id.
 > [Continue `<PR URL>`, which is already open for it, on its branch
 > `<branch>`.] [Its worktree from a predecessor is at `<path>`; continue
-> there.] [Promote these decided rows into the issue body, linking each:
+> there.] [It left unpushed commits there: `<commits>`. It was answering
+> `<review URL>`. It created `<scratch issues and labels>`, which are yours to
+> clean up.] [Promote these decided rows into the issue body, linking each:
 > `<row URLs>`.]
 
-The first bracketed line goes in only when step 3 found an open `closes` or
-`sibling` PR, or the operator handed one over, the second only when step 3
-found a worktree, and the third only for `decided` rows the body does not yet
-carry.
+The first bracketed line goes in only for an open PR that step 3 found as
+`closes` or `sibling`, that the operator handed over, or that a dead author
+left; the second only for a worktree that step 3 found or a dead author left;
+the third only when replacing a dead author, with each of its parts that
+applies; and the fourth only for `decided` rows the body does not yet carry.
 
 **The reviewer**, when the author's turn ends with its PR URL at
 send-to-review, or at once when step 3 found the PR already out of draft. Skip
@@ -167,6 +170,19 @@ read the PR with `gh pr view <url> --json state,isDraft`. An open PR out of
 draft means the agent has no watch left: continue it with `SendMessage`,
 telling it to re-arm its PR watch from the last `── re-arm ──` line it
 printed. Otherwise continue it with what the state shows is still owed.
+
+**An agent died on an error** when its task ends `failed` on an API or usage
+limit error rather than with a report. Resume it with `SendMessage`, telling it
+to carry on from where it stopped, since its context and its retrospective
+survive: after a usage limit, once the reset time the error names has passed,
+waiting on a background `sleep` until then; after any other API error, at once.
+If it fails the same way again, ask the operator. Dispatch a fresh agent in its
+role only when `SendMessage` cannot reach it. For an author, fill the recipe's
+predecessor lines from the dead one's state, which `pr-sources.sh` cannot see:
+its worktree, its unpushed commits (`git -C <worktree> log
+origin/<branch>..`), the review round it was answering, and any scratch issues
+or labels it created. A replaced agent leaves no retrospective, so name its role
+in the Stop report.
 
 Stop a background task of yours, such as a watch or a subagent, with the
 harness's task-stop tool by its id, never with `pkill -f` or a pattern:

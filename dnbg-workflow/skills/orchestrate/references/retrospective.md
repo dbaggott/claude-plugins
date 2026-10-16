@@ -100,9 +100,9 @@ agent once with `SendMessage`:
 That continuation is the fallback rather than the plan, because it replays the
 agent's whole transcript for one more turn, and a late one finds the cache cold.
 
-A dispatch cut off by an orchestrator restart leaves no retrospective. The new
-orchestrator cannot reach the old agent, so the loss is not recovered. Say in
-the Stop report which roles have none.
+A dispatch cut off by an orchestrator restart leaves no retrospective, and so
+does an agent replaced after dying on an error. Nothing can reach the old agent,
+so the loss is not recovered. Say in the Stop report which roles have none.
 
 ## Your own
 
