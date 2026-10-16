@@ -130,8 +130,10 @@ it ends with:
 - a question — triage it, under "Answer or escalate";
 - the author's PR URL at send-to-review — a departure reported rather than
   asked, in that report, the issue's comments since dispatch or the PR
-  description, goes under "Answer or escalate" first; then dispatch the
-  reviewer, unless one is already reviewing that PR;
+  description, goes under "Answer or escalate" first, and an answer other
+  than the change as built sends the author back, so the reviewer waits for
+  its next send-to-review; otherwise dispatch the reviewer, unless one is
+  already reviewing that PR;
 - the author's merge handoff — relay it, under "Relay the merge handoff";
   its merge watch is armed;
 - the author's reminder that the PR is still open and needs merging — relay
