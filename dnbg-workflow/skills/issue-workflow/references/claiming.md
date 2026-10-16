@@ -45,6 +45,10 @@ The test is deliberately one-directional — only an exact id match licenses pro
 
 The same check guards the dispatch direction: before routing an issue to anyone else — assigning a person, applying another agent's `assigned:*` label — run it and surface any existing claim before applying the new one (without `AskUserQuestion`: `references/delegated.md`).
 
+**Then, unless the claim read `OWN`, check the issue's project** per
+`references/project-pickup.md` before claiming: a child of a project, or a
+tracking issue, gets one question first.
+
 **2. Claim it.** Three marks, each serving a different reader:
 
 ```bash

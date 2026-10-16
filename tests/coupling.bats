@@ -931,6 +931,47 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   [ "$bad" -eq 0 ]
 }
 
+# Both pickup entry points, resolving an issue and orchestrating one, ask the same
+# question of an issue in a project. One reference carries it, so each site must
+# send the reader there, and before its claim: asked after the claim, the question
+# would leave a child claimed by a session the operator then routes elsewhere.
+@test "both pickup entry points send the reader to the one project check, before claiming" {
+  local ref="$ROOT/dnbg-workflow/skills/issue-workflow/references/project-pickup.md"
+  local f at claim bad=0
+  for f in "$ROOT/dnbg-workflow/skills/issue-workflow/references/claiming.md" \
+           "$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md"; do
+    at=$(grep -n 'references/project-pickup\.md' "$f" | head -1 | cut -d: -f1)
+    claim=$(grep -nE -- '--claim`|\*\*2\. Claim it\.\*\*' "$f" | head -1 | cut -d: -f1)
+    [ -n "$at" ] || { echo "$(basename "$f") no longer names references/project-pickup.md"; bad=1; continue; }
+    [ -n "$claim" ] || { echo "$(basename "$f") has no claim step — the extractor broke"; bad=1; continue; }
+    [ "$at" -lt "$claim" ] || {
+      echo "$(basename "$f") sends the reader to the project check after its claim"; bad=1; }
+  done
+  grep -q 'scripts/issue-project\.sh' "$ref" || {
+    echo "project-pickup.md no longer calls issue-project.sh"; bad=1; }
+  local o
+  for o in 'Orchestrate it (Recommended)' 'Stop' \
+           'Orchestrate the project (Recommended)' 'Address this issue on its own'; do
+    grep -qF "**\"$o\"**" "$ref" || { echo "project-pickup.md lost the picker option '$o'"; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
+@test "every issue-project ERROR reason is named where the lookup is read" {
+  local src="$ROOT/dnbg-workflow/scripts/issue-project.sh"
+  local ref="$ROOT/dnbg-workflow/skills/issue-workflow/references/project-pickup.md"
+  local reasons r bad=0
+  reasons=$(grep -oE '\bfail [a-z-]+' "$src" | sed 's/^fail //' | sort -u)
+  [ -n "$reasons" ] || { echo "no fail reasons found in $(basename "$src") — the extractor broke"; false; }
+  for r in $reasons; do
+    grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" "$ref" || {
+      echo "project-pickup.md does not name issue-project ERROR reason '$r'"; bad=1; }
+    sed -n '/^# Exactly one/,/^set -euo/p' "$src" | grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" || {
+      echo "$(basename "$src") emits '$r' but its header does not declare it"; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
 @test "every ready-set ERROR reason is named where the loop reads the set" {
   local src="$ROOT/dnbg-workflow/scripts/ready-set.sh"
   local doc="$ROOT/dnbg-workflow/skills/orchestrate/references/multi-issue.md"
@@ -1035,7 +1076,7 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
 
 @test "issue-workflow SKILL.md still points at each of its paths" {
   local skill="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" f
-  for f in creating claiming resolving spec-review-rounds; do
+  for f in creating claiming project-pickup resolving spec-review-rounds; do
     [ -f "$ROOT/dnbg-workflow/skills/issue-workflow/references/$f.md" ] || {
       echo "references/$f.md is missing"; false; }
     grep -q "references/$f\.md" "$skill" || {

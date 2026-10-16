@@ -55,7 +55,10 @@ one state a restart cannot recover.
    `children` makes this a tracking issue: continue in
    `references/multi-issue.md`. `result=ERROR` means the set was not read; say
    so and stop.
-2. **The claim.** `claim-issue.sh <owner>/<repo> <n>`:
+2. **The claim.** `claim-issue.sh <owner>/<repo> <n>`. Unless it reads `OWN`,
+   check the issue's project per `issue-workflow`'s
+   `references/project-pickup.md` before claiming it below: a child of a
+   project gets one question first.
    - `UNCLAIMED` — claim it: `claim-issue.sh <owner>/<repo> <n> --claim`,
      adding `--label=<label>` when a `dnbg-workflow` note at session start names
      a claim label, and `--stamp=<version>` when one names a version.

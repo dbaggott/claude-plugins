@@ -46,7 +46,8 @@ with almost no overlap, so each lives in its own file. Read the one you are on:
   your state from, and waiting on the next round. The reviewer's side is the
   `issue-reviewer` skill.
 - **Picking up an issue to resolve it** → `references/claiming.md` first:
-  checking it is not already claimed, then claiming it. Then
+  checking it is not already claimed, asking once when it belongs to a
+  project (`references/project-pickup.md`), then claiming it. Then
   `references/resolving.md`: the freshness probe, the critical review of the
   issue itself, and the link-following discipline.
 
