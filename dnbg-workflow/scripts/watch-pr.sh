@@ -250,17 +250,23 @@ report_error() {
 # Read only on a checks-only wake, so it costs no tick. A check with no Actions
 # job link, a log gh cannot fetch, or a runner that prints no TAP leaves the
 # field off rather than failing the report.
-failed_tests() {  # <comma-joined check names>
-  printf '%s' "$last_json" | jq -r --arg names "$1" '
-    ($names | split(",")) as $n
-    | .checks[] | select(.state == "failure" and (.name | IN($n[]))) | .url // empty' \
+#
+# The jobs endpoint rather than `gh run view --job`, which refuses while any
+# other job in the run is still going — the usual state when one fails first.
+# An older gh has no `--allow-escape-sequences`, and prints escapes without it.
+# Only a line the runner itself printed counts: it starts with the log's
+# timestamp, where a test's echoed output is indented under it.
+failed_tests() {
+  printf '%s' "$last_json" | jq -r '.checks[] | select(.state == "failure") | .url // empty' \
   | sed -n 's|.*/actions/runs/[0-9]*/job/\([0-9][0-9]*\).*|\1|p' | sort -u \
   | while read -r job; do
-      gh run view --job "$job" --repo "$REPO" --log-failed 2>/dev/null || true
+      gh api --allow-escape-sequences "repos/$REPO/actions/jobs/$job/logs" 2>/dev/null \
+        || gh api "repos/$REPO/actions/jobs/$job/logs" 2>/dev/null || true
     done \
-  | awk 'match($0, /(^|[[:space:]])not ok [0-9]+ /) {
-           t = substr($0, RSTART + RLENGTH); sub(/\r$/, "", t)
-           if (!seen[t]++) out = out (out == "" ? "" : "; ") t
+  | awk '{ sub(/\r$/, ""); gsub("\033\\[[0-9;]*m", "") }
+         match($0, /^[0-9][-0-9T:.Z]* not ok [0-9]+/) {
+           t = substr($0, RSTART + RLENGTH); sub(/^ (- )?/, "", t)
+           if (t != "" && !seen[t]++) out = out (out == "" ? "" : "; ") t
          }
          END { printf "%s", out }'
 }
@@ -291,7 +297,7 @@ report_burst() {
   # backstop notices an approval standing at HEAD, a window later.
   if [ "$checks_only" = 1 ]; then
     local ft
-    ft=$(failed_tests "$saw_checks") || ft=""
+    ft=$(failed_tests) || ft=""
     echo "result=CHECKS checks=$(shq "$saw_checks")${ft:+ failed_tests=$(shq "$ft")}$mg now=$NOW"
     exit 0
   fi

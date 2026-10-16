@@ -76,6 +76,9 @@ if [ "$2" = view ]; then
     printf '%s' "${AT_TICK_VALUE:-}" > "$AT_TICK_FILE"
   fi
 fi
+case "$*" in
+  *"/actions/jobs/"*"/logs") [ -f "$RUNLOG" ] || exit 1; cat "$RUNLOG"; exit 0 ;;
+esac
 case "$1 $2" in
   "pr view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
@@ -93,7 +96,6 @@ case "$1 $2" in
     # poll gets exercised.
     [ -f "$FAIL_COMMENTS" ] && exit 1
     echo '[]' ;;
-  "run view") [ -f "$RUNLOG" ] || exit 1; cat "$RUNLOG" ;;
   *) exit 1 ;;
 esac
 EOF
@@ -936,18 +938,29 @@ EOF
 
 # --- naming the failing test, so a caller need not dig it out of the log --------
 
-# The log lines are as `gh run view --log-failed` prints them: job, step and a
-# timestamp, tab-separated ahead of the runner's own output.
+# The log lines are as the jobs endpoint serves them: a timestamp ahead of the
+# runner's own output, which may be coloured. The check name carries a comma, as
+# a two-axis matrix job's does.
 @test "a checks-only wake names the failing tests from the job log" {
-  echo '[{"name":"hook-tests","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/o/r/actions/runs/11/job/22"}]' > "$ROLLUP"
-  printf 'hook-tests\tRun\t2026-10-16T02:12:45Z ok 382 a passing test\n' > "$RUNLOG"
-  printf 'hook-tests\tRun\t2026-10-16T02:12:45Z not ok 383 the reaper kills a process\r\n' >> "$RUNLOG"
-  printf 'hook-tests\tRun\t2026-10-16T02:12:46Z # (in test file tests/reap.bats, line 9)\n' >> "$RUNLOG"
-  printf "hook-tests\tRun\t2026-10-16T02:12:47Z not ok 390 it's red, twice\n" >> "$RUNLOG"
+  echo '[{"name":"test (ubuntu, 20)","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/o/r/actions/runs/11/job/22"}]' > "$ROLLUP"
+  printf '2026-10-16T02:12:45Z ok 382 a passing test\n' > "$RUNLOG"
+  printf '2026-10-16T02:12:45Z not ok 383 the reaper kills a process\r\n' >> "$RUNLOG"
+  printf '2026-10-16T02:12:46Z #   printf "not ok 9 echoed by a test"\n' >> "$RUNLOG"
+  printf '2026-10-16T02:12:47Z \033[31mnot ok 390 - it'"'"'s red, twice\033[0m\n' >> "$RUNLOG"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
     run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
-  [[ "${lines[-1]}" == "result=CHECKS checks='hook-tests' failed_tests='the reaper kills a process; it'\\''s red, twice' now="* ]]
-  grep -q "run view --job 22 --repo o/r --log-failed" "$CALLS"
+  [[ "${lines[-1]}" == "result=CHECKS checks='test (ubuntu, 20)' failed_tests='the reaper kills a process; it'\\''s red, twice' now="* ]]
+  grep -q "api --allow-escape-sequences repos/o/r/actions/jobs/22/logs" "$CALLS"
+}
+
+# A status context's link is not an Actions job, so there is no log to read.
+@test "a failing check with no Actions job link leaves failed_tests off" {
+  echo '[{"context":"ci/legacy","state":"FAILURE","targetUrl":"https://ci.example.test/build/7"}]' > "$ROLLUP"
+  printf '2026-10-16T02:12:45Z not ok 1 never read\n' > "$RUNLOG"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+  [[ "${lines[-1]}" == "result=CHECKS checks='ci/legacy' now="* ]]
+  ! grep -q "actions/jobs" "$CALLS"
 }
 
 # Best effort: a log gh cannot fetch costs the field, never the report.
