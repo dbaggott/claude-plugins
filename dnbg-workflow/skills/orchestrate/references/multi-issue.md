@@ -163,8 +163,9 @@ each child:
 2. Append each one whose URL neither the table nor an archived-rows comment
    links, with `log-row.sh` as above:
    `| <date> | <ID> | <child URL> | <answer> (<comment URL>) | <state> |`.
-   The ID and state are its first line's, and the answer its **Answer**, with
-   each `|` escaped as `\|`.
+   `<date>` is today's, not the comment's: the table is newest row last. The
+   ID and state are its first line's, and the answer its **Answer**, with each
+   `|` escaped as `\|`.
 
 ## A merge's sweep of its siblings
 
