@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.41 — 2026-10-16
+
+`git-workflow`'s self-review now points `/code-review` and its own `git diff` at the worktree's absolute path. A session whose working directory is another repo, as a dispatched author's often is, previously reviewed the wrong diff or none, since the branch does not exist there.
+
+
 ## dnbg-workflow 2026.10.40 — 2026-10-16
 
 `git-workflow`'s self-review now skips the code-review tool for a diff made only
