@@ -29,7 +29,7 @@ Notes are kept as Markdown files under `notes/`, one per note. Nothing can read 
 
 ## Decisions
 
-- **D1. JSON, not YAML, for the export.** Because: `jq` is already a dependency (C2) and nothing here parses YAML. Revisit if: a consumer needs comments in the file.
+- **D1. JSON, not YAML, for the export.** Because: `jq` is already a dependency (C1) and nothing here parses YAML. Revisit if: a consumer needs comments in the file.
 - **D2. Bytewise slug order, not creation order.** Because: it makes R3's byte-identical round trip possible without storing timestamps, and bytewise is the order both a `LC_ALL=C` glob and `jq`'s string comparison produce, so no two scripts can disagree on it. Revisit if: a consumer needs chronology.
 
 ## Open questions
