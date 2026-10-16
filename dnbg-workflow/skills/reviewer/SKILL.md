@@ -229,7 +229,7 @@ The per-call token mint under "Get a bot token" is not redundancy to collapse â€
 an extra API call, not an extra round trip, and merging those blocks posts under
 the wrong identity.
 
-The Bash tool may run zsh, where three bash habits break a batched read: a
+The Bash tool may run zsh, where bash habits break a batched read: a
 word starting with `=` is command expansion, so separate output with
 `printf '%s\n' '-----'`, never `echo =====`; brace a variable before a colon
 (`"${H}:path"`), since `:t` and its kin are modifiers; and quote globs.
