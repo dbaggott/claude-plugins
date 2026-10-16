@@ -166,17 +166,18 @@ it ends with:
   at self-review — which wakes it when it returns, so nothing.
 
 A turn that ends on none of these while work remains, other than an agent
-that died on an error (below), is the safety net: read the PR with `gh pr view <url> --json state,isDraft`. An open PR out of
-draft means the agent has no watch left: continue it with `SendMessage`,
-telling it to re-arm its PR watch from the last `── re-arm ──` line it
-printed. Otherwise continue it with what the state shows is still owed.
+that died on an error (below), is the safety net: read the PR with `gh pr
+view <url> --json state,isDraft`. An open PR out of draft means the agent
+has no watch left: continue it with `SendMessage`, telling it to re-arm its PR
+watch from the last `── re-arm ──` line it printed. Otherwise continue it with what the state shows is still owed.
 
 **An agent died on an error** when its task ends `failed` on an API or usage
 limit error rather than with a report. Resume it with `SendMessage`, telling it
 to carry on from where it stopped, since its context and its retrospective
-survive: after a usage limit, once the reset time the error names has passed,
-waiting on a background `sleep` until then; after any other API error, after a
-background `sleep` of a few minutes. If it fails the same way again, ask the
+survive: after a usage limit, once the reset time the error names has passed;
+after any other API error, after a few minutes. Wait on a background `sleep`
+with `timeout: 7200000`, and when it returns before the reset time, sleep
+again rather than resume. If it fails the same way again, ask the
 operator. Dispatch a fresh agent in its role only when `SendMessage` cannot
 reach it. For an author, fill the recipe's predecessor lines from the dead
 one's state: its worktree and unpushed commits (`git -C <worktree> log HEAD
