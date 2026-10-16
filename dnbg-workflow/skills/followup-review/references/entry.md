@@ -2,7 +2,8 @@
 
 Part of the `followup-review` skill. Every agent that writes a report with an
 **Actionable** section reads this when it writes that report: the author at its
-merge handoff, the reviewer at its report, the orchestrator at Stop. An entry
+merge handoff and its post-merge report, the reviewer at its report, the
+orchestrator at Stop. An entry
 keeps one Actionable item after the session ends, so `followup-review` can
 decide it later against a fresh tree. Writing one is not filing an issue: filing
 stays the operator's call.
@@ -23,7 +24,9 @@ One item has one writer:
   follows `git-workflow`, as an orchestrated run's author always does, since the
   author's handoff writes it. On any other PR, such as a teammate's, the reviewer
   writes it too.
-- **The orchestrator** writes only the items no agent's report gave a path for.
+- **The orchestrator** writes only the items no agent wrote an entry for. An
+  item the reviewer lists without a path is usually one the author's handoff
+  lists with one: use that path.
 
 A duplicate that gets through anyway is merged by the sweep.
 

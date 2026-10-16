@@ -35,6 +35,6 @@ Once `state=MERGED` is confirmed (or the merge watch in `references/merge-wait.m
 
 ### Then report what changed since the handoff
 
-Cleanup done, report to the operator under the same three headings the handoff carried (`references/merge.md`'s "The report that goes with the command"), in the same order. The handoff report is the baseline: under each heading put only what arrived after it — a late reviewer comment, a conflict, a check that went red and was fixed — and Summary opens with the PR's full URL and the cleanup. Where a heading has nothing new, say "nothing new since the handoff" rather than repeating it; a second copy of the report is the one that drifts from the first.
+Cleanup done, report to the operator under the same three headings the handoff carried (`references/merge.md`'s "The report that goes with the command"), in the same order. The handoff report is the baseline: under each heading put only what arrived after it — a late reviewer comment, a conflict, a check that went red and was fixed — and Summary opens with the PR's full URL and the cleanup. A new Actionable item gets its follow-up entry as `references/merge.md` says. Where a heading has nothing new, say "nothing new since the handoff" rather than repeating it; a second copy of the report is the one that drifts from the first.
 
 Where you have no handoff report to measure against — this session only opened the PR, or the handoff is no longer in your context — give the full report as `references/merge.md` defines it.
