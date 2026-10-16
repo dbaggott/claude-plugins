@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.49 — 2026-10-16
+
+`orchestrate` no longer has a session working one child of a tracking issue
+write the parent's decision-log table, which the parent's orchestrator alone
+edits. That session now writes only the `Decision log:` comment on the child,
+and the parent's orchestrator collects those comments into its table on start,
+when a child closes, and before the closeout folds the log into the design.
+
+
 ## dnbg-workflow 2026.10.48 — 2026-10-16
 
 Actionable items in agents' reports no longer vanish when the operator doesn't
