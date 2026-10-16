@@ -10,6 +10,34 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.34 — 2026-10-16
+
+An author working with no operator to ask, as under `orchestrate`, that finds
+mid-implementation that the issue's design has to change now asks before
+building the change, as a `Delegated question:` on the issue, instead of
+building it and noting it in the PR description or beside its send-to-review
+question. `orchestrate` triages a departure an author reports as already made
+the way it triages a question, and answers it before dispatching the reviewer.
+
+The delegated-mode eval gains a `departure` fixture that checks for exactly
+this: `FIXTURE=departure tests/evals/delegated-mode/run.sh`.
+
+An orchestrated author now pushes its branch and opens the draft PR at its
+first commit, before the self-review, and pushes after each commit, so an
+orchestrator restarted while the author works finds the work on GitHub instead
+of starting over. Before, commits made before the self-review were lost to a
+restart. The cost is CI running on the earlier pushes; sessions outside
+`orchestrate` keep `git-workflow`'s order.
+
+On the same machine, a restarted orchestrator also names the predecessor's
+worktree in the author's dispatch prompt, so the fresh author continues there
+rather than failing at `git worktree add` on the same branch.
+
+Orchestrators, authors and reviewers now stop their background tasks by id
+with the harness's task-stop tool, never with `pkill -f` or a pattern, which
+had stopped another agent's watch on the same PR.
+
+
 ## dnbg-workflow 2026.10.33 — 2026-10-16
 
 Decomposing a tracking issue now marks the decision-log rows the spec review
