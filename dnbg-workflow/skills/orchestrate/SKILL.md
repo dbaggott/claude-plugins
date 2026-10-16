@@ -55,11 +55,10 @@ one state a restart cannot recover.
    `children` makes this a tracking issue: continue in
    `references/multi-issue.md`. `result=ERROR` means the set was not read; say
    so and stop.
-2. **The claim.** `claim-issue.sh <owner>/<repo> <n>`. Unless it reads `OWN`,
-   check the issue's project per `issue-workflow`'s
-   `references/project-pickup.md` before claiming it below: a child of a
-   project gets one question first.
-   - `UNCLAIMED` — claim it: `claim-issue.sh <owner>/<repo> <n> --claim`,
+2. **The claim.** `claim-issue.sh <owner>/<repo> <n>`:
+   - `UNCLAIMED` — check the issue's project per `issue-workflow`'s
+     `references/project-pickup.md`, where a child of a project gets one
+     question first. Then claim it: `claim-issue.sh <owner>/<repo> <n> --claim`,
      adding `--label=<label>` when a `dnbg-workflow` note at session start names
      a claim label, and `--stamp=<version>` when one names a version.
    - `OWN` — your own claim from earlier in this session. Proceed.
@@ -68,8 +67,9 @@ one state a restart cannot recover.
      `assignees=` and `labels=` name. Tell the operator the holder, the claim's
      `at`, and the time of the issue's latest comment as its last activity, and
      ask once whether that holder has let it go; for a session, whether it and
-     its subagents are gone. Proceed only on yes, and then claim with
-     `--claim`, which re-marks it under your id. On no, stop.
+     its subagents are gone. Proceed only on yes, and then check the project
+     and claim as for `UNCLAIMED`, which re-marks it under your id. On no,
+     stop.
    - `ERROR` — the claim could not be read. Say so and stop.
 3. **Open PRs.** `pr-sources.sh <owner>/<repo> <n>`, then
    `gh pr view <url> --json state,isDraft,headRefOid,headRefName` on each. It

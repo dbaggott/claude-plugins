@@ -23,19 +23,18 @@ picker. Without `AskUserQuestion`, post it as a `Delegated question:` per
 ## A tracking issue you were asked to resolve
 
 At `tracking=yes` on "resolve", say that this is a tracking issue and that
-resolving one means orchestrating it, then ask:
+resolving one means orchestrating it. At `children=0` it has nothing to
+orchestrate yet: say that it is decomposed first, per
+`references/decomposing.md`, and stop, claiming nothing. Otherwise ask:
 
 1. **"Orchestrate it (Recommended)"**: "Load `orchestrate` on this URL and
    continue there."
 2. **"Stop"**: "Nothing is claimed."
 
-Under `orchestrate`, a tracking issue is already routed by "On start" step 1,
-so this question is only for "resolve".
-
 ## A child of a project
 
-At `parent=<url>`, ask "This issue is a child of `<parent URL>`. Address it on
-its own, or orchestrate the project?":
+At `parent=<url> tracking=no`, ask "This issue is a child of `<parent URL>`.
+Address it on its own, or orchestrate the project?":
 
 1. **"Orchestrate the project (Recommended)"**: "Load `orchestrate` on the
    parent; this issue is dispatched in dependency order with the rest."

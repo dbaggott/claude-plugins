@@ -57,6 +57,10 @@ if [ -z "$ISSUE" ]; then
     && fail not-found
   fail issue-query
 fi
+# A parent the token cannot read arrives as a null `parent` beside an error, which
+# would otherwise read as no parent at all.
+printf '%s' "$RAW" | jq -e '(.errors // []) | length == 0' >/dev/null 2>&1 \
+  || fail issue-query
 
 LINE=$(printf '%s' "$ISSUE" | jq -r '
   (.subIssues.totalCount | if type == "number" then . else error end) as $c

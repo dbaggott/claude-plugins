@@ -91,6 +91,13 @@ answer() {
   [[ "$output" == "result=ERROR reason=not-found now="* ]]
 }
 
+@test "an issue that answered beside an error is issue-query, not a missing parent" {
+  echo '{"data":{"repository":{"issue":{"body":"x","parent":null,"subIssues":{"totalCount":0}}}},"errors":[{"type":"FORBIDDEN","path":["repository","issue","parent"]}]}' > "$ANSWER"
+  touch "$GQL_EXIT"
+  run "$LOOKUP" o/r 1
+  [[ "$output" == "result=ERROR reason=issue-query now="* ]]
+}
+
 @test "no answer at all is issue-query" {
   touch "$GQL_EXIT"
   run "$LOOKUP" o/r 1
