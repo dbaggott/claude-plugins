@@ -1664,3 +1664,15 @@ collector_prefixes() {  # <file> -> each prefix the file filters comments on
       echo "$f filters on '$found', not triage.md's '$prefix'"; false; }
   done
 }
+
+# A subagent that died on an API or usage-limit error is resumed, keeping its
+# context; a replacement author learns the dead one's unpushed commits from its
+# prompt, since they are not on the forge.
+@test "orchestrate resumes a dead agent, and its replacement's prompt names the unpushed commits" {
+  local orch="$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md" prompt
+  grep -q '^\*\*An agent died on an error\*\*' "$orch" || {
+    echo "orchestrate no longer handles an agent that died on an error"; false; }
+  prompt=$(sed -n '/^> Resolve `<issue URL>`/,/^$/p' "$orch")
+  grep -q 'unpushed commits' <<<"$prompt" && grep -q '`<review URL>`' <<<"$prompt" || {
+    echo "orchestrate's dispatch prompt no longer carries a dead author's unpushed commits and review round"; false; }
+}
