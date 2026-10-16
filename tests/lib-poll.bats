@@ -402,12 +402,17 @@ EOF
     poll_init; for _ in 1 2 3; do poll_nap; done" &
   local pid=$! i=0
   echo "$pid" >> "$BATS_TEST_TMPDIR/pids"
-  # Generously bounded: this only waits for the child to install its traps and write
-  # START. Too short and a loaded runner lets the `kill` land before any trap exists,
-  # failing for a reason unrelated to what is under test. The 3s deadline below is
-  # the assertion and stays tight; this one is setup and should not be.
-  while [ ! -s "$log" ] && [ "$i" -lt 150 ]; do sleep 0.1; i=$((i + 1)); done
-  [ -s "$log" ] || { echo "child never started tracing"; return 1; }
+  # Signal only once the nap's `sleep` exists, not as soon as START is written. On
+  # bash 5.2 a trapped signal that lands while the watch is still expanding the
+  # command substitutions ahead of its first nap can fail to run its handler at
+  # all (see the tracing header in lib-poll.sh), which is a bash defect rather than
+  # what this test is about. Generously bounded, because it is setup: the 3s
+  # deadline below is the assertion and stays tight.
+  local nap=""
+  while [ -z "$nap" ] && [ "$i" -lt 150 ]; do
+    nap=$(pgrep -x -P "$pid" sleep 2>/dev/null | head -1); [ -n "$nap" ] || sleep 0.1; i=$((i + 1))
+  done
+  [ -n "$nap" ] || { echo "child never reached its nap"; return 1; }
   kill -TERM "$pid"
 
   # The deadline is the assertion. The nap is 30s; a foreground `sleep` defers

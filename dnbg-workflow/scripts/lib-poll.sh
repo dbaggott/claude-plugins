@@ -148,6 +148,14 @@ done
 # why the tick line earns its place: without one, "the watch died silently" and
 # "the watch was never running" produce identical logs.
 #
+# Under bash 5.2 the first row can be lost. A trapped signal that lands while the
+# shell is expanding a command substitution, which is mid-poll rather than mid-nap,
+# can fail to run its handler: bash prints `trap: ... unexpected EOF` to stderr, then
+# either aborts with status 134, leaving the "neither" row, or carries on as if no
+# signal came. It did not reproduce under bash 5.3. A watch spends nearly all its time in a
+# nap, where the handler runs normally, so the stderr line is what tells this case
+# apart from a SIGKILL.
+#
 # On by default, and that is the whole point — an opt-in knob is off exactly when
 # it matters. The failure this traces is intermittent and unreproducible: it never
 # occurs on demand, and nobody knows in advance which watch will be the one that
