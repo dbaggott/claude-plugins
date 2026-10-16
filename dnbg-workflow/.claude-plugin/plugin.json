@@ -35,6 +35,12 @@
       "description": "Directory the orchestrate skill's agents write their retrospectives under, one subdirectory per repo (<dir>/<owner>/<repo>/); process-review reads them from there. Must be an absolute path or one under '~/', using only letters, digits and '. _ - /'; anything else is rejected and the default used instead. Leave empty for '~/.claude/dnbg-retrospectives'.",
       "default": "~/.claude/dnbg-retrospectives"
     },
+    "followup_dir": {
+      "type": "string",
+      "title": "Where follow-up entries are written",
+      "description": "Directory agents write a follow-up entry under for each Actionable item in their reports, one subdirectory per repo (<dir>/<owner>/<repo>/); followup-review reads them from there. Must be an absolute path or one under '~/', using only letters, digits and '. _ - /'; anything else is rejected and the default used instead. Leave empty for '~/.claude/dnbg-followups'.",
+      "default": "~/.claude/dnbg-followups"
+    },
     "version_stamp": {
       "type": "boolean",
       "title": "Stamp published PRs, reviews and issue claims with the plugin version",

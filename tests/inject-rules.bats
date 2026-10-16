@@ -328,6 +328,32 @@ run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
   [[ "$output" != *"configuration overrides"* ]]
 }
 
+@test "announces a configured follow-up directory and names it" {
+  stub_path jq git gh
+  run_hook_configured '' '' '' '~/followups'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"configuration overrides"* ]]
+  [[ "$output" == *'`~/followups/<owner>/<repo>/`'* ]]
+  [[ "$output" != *"Retrospectives live under"* ]]
+}
+
+@test "says nothing when the follow-up directory is set to its default" {
+  stub_path jq git gh
+  run_hook_configured '' '' '' '~/.claude/dnbg-followups/'
+  [ "$output" = "$RULES_TEXT" ]
+}
+
+@test "a rejected follow-up directory is reported with its value, reason and fallback" {
+  stub_path jq git gh
+  run_hook_configured '' '' '' 'followups'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"INVALID configuration"* ]]
+  [[ "$output" == *'`followups`'* ]]
+  [[ "$output" == *"neither an absolute path"* ]]
+  [[ "$output" == *'`~/.claude/dnbg-followups`'* ]]
+  [[ "$output" != *"configuration overrides"* ]]
+}
+
 @test "announces only the knob that moved" {
   # Both are reported from the same block, so a bug that prints both whenever
   # either is set would be invisible to the two tests above.

@@ -6,7 +6,7 @@ nothing you didn't write.
 
 - [Install scope](#install-scope) — which of two adoption modes you're in
 - [`owners`](#owners--which-repos-it-enforces-on) — **the only setting that turns the hooks on**
-- [`worktree_path`, `claim_label` and `retrospective_dir`](#the-mechanical-opinions) — names and paths you can change
+- [`worktree_path`, `claim_label`, `retrospective_dir` and `followup_dir`](#the-mechanical-opinions) — names and paths you can change
 - [`version_stamp`](#version_stamp--recording-which-prompts-published-what) — off by default; adds a hidden version marker to what you publish
 - [The reviewer bot's private key](#the-reviewer-bots-private-key) — where it is read from
 
@@ -79,15 +79,16 @@ through a repo's `CLAUDE.md` rather than through config.
 ## The mechanical opinions
 
 Some of this plugin's choices are mechanical — where worktrees go, what a claim
-is labelled, and where retrospectives are kept — and you can change them without
-forking. Each defaults to what the skills say, so leaving them alone is the same
-as not having them:
+is labelled, and where retrospectives and follow-up entries are kept — and you
+can change them without forking. Each defaults to what the skills say, so leaving
+them alone is the same as not having them:
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `worktree_path` | `.worktrees` | Repo-relative directory worktrees are created in. Must stay inside the repo and must be a plain path — an absolute path, a `~` path, any `..` segment, a leading `-`, or a character outside letters, digits and `. _ - /` is rejected and the default used instead |
 | `claim_label` | `assigned:agent-session` | Label an agent session applies when it claims an issue. Must start with `assigned:` |
 | `retrospective_dir` | `~/.claude/dnbg-retrospectives` | Where `orchestrate`'s agents write their retrospectives, one subdirectory per repo (`<dir>/<owner>/<repo>/`), and where `process-review` reads them. Must be an absolute path or one under `~/`, with the same character rule as `worktree_path`; anything else is rejected and the default used instead |
+| `followup_dir` | `~/.claude/dnbg-followups` | Where agents write a follow-up entry for each Actionable item in their reports, one subdirectory per repo (`<dir>/<owner>/<repo>/`), and where `followup-review` reads them. Same rule as `retrospective_dir` |
 
 Set one and the session-start hook prints a short note saying so; the skills read
 that note as overriding the defaults they spell out. Set nothing and the hook
@@ -111,9 +112,10 @@ for an existing claim matches the whole `assigned:` namespace deliberately, so
 that any claimant — another agent, a bot, a teammate's tooling — is visible
 without this plugin knowing their name. Step outside it and your claims stop
 being seen by them while theirs stop being seen by you, which puts two workers on
-one issue. A retrospective directory is the reverse of a worktree root, outside
-every repo by design, so it has to name a place on its own: a relative path
-would land in whichever checkout the writing agent happened to stand in. Its
+one issue. A retrospective or follow-up directory is the reverse of a worktree
+root, outside every repo by design, so it has to name a place on its own: a
+relative path would land in whichever checkout the writing agent happened to
+stand in. Its
 character rule is the worktree one, because an agent retypes the value into the
 command that creates it. Where a value is rejected, the session-start note
 names the value, the reason, and the default it fell back to.

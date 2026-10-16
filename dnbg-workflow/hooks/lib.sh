@@ -119,9 +119,11 @@ remote_is_covered() {
 # actually gets cannot drift apart.
 DEFAULT_WORKTREE_PATH='.worktrees'
 DEFAULT_CLAIM_LABEL='assigned:agent-session'
-# A literal `~`: it is printed to an agent, which expands it when it writes.
+# Literal `~`s: they are printed to an agent, which expands them when it writes.
 # shellcheck disable=SC2088
 DEFAULT_RETROSPECTIVE_DIR='~/.claude/dnbg-retrospectives'
+# shellcheck disable=SC2088
+DEFAULT_FOLLOWUP_DIR='~/.claude/dnbg-followups'
 
 # The namespace every claim label has to sit in. `issue-workflow`'s in-progress
 # check matches this prefix rather than an enumerated list, deliberately, so that
@@ -190,16 +192,16 @@ claim_label_rejection() {  # <configured-value>
   esac
 }
 
-# Why a configured retrospective directory cannot be used, same contract as
-# above.
+# Why a configured directory outside every repo — the retrospective root or the
+# follow-up root — cannot be used, same contract as above.
 #
-# Unlike a worktree root this one lives outside every repo, so it has to name a
+# Unlike a worktree root these live outside every repo, so each has to name a
 # place on its own: absolute, or under `~/`. A relative path would land in
 # whichever checkout the writing agent stands in. The character rule is the
 # worktree one, for the same reason — the value is rendered into the
 # session-start note, and an agent retypes it into `mkdir -p`.
-retrospective_dir_rejection() {  # <configured-value>
-  # Judged as resolve_retrospective_dir will use it, so `~//` is rejected here
+outside_repo_dir_rejection() {  # <configured-value>
+  # Judged as resolve_outside_repo_dir will use it, so `~//` is rejected here
   # rather than passing and then silently falling back there.
   local value="${1:-}"
   while [ "${value%/}" != "$value" ]; do value="${value%/}"; done
@@ -243,17 +245,26 @@ resolve_claim_label() {
   fi
 }
 
-# The retrospective root this session uses. Same fallback contract and the same
-# trailing-slash stripping as the worktree root; files go in
+# A directory outside every repo, as this session uses it: the configured value
+# when it is set and usable, the default otherwise. Same fallback contract and the
+# same trailing-slash stripping as the worktree root; files go in
 # `<root>/<owner>/<repo>/`, which the skills append.
-resolve_retrospective_dir() {
-  local value="${CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR:-}"
+resolve_outside_repo_dir() {  # <configured-value> <default>
+  local value="${1:-}"
   while [ "${value%/}" != "$value" ]; do value="${value%/}"; done
-  if [ -n "$value" ] && [ -z "$(retrospective_dir_rejection "$value")" ]; then
+  if [ -n "$value" ] && [ -z "$(outside_repo_dir_rejection "$value")" ]; then
     printf '%s' "$value"
   else
-    printf '%s' "$DEFAULT_RETROSPECTIVE_DIR"
+    printf '%s' "$2"
   fi
+}
+
+resolve_retrospective_dir() {
+  resolve_outside_repo_dir "${CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR:-}" "$DEFAULT_RETROSPECTIVE_DIR"
+}
+
+resolve_followup_dir() {
+  resolve_outside_repo_dir "${CLAUDE_PLUGIN_OPTION_FOLLOWUP_DIR:-}" "$DEFAULT_FOLLOWUP_DIR"
 }
 
 # Has the operator asked for the version stamp?

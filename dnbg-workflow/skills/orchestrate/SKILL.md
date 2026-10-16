@@ -243,6 +243,8 @@ items into the parent, all per `references/retrospective.md`. Then report the cy
   any role that left none.
 - **Actionable** — what the operator may want to do, including any item in the
   author's handoff, the author's final report, or the reviewer's report that
-  needs them.
+  needs them. Give each item's follow-up entry path, writing the entry per
+  `<skill-dir>/../followup-review/references/entry.md` for any item no agent
+  gave a path for.
 
 Never merge.
