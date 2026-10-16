@@ -44,13 +44,14 @@ from that moment: the receipt is fixed and the reviewer is reading against it. A
 edit you genuinely need afterwards opens a **new round** — make it, then say so in
 a fresh comment.
 
-**An edit to an issue already at `READY` reopens its round too**, as when a fix
-for a finding on one child reaches a sibling. Comment on it after the edit,
-though it had no findings: name the finding that caused the edit, by its ID and
-the URL of the comment carrying it, then the section that changed, and end with
-`No findings were open here.`
+**A fix that edits another issue already at `READY` reopens that issue's round**,
+as when a finding on one child is fixed in a sibling. Make the edit and post its
+note before the response on the issue that carried the finding, so the response
+stays your latest post, and add that issue to the watch below. The note names the
+finding, by its ID and the URL of the comment carrying it, then the section that
+changed, and ends `No blocking findings were open here.`
 
-> Edited "Acceptance criteria" for `281-B2` (<comment URL>). No findings were open here.
+> Edited "Acceptance criteria" for `281-B2` (<comment URL>). No blocking findings were open here.
 
 ## Waiting for the next round
 

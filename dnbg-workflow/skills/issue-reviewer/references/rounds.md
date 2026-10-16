@@ -62,9 +62,9 @@ again after responding has opened a **new round**, not amended the old one, and
 says so in a fresh comment. Otherwise the receipt stays unchanged while the
 artifact moves under it.
 
-A note on an issue you had at `READY`, naming a finding on another issue, opens a
-round there like any other: read its delta through `issue-diff.sh` and post a
-verdict.
+A body edit on an issue you had at `READY`, with or without the author's note on
+it, opens a round there like any other: read its delta through `issue-diff.sh`
+and post a verdict.
 
 ## Dispositioning, convergence, and the halt
 
