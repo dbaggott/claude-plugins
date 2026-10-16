@@ -10,6 +10,27 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.48 — 2026-10-16
+
+Actionable items in agents' reports no longer vanish when the operator doesn't
+act on them at merge time. The author's merge handoff, the reviewer's report and
+the orchestrator's Stop now keep each Actionable item as a follow-up entry under
+`~/.claude/dnbg-followups/<owner>/<repo>/`, and name its path in the report. The
+new `followup_dir` option moves that location.
+
+The new `followup-review` skill sweeps those entries later. It checks each one
+against the repo's current default branch, merges duplicates, and proposes
+filing, dropping or keeping it, with the issue text drafted. Nothing is filed
+until you approve the exact text, and your decision is recorded in the entry so
+it never comes up again.
+
+`git-workflow`'s merge wait now says how to arm the merge-stage watch when there
+is no `── re-arm ──` line to edit, because the review watch died without a result
+or the PR was taken over from another author. The head, the verdict SHA and
+`since` all come from one `pr-verdict.sh` call, which now also prints
+`verdict_at=`, the time the standing verdict was submitted.
+
+
 ## dnbg-workflow 2026.10.47 — 2026-10-16
 
 `git-workflow`'s review-watch reference is now two files: arming and re-arming
