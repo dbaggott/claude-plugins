@@ -10,6 +10,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.50 — 2026-10-16
+
+`orchestrate` now handles a subagent that ends `failed` on an API or usage-limit
+error: the orchestrator resumes it with `SendMessage` once the limit resets, and
+dispatches a replacement only when the agent cannot be reached. A replacement
+author's prompt names the dead author's worktree and unpushed commits, which the
+orchestrator's GitHub reads cannot see, along with the review round it was
+answering and any scratch issues or labels it created.
+
+
 ## dnbg-workflow 2026.10.49 — 2026-10-16
 
 `orchestrate` no longer has a session working one child of a tracking issue
