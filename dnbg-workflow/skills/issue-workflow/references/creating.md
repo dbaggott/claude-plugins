@@ -23,6 +23,34 @@ The single highest-value section. At creation time there is almost always a clea
 - **Every acceptance criterion must be runnable at the end of *this* issue.** Litmus: "can this be checked against the merge commit of this issue alone?" A criterion needing a route, schema, or operation that another issue introduces is unrunnable here, and becomes either a test nobody can write or a checkbox ticked by inspection. Move it to the issue that supplies the missing piece, and leave a pointer so the coverage doesn't read as dropped. The corollary, for an invariant two issues share: **assert it in whichever issue introduces the operation that could break it**, not in the one that states it. Writing it into the issue that *owns* the invariant reads as thorough and is exactly the trap — that issue usually can't run it, so the guard ships untested in the issue carrying the actual risk.
 - **A criterion met by a recorded run names what invalidates the run.** An eval or a live exercise is met by a run recorded on the PR, and "at the merge commit" leaves every later commit asking whether to run it again. Name the paths whose change voids it: "one passing run of the `<x>` eval, recorded on the PR; re-run if anything under `tests/evals/<x>/` or the skills it loads changes". A commit touching none of them leaves the run standing.
 
+### Declare an operator check before review
+
+When the proposed approach changes anything a person sees or interacts with when
+it runs (pages, components, templates, styles, terminal screens), ask the operator
+with `AskUserQuestion` whether they want to look at the work before it is
+reviewed, with two options: **"Add the check"** and **"No check"**. When unsure
+whether the approach does, ask; the cost is one picker. Without
+`AskUserQuestion`, take the default, no check, and say so in the report: the
+operator adds the section, or asks for the check when dispatching, when they
+want the look.
+
+On "Add the check", the body gets a section of its own, outside the acceptance
+criteria:
+
+```markdown
+## Operator check before review
+
+<the recipe for bringing the work up, run from the worktree: the command, the
+project skill, or the port; and what to look at>
+```
+
+The resolver stops there once the work is complete, before its self-review
+(`git-workflow`, "Operator check before review"), and the operator's feedback
+goes back to it until they say proceed. The section is a declaration, not an
+acceptance criterion: the reviewer grades nothing in it (`reviewer`'s
+`references/issue-mode.md`). The recipe's command is an anchor, verified before
+filing like any other.
+
 ### Inline summary over links
 
 - If the relevant content is a schema, a reviewer's specific concern, or a short code excerpt, **paste it into the issue body** and cite the source URL beneath it — don't rely on the reader clicking through.

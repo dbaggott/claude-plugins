@@ -127,6 +127,9 @@ decision log to append to, which is an escalation.
 Every `decided` row, an answer to one child's question included, is finished
 through `references/design-change.md`, whose last step marks it `applied`. A
 row left at `decided` reads as unfinished work on every later loop and restart.
+A row of the operator check before review (`references/triage.md`, "The row")
+whose feedback changes no design section has nothing to sweep: set it `applied`
+with the one-line note `design-change.md` gives for a row already in the body.
 
 You are the parent body's only writer. A child's body is its author's, per
 `SKILL.md`; you edit one only in a design change's sweep of a child not yet

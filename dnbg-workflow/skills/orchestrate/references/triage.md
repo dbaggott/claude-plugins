@@ -34,7 +34,9 @@ Everything else escalates, and these always do: a change to an external
 contract or to user-visible behavior, a change of scope, a choice between
 competing values, and anything that contradicts the design. So does a discovery
 the issue's author could not have known about, because answering it is a new
-decision rather than a lookup.
+decision rather than a lookup. So does the author's stop at an operator check
+before review: the issue reserves that look for the operator, and no design
+answers it.
 
 A departure the author reports as already built goes through this same list as
 if it had asked first: being built makes nothing answerable.
@@ -163,6 +165,14 @@ An escalation gets two rows: `proposed` when you ask, and `decided` with the
 operator's answer when it arrives. A restart reads a `proposed` row with nothing
 after it as a question still waiting on the operator.
 
+The rows of an operator check before review cite its section heading as their
+ID, `Decision log: Operator check before review — <state>`, and a `decided`
+row's **Answer** opens in one of three fixed ways: the recipe, for a check the
+operator requested at dispatch time; `Changes needed:` followed by the
+feedback, for a round; and `Proceed.` for the proceed. A dispatch-time request
+answers no question: its **Question** line reads `none, requested at dispatch`
+and its **Basis** is `operator`, in session.
+
 ## Promote decided rows into the body
 
 After a `decided` row, the issue body changes so a cold reader of it sees the
@@ -174,3 +184,6 @@ you: the message carrying the answer tells it to, and a row decided before
 dispatch goes in the dispatch prompt instead.
 An `applied`
 row changes nothing in the body, since the decision it applies is already there.
+A round of the operator check before review changes only what its feedback
+changes in a design section; cosmetic feedback and the proceed leave the body
+alone, and the row stands as the record.

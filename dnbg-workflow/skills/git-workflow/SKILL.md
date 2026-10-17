@@ -45,7 +45,7 @@ per plugin.
 4. `git worktree add .worktrees/<branch-name> -b <branch-name> origin/<default-branch>` — the default branch comes from the settings read below; don't assume `main`. If the change spans repos, the branch name is the pairing key; see "Multi-repo changes" below before picking it.
 5. Make changes in the worktree.
 6. Commit.
-7. **Self-review the branch, and address what it finds** — before pushing:
+7. **Self-review the branch, and address what it finds** — before pushing. When the issue declares an operator check before review, that check comes first and moves the push and the draft PR ahead of this step: see "Operator check before review" below.
    - **Against the standards** — the set the always-on "Coding standards stack" rule had you load. `git -C <worktree-path> diff origin/<default-branch>...<branch-name>`, where `<worktree-path>` is the absolute path of the worktree step 4 created, read against those files re-opened rather than recalled: you wrote the diff from memory of them, so memory is what needs checking. Where a standard names something countable, grep the diff for it instead of eyeballing.
    - **For defects, with the harness's code-review tool.** In Claude Code that is `/code-review <worktree-path> origin/<default-branch>...<branch-name>`. The tool runs git from the session's working directory, which may be the main checkout, where `HEAD` is not your branch, or another repo, where your branch does not exist; the path points it at the worktree. Name both ends of the range too: the branch's upstream stops meaning the base once the branch is pushed. Leave the effort level to whatever the operator last chose, except never `ultra`, which is a billed cloud run the operator starts themselves. Don't pass `--fix` — findings need triage, not blanket application. The tool may run in the background and return its result later as a notification: wait for that result before step 8. A dispatched author that ends its turn to wait says in that turn's report that it is waiting on the background review. A result that is an error rather than findings ends the wait, and the standards pass becomes the whole stage, as below.
 
@@ -71,6 +71,42 @@ Worktrees live in `.worktrees/` inside the repo. Ensure `.worktrees` is in `.git
 **Concurrent work is the norm — other worktrees are not a finding.** `.worktrees/` routinely holds branches from other sessions, other agents, and the operator's own in-flight work. Their presence is expected, needs no report, and is not evidence anything is wrong. Never touch one you didn't create.
 
 What *is* worth raising is a concrete collision: step 2's open-PR check, or a sibling worktree, shows work landing on the same files or the same design surface as yours. Flag that with the specific overlap — "`<branch>` also edits `src/auth.ts:40-70`" — so the operator can decide whether to coordinate. The signal is the conflict, not the parallelism.
+
+## Operator check before review
+
+An issue can reserve a look at the work for the operator before it is polished
+and reviewed, in a `## Operator check before review` section carrying the recipe
+for bringing the work up and what to look at (`issue-workflow`'s
+`references/creating.md`). The stop comes when the work is complete, at the point
+step 7 would otherwise start; an open draft PR is its precondition, not its
+trigger. With the check declared, the order is: commit, push, open the draft PR
+(already open for an orchestrated author), the check, the self-review (step 7),
+a push of its fixes, then steps 9 and 10; step 8 has already run.
+
+1. Start the recipe as a background task in the worktree. A server never exits,
+   so its task never wakes you: start a second background task that exits once
+   the first's output file carries the line naming how to reach it, bounded,
+   such as `for i in $(seq 1 120); do grep -q 'port' <output file> && exit 0;
+   sleep 0.5; done; exit 1`. When it exits non-zero the recipe did not come
+   up: read the recipe task's output and ask about that, in place of the URL
+   below. Read the port from the announced line rather than from the recipe:
+   several worktrees can be serving at once, so the port asked for is not
+   necessarily the one got.
+2. Announce the PR URL, what to look at, and how to reach it. Then call
+   `AskUserQuestion` with two options (the tool auto-appends "Other", which
+   carries the feedback):
+   1. **"Proceed"** — "Stop the server and go on to the self-review."
+   2. **"Changes needed"** — "Say what to change; the work comes back for
+      another look."
+3. On "Changes needed", rework, commit, push, restart the recipe unless it
+   reloads on its own (stop the task by its id, start it again, re-read the
+   port), and ask again. On "Proceed", stop the server task by its id and
+   continue to step 7.
+
+Without `AskUserQuestion`, post the same as a `Delegated question:` and end the
+turn with it, per `<skill-dir>/../issue-workflow/references/delegated.md`,
+leaving the server running: its URL has to be reachable when the answer
+arrives.
 
 ## Know the repo's merge settings
 

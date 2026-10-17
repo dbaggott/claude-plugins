@@ -42,7 +42,10 @@ so where `AskUserQuestion` is absent, as in a headless session, every place
 below that asks the operator follows `issue-workflow`'s
 `references/delegated.md`: an answer given in your prompt settles the question
 it names, and a question nothing answered is posted on the issue and ends the
-run with it as your report.
+run with it as your report. Your `proposed` row for the author's operator
+check before review carries no port, since the run's end takes the author's
+server with it: it names the branch, the worktree path, and the recipe, for
+the operator to run themselves.
 
 ## On start, read everything from GitHub
 
@@ -93,12 +96,27 @@ one state a restart cannot recover.
 4. **The log.** Read every comment on the issue. What is still open: a
    `Delegated question:` that no row's **Question** line links, a `proposed`
    row with no later row of the same ID, and an operator comment newer than the
-   last row.
+   last row. The rows of an operator check before review
+   (`references/triage.md`, "The row") also say where the check stands. Read
+   them after answering an operator comment that answers the check, since
+   that answer becomes one of these rows:
+   - **cleared** — a `decided` row answers `Proceed.`; the dispatch line says
+     so, and the author does not stop for it;
+   - **pending** — `Changes needed:` rows newer than the author's latest
+     `Delegated question:` for the check, with no proceed after them: nothing
+     has reworked to them. The dispatch line carries them by URL, and the fresh
+     author reworks to them in order before it stops;
+   - **unanswered** — a `proposed` row with nothing after it. Alone among
+     escalations it is not re-asked: the server behind its URL ended with the
+     predecessor, so the fresh author stops for the check again, and that
+     stop's rows supersede it.
 5. **The design.** Read the issue body. Its "Proposed approach", rejected
    alternatives, acceptance criteria, and open questions with their defaults
    are what you triage against. Don't probe it against the tree or review it:
    both are the author's at pickup, under `issue-workflow`, and what the author
-   finds reaches you as a question.
+   finds reaches you as a question. A `## Operator check before review`
+   section, or the `decided` row recording the operator's request for one at
+   dispatch time (below), composes the dispatch line's check phrase.
 
 Then answer anything step 4 found open, under "Answer or escalate", before or
 alongside the dispatch.
@@ -116,10 +134,17 @@ per `git-workflow`'s "Writing the PR description".
 
 **The author**, at once, prompted with the recipe below. The claim you made is
 already the author's: a subagent shares your session id, so its pickup reads
-`OWN`.
+`OWN`. When the operator asks at the start of the run for an operator check
+before review that the body does not declare, post it as a `decided` row first,
+with the recipe as its **Answer** (`references/triage.md`, "The row"), so a
+restart sees it; the promote line, the last bracketed one, then has the author
+promote it into the body as its `## Operator check before review` section.
 
-> Resolve `<issue URL>`, send it to review when you're done, and auto-handle any
-> reviewer feedback. The issue is already claimed under your session id.
+> Resolve `<issue URL>`, send it to review when you're done [once the
+> operator's check before review clears], and auto-handle any reviewer
+> feedback. The issue is already claimed under your session id. [The check
+> cleared at `<row URL>`; do not stop for it.] [The check is pending: rework to
+> these feedback rows in order, then stop for it again: `<row URLs>`.]
 > [Continue `<PR URL>`, which is already open for it, on its branch
 > `<branch>`.] [Its worktree from a predecessor is at `<path>`; continue
 > there.] [The author before you died mid-task. It left unpushed commits
@@ -127,11 +152,15 @@ already the author's: a subagent shares your session id, so its pickup reads
 > issues and labels>`, which are yours to clean up.] [Promote these decided
 > rows into the issue body, linking each: `<row URLs>`.]
 
-The first bracketed line goes in only for an open PR that step 3 found as
-`closes` or `sibling`, that the operator handed over, or that a dead author
-left; the second only for a worktree that step 3 found or a dead author left;
-the third only when replacing a dead author, with each of its parts that
-applies; and the fourth only for `decided` rows the body does not yet carry.
+The bracketed phrase replaces "when you're done" whenever the check is declared
+(step 5); of the two bracketed lines after it, the first goes in for a check
+step 4 read as cleared and the second, with its rows, for one read as pending.
+The next line goes in only for an open PR
+that step 3 found as `closes` or `sibling`, that the operator handed over, or
+that a dead author left; the one after only for a worktree that step 3 found or
+a dead author left; the next only when replacing a dead author, with each of
+its parts that applies; and the last only for `decided` rows the body does not
+yet carry.
 
 **The reviewer**, when the author's turn ends with its PR URL at
 send-to-review, or at once when step 3 found the PR already out of draft. Skip
@@ -145,7 +174,9 @@ Never poll in the conversation, and arm no issue watch. Each event reaches you
 as a subagent ending its turn, and that turn's report is the event. Act on what
 it ends with:
 
-- a question — triage it, under "Answer or escalate";
+- a question — triage it, under "Answer or escalate"; the author's stop at
+  its operator check before review is one, posted as a `Delegated question:`
+  carrying the URL to look at;
 - the author's PR URL at send-to-review — a departure reported rather than
   asked, in that report, the issue's comments since dispatch or the PR
   description, goes under "Answer or escalate" first, and an answer other
@@ -219,6 +250,16 @@ row is the failure the log exists to prevent.
 
 A `decided` row is promoted into the issue body by the author, per
 `references/triage.md`.
+
+The author's operator check before review always escalates
+(`references/triage.md`). Ask with the author's two options, proceed or changes
+needed, and the URL it announced. Each outcome is a `decided` row in the
+check's shape from `references/triage.md`: feedback goes to the author by
+`SendMessage`, and it reworks, pushes, and stops again; on proceed it stops its
+server, runs its self-review, and sends to review. This is not the knob under
+"Dispatch the author" where the
+operator reviews the PR in the bot's place: the check comes before the
+self-review, and the bot still reviews afterward.
 
 ## Relay the merge handoff
 

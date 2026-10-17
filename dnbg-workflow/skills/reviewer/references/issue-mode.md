@@ -32,6 +32,10 @@ differently:
   an observation naming that action, not a blocking finding. Approve, and say
   in the verdict that the approval is conditional on it.
 
+A `## Operator check before review` section is the resolver's stop for the
+operator's own look (`issue-workflow`'s `references/creating.md`), not a
+criterion: grade nothing in it.
+
 Honor the same reading discipline the body's own labels set (`issue-workflow`):
 "Related (optional — do not read unless blocked)" links stay unread, depth 1
 only.
