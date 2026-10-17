@@ -87,9 +87,9 @@ then the step 10 picker.
    task's output to announce how to reach it, such as its port. Read the port
    from that output rather than from the recipe: several worktrees can be
    serving at once, so the port asked for is not necessarily the one got.
-2. Announce the PR URL, what to look at, and how to reach it, with the port
-   actually got. Then call `AskUserQuestion` with two options (the tool
-   auto-appends "Other", which carries the feedback):
+2. Announce the PR URL, what to look at, and how to reach it. Then call
+   `AskUserQuestion` with two options (the tool auto-appends "Other", which
+   carries the feedback):
    1. **"Proceed"** — "Stop the server and go on to the self-review."
    2. **"Changes needed"** — "Say what to change; the work comes back for
       another look."

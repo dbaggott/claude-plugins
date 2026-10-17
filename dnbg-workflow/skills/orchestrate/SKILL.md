@@ -102,10 +102,8 @@ one state a restart cannot recover.
    - **cleared** — a `decided` row answers `Proceed.`; the dispatch line says
      so, and the author does not stop for it;
    - **pending** — `Changes needed:` rows with no proceed after them. The
-     author they were for may never have received them: a headless run ends at
-     the posted question. The dispatch line carries every such row that no
-     push postdates, by URL, the row's time against the PR's `committedDate`s
-     (step 3), erring toward re-delivering a row already acted on; the fresh
+     dispatch line carries every such row that no push postdates, by URL, the
+     row's time against the PR's `committedDate`s from step 3; the fresh
      author reworks to them in order before it stops;
    - **unanswered** — a `proposed` row with nothing after it, as for any
      escalation.
@@ -254,8 +252,8 @@ The author's operator check before review always escalates
 needed, and the URL it announced. Each outcome is a `decided` row in the
 check's shape from `references/triage.md`: feedback goes to the author by
 `SendMessage`, and it reworks, pushes, and stops again; on proceed it stops its
-server, runs its self-review, and sends to review, where the reviewer is
-dispatched as usual. This is not the knob under "Dispatch the author" where the
+server, runs its self-review, and sends to review. This is not the knob under
+"Dispatch the author" where the
 operator reviews the PR in the bot's place: the check comes before the
 self-review, and the bot still reviews afterward.
 

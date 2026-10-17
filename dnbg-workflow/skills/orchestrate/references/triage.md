@@ -167,10 +167,9 @@ after it as a question still waiting on the operator.
 
 The rows of an operator check before review cite its section heading as their
 ID, `Decision log: Operator check before review — <state>`, and their
-**Answer** opens in one of three fixed ways, so a restart reads where the check
-stands without judging prose: the recipe, for a check the operator requested at
-dispatch time; `Changes needed:` followed by the feedback, for a round; and
-`Proceed.` for the proceed.
+**Answer** opens in one of three fixed ways: the recipe, for a check the
+operator requested at dispatch time; `Changes needed:` followed by the
+feedback, for a round; and `Proceed.` for the proceed.
 
 ## Promote decided rows into the body
 
