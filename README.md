@@ -192,6 +192,7 @@ you wrote.
 | `issue-workflow` | `dnbg-workflow` | GitHub only | Writing issues that survive a cold handoff; claiming and resolving one |
 | `issue-reviewer` | `dnbg-workflow` | GitHub only | Reviewing an issue body as a spec, in rounds, before anyone picks it up |
 | `orchestrate` | `dnbg-workflow` | GitHub only | Driving one issue, or every child of a tracking issue, to merged PRs with author and reviewer subagents |
+| `project-status` | `dnbg-workflow` | GitHub only | Which stage of the project flow an issue is at, and the prompt to paste next |
 | `process-review` | `dnbg-workflow` | GitHub only | Finding patterns across orchestration retrospectives and drafting upstream issues |
 | `followup-review` | `dnbg-workflow` | GitHub only | Sweeping the follow-up entries agents keep for each Actionable item, and filing or dropping each with you |
 | `reviewer` | `dnbg-workflow` | GitHub only | Reviewing a pushed PR under an independent GitHub App identity |
