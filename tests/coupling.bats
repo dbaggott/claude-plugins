@@ -998,6 +998,12 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
            'Orchestrate the project (Recommended)' 'Address this issue on its own'; do
     grep -qF "**\"$o\"**" "$ref" || { echo "project-pickup.md lost the picker option '$o'"; bad=1; }
   done
+  [ "$(grep -cF '**"Stop"**' "$ref")" -ge 2 ] || {
+    echo "project-pickup.md lost one of its two Stop options"; bad=1; }
+  local rounds="$ROOT/dnbg-workflow/skills/issue-workflow/references/spec-review-rounds.md"
+  for o in 'Accept (Recommended)' 'Not yet'; do
+    grep -qF "**\"$o\"**" "$rounds" || { echo "spec-review-rounds.md lost the acceptance option '$o'"; bad=1; }
+  done
   [ "$bad" -eq 0 ]
 }
 
