@@ -25,17 +25,21 @@ The single highest-value section. At creation time there is almost always a clea
 
 ### Is this one issue or a project?
 
-The direction is a project, for a tracking issue, when any of these holds:
+Before writing the body, check whether the direction is a project, which
+belongs in a tracking issue. It is when any of these holds:
 
-- it needs more than one PR to land, by your reading;
+- it needs more than one PR to land, PRs that depend on each other or on shared
+  decisions, by your reading of the proposed approach;
 - it has decisions a second issue would cite, so they need stable IDs;
 - it has an acceptance criterion no single PR can run (the per-issue test above).
 
-Many independent issues sharing a topic are not a project: the tests are
-shared decisions and dependencies, not count.
+Independent issues sharing only a topic are not a project, however many issues
+or PRs they take. A child of a tracking issue is already in its project, so the
+check does not apply to it.
 
 When a test fires, ask with `AskUserQuestion`: "This looks like a project rather
-than one issue, because `<the test that fired>`. File it as a tracking issue?", with two options:
+than one issue, because <the tests that fired>. File it as a tracking issue?",
+with two options:
 
 1. **"Tracking issue (Recommended)"**: write the body per
    `references/tracking-issue.md`, then name the next step, a spec review in a
@@ -105,15 +109,7 @@ Litmus test before filing: for each cross-reference, ask "if the referenced thin
 
 ### Label the issue
 
-Labels sort along independent axes; an issue carries one from each that applies, not one total:
-
-- **Type** — what kind of work it is: `bug`, `enhancement`, `documentation`, etc. Apply exactly one. This is the axis a triager filters on first, so an unlabeled issue is effectively invisible to that pass.
-- **Area** (`area:*`) — which subsystem it touches. The component axis that keeps a growing backlog scannable. Apply at least one; an issue genuinely spanning two subsystems gets both. The valid set is **per-repo and self-describing**: run `gh label list --repo <repo> --search area` and read each label's description — that listing is the catalog, not anything enumerated here, so it never goes stale against this skill. When none fits and the issue clearly belongs to a *recurring* subsystem, **propose** a new `area:<kebab>` label with a one-line description and get the operator's confirmation before creating it (`gh label create --repo <repo> --color <hex> --description "..."`). Don't mint area labels unilaterally — the per-repo set stays human-curated, and ad-hoc creation fragments the namespace (`area:db` vs `area:database`).
-
-Two more axes are applied by other flows rather than here:
-
-- **Claim** (`assigned:*`) — who is working it, applied by the claiming flow in `references/claiming.md`.
-- **Project** (`project:<slug>`) — which tracking issue it belongs to, on the parent and every child. `references/decomposing.md` mints it and applies it when the children are filed. A child filed later carries it too, and its title takes the parent's `[<slug>]` tag. A plain issue carries none.
+Every issue gets labels, per `references/labeling.md`.
 
 ### Reporting a gap upstream
 

@@ -36,7 +36,8 @@ Filing an issue, defending one under review, and resolving one are separate task
 with almost no overlap, so each lives in its own file. Read the one you are on:
 
 - **Creating or updating an issue** → `references/creating.md`. Self-documenting
-  bodies, verified anchors, and labels. Keeping a body current as work ships is
+  bodies, verified anchors, and whether it is a project;
+  labels are `references/labeling.md`. Keeping a body current as work ships is
   "Maintaining issues" below, since it fires on every path.
 - **Decomposing an accepted tracking issue into children** →
   `references/decomposing.md`. Grouping requirements, the `Covers` and
@@ -69,7 +70,7 @@ This isn't a standing patrol duty. The trigger is touching the issue for any rea
 - **Promote comment-borne facts into the body.** New evidence or decisions that arrived as comments get folded into the body. A fact that lives only in a comment is invisible to the handoff.
 - **Sweep cross-references on state changes.** When a referenced PR or issue closes or is superseded, update the body text that depends on it — a "how to apply" that names a mechanism from a closed PR sends the resolver hunting for a file that doesn't exist.
 
-**A plain issue that has grown** until a test in `references/creating.md`, "Is this one issue or a project?", fires gets that section's picker, with a third option, **"Leave as is"**: the body stays a plain issue.
+**A plain issue that has grown** until a test in `references/creating.md`, "Is this one issue or a project?", fires: ask with `AskUserQuestion` once per issue, recording the answer as a comment on it, with two options. **"Rewrite as a tracking issue"** rewrites its body and title in place per `references/tracking-issue.md`; **"Leave as is"** keeps it a plain issue, and the recorded answer stands for later touches. Without `AskUserQuestion`, leave it as is and say in the report which test fired.
 
 ## Referencing issues and PRs
 
