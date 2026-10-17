@@ -23,9 +23,20 @@ picker. Without `AskUserQuestion`, post it as a `Delegated question:` per
 ## A tracking issue you were asked to resolve
 
 At `tracking=yes` on "resolve", say that this is a tracking issue and that
-resolving one means orchestrating it. At `children=0` it has nothing to
-orchestrate yet: say that it is decomposed first, per
-`references/decomposing.md`, and stop, claiming nothing. Otherwise ask:
+resolving one means orchestrating it, with `orchestrate <URL>`. At `children=0` it has nothing to
+orchestrate yet and is decomposed first, which needs the design accepted: a
+decision-log row whose Entry opens `Design accepted:`
+(`references/tracking-issue.md`, "Acceptance"). With that row, ask:
+
+1. **"Decompose it now (Recommended)"**: "Load `references/decomposing.md` on
+   this URL and continue there."
+2. **"Stop"**: "Nothing is claimed."
+
+Without it, say that the design needs a `READY` design review and the
+operator's acceptance first, give the prompt `review <URL> as a spec`, for a
+reviewer session, and stop, claiming nothing.
+
+At `children` above 0, ask:
 
 1. **"Orchestrate it (Recommended)"**: "Load `orchestrate` on this URL and
    continue there."

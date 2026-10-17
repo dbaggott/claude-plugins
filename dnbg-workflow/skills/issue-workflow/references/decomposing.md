@@ -129,5 +129,7 @@ One body edit, after the last child is filed:
 ## 6. Send the set to review
 
 Ask for a set review of the parent and its children with `issue-reviewer`, and
-answer its rounds per `references/spec-review-rounds.md`. The children are ready
-to pick up once that review converges `READY`.
+answer its rounds per `references/spec-review-rounds.md`. Say what follows it:
+once every issue in the set reads `READY`, the next prompt is
+`orchestrate <parent URL>`, in a fresh session, since it reads everything from
+GitHub, and this session has nothing further to do.

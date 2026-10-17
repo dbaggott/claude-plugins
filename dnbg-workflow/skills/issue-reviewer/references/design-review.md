@@ -93,3 +93,8 @@ List every check above in the comment, each with its outcome — the findings it
 produced by ID, or `none`. A `READY` that names no checks cannot be told apart
 from one where they were skipped. The re-run check's outcome also names each
 constraint it re-ran, and each it did not with the reason.
+
+A `READY` on a body whose decision log has no acceptance row ends with one line:
+"Next: the author records acceptance (`issue-workflow`'s
+`references/tracking-issue.md`, "Acceptance"), then decomposition." Write no row
+yourself: the body has one writer.

@@ -107,5 +107,33 @@ that disposes nothing new leaves the remainder as an operator decision.
 
 Fold anything the review established that changes what a resolver should build
 into the body, per "Maintaining issues" in `SKILL.md`: a fact living only in a
-comment is invisible to the handoff. Picking the issue up is then
-`references/claiming.md`.
+comment is invisible to the handoff.
+
+Then end on the next stage, by what converged. Each exit says that GitHub now
+holds everything the next stage reads, gives the prompt to paste, and recommends
+a fresh session for it, since that stage reads its state from GitHub rather than
+from this conversation.
+
+- **A plain issue.** "Ready to pick up. In a fresh session: `resolve <URL>`, or
+  `orchestrate <URL>` to have an author and a reviewer dispatched for you."
+- **A tracking issue whose round ran in design mode**, as the round comment's
+  first line names, and whose decision log has no acceptance row yet. Ask with
+  `AskUserQuestion`: "The design review is `READY`. Accept the design?"
+  1. **"Accept (Recommended)"**: "Write the acceptance row, then give the
+     decomposition prompt."
+  2. **"Not yet"**: "Nothing is written. Any edit to the body reopens the
+     review."
+
+  On "Accept", write the row `references/tracking-issue.md`'s "Acceptance"
+  gives, with the round comment's URL and `operator sign-off in session`, then:
+  "Accepted. In a fresh session: `decompose <URL>`." On "Not yet", write
+  nothing, and ask what the operator still wants to change. Without
+  `AskUserQuestion`, post the question as a `Delegated question:` per
+  `references/delegated.md` and stop; the row an accepting answer writes names
+  the URL of the comment carrying it as where the sign-off was given.
+- **A tracking issue whose round ran in plain spec mode.** Acceptance needs a
+  design-mode `READY`, so offer no picker: say so, and give the prompt
+  `review <URL> as a spec`, for a reviewer session.
+- **A set under a tracking issue**, once every issue in it reads `READY`. "The
+  set is `READY`. In a fresh session: `orchestrate <parent URL>`. This session
+  has nothing further to do."

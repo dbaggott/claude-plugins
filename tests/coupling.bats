@@ -994,7 +994,7 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   grep -q 'scripts/issue-project\.sh' "$ref" || {
     echo "project-pickup.md no longer calls issue-project.sh"; bad=1; }
   local o
-  for o in 'Orchestrate it (Recommended)' 'Stop' \
+  for o in 'Orchestrate it (Recommended)' 'Decompose it now (Recommended)' 'Stop' \
            'Orchestrate the project (Recommended)' 'Address this issue on its own'; do
     grep -qF "**\"$o\"**" "$ref" || { echo "project-pickup.md lost the picker option '$o'"; bad=1; }
   done
