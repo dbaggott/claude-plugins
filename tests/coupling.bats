@@ -888,33 +888,69 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   done
 }
 
-# A `description:` whose value contains an unquoted `: ` is not a description with
-# a colon in it — YAML reads the colon as a mapping indicator, the frontmatter
-# stops parsing, and Claude Code loads the skill with EVERY field dropped. The
-# skill then has no name and no description, so nothing can route to it. Silent at
-# runtime, and invisible to the rest of this suite, which never parses a SKILL.md.
+tree_agents() {  # -> each agent definition's path
+  local f
+  for f in "$ROOT"/dnbg-*/agents/*.md; do
+    [ -f "$f" ] && printf '%s\n' "$f"
+  done
+}
+
+# A plain (unquoted) `description:` scalar is not valid YAML, or is not the
+# string it looks like, on any of these:
 #
-# `claude plugin validate --strict` in CI is the authority and catches more than
-# this. It needs the CLI installed, which the bats job does not have — so this is
-# the narrow local check for the one failure mode that has actually happened,
-# not a second parser.
-@test "every skill description survives YAML plain-scalar parsing" {
-  local f skill plugin bad=0
-  while read -r skill plugin; do
-    f="$ROOT/$plugin/skills/$skill/SKILL.md"
-    grep -q '^name:' "$f" || { echo "$skill/SKILL.md has no name: in its frontmatter"; bad=1; }
-    local v
-    v=$(sed -n 's/^description: //p' "$f")
-    [ -n "$v" ] || { echo "$skill/SKILL.md has no description:"; bad=1; continue; }
-    # Quoted scalars may contain anything; only a plain one is at risk.
+# - `#` at the start or after whitespace starts a comment, so the description
+#   ends there and every trigger after it is never seen. The frontmatter still
+#   parses.
+# - `:` before a space or at the end, or a leading YAML indicator such as a
+#   backtick, is a YAML syntax error.
+#
+# `claude plugin validate --strict` passed ` #`, `a: b` and a leading backtick
+# when checked, so this check holds plain scalars to the spec rather than to the
+# validator's leniency. The validator does reject a quoted value that fails to
+# parse, such as an invalid `\` escape, so quoted values are left to it.
+#
+# A block scalar (`|` or `>`) is valid YAML, but this check reads one line, so a
+# description stays on that line.
+@test "every skill and agent description survives YAML plain-scalar parsing" {
+  local f rel v skill plugin bad=0 skills=0 agents=0
+  local tab=$'\t'
+  while read -r f; do
+    rel=${f#"$ROOT"/}
+    # Read the frontmatter alone: a body that shows example frontmatter is not
+    # this file's own.
+    v=$(sed -n '2,/^---$/{s/^description: //p;}' "$f")
+    sed -n '2,/^---$/p' "$f" | grep -q '^name:' || { echo "$rel has no name: in its frontmatter"; bad=1; }
+    [ -n "$v" ] || { echo "$rel has no description:"; bad=1; continue; }
     case "$v" in
       \"*|\'*) ;;
-      *": "*)
-        echo "$skill: description contains an unquoted ': ' — YAML will drop the whole frontmatter"
+      \|*|\>*)
+        echo "$rel: description is a block scalar — keep it on the description: line"
+        echo "  quote the value if it needs YAML-special characters"
+        bad=1 ;;
+      \#*)
+        echo "$rel: description starts with '#' — YAML reads it as a comment and the description is empty"
+        echo "  quote the value"
+        bad=1 ;;
+      [\`@\*\&\!\[\{%]*|"- "*|"? "*)
+        echo "$rel: description starts with a YAML indicator — the whole frontmatter is dropped"
+        echo "  quote the value"
+        bad=1 ;;
+      *": "*|*":$tab"*|*:)
+        echo "$rel: description contains an unquoted ':' before a space or at the end — YAML will drop the whole frontmatter"
         echo "  use an em dash, or quote the value"
         bad=1 ;;
+      *" #"*|*"$tab#"*)
+        echo "$rel: description contains an unquoted '#' after whitespace — YAML truncates it there"
+        echo "  quote the value"
+        bad=1 ;;
     esac
-  done < <(tree_skills)
+  done < <(
+    while read -r skill plugin; do printf '%s\n' "$ROOT/$plugin/skills/$skill/SKILL.md"; done < <(tree_skills)
+    tree_agents
+  )
+  skills=$(tree_skills | wc -l); agents=$(tree_agents | wc -l)
+  [ "$skills" -gt 0 ] || { echo "found no SKILL.md files — tree_skills broke"; false; }
+  [ "$agents" -gt 0 ] || { echo "found no agent files — tree_agents broke"; false; }
   [ "$bad" -eq 0 ]
 }
 
