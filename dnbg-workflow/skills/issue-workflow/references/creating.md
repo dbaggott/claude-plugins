@@ -23,6 +23,33 @@ The single highest-value section. At creation time there is almost always a clea
 - **Every acceptance criterion must be runnable at the end of *this* issue.** Litmus: "can this be checked against the merge commit of this issue alone?" A criterion needing a route, schema, or operation that another issue introduces is unrunnable here, and becomes either a test nobody can write or a checkbox ticked by inspection. Move it to the issue that supplies the missing piece, and leave a pointer so the coverage doesn't read as dropped. The corollary, for an invariant two issues share: **assert it in whichever issue introduces the operation that could break it**, not in the one that states it. Writing it into the issue that *owns* the invariant reads as thorough and is exactly the trap — that issue usually can't run it, so the guard ships untested in the issue carrying the actual risk.
 - **A criterion met by a recorded run names what invalidates the run.** An eval or a live exercise is met by a run recorded on the PR, and "at the merge commit" leaves every later commit asking whether to run it again. Name the paths whose change can void it and, in a sentence, the behavior the run proves: "one passing run of the `<x>` eval, recorded on the PR, proving the stop, one feedback round, and the resumption; re-run after a change under `tests/evals/<x>/` or the skills it loads, unless the PR's record shows the change leaves that behavior as it was". A commit touching none of the paths leaves the run standing, and so does one under them that the author's record on the PR shows leaves the named behavior as it was (`references/resolving.md`). Where the clause names paths alone, any change under them voids the run.
 
+### Is this one issue or a project?
+
+Before writing the body, check whether the direction is a project, which
+belongs in a tracking issue. It is when any of these holds:
+
+- it needs more than one PR to land, PRs that depend on each other or on shared
+  decisions, by your reading of the proposed approach;
+- it has decisions a second issue would cite, so they need stable IDs;
+- it has an acceptance criterion no single PR can run (the per-issue test above).
+
+Independent issues sharing only a topic are not a project, however many issues
+or PRs they take. A child of a tracking issue is already in its project, so the
+check does not apply to it.
+
+When a test fires, ask with `AskUserQuestion`: "This looks like a project rather
+than one issue, because <the tests that fired>. File it as a tracking issue?",
+with two options:
+
+1. **"Tracking issue (Recommended)"**: write the body per
+   `references/tracking-issue.md`, then name the next step, a spec review in a
+   reviewer session (`review <URL> as a spec`).
+2. **"Plain issue(s)"**: file as asked.
+
+Without `AskUserQuestion`, follow `references/delegated.md`; with neither an
+issue nor a PR to post on, take the recommended option and say so in the
+report.
+
 ### Declare an operator check before review
 
 When the proposed approach changes anything a person sees or interacts with when
@@ -82,15 +109,7 @@ Litmus test before filing: for each cross-reference, ask "if the referenced thin
 
 ### Label the issue
 
-Labels sort along independent axes; an issue carries one from each that applies, not one total:
-
-- **Type** — what kind of work it is: `bug`, `enhancement`, `documentation`, etc. Apply exactly one. This is the axis a triager filters on first, so an unlabeled issue is effectively invisible to that pass.
-- **Area** (`area:*`) — which subsystem it touches. The component axis that keeps a growing backlog scannable. Apply at least one; an issue genuinely spanning two subsystems gets both. The valid set is **per-repo and self-describing**: run `gh label list --repo <repo> --search area` and read each label's description — that listing is the catalog, not anything enumerated here, so it never goes stale against this skill. When none fits and the issue clearly belongs to a *recurring* subsystem, **propose** a new `area:<kebab>` label with a one-line description and get the operator's confirmation before creating it (`gh label create --repo <repo> --color <hex> --description "..."`). Don't mint area labels unilaterally — the per-repo set stays human-curated, and ad-hoc creation fragments the namespace (`area:db` vs `area:database`).
-
-Two more axes are applied by other flows rather than here:
-
-- **Claim** (`assigned:*`) — who is working it, applied by the claiming flow in `references/claiming.md`.
-- **Project** (`project:<slug>`) — which tracking issue it belongs to, on the parent and every child. `references/decomposing.md` mints it and applies it when the children are filed. A child filed later carries it too, and its title takes the parent's `[<slug>]` tag. A plain issue carries none.
+Every issue gets labels, per `references/labeling.md`.
 
 ### Reporting a gap upstream
 
