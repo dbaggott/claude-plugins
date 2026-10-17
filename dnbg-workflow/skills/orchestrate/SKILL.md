@@ -42,10 +42,10 @@ so where `AskUserQuestion` is absent, as in a headless session, every place
 below that asks the operator follows `issue-workflow`'s
 `references/delegated.md`: an answer given in your prompt settles the question
 it names, and a question nothing answered is posted on the issue and ends the
-run with it as your report. The author's operator check before review, posted
-this way, carries no port, since the run's end takes the author's server with
-it: it names the branch, the worktree path, and the recipe, for the operator to
-run themselves.
+run with it as your report. Your `proposed` row for the author's operator
+check before review carries no port, since the run's end takes the author's
+server with it: it names the branch, the worktree path, and the recipe, for
+the operator to run themselves.
 
 ## On start, read everything from GitHub
 
@@ -137,8 +137,8 @@ already the author's: a subagent shares your session id, so its pickup reads
 `OWN`. When the operator asks at the start of the run for an operator check
 before review that the body does not declare, post it as a `decided` row first,
 with the recipe as its **Answer** (`references/triage.md`, "The row"), so a
-restart sees it; the fourth bracketed line then has the author promote it into
-the body as its `## Operator check before review` section.
+restart sees it; the promote line, the last bracketed one, then has the author
+promote it into the body as its `## Operator check before review` section.
 
 > Resolve `<issue URL>`, send it to review when you're done [once the
 > operator's check before review clears], and auto-handle any reviewer

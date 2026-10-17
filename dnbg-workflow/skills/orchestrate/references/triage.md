@@ -166,8 +166,8 @@ operator's answer when it arrives. A restart reads a `proposed` row with nothing
 after it as a question still waiting on the operator.
 
 The rows of an operator check before review cite its section heading as their
-ID, `Decision log: Operator check before review — <state>`, and their
-**Answer** opens in one of three fixed ways: the recipe, for a check the
+ID, `Decision log: Operator check before review — <state>`, and a `decided`
+row's **Answer** opens in one of three fixed ways: the recipe, for a check the
 operator requested at dispatch time; `Changes needed:` followed by the
 feedback, for a round; and `Proceed.` for the proceed. A dispatch-time request
 answers no question: its **Question** line reads `none, requested at dispatch`

@@ -81,14 +81,17 @@ for bringing the work up and what to look at (`issue-workflow`'s
 step 7 would otherwise start; an open draft PR is its precondition, not its
 trigger. With the check declared, the order is: commit, push, open the draft PR
 (already open for an orchestrated author), the check, the self-review (step 7),
-then steps 9 and 10; step 8 has already run.
+a push of its fixes, then steps 9 and 10; step 8 has already run.
 
 1. Start the recipe as a background task in the worktree. A server never exits,
    so its task never wakes you: start a second background task that exits once
-   the first's output file carries the line naming how to reach it, such as
-   `until grep -q 'port' <output file>; do sleep 0.5; done`, and read the port
-   from that line rather than from the recipe: several worktrees can be serving
-   at once, so the port asked for is not necessarily the one got.
+   the first's output file carries the line naming how to reach it, bounded,
+   such as `for i in $(seq 1 120); do grep -q 'port' <output file> && exit 0;
+   sleep 0.5; done; exit 1`. When it exits non-zero the recipe did not come
+   up: read the recipe task's output and ask about that, in place of the URL
+   below. Read the port from the announced line rather than from the recipe:
+   several worktrees can be serving at once, so the port asked for is not
+   necessarily the one got.
 2. Announce the PR URL, what to look at, and how to reach it. Then call
    `AskUserQuestion` with two options (the tool auto-appends "Other", which
    carries the feedback):
