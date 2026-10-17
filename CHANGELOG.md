@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.55 — 2026-10-17
+
+Filing an issue now includes a check on whether the work is a project. When
+the direction needs more than one PR, carries decisions a second issue would
+cite, or has an acceptance criterion no single PR can run, `issue-workflow`
+offers to file it as a tracking issue instead of a plain one, and the same
+offer comes up when a plain issue grows into one.
+
+
 ## dnbg-workflow 2026.10.54 — 2026-10-17
 
 Added the `project-status` skill: ask "what's next on <issue URL>" and it says
