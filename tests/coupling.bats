@@ -895,19 +895,19 @@ tree_agents() {  # -> each agent definition's path
   done
 }
 
-# A plain (unquoted) `description:` scalar breaks silently at runtime on any of
-# these, invisible to the rest of this suite, which never parses a frontmatter:
+# A plain (unquoted) `description:` scalar is not valid YAML, or is not the
+# string it looks like, on any of these:
 #
+# - `#` after whitespace starts a comment, so the description ends there and
+#   every trigger after it is never seen. The frontmatter still parses.
 # - `:` before a space or at the end, or a leading YAML indicator such as a
-#   backtick. The frontmatter stops parsing and Claude Code loads the skill with
-#   EVERY field dropped, so nothing can route to it.
-# - `#` after whitespace starts a comment. The frontmatter still parses, so
-#   `claude plugin validate --strict` passes it, but the description ends there
-#   and every trigger after it is never seen.
+#   backtick, is a YAML syntax error. Claude Code's parser has been lenient about
+#   some of these, so they are held to the spec rather than to its current
+#   leniency.
 #
-# `validate --strict` in CI catches the parse failures and more. This is the
-# narrow local check for plain scalars, not a second parser: a quoted value is
-# left to `validate`.
+# `claude plugin validate --strict` passes all of these, so this is their only
+# check. It does reject a quoted value that fails to parse, such as an invalid
+# `\` escape, so quoted values are left to it rather than to a second parser here.
 @test "every skill and agent description survives YAML plain-scalar parsing" {
   local f rel v skill plugin bad=0 skills=0 agents=0
   local tab=$'\t'
