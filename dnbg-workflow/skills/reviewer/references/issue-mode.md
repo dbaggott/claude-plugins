@@ -20,12 +20,16 @@ differently:
 
 - **A criterion met by a run** (an eval, a live exercise) is met by a recorded
   run, linked from the PR or the issue and carrying its output. Don't re-run it.
-  It stands while nothing under the paths the criterion names as invalidating it
-  changed after the run's commit; fetch both commits and list what changed with
+  Fetch both commits and list what changed since the run with
   `git diff --name-only <run commit> <head>`, a tree comparison that a rebase
-  since the run does not inflate. Where the criterion names no paths, judge from
-  that list whether anything the run exercises changed, and say which paths you
-  judged by. No recorded run, or a stale one, is a blocking finding naming the
+  since the run does not inflate. The run stands while nothing under the paths
+  the criterion names as invalidating it changed. Where the criterion also names
+  the behavior the run proves, a change under the paths leaves the run standing
+  when the author's record shows it does not alter that behavior and its diff
+  bears that out; a change the record says nothing about voids it. Where the
+  criterion names paths alone, any change under them voids it. Where it names no
+  paths, judge from that list whether anything the run exercises changed. Say
+  which changes you judged and on what basis. No recorded run, or a stale one, is a blocking finding naming the
   run, unless the run waits only on an operator action, as below.
 - **A criterion blocked only on an operator action** outside the PR, such as a
   merge in a test repository or a live exercise only the operator can start, is
