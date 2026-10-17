@@ -24,9 +24,11 @@ differently:
   `git diff --name-only <run commit> <head>`, a tree comparison that a rebase
   since the run does not inflate. The run stands while nothing under the paths
   the criterion names as invalidating it changed. Where the criterion also names
-  the behavior the run proves, a change under the paths leaves the run standing
-  when the author's record shows it does not alter that behavior and its diff
-  bears that out; a change the record says nothing about voids it. Where the
+  the behavior the run proves, a file changed under the paths leaves the run
+  standing when the author's record shows its change does not alter that
+  behavior and the file's diff since the run bears that out; a file the record
+  says nothing about, or one whose effect on the behavior you cannot rule out,
+  voids it. Where the
   criterion names paths alone, any change under them voids it. Where it names no
   paths, judge from that list whether anything the run exercises changed. Say
   which changes you judged and on what basis. No recorded run, or a stale one,

@@ -72,7 +72,7 @@ posting. This adds checks to each pass, and changes what the round comment says.
   none has no definition of done above the children. An `A#` met by a run also
   names its recorder, per `issue-workflow`'s `references/decomposing.md` step 3,
   and the paths invalidating the run with the behavior it proves. A missing
-  recorder, or neither paths nor behavior, is a finding; paths alone is an
+  recorder or missing paths is a finding; paths without the behavior is an
   observation recommending the behavior sentence.
 - **Interfaces between parts are named.** Where one part hands something to
   another — a script's output another consumes, a file format, a label, a comment
