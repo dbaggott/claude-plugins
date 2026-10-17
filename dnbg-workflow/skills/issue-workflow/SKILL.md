@@ -1,6 +1,6 @@
 ---
 name: issue-workflow
-description: How to create, maintain, and pick up GitHub issues so context survives the handoff to whoever resolves them cold. Load when about to create a GitHub issue (any `gh issue create`), file follow-up work as an issue, update one after partial progress or a referenced PR closing, label one along the type and `area:*` axes, assign or dispatch one to anyone (person or bot), decompose an accepted tracking issue into child issues, or pick up an issue named by number or URL ("resolve #245", "do issue 245", "work on <issue URL>") — on pickup load this *before* reading any file or opening a worktree, since claiming the issue comes first. Also load before a PR leaves draft when the implementation departed from the approach the issue described, and when answering a reviewer's findings on an issue body you wrote. The pickup trigger is an issue being named, not the user's choice of words. Skip for merely referencing an issue, and for reviewing someone's issue body yourself, which is `issue-reviewer`.
+description: How to create, maintain, and pick up GitHub issues so context survives the handoff to whoever resolves them cold. Load when about to create a GitHub issue (any `gh issue create`), file follow-up work as an issue, update one after partial progress or a referenced PR closing, label one along the type and `area:*` axes, assign or dispatch one to anyone (person or bot), decide whether a discussion is one issue or a tracking issue, decompose an accepted tracking issue into child issues, or pick up an issue named by number or URL ("resolve #245", "do issue 245", "work on <issue URL>") — on pickup load this *before* reading any file or opening a worktree, since claiming the issue comes first. Also load before a PR leaves draft when the implementation departed from the approach the issue described, and when answering a reviewer's findings on an issue body you wrote. The pickup trigger is an issue being named, not the user's choice of words. Skip for merely referencing an issue, and for reviewing someone's issue body yourself, which is `issue-reviewer`.
 ---
 
 # Issue workflow
@@ -68,6 +68,8 @@ This isn't a standing patrol duty. The trigger is touching the issue for any rea
 - **Status-mark shipped work.** If part of the issue has landed, mark that section shipped (with the PR URL) instead of leaving it presented as open work — otherwise a cold resolver re-implements it.
 - **Promote comment-borne facts into the body.** New evidence or decisions that arrived as comments get folded into the body. A fact that lives only in a comment is invisible to the handoff.
 - **Sweep cross-references on state changes.** When a referenced PR or issue closes or is superseded, update the body text that depends on it — a "how to apply" that names a mechanism from a closed PR sends the resolver hunting for a file that doesn't exist.
+
+**A plain issue that has grown** until a test in `references/creating.md`, "Is this one issue or a project?", fires gets that section's picker, with a third option, **"Leave as is"**: the body stays a plain issue.
 
 ## Referencing issues and PRs
 

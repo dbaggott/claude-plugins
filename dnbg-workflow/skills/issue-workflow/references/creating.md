@@ -23,6 +23,29 @@ The single highest-value section. At creation time there is almost always a clea
 - **Every acceptance criterion must be runnable at the end of *this* issue.** Litmus: "can this be checked against the merge commit of this issue alone?" A criterion needing a route, schema, or operation that another issue introduces is unrunnable here, and becomes either a test nobody can write or a checkbox ticked by inspection. Move it to the issue that supplies the missing piece, and leave a pointer so the coverage doesn't read as dropped. The corollary, for an invariant two issues share: **assert it in whichever issue introduces the operation that could break it**, not in the one that states it. Writing it into the issue that *owns* the invariant reads as thorough and is exactly the trap — that issue usually can't run it, so the guard ships untested in the issue carrying the actual risk.
 - **A criterion met by a recorded run names what invalidates the run.** An eval or a live exercise is met by a run recorded on the PR, and "at the merge commit" leaves every later commit asking whether to run it again. Name the paths whose change can void it and, in a sentence, the behavior the run proves: "one passing run of the `<x>` eval, recorded on the PR, proving the stop, one feedback round, and the resumption; re-run after a change under `tests/evals/<x>/` or the skills it loads, unless the PR's record shows the change leaves that behavior as it was". A commit touching none of the paths leaves the run standing, and so does one under them that the author's record on the PR shows leaves the named behavior as it was (`references/resolving.md`). Where the clause names paths alone, any change under them voids the run.
 
+### Is this one issue or a project?
+
+The direction is a project, for a tracking issue, when any of these holds:
+
+- it needs more than one PR to land, by your reading;
+- it has decisions a second issue would cite, so they need stable IDs;
+- it has an acceptance criterion no single PR can run (the per-issue test above).
+
+Many independent issues sharing a topic are not a project: the tests are
+shared decisions and dependencies, not count.
+
+When a test fires, ask with `AskUserQuestion`: "This looks like a project rather
+than one issue, because `<the test that fired>`. File it as a tracking issue?", with two options:
+
+1. **"Tracking issue (Recommended)"**: write the body per
+   `references/tracking-issue.md`, then name the next step, a spec review in a
+   reviewer session (`review <URL> as a spec`).
+2. **"Plain issue(s)"**: file as asked.
+
+Without `AskUserQuestion`, follow `references/delegated.md`; with neither an
+issue nor a PR to post on, take the recommended option and say so in the
+report.
+
 ### Declare an operator check before review
 
 When the proposed approach changes anything a person sees or interacts with when
