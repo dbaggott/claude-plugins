@@ -62,6 +62,7 @@ repo you're standing in:
 | `issue-workflow` | the repo the issue lives in | the host **in the issue URL** isn't `github.com` — or, for a bare issue number, that repo's `origin` |
 | `issue-reviewer` | the repo the issues under review live in | the host **in the issue URL** isn't `github.com` — or, for a bare issue number, that repo's `origin` |
 | `orchestrate` | the repo the issue lives in | the host **in the issue URL** isn't `github.com` |
+| `project-status` | the repo the issue lives in | the host **in the issue URL** isn't `github.com`; a bare issue number is asked back as a URL |
 | `process-review` | retrospective files on your machine, and a tracking issue when you name one | the host **in the tracking-issue URL** isn't `github.com`, which skips that issue's friction log; the files are reviewed either way |
 | `followup-review` | follow-up files on your machine, and the repo each one names | an entry's `source` URL isn't on `github.com`, which skips that entry's re-check and proposes keeping it; the other entries are swept either way |
 | `reviewer` | a pull request you name explicitly | the *named* repo isn't on GitHub |

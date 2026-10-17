@@ -1757,3 +1757,50 @@ delegated_copy_agrees() {  # <delegated.md> <work-summary SKILL.md>
       echo "removing '$p' from the copy did not name it: $output"; false; }
   done
 }
+
+# project-status hands the operator a prompt to paste, and that prompt only works
+# if it fires the skill it is meant for. Each prompt's verb is matched against
+# the description of the skill that owns it, since routing reads descriptions
+# before any file.
+@test "every prompt project-status gives fires the skill it names" {
+  local status="$ROOT/dnbg-workflow/skills/project-status/SKILL.md"
+  local prompts verb owner desc bad=0 n=0
+  prompts=$(grep -E '^\| `[a-z-]+` \|' "$status" | grep -oE '`[a-z ]+ <URL>[^`]*`' | tr -d '`')
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    n=$((n + 1)); verb=${p%% *}
+    case "$verb" in
+      orchestrate) owner=orchestrate; want='"orchestrate <issue URL>"' ;;
+      resolve)     owner=issue-workflow; want='"resolve ' ;;
+      decompose)   owner=issue-workflow; want='decompose an accepted tracking issue' ;;
+      answer)      owner=issue-workflow; want="answering a reviewer's findings on an issue body" ;;
+      # A bare "review <URL>" is a question for the operator (reviewer's
+      # description), so the prompt has to carry "as a spec".
+      review)      owner=issue-reviewer; want='as a spec'
+                   [[ "$p" == *"as a spec"* ]] || { echo "'$p' is a bare review"; bad=1; } ;;
+      *) echo "prompt '$p' has no owning skill in this test"; bad=1; continue ;;
+    esac
+    desc=$(sed -n '/^description:/p' "$ROOT/dnbg-workflow/skills/$owner/SKILL.md")
+    grep -qF "$want" <<<"$desc" || { echo "$owner's description lost '$want', which '$p' relies on"; bad=1; }
+  done <<<"$prompts"
+  [ "$n" -ge 5 ] || { echo "found only $n prompts — the extractor broke"; false; }
+  [ "$bad" -eq 0 ]
+}
+
+@test "every next and ERROR reason issue-stage emits is one project-status reads" {
+  local src="$ROOT/dnbg-workflow/scripts/issue-stage.sh"
+  local status="$ROOT/dnbg-workflow/skills/project-status/SKILL.md"
+  local nexts reasons x bad=0
+  nexts=$(sed -nE 's/.*say [a-z"$A-Z]+ [a-z-]+ ([a-z-]+) .*/\1/p' "$src" | sort -u)
+  [ "$(grep -c . <<<"$nexts")" -ge 5 ] || { echo "found only: $nexts — the extractor broke"; false; }
+  for x in $nexts; do
+    grep -qE "^\| \`$x\` \|" "$status" || { echo "project-status has no row for next=$x"; bad=1; }
+  done
+  reasons=$(grep -oE '\bfail [a-z-]+' "$src" | sed 's/^fail //' | sort -u)
+  for x in $reasons unsupported-forge; do
+    grep -qF "\`$x\`" "$status" || { echo "project-status does not name ERROR reason '$x'"; bad=1; }
+    sed -n '/^# Exactly one/,/^set -euo/p' "$src" | grep -qE "(^|[^a-z-])${x}([^a-z-]|\$)" || {
+      echo "$(basename "$src") emits '$x' but its header does not declare it"; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}

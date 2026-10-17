@@ -1,0 +1,22 @@
+{
+  "_captured": {
+    "repo": "dbaggott/claude-plugins",
+    "issue": 223,
+    "at": "2026-10-17T04:33:39Z",
+    "output": "result=OK kind=tracking stage=closed next=none evidence=state=closed"
+  },
+  "_edited": [
+    "stage:dbaggott/claude-plugins#223: .data.repository.issue.body |= split(\"\\n\")[0]",
+    "project:dbaggott/claude-plugins#223: .data.repository.issue.body |= split(\"\\n\")[0]"
+  ],
+  "calls": {
+    "stage:dbaggott/claude-plugins#223": {
+      "out": "{\"data\":{\"repository\":{\"issue\":{\"state\":\"CLOSED\",\"body\":\"This is a **tracking issue**: its body is the design, the execution state, and the decision log for the project, and it is the parent of every child issue. The body is current truth; comments are history. Section IDs (`C#`, `R#`, `D#`, `Q#`, `A#`) are stable and never renumbered; a retired entry is marked retired, not deleted.\"}}}}",
+      "exit": 0
+    },
+    "project:dbaggott/claude-plugins#223": {
+      "out": "{\"data\":{\"repository\":{\"issue\":{\"body\":\"This is a **tracking issue**: its body is the design, the execution state, and the decision log for the project, and it is the parent of every child issue. The body is current truth; comments are history. Section IDs (`C#`, `R#`, `D#`, `Q#`, `A#`) are stable and never renumbered; a retired entry is marked retired, not deleted.\",\"parent\":null,\"subIssues\":{\"totalCount\":12}}}}}",
+      "exit": 0
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "_captured": {
+    "repo": "dbaggott/claude-plugins",
+    "issue": 99999,
+    "at": "2026-10-17T04:33:44Z",
+    "output": "result=ERROR reason=not-found now=2026-10-17T04:33:44Z"
+  },
+  "calls": {
+    "stage:dbaggott/claude-plugins#99999": {
+      "out": "{\"data\":{\"repository\":{\"issue\":null}},\"errors\":[{\"type\":\"NOT_FOUND\",\"path\":[\"repository\",\"issue\"],\"locations\":[{\"line\":2,\"column\":44}],\"message\":\"Could not resolve to an Issue with the number of 99999.\"}]}",
+      "exit": 1
+    }
+  }
+}
