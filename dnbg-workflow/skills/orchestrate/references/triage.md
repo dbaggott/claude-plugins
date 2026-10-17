@@ -169,7 +169,9 @@ The rows of an operator check before review cite its section heading as their
 ID, `Decision log: Operator check before review — <state>`, and their
 **Answer** opens in one of three fixed ways: the recipe, for a check the
 operator requested at dispatch time; `Changes needed:` followed by the
-feedback, for a round; and `Proceed.` for the proceed.
+feedback, for a round; and `Proceed.` for the proceed. A dispatch-time request
+answers no question: its **Question** line reads `none, requested at dispatch`
+and its **Basis** is `operator`, in session.
 
 ## Promote decided rows into the body
 

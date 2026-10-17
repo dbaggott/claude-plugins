@@ -81,20 +81,24 @@ for bringing the work up and what to look at (`issue-workflow`'s
 step 7 would otherwise start; an open draft PR is its precondition, not its
 trigger. With the check declared, the order is: commit, push, open the draft PR
 (already open for an orchestrated author), the check, the self-review (step 7),
-then the step 10 picker.
+then steps 9 and 10; step 8 has already run.
 
-1. Start the recipe as a background task in the worktree, and wait for the
-   task's output to announce how to reach it, such as its port. Read the port
-   from that output rather than from the recipe: several worktrees can be
-   serving at once, so the port asked for is not necessarily the one got.
+1. Start the recipe as a background task in the worktree. A server never exits,
+   so its task never wakes you: start a second background task that exits once
+   the first's output file carries the line naming how to reach it, such as
+   `until grep -q 'port' <output file>; do sleep 0.5; done`, and read the port
+   from that line rather than from the recipe: several worktrees can be serving
+   at once, so the port asked for is not necessarily the one got.
 2. Announce the PR URL, what to look at, and how to reach it. Then call
    `AskUserQuestion` with two options (the tool auto-appends "Other", which
    carries the feedback):
    1. **"Proceed"** — "Stop the server and go on to the self-review."
    2. **"Changes needed"** — "Say what to change; the work comes back for
       another look."
-3. On "Changes needed", rework, commit, push, and ask again. On "Proceed", stop
-   the server task by its id and continue to step 7.
+3. On "Changes needed", rework, commit, push, restart the recipe unless it
+   reloads on its own (stop the task by its id, start it again, re-read the
+   port), and ask again. On "Proceed", stop the server task by its id and
+   continue to step 7.
 
 Without `AskUserQuestion`, post the same as a `Delegated question:` and end the
 turn with it, per `<skill-dir>/../issue-workflow/references/delegated.md`,

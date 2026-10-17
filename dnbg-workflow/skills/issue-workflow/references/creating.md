@@ -30,7 +30,9 @@ it runs (pages, components, templates, styles, terminal screens), ask the operat
 with `AskUserQuestion` whether they want to look at the work before it is
 reviewed, with two options: **"Add the check"** and **"No check"**. When unsure
 whether the approach does, ask; the cost is one picker. Without
-`AskUserQuestion`, follow `references/delegated.md`.
+`AskUserQuestion`, take the default, no check, and say so in the report: the
+operator adds the section, or asks for the check when dispatching, when they
+want the look.
 
 On "Add the check", the body gets a section of its own, outside the acceptance
 criteria:
@@ -45,8 +47,9 @@ project skill, or the port; and what to look at>
 The resolver stops there once the work is complete, before its self-review
 (`git-workflow`, "Operator check before review"), and the operator's feedback
 goes back to it until they say proceed. The section is a declaration, not an
-acceptance criterion: the reviewer grades nothing in it. The recipe's command is
-an anchor, verified before filing like any other.
+acceptance criterion: the reviewer grades nothing in it (`reviewer`'s
+`references/issue-mode.md`). The recipe's command is an anchor, verified before
+filing like any other.
 
 ### Inline summary over links
 

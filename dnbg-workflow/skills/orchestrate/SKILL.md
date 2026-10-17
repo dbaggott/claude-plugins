@@ -75,8 +75,7 @@ one state a restart cannot recover.
      stop.
    - `ERROR` — the claim could not be read. Say so and stop.
 3. **Open PRs.** `pr-sources.sh <owner>/<repo> <n>`, then
-   `gh pr view <url> --json state,isDraft,headRefOid,headRefName,commits` on
-   each. It
+   `gh pr view <url> --json state,isDraft,headRefOid,headRefName` on each. It
    lists every PR that mentions the issue, in any repo of the owner, so go by
    `relevance=`:
    - `closes` or `sibling` — an open one is a predecessor's work, which the
@@ -98,15 +97,19 @@ one state a restart cannot recover.
    `Delegated question:` that no row's **Question** line links, a `proposed`
    row with no later row of the same ID, and an operator comment newer than the
    last row. The rows of an operator check before review
-   (`references/triage.md`, "The row") also say where the check stands:
+   (`references/triage.md`, "The row") also say where the check stands. Read
+   them after answering an operator comment that answers the check, since
+   that answer becomes one of these rows:
    - **cleared** — a `decided` row answers `Proceed.`; the dispatch line says
      so, and the author does not stop for it;
-   - **pending** — `Changes needed:` rows with no proceed after them. The
-     dispatch line carries every such row that no push postdates, by URL, the
-     row's time against the PR's `committedDate`s from step 3; the fresh
+   - **pending** — `Changes needed:` rows newer than the author's latest
+     `Delegated question:` for the check, with no proceed after them: nothing
+     has reworked to them. The dispatch line carries them by URL, and the fresh
      author reworks to them in order before it stops;
-   - **unanswered** — a `proposed` row with nothing after it, as for any
-     escalation.
+   - **unanswered** — a `proposed` row with nothing after it. Alone among
+     escalations it is not re-asked: the server behind its URL ended with the
+     predecessor, so the fresh author stops for the check again, and that
+     stop's rows supersede it.
 5. **The design.** Read the issue body. Its "Proposed approach", rejected
    alternatives, acceptance criteria, and open questions with their defaults
    are what you triage against. Don't probe it against the tree or review it:
@@ -150,8 +153,9 @@ the body as its `## Operator check before review` section.
 > rows into the issue body, linking each: `<row URLs>`.]
 
 The bracketed phrase replaces "when you're done" whenever the check is declared
-(step 5); the two bracketed lines after it go in for a check step 4 read as
-cleared or pending, one or the other. The next line goes in only for an open PR
+(step 5); of the two bracketed lines after it, the first goes in for a check
+step 4 read as cleared and the second, with its rows, for one read as pending.
+The next line goes in only for an open PR
 that step 3 found as `closes` or `sibling`, that the operator handed over, or
 that a dead author left; the one after only for a worktree that step 3 found or
 a dead author left; the next only when replacing a dead author, with each of
