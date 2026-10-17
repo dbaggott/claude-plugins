@@ -898,15 +898,19 @@ tree_agents() {  # -> each agent definition's path
 # A plain (unquoted) `description:` scalar is not valid YAML, or is not the
 # string it looks like, on any of these:
 #
-# - `#` after whitespace starts a comment, so the description ends there and
-#   every trigger after it is never seen. The frontmatter still parses.
+# - `#` at the start or after whitespace starts a comment, so the description
+#   ends there and every trigger after it is never seen. The frontmatter still
+#   parses.
 # - `:` before a space or at the end, or a leading YAML indicator such as a
-#   backtick, is a YAML syntax error. Claude Code's validator accepts some of
-#   these, so they are held to the spec rather than to its current leniency.
+#   backtick, is a YAML syntax error.
 #
-# `claude plugin validate --strict` passes all of these, so this is their only
-# check. It does reject a quoted value that fails to parse, such as an invalid
-# `\` escape, so quoted values are left to it rather than to a second parser here.
+# `claude plugin validate --strict` passed ` #`, `a: b` and a leading backtick
+# when checked, so this check holds plain scalars to the spec rather than to the
+# validator's leniency. The validator does reject a quoted value that fails to
+# parse, such as an invalid `\` escape, so quoted values are left to it.
+#
+# A block scalar (`|` or `>`) is valid YAML, but this check reads one line, so a
+# description stays on that line.
 @test "every skill and agent description survives YAML plain-scalar parsing" {
   local f rel v skill plugin bad=0 skills=0 agents=0
   local tab=$'\t'
@@ -919,7 +923,15 @@ tree_agents() {  # -> each agent definition's path
     [ -n "$v" ] || { echo "$rel has no description:"; bad=1; continue; }
     case "$v" in
       \"*|\'*) ;;
-      [\`@\*\&\!\[\{%\|\>]*|"- "*)
+      \|*|\>*)
+        echo "$rel: description is a block scalar — keep it on the description: line"
+        echo "  quote the value if it needs YAML-special characters"
+        bad=1 ;;
+      \#*)
+        echo "$rel: description starts with '#' — YAML reads it as a comment and the description is empty"
+        echo "  quote the value"
+        bad=1 ;;
+      [\`@\*\&\!\[\{%]*|"- "*|"? "*)
         echo "$rel: description starts with a YAML indicator — the whole frontmatter is dropped"
         echo "  quote the value"
         bad=1 ;;
