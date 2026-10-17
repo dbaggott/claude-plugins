@@ -1804,3 +1804,43 @@ delegated_copy_agrees() {  # <delegated.md> <work-summary SKILL.md>
   done
   [ "$bad" -eq 0 ]
 }
+
+# The one-issue-or-project rule in creating.md fires on any of three tests. A
+# test dropped from the section stops the rule firing on that property, and no
+# other check would notice.
+PROJECT_TESTS_FILE="$ROOT/dnbg-workflow/skills/issue-workflow/references/creating.md"
+PROJECT_TESTS_HEADING='### Is this one issue or a project?'
+PROJECT_TESTS=('more than one PR' 'stable IDs' 'no single PR can run')
+
+project_tests_section() {  # <creating.md> -> the section, collapsed to one line
+  awk -v h="$PROJECT_TESTS_HEADING" '$0 == h { s = 1; next } s && /^##/ { exit } s' "$1" \
+    | tr -s '\n ' ' '
+}
+
+project_tests_present() {  # <creating.md>
+  local section p missing=0
+  section=$(project_tests_section "$1")
+  [ -n "$section" ] || { echo "no '$PROJECT_TESTS_HEADING' section in $1"; return 1; }
+  for p in "${PROJECT_TESTS[@]}"; do
+    [[ "$section" == *"$p"* ]] || { echo "'$p' is missing from the section in $1"; missing=1; }
+  done
+  return "$missing"
+}
+
+@test "creating.md's one-issue-or-project section carries all three tests" {
+  run project_tests_present "$PROJECT_TESTS_FILE"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "removing any one of the three tests from the section is caught" {
+  local p section copy="$BATS_TEST_TMPDIR/creating.md"
+  section=$(project_tests_section "$PROJECT_TESTS_FILE")
+  for p in "${PROJECT_TESTS[@]}"; do
+    # Removed from the collapsed section, so a phrase wrapped across lines goes too.
+    printf '%s\n%s\n' "$PROJECT_TESTS_HEADING" "${section//"$p"/}" > "$copy"
+    run project_tests_present "$copy"
+    [ "$status" -ne 0 ] || { echo "removing '$p' passed"; false; }
+    [[ "$output" == *"'$p' is missing"* ]] || { echo "removing '$p' did not name it: $output"; false; }
+  done
+}
