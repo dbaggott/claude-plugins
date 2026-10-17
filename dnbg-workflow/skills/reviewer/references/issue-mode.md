@@ -29,8 +29,9 @@ differently:
   bears that out; a change the record says nothing about voids it. Where the
   criterion names paths alone, any change under them voids it. Where it names no
   paths, judge from that list whether anything the run exercises changed. Say
-  which changes you judged and on what basis. No recorded run, or a stale one, is a blocking finding naming the
-  run, unless the run waits only on an operator action, as below.
+  which changes you judged and on what basis. No recorded run, or a stale one,
+  is a blocking finding naming the run, unless the run waits only on an
+  operator action, as below.
 - **A criterion blocked only on an operator action** outside the PR, such as a
   merge in a test repository or a live exercise only the operator can start, is
   an observation naming that action, not a blocking finding. Approve, and say
