@@ -71,7 +71,9 @@ posting. This adds checks to each pass, and changes what the round comment says.
 - **End-to-end criteria exist, and each names its contributors.** A design with
   none has no definition of done above the children. An `A#` met by a run also
   names its recorder, per `issue-workflow`'s `references/decomposing.md` step 3,
-  and the paths invalidating the run; a missing one is a finding.
+  and the paths invalidating the run with the behavior it proves. A missing
+  recorder or missing paths is a finding; paths without the behavior is an
+  observation recommending the behavior sentence.
 - **Interfaces between parts are named.** Where one part hands something to
   another — a script's output another consumes, a file format, a label, a comment
   shape — the body names the thing and its shape. Unnamed, each child invents its

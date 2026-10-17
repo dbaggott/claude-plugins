@@ -72,7 +72,7 @@ An `A<n>` met by a run, such as an eval or a live exercise, names who records
 it: the contributing child that depends on all the others, whose own
 criteria then include "run and record A<n>", or the closeout PR's author, who
 runs it before the project review. It also names the paths invalidating the
-run, per `creating.md`.
+run and the behavior it proves, per `creating.md`.
 
 ## 4. File the children and set their relationships
 
