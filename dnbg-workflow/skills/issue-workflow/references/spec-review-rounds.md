@@ -109,11 +109,14 @@ Fold anything the review established that changes what a resolver should build
 into the body, per "Maintaining issues" in `SKILL.md`: a fact living only in a
 comment is invisible to the handoff.
 
-Then end on the next stage, by what converged. Each exit says that GitHub now
-holds everything the next stage reads, gives the prompt to paste, and recommends
-a fresh session for it, since that stage reads its state from GitHub rather than
-from this conversation.
+Then end on the next stage, by the first of these that fits. Each exit says
+that GitHub now holds everything the next stage reads, gives the prompt to
+paste, and recommends a fresh session for it, since that stage reads its state
+from GitHub rather than from this conversation.
 
+- **A set under a tracking issue**, once every issue in it reads `READY`. "The
+  set is `READY`. In a fresh session: `orchestrate <parent URL>`. This session
+  has nothing further to do."
 - **A plain issue.** "Ready to pick up. In a fresh session: `resolve <URL>`, or
   `orchestrate <URL>` to have an author and a reviewer dispatched for you."
 - **A tracking issue whose round ran in design mode**, as the round comment's
@@ -134,6 +137,3 @@ from this conversation.
 - **A tracking issue whose round ran in plain spec mode.** Acceptance needs a
   design-mode `READY`, so offer no picker: say so, and give the prompt
   `review <URL> as a spec`, for a reviewer session.
-- **A set under a tracking issue**, once every issue in it reads `READY`. "The
-  set is `READY`. In a fresh session: `orchestrate <parent URL>`. This session
-  has nothing further to do."
