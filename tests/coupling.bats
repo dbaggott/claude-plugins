@@ -888,41 +888,58 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   done
 }
 
-# A plain (unquoted) `description:` scalar is cut short by two sequences, and
-# both fail silently at runtime, invisible to the rest of this suite, which never
-# parses a frontmatter:
+tree_agents() {  # -> each agent definition's path
+  local f
+  for f in "$ROOT"/dnbg-*/agents/*.md; do
+    [ -f "$f" ] && printf '%s\n' "$f"
+  done
+}
+
+# A plain (unquoted) `description:` scalar breaks silently at runtime on any of
+# these, invisible to the rest of this suite, which never parses a frontmatter:
 #
-# - `: ` is a mapping indicator. The frontmatter stops parsing and Claude Code
-#   loads the skill with EVERY field dropped, so nothing can route to it.
-# - ` #` starts a comment. The frontmatter still parses, so `claude plugin
-#   validate --strict` passes it, but the description ends there and every
-#   trigger after it is never seen.
+# - `:` before a space or at the end, or a leading YAML indicator such as a
+#   backtick. The frontmatter stops parsing and Claude Code loads the skill with
+#   EVERY field dropped, so nothing can route to it.
+# - `#` after whitespace starts a comment. The frontmatter still parses, so
+#   `claude plugin validate --strict` passes it, but the description ends there
+#   and every trigger after it is never seen.
 #
-# Agents are routed by the same field, so they are held to the same check. This
-# is the narrow check for the failure modes that have actually happened, not a
-# second parser.
+# `validate --strict` in CI catches the parse failures and more. This is the
+# narrow local check for plain scalars, not a second parser: a quoted value is
+# left to `validate`.
 @test "every skill and agent description survives YAML plain-scalar parsing" {
-  local f rel v bad=0 n=0
-  for f in "$ROOT"/dnbg-*/skills/*/SKILL.md "$ROOT"/dnbg-*/agents/*.md; do
-    [ -f "$f" ] || continue
-    n=$((n + 1)); rel=${f#"$ROOT"/}
-    grep -q '^name:' "$f" || { echo "$rel has no name: in its frontmatter"; bad=1; }
-    v=$(sed -n 's/^description: //p' "$f")
+  local f rel v skill plugin bad=0 skills=0 agents=0
+  local tab=$'\t'
+  while read -r f; do
+    rel=${f#"$ROOT"/}
+    # Read the frontmatter alone: a body that shows example frontmatter is not
+    # this file's own.
+    v=$(sed -n '2,/^---$/{s/^description: //p;}' "$f")
+    sed -n '2,/^---$/p' "$f" | grep -q '^name:' || { echo "$rel has no name: in its frontmatter"; bad=1; }
     [ -n "$v" ] || { echo "$rel has no description:"; bad=1; continue; }
-    # Quoted scalars may contain anything; only a plain one is at risk.
     case "$v" in
       \"*|\'*) ;;
-      *": "*)
-        echo "$rel: description contains an unquoted ': ' — YAML will drop the whole frontmatter"
+      [\`@\*\&\!\[\{%\|\>]*|"- "*)
+        echo "$rel: description starts with a YAML indicator — the whole frontmatter is dropped"
+        echo "  quote the value"
+        bad=1 ;;
+      *": "*|*":$tab"*|*:)
+        echo "$rel: description contains an unquoted ':' before a space or at the end — YAML will drop the whole frontmatter"
         echo "  use an em dash, or quote the value"
         bad=1 ;;
-      *" #"*)
-        echo "$rel: description contains an unquoted ' #' — YAML truncates it there"
+      *" #"*|*"$tab#"*)
+        echo "$rel: description contains an unquoted '#' after whitespace — YAML truncates it there"
         echo "  quote the value"
         bad=1 ;;
     esac
-  done
-  [ "$n" -gt 0 ] || { echo "found no SKILL.md or agent files — the glob broke"; false; }
+  done < <(
+    while read -r skill plugin; do printf '%s\n' "$ROOT/$plugin/skills/$skill/SKILL.md"; done < <(tree_skills)
+    tree_agents
+  )
+  skills=$(tree_skills | wc -l); agents=$(tree_agents | wc -l)
+  [ "$skills" -gt 0 ] || { echo "found no SKILL.md files — tree_skills broke"; false; }
+  [ "$agents" -gt 0 ] || { echo "found no agent files — tree_agents broke"; false; }
   [ "$bad" -eq 0 ]
 }
 
