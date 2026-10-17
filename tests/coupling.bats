@@ -888,33 +888,41 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   done
 }
 
-# A `description:` whose value contains an unquoted `: ` is not a description with
-# a colon in it — YAML reads the colon as a mapping indicator, the frontmatter
-# stops parsing, and Claude Code loads the skill with EVERY field dropped. The
-# skill then has no name and no description, so nothing can route to it. Silent at
-# runtime, and invisible to the rest of this suite, which never parses a SKILL.md.
+# A plain (unquoted) `description:` scalar is cut short by two sequences, and
+# both fail silently at runtime, invisible to the rest of this suite, which never
+# parses a frontmatter:
 #
-# `claude plugin validate --strict` in CI is the authority and catches more than
-# this. It needs the CLI installed, which the bats job does not have — so this is
-# the narrow local check for the one failure mode that has actually happened,
-# not a second parser.
-@test "every skill description survives YAML plain-scalar parsing" {
-  local f skill plugin bad=0
-  while read -r skill plugin; do
-    f="$ROOT/$plugin/skills/$skill/SKILL.md"
-    grep -q '^name:' "$f" || { echo "$skill/SKILL.md has no name: in its frontmatter"; bad=1; }
-    local v
+# - `: ` is a mapping indicator. The frontmatter stops parsing and Claude Code
+#   loads the skill with EVERY field dropped, so nothing can route to it.
+# - ` #` starts a comment. The frontmatter still parses, so `claude plugin
+#   validate --strict` passes it, but the description ends there and every
+#   trigger after it is never seen.
+#
+# Agents are routed by the same field, so they are held to the same check. This
+# is the narrow check for the failure modes that have actually happened, not a
+# second parser.
+@test "every skill and agent description survives YAML plain-scalar parsing" {
+  local f rel v bad=0 n=0
+  for f in "$ROOT"/dnbg-*/skills/*/SKILL.md "$ROOT"/dnbg-*/agents/*.md; do
+    [ -f "$f" ] || continue
+    n=$((n + 1)); rel=${f#"$ROOT"/}
+    grep -q '^name:' "$f" || { echo "$rel has no name: in its frontmatter"; bad=1; }
     v=$(sed -n 's/^description: //p' "$f")
-    [ -n "$v" ] || { echo "$skill/SKILL.md has no description:"; bad=1; continue; }
+    [ -n "$v" ] || { echo "$rel has no description:"; bad=1; continue; }
     # Quoted scalars may contain anything; only a plain one is at risk.
     case "$v" in
       \"*|\'*) ;;
       *": "*)
-        echo "$skill: description contains an unquoted ': ' — YAML will drop the whole frontmatter"
+        echo "$rel: description contains an unquoted ': ' — YAML will drop the whole frontmatter"
         echo "  use an em dash, or quote the value"
         bad=1 ;;
+      *" #"*)
+        echo "$rel: description contains an unquoted ' #' — YAML truncates it there"
+        echo "  quote the value"
+        bad=1 ;;
     esac
-  done < <(tree_skills)
+  done
+  [ "$n" -gt 0 ] || { echo "found no SKILL.md or agent files — the glob broke"; false; }
   [ "$bad" -eq 0 ]
 }
 
