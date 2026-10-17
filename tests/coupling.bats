@@ -901,9 +901,8 @@ tree_agents() {  # -> each agent definition's path
 # - `#` after whitespace starts a comment, so the description ends there and
 #   every trigger after it is never seen. The frontmatter still parses.
 # - `:` before a space or at the end, or a leading YAML indicator such as a
-#   backtick, is a YAML syntax error. Claude Code's parser has been lenient about
-#   some of these, so they are held to the spec rather than to its current
-#   leniency.
+#   backtick, is a YAML syntax error. Claude Code's validator accepts some of
+#   these, so they are held to the spec rather than to its current leniency.
 #
 # `claude plugin validate --strict` passes all of these, so this is their only
 # check. It does reject a quoted value that fails to parse, such as an invalid
