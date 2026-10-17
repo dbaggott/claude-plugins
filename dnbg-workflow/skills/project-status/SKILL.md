@@ -41,6 +41,7 @@ close the issue), and for a child `parent` and `parent_stage`.
 | `next` | Say |
 | --- | --- |
 | `review-spec` | `review <URL> as a spec`, in a session with the reviewer bot set up (`reviewer-setup`) |
+| `accept` | the design review is `READY` and waits on your acceptance: `answer the spec review on <URL>`, which ends on the acceptance question |
 | `decompose` | `decompose <URL>` |
 | `orchestrate` | `orchestrate <URL>` |
 | `resolve` | `resolve <URL>` |
@@ -57,6 +58,6 @@ now. Say the prompt is for when that session is gone; the skill it loads checks
 the claim and asks before going past it.
 
 **Whether to run it in a fresh session**: yes, for each prompt to paste
-(`review-spec`, `decompose`, `orchestrate`, `resolve`). Each starts a new stage,
+(`review-spec`, `accept`, `decompose`, `orchestrate`, `resolve`). Each starts a new stage,
 and a fresh session reads that stage from GitHub rather than from this
 conversation. The other rows are not prompts, so say nothing about a session.

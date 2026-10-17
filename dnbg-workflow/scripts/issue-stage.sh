@@ -14,22 +14,29 @@
 #   any       closed         the issue is closed
 #   child     in-project     next is the parent's prompt; evidence names the
 #                            parent and its stage
-#   tracking  orchestrating  the parent or any open child carries a claim
-#             closeout       every child closed
+#   tracking  closeout       every child closed
+#             orchestrating  any open child carries a claim, or the parent does
+#                            and has children
 #             ready          no open child lacks a READY verdict (ready-set.sh's
 #                            no-ready-verdict / design-not-ready)
 #             set-review     some open child does
 #             accepted       no children; a decision-log row whose Entry opens
 #                            `Design accepted:` and whose State is not proposed
-#             design-review  no children, no such row; a spec verdict exists
+#             design-review  no children, no such row; a spec verdict exists.
+#                            READY means it waits on the operator's acceptance
 #             design-draft   none of the above
 #   plain     in-progress    a claim, or an open PR that closes the issue
 #             ready          a READY spec verdict, or none
 #             spec-review    a verdict that is not READY
 #
-# Prompt ids: review-spec, decompose, orchestrate, resolve, merge-closeout
-# (closeout with an open closing PR on the parent; without one it is orchestrate),
-# none (closed), unknown (below).
+# Prompt ids: review-spec, accept (a READY design review without the row),
+# decompose, orchestrate, resolve, merge-closeout (closeout with an open closing
+# PR on the parent; without one it is orchestrate), none (closed), unknown
+# (below).
+#
+# The parent's claim outlives its children, since orchestrate claims it at start
+# and nothing removes it, so closeout is read first and a claim on a parent with
+# no children yet says nothing about orchestration.
 #
 # `evidence` carries what decided the stage: claim=own|foreign|none,
 # children=<n> open=<n>, verdict=READY|CHANGES-REQUESTED|none|unknown-verdict,
@@ -184,15 +191,15 @@ read -r CHILDREN OPEN CHILD_CLAIMED VERDICT_HELD VERDICT < <(printf '%s' "$SET_O
 
 if [ "$KIND" = tracking ]; then
   COUNTS="children=$CHILDREN open=$OPEN"
-  if [ "$CLAIM" != none ] || [ "$CHILD_CLAIMED" = true ]; then
-    say tracking orchestrating orchestrate "claim=$CLAIM $COUNTS"
-  fi
   if [ "$CHILDREN" -gt 0 ] && [ "$OPEN" -eq 0 ]; then
     closing_prs
     if [ "$PRS" = none ]; then say tracking closeout orchestrate "$COUNTS prs=none"
     else say tracking closeout merge-closeout "$COUNTS prs=$PRS"; fi
   fi
   if [ "$CHILDREN" -gt 0 ]; then
+    if [ "$CLAIM" != none ] || [ "$CHILD_CLAIMED" = true ]; then
+      say tracking orchestrating orchestrate "claim=$CLAIM $COUNTS"
+    fi
     [ -n "$SLUG" ] || say tracking unknown unknown "$COUNTS verdict=unknown-verdict"
     [ "$VERDICT_HELD" = false ] || say tracking set-review review-spec "$COUNTS verdict=$VERDICT"
     say tracking ready orchestrate "$COUNTS verdict=$VERDICT"
@@ -200,6 +207,7 @@ if [ "$KIND" = tracking ]; then
   [ "$ACCEPTED" = no ] || say tracking accepted decompose "children=0 acceptance_row=yes"
   [ -n "$SLUG" ] || say tracking unknown unknown "children=0 acceptance_row=no verdict=unknown-verdict"
   [ "$VERDICT" != none ] || say tracking design-draft review-spec "children=0 acceptance_row=no verdict=none"
+  [ "$VERDICT" != READY ] || say tracking design-review accept "children=0 acceptance_row=no verdict=READY"
   say tracking design-review review-spec "children=0 acceptance_row=no verdict=$VERDICT"
 fi
 

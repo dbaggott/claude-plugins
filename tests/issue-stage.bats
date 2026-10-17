@@ -124,12 +124,20 @@ closing_pr() {
       ("prstate:" + $u): {out: $s, exit: 0}}' "$FIXTURE" > "$FIXTURE.new" && mv "$FIXTURE.new" "$FIXTURE"
 }
 
-@test "every child closed with the closing PR open is the closeout PR to merge" {
+@test "every child closed with the closing PR open is the closeout PR to merge, though the orchestrator's claim stands" {
   use tracking-ready
   edit "set:$R#223" '.data.repository.issue.subIssues.nodes |= map(.state = "CLOSED")'
+  edit "claim:$R#223" '.data.repository.issue.labels.nodes += [{name: "assigned:agent-session"}]'
   closing_pr 223 "https://github.com/$R/pull/500" OPEN
   run "$STAGE" $R 223 $SLUG
   [ "$output" = "result=OK kind=tracking stage=closeout next=merge-closeout evidence=children=12 open=0 prs=https://github.com/$R/pull/500" ]
+}
+
+@test "a claim on a tracking issue with no children yet is not orchestration" {
+  use tracking-accepted
+  edit "claim:$R#223" '.data.repository.issue.labels.nodes += [{name: "assigned:agent-session"}]'
+  run "$STAGE" $R 223 $SLUG
+  [ "$output" = "result=OK kind=tracking stage=accepted next=decompose evidence=children=0 acceptance_row=yes" ]
 }
 
 @test "an open PR that closes a plain issue puts it in progress; a merged one does not" {
@@ -148,7 +156,13 @@ closing_pr() {
   use tracking-accepted
   edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]'
   run "$STAGE" $R 223 $SLUG
-  [ "$output" = "result=OK kind=tracking stage=design-review next=review-spec evidence=children=0 acceptance_row=no verdict=READY" ]
+  [ "$output" = "result=OK kind=tracking stage=design-review next=accept evidence=children=0 acceptance_row=no verdict=READY" ]
+
+  edit "set:$R#223" '.data.repository.issue.newest.nodes += [{author: {login: "agent-reviewer-dbaggott[bot]"},
+                       body: "**Spec review (design mode), round 9: CHANGES REQUESTED**"}]
+                     | .data.repository.issue.newest.totalCount += 1'
+  run "$STAGE" $R 223 $SLUG
+  [ "$output" = "result=OK kind=tracking stage=design-review next=review-spec evidence=children=0 acceptance_row=no verdict=CHANGES-REQUESTED" ]
 
   edit "set:$R#223" '.data.repository.issue |= ((.oldest.nodes, .newest.nodes) |= [])'
   run "$STAGE" $R 223 $SLUG

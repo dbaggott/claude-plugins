@@ -1765,7 +1765,7 @@ delegated_copy_agrees() {  # <delegated.md> <work-summary SKILL.md>
 @test "every prompt project-status gives fires the skill it names" {
   local status="$ROOT/dnbg-workflow/skills/project-status/SKILL.md"
   local prompts verb owner desc bad=0 n=0
-  prompts=$(grep -oE '^\| `[a-z-]+` \| `[a-z]+ <URL>[^`]*`' "$status" | sed -E 's/.*\| `([^`]*)`$/\1/')
+  prompts=$(grep -E '^\| `[a-z-]+` \|' "$status" | grep -oE '`[a-z ]+ <URL>[^`]*`' | tr -d '`')
   while IFS= read -r p; do
     [ -n "$p" ] || continue
     n=$((n + 1)); verb=${p%% *}
@@ -1773,6 +1773,7 @@ delegated_copy_agrees() {  # <delegated.md> <work-summary SKILL.md>
       orchestrate) owner=orchestrate; want='"orchestrate <issue URL>"' ;;
       resolve)     owner=issue-workflow; want='"resolve ' ;;
       decompose)   owner=issue-workflow; want='decompose an accepted tracking issue' ;;
+      answer)      owner=issue-workflow; want="answering a reviewer's findings on an issue body" ;;
       # A bare "review <URL>" is a question for the operator (reviewer's
       # description), so the prompt has to carry "as a spec".
       review)      owner=issue-reviewer; want='as a spec'
@@ -1782,7 +1783,7 @@ delegated_copy_agrees() {  # <delegated.md> <work-summary SKILL.md>
     desc=$(sed -n '/^description:/p' "$ROOT/dnbg-workflow/skills/$owner/SKILL.md")
     grep -qF "$want" <<<"$desc" || { echo "$owner's description lost '$want', which '$p' relies on"; bad=1; }
   done <<<"$prompts"
-  [ "$n" -ge 4 ] || { echo "found only $n prompts — the extractor broke"; false; }
+  [ "$n" -ge 5 ] || { echo "found only $n prompts — the extractor broke"; false; }
   [ "$bad" -eq 0 ]
 }
 
