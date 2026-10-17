@@ -20,7 +20,7 @@
 #                            no-ready-verdict / design-not-ready)
 #             set-review     some open child does
 #             accepted       no children; a decision-log row whose Entry opens
-#                            `Design accepted`
+#                            `Design accepted:` and whose State is not proposed
 #             design-review  no children, no such row; a spec verdict exists
 #             design-draft   none of the above
 #   plain     in-progress    a claim, or an open PR that closes the issue
@@ -109,7 +109,8 @@ fi
 STATE=$(printf '%s' "$ISSUE" | jq -r '.state | strings') || fail issue-query-shape
 ACCEPTED=$(printf '%s' "$ISSUE" | jq -r '
   [ (.body // "") | split("\n")[] | sub("\r$"; "") | select(startswith("|"))
-    | split("|") | .[4] // "" | ltrimstr(" ") | select(startswith("Design accepted")) ]
+    | split("|") | map(gsub("^\\s+|\\s+$"; ""))
+    | select((.[4] // "" | startswith("Design accepted:")) and .[5] != "proposed") ]
   | if length > 0 then "yes" else "no" end') || fail issue-query-shape
 
 PROJECT=$("$HERE/issue-project.sh" "$REPO" "$N")
@@ -146,8 +147,9 @@ case "$CLAIM_LINE" in
 esac
 
 # Sets PRS to the open PRs that close the issue. Every source has to answer: a PR
-# one of them missed may be the one that matters. Not run in a subshell, so that
-# `fail` ends the script.
+# one of them missed may be the one that matters. A `relevance=unknown` PR is not
+# one, since the closing source answered without listing it. Not run in a
+# subshell, so that `fail` ends the script.
 closing_prs() {
   local out line url state urls=""
   out=$("$HERE/pr-sources.sh" "$REPO" "$N")
@@ -156,7 +158,6 @@ closing_prs() {
     "result=OK "*"closing=ok search=ok timeline=ok") ;;
     *) fail issue-query ;;
   esac
-  ! grep -q ' relevance=unknown$' <<<"$out" || fail issue-query
   while read -r url; do
     [ -n "$url" ] || continue
     state=$(gh pr view "$url" --json state --jq .state 2>/dev/null) || fail issue-query

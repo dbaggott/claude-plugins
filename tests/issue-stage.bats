@@ -114,6 +114,54 @@ all_recorded() { [ ! -s "$UNRECORDED" ] || { cat "$UNRECORDED"; false; }; }
   [ "$output" = "result=OK kind=tracking stage=closeout next=orchestrate evidence=children=12 open=0 prs=none" ]
 }
 
+# <issue key suffix> <pr url> <state> -> the PR sources answer one PR that closes the issue
+closing_pr() {
+  jq --arg i "$R#$1" --arg u "$2" --arg s "$3" '.calls += {
+      ("closing:" + $i): {out: ({closedByPullRequestsReferences: [{url: $u}]} | tojson), exit: 0},
+      ("timeline:" + $i): {out: "[[]]", exit: 0},
+      ("search:" + $i): {out: ([{url: $u}] | tojson), exit: 0},
+      ("prview:" + $u): {out: ({title: "t", headRefName: "b", closingIssuesReferences: []} | tojson), exit: 0},
+      ("prstate:" + $u): {out: $s, exit: 0}}' "$FIXTURE" > "$FIXTURE.new" && mv "$FIXTURE.new" "$FIXTURE"
+}
+
+@test "every child closed with the closing PR open is the closeout PR to merge" {
+  use tracking-ready
+  edit "set:$R#223" '.data.repository.issue.subIssues.nodes |= map(.state = "CLOSED")'
+  closing_pr 223 "https://github.com/$R/pull/500" OPEN
+  run "$STAGE" $R 223 $SLUG
+  [ "$output" = "result=OK kind=tracking stage=closeout next=merge-closeout evidence=children=12 open=0 prs=https://github.com/$R/pull/500" ]
+}
+
+@test "an open PR that closes a plain issue puts it in progress; a merged one does not" {
+  use plain-ready
+  closing_pr 407 "https://github.com/$R/pull/500" OPEN
+  run "$STAGE" $R 407 $SLUG
+  [ "$output" = "result=OK kind=plain stage=in-progress next=resolve evidence=claim=none prs=https://github.com/$R/pull/500" ]
+
+  use plain-ready
+  closing_pr 407 "https://github.com/$R/pull/500" MERGED
+  run "$STAGE" $R 407 $SLUG
+  [ "$output" = "result=OK kind=plain stage=ready next=resolve evidence=claim=none prs=none verdict=none" ]
+}
+
+@test "a childless tracking issue without the row is in design review, or a draft before any verdict" {
+  use tracking-accepted
+  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]'
+  run "$STAGE" $R 223 $SLUG
+  [ "$output" = "result=OK kind=tracking stage=design-review next=review-spec evidence=children=0 acceptance_row=no verdict=READY" ]
+
+  edit "set:$R#223" '.data.repository.issue |= ((.oldest.nodes, .newest.nodes) |= [])'
+  run "$STAGE" $R 223 $SLUG
+  [ "$output" = "result=OK kind=tracking stage=design-draft next=review-spec evidence=children=0 acceptance_row=no verdict=none" ]
+}
+
+@test "a proposed acceptance row is not acceptance" {
+  use tracking-accepted
+  edit "stage:$R#223" '.data.repository.issue.body |= sub("\\| decided \\|$"; "| proposed |")'
+  run "$STAGE" $R 223 $SLUG
+  [[ "$output" == *" stage=design-review "*"acceptance_row=no"* ]]
+}
+
 @test "a plain issue with a claim is in progress" {
   use plain-ready
   edit "claim:$R#407" '.data.repository.issue.labels.nodes += [{name: "assigned:agent-session"}]'

@@ -56,6 +56,7 @@ For `stage=orchestrating` or `stage=in-progress`, a session may be working it
 now. Say the prompt is for when that session is gone; the skill it loads checks
 the claim and asks before going past it.
 
-**Whether to run it in a fresh session**: yes, for every prompt above. Each
-starts a new stage, and a fresh session reads that stage from GitHub rather than
-from this conversation.
+**Whether to run it in a fresh session**: yes, for each prompt to paste
+(`review-spec`, `decompose`, `orchestrate`, `resolve`). Each starts a new stage,
+and a fresh session reads that stage from GitHub rather than from this
+conversation. The other rows are not prompts, so say nothing about a session.
