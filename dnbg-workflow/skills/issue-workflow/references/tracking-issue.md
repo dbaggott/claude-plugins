@@ -153,7 +153,10 @@ has signed off. Record it as one decision-log row:
 | <date> | — | — | Design accepted: spec review READY (<round comment URL>), operator sign-off <where given> | decided |
 ```
 
-Acceptance is that row. Nothing merges.
+Acceptance is that row. Nothing merges. The body's author writes it, from the
+acceptance question that ends a design-mode review
+(`references/spec-review-rounds.md`, "Where it ends"), once the operator
+accepts; the reviewer never does, since the body has one writer.
 
 Until the row lands, any other edit to the body reopens the review. After it,
 the design changes only through decision-log rows, and only the parts a change
