@@ -10,6 +10,14 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.56 — 2026-10-17
+
+Fixed `issue-workflow`'s description being cut off at `#245`, which YAML read as
+the start of a comment. Everything after it never loaded, including the trigger
+to load the skill before reading any file or opening a worktree on issue pickup.
+The full description now loads.
+
+
 ## dnbg-workflow 2026.10.55 — 2026-10-17
 
 Filing an issue now includes a check on whether the work is a project. When
