@@ -34,8 +34,9 @@ row, ask:
 2. **"Stop"**: "Nothing is claimed."
 
 Without it, say that the design needs a `READY` design review and the
-operator's acceptance first, give the prompt `review <URL> as a spec`, for a
-reviewer session, and stop, claiming nothing.
+operator's acceptance first, and take up that review per
+`references/spec-review-rounds.md`, "Handing the issue to its reviewer",
+claiming nothing.
 
 At `children` above 0, ask:
 

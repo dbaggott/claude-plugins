@@ -28,7 +28,10 @@ On **"Spawn the reviewer"**, dispatch `issue-reviewer` as
 `Review <URL> as a spec.` and nothing else: the reviewer judges the body alone,
 not this session's view of it. Each round reaches you as its report, which ends
 on its own wait for your answer, so answer it per "Answering" and arm no watch.
-When it ends, give the operator the retrospective path its final report names.
+A report that is not a round — a `Delegated question:` it posted, or a failure
+to start, such as no `reviewer-setup` — goes to the operator, and an answer goes
+back to the reviewer with `SendMessage`. When it ends, give the operator the
+retrospective path its final report names.
 
 On **"My own session"**, in one turn, in this order:
 
@@ -45,9 +48,17 @@ On **"My own session"**, in one turn, in this order:
 
 Without `AskUserQuestion`, ask per `references/delegated.md`.
 
-A session asked to answer the review cold, with the author session gone, reads
-the comments first: an unanswered round is answered now, per "Answering"; with
-none, it arms as in steps 1 and 3.
+A session that reaches the review without having handed it over — asked to
+answer it cold, or sent here from a pickup — notes the `updated_at` of step 1,
+then reads the comments, and goes by the first of these that fits:
+
+- **Every issue's latest verdict is `READY`**: go to "Where it ends".
+- **A round is unanswered**: answer it per "Answering".
+- **No verdict has been posted**: hand the issue over from the top of this
+  section.
+- **Otherwise**, ask whether a reviewer is still running. If one is, arm as in
+  step 3; if not, a spawned reviewer having gone with its session, hand over
+  from the top.
 
 ## What a round looks like
 

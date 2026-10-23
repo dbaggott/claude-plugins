@@ -1057,7 +1057,7 @@ tree_agents() {  # -> each agent definition's path
     grep -qF "**\"$o\"**" "$refs/spec-review-rounds.md" || {
       echo "spec-review-rounds.md lost the handoff option '$o'"; bad=1; }
   done
-  for f in creating decomposing; do
+  for f in creating decomposing project-pickup; do
     grep -qF "\"$section\"" "$refs/$f.md" || {
       echo "$f.md no longer hands over through '$section'"; bad=1; }
   done
