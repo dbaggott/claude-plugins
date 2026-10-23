@@ -53,12 +53,12 @@ answer it cold, or sent here from a pickup — notes the `updated_at` of step 1,
 then reads the comments, and goes by the first of these that fits:
 
 - **Every issue's latest verdict is `READY`**: go to "Where it ends".
-- **A round is unanswered**: answer it per "Answering".
 - **No verdict has been posted**: hand the issue over from the top of this
   section.
-- **Otherwise**, ask whether a reviewer is still running. If one is, arm as in
-  step 3; if not, a spawned reviewer having gone with its session, hand over
-  from the top.
+- **Otherwise**, answer the latest round per "Answering" if it is unanswered,
+  then ask whether a reviewer is still running. If one is, wait for it: per
+  "Waiting for the next round" after a response, as in step 3 without one. If
+  not, a spawned reviewer having gone with its session, hand over from the top.
 
 ## What a round looks like
 
