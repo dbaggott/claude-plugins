@@ -8,6 +8,47 @@ reviewer's side is the `issue-reviewer` skill.
 This is not the review of the PRs that resolve an issue — those arrive as PR
 reviews and are answered through `git-workflow`'s `references/review-rounds.md`.
 
+## Handing the issue to its reviewer
+
+The session that wrote the body for review — filed the tracking issue, or
+decomposed one into a set — is its author for the review and answers every
+round. `<URL>` below is the issue's, or for a set the parent's, since the
+reviewer takes in its children. Ask with `AskUserQuestion`: "Who runs the spec
+review?"
+
+1. **"Spawn the reviewer (Recommended)"**: "A reviewer subagent reviews the issue from
+   GitHub, and this session answers its rounds as they come back. You can't
+   talk to the reviewer directly."
+2. **"My own session"**: "You start the reviewer in a new session with one
+   prompt, and can talk to it there. This session watches for its rounds and
+   answers them."
+
+On **"Spawn the reviewer"**, dispatch `issue-reviewer` as
+`dnbg-workflow:reviewer-orchestrated`, in the background, with the prompt
+`Review <URL> as a spec.` and nothing else: the reviewer judges the body alone,
+not this session's view of it. Each round reaches you as its report, which ends
+on its own wait for your answer, so answer it per "Answering" and arm no watch.
+When it ends, give the operator the retrospective path its final report names.
+
+On **"My own session"**, in one turn, in this order:
+
+1. Read each issue's `updated_at` (`gh api repos/<owner>/<repo>/issues/<n> --jq
+   .updated_at`), for the issue or the parent and every child of a set, and keep
+   the latest. No reviewer has acted yet, so it stands in for the first-arm
+   rule's noted time, and it is not earlier than your own last body edit.
+2. Tell the operator, in these words: "Start the reviewer in a **new** session:
+   `review <URL> as a spec`. Leave this session open: it answers the reviewer's
+   findings, and it is already watching for the first round, so there is
+   nothing to tell it."
+3. Arm the watch below over the same issues, with that `updated_at` as
+   `--since` under the first-arm rule.
+
+Without `AskUserQuestion`, ask per `references/delegated.md`.
+
+A session asked to answer the review cold, with the author session gone, reads
+the comments first: an unanswered round is answered now, per "Answering"; with
+none, it arms as in steps 1 and 3.
+
 ## What a round looks like
 
 One comment per issue, carrying a verdict — `READY` or `CHANGES REQUESTED` — the
@@ -144,4 +185,4 @@ other issue is plain.
   the body's opening line, `This is a **tracking issue**`, which it lacked when
   reviewed, and acceptance needs a design-mode `READY`, so offer no picker. Say
   so; once the body starts with that line (an edit, which reopens the review),
-  give the prompt `review <URL> as a spec`, for a reviewer session.
+  hand it to a reviewer again per "Handing the issue to its reviewer".
