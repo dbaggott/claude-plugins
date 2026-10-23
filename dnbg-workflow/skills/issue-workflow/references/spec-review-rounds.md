@@ -16,9 +16,9 @@ round. `<URL>` below is the issue's, or for a set the parent's, since the
 reviewer takes in its children. Ask with `AskUserQuestion`: "Who runs the spec
 review?"
 
-1. **"Spawn the reviewer (Recommended)"**: "A reviewer subagent reviews the issue from
-   GitHub, and this session answers its rounds as they come back. You can't
-   talk to the reviewer directly."
+1. **"Spawn the reviewer (Recommended)"**: "A reviewer subagent reviews the
+   issue from GitHub, and this session answers its rounds as they come back.
+   You can't talk to the reviewer directly."
 2. **"My own session"**: "You start the reviewer in a new session with one
    prompt, and can talk to it there. This session watches for its rounds and
    answers them."
