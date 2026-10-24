@@ -1043,6 +1043,27 @@ tree_agents() {  # -> each agent definition's path
   [ "$bad" -eq 0 ]
 }
 
+# Each place that sends an issue body to spec review hands it over through one
+# section, which offers to spawn the reviewer and otherwise tells the operator
+# this session answers the rounds and arms the first watch. A site that names
+# the reviewer prompt on its own leaves the operator not knowing who answers,
+# and nobody watching for round 1.
+@test "every spec-review handoff goes through the one handoff section" {
+  local refs="$ROOT/dnbg-workflow/skills/issue-workflow/references"
+  local section='Handing the issue to its reviewer' o f bad=0
+  grep -qF "## $section" "$refs/spec-review-rounds.md" || {
+    echo "spec-review-rounds.md lost the '$section' section"; bad=1; }
+  for o in 'Spawn the reviewer (Recommended)' 'My own session'; do
+    grep -qF "**\"$o\"**" "$refs/spec-review-rounds.md" || {
+      echo "spec-review-rounds.md lost the handoff option '$o'"; bad=1; }
+  done
+  for f in creating decomposing project-pickup; do
+    grep -qF "\"$section\"" "$refs/$f.md" || {
+      echo "$f.md no longer hands over through '$section'"; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
 @test "every issue-project ERROR reason is named where the lookup is read" {
   local src="$ROOT/dnbg-workflow/scripts/issue-project.sh"
   local ref="$ROOT/dnbg-workflow/skills/issue-workflow/references/project-pickup.md"

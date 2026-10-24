@@ -42,8 +42,8 @@ than one issue, because <the tests that fired>. File it as a tracking issue?",
 with two options:
 
 1. **"Tracking issue (Recommended)"**: write the body per
-   `references/tracking-issue.md`, then name the next step, a spec review in a
-   reviewer session (`review <URL> as a spec`).
+   `references/tracking-issue.md`, then hand it to its spec reviewer per
+   `references/spec-review-rounds.md`, "Handing the issue to its reviewer".
 2. **"Plain issue(s)"**: file as asked.
 
 Without `AskUserQuestion`, follow `references/delegated.md`; with neither an
