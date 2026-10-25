@@ -157,7 +157,7 @@ setup() {
 @test "owner/name is short for github.com, and remote URLs resolve the same" {
   configure_role reviewer 42 agent-reviewer-t
   local spec
-  for spec in acme/r github.com/acme/r https://github.com/acme/r.git \
+  for spec in acme/r acme/r/ github.com/acme/r https://github.com/acme/r.git https://github.com/acme/r/ \
               git@github.com:acme/r.git ssh://git@github.com/acme/r; do
     run "$AS" --login reviewer "$spec"
     [ "$output" = "result=OK login=agent-reviewer-t fallback=none" ] || { echo "$spec: $output"; false; }

@@ -188,6 +188,7 @@ EOF
 # falls back and one that has an App can both be exercised. Each gh call is
 # logged with the token it ran under.
 
+bats_require_minimum_version 1.5.0
 load role-tree
 
 as_tree() {
@@ -241,4 +242,20 @@ as_tree() {
 @test "--as with no role name is a bad argument" {
   run "$CLAIM" o/r 7 --as=
   [[ "$output" == "result=ERROR reason=bad-args"* ]]
+}
+
+@test "--as mints once for all three marks" {
+  as_tree
+  configure_role author 7 agent-author-t
+  run "$CLAIM" acme/r 7 --claim --as=author
+  [[ "$output" == "result=OK "* ]]
+  [ "$(grep -c '/access_tokens$' "$NET_LOG")" -eq 1 ]
+}
+
+@test "--as with a credential that fails at write time is a role error, and writes nothing" {
+  as_tree
+  configure_role author 7 agent-author-t
+  run --separate-stderr "$CLAIM" elsewhere/r 7 --claim --as=author
+  [[ "$output" == "result=ERROR reason=role now="* ]]
+  ! grep -q '^gh label\|^gh issue' "$NET_LOG"
 }

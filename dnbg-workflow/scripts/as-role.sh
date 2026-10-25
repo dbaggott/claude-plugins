@@ -77,6 +77,7 @@ fail() {  # <reason> [<detail>]
 HOST=""; REPO_PATH=""
 parse_repo() {  # <repo> -> HOST, REPO_PATH
   local spec="$1" rest
+  while [[ "$spec" == */ ]]; do spec="${spec%/}"; done
   case "$spec" in
     https://*|http://*) rest="${spec#*://}"; HOST="${rest%%/*}"; REPO_PATH="${rest#*/}" ;;
     ssh://*) rest="${spec#ssh://}"; rest="${rest#*@}"; HOST="${rest%%/*}"; HOST="${HOST%%:*}"

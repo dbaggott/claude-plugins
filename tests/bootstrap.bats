@@ -63,3 +63,24 @@ bootstrap() {
   [ "$status" -eq 2 ]
   [ ! -s "$MANIFESTS" ]
 }
+
+@test "a role set up through its variables alone counts as set up" {
+  export DNBG_REVIEWER_APP_ID=42
+  bootstrap
+  [ "$status" -eq 0 ]
+  [ ! -e "$XDG_CONFIG_HOME/dnbg/reviewer" ]
+  [ -f "$XDG_CONFIG_HOME/dnbg/author/config.json" ]
+}
+
+@test "--config-dir without one named role is refused rather than ignored" {
+  bootstrap --config-dir "$BATS_TEST_TMPDIR/elsewhere"
+  [ "$status" -eq 2 ]
+  [ ! -s "$MANIFESTS" ]
+}
+
+@test "a role directory the resolver would refuse is not set up" {
+  mkdir -p "$TREE/roles/Odd_Name"; cp "$TREE/roles/author/permissions.json" "$TREE/roles/Odd_Name/"
+  bootstrap --roles Odd_Name
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unknown role(s) Odd_Name"* ]]
+}

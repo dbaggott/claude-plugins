@@ -29,6 +29,7 @@ import argparse
 import html
 import json
 import os
+import re
 import secrets
 import stat
 import subprocess
@@ -45,16 +46,32 @@ API_ROOT = "https://api.github.com"
 ROLES_DIR = Path(__file__).resolve().parent.parent.parent / "roles"
 
 
+# The names lib-role.sh's role_valid accepts, so setup never creates an App for a
+# role the resolver would refuse.
+ROLE_NAME = re.compile(r"[a-z][a-z0-9]*(-[a-z0-9]+)*")
+
+
 def defined_roles() -> list[str]:
     """Every role with data under roles/, in name order."""
-    return sorted(d.name for d in ROLES_DIR.iterdir() if (d / "permissions.json").is_file())
+    return sorted(d.name for d in ROLES_DIR.iterdir()
+                  if ROLE_NAME.fullmatch(d.name) and (d / "permissions.json").is_file())
+
+
+def role_env(role: str, field: str) -> str:
+    return os.environ.get(f"DNBG_{role.upper().replace('-', '_')}_{field}", "")
 
 
 def default_config_dir(role: str) -> Path:
     """DNBG_<ROLE>_CONFIG_DIR, else ~/.config/dnbg/<role> — as lib-role.sh reads it."""
-    env = os.environ.get(f"DNBG_{role.upper().replace('-', '_')}_CONFIG_DIR")
+    env = role_env(role, "CONFIG_DIR")
     base = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
     return Path(env).expanduser() if env else base / "dnbg" / role
+
+
+def is_configured(role: str) -> bool:
+    """What as-role.sh counts as set up: a config.json, or any App variable."""
+    return (default_config_dir(role) / "config.json").exists() or any(
+        role_env(role, f) for f in ("APP_ID", "PRIVATE_KEY", "PRIVATE_KEY_COMMAND"))
 
 
 def gh_login() -> str:
@@ -284,18 +301,18 @@ def choose_roles(requested: str | None) -> list[str]:
         if unknown:
             raise SystemExit(f"unknown role(s) {', '.join(unknown)}; defined: {', '.join(known)}")
         return roles
-    return [r for r in known if not (default_config_dir(r) / "config.json").exists()]
+    return [r for r in known if not is_configured(r)]
 
 
 def run(args: argparse.Namespace) -> int:
+    if (args.name or args.config_dir) and (not args.roles or len(args.roles.split(",")) != 1):
+        print("--name and --config-dir apply to one role; pass --roles <one role>.", file=sys.stderr)
+        return 2
     roles = choose_roles(args.roles)
     if not roles:
         print("Every role already has an App set up; name one with --roles to create "
               "another.", file=sys.stderr)
         return 0
-    if len(roles) > 1 and (args.name or args.config_dir):
-        print("--name and --config-dir apply to one role; pass --roles <one role>.", file=sys.stderr)
-        return 2
     if (args.owner_type or "user") == "org" and not args.org:
         print("--org is required for an org-owned App", file=sys.stderr)
         return 2

@@ -6,7 +6,8 @@
 # `permissions.json`. Nothing here names a role: every caller loops over or is
 # handed one.
 
-ROLES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/roles"
+ROLE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROLES_DIR="$(cd "$ROLE_LIB_DIR/.." && pwd)/roles"
 
 # Names are lowercase words joined by hyphens, which keeps the derived
 # environment-variable prefix and the config path free of anything a shell or a
@@ -47,4 +48,12 @@ role_config_dir() {  # <role>
 role_fallback() {  # <role>
   local p; p=$(jq -r '.fallback // "refuse"' "$(role_perms_file "$1")" 2>/dev/null) || return 1
   case "$p" in operator|refuse) printf '%s\n' "$p" ;; *) return 1 ;; esac
+}
+
+# The bot login a role acts under on <repo>, from the resolver's login answer;
+# nothing when the role has no bot there, a fallback to the operator included,
+# so a caller filtering on it never mistakes the operator for the bot.
+role_bot_login() {  # <role> <repo>
+  "$ROLE_LIB_DIR/as-role.sh" --login "$1" "$2" 2>/dev/null \
+    | sed -n 's/^result=OK login=\([^ ]*\) fallback=none$/\1/p'
 }

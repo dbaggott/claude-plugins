@@ -82,31 +82,44 @@ field() {  # <key> — from ANSWER
   local v="${ANSWER#* "$1"=}"
   printf '%s' "${v%% *}"
 }
-# A write, as the role when --as names one. The resolver exits 125 when it
-# refused before running anything.
-write() {  # <gh args…>
-  local rc=0
-  if [ -n "$AS" ]; then "$AS_ROLE" "$AS" "$REPO" -- gh "$@" || rc=$?
-  else gh "$@" || rc=$?; fi
-  [ "$rc" -ne 125 ] || [ -z "$AS" ] || fail role
-  return "$rc"
+# The three marks, in one process so a role mints once for all of them. The
+# last line out is `url=<comment-url>`; any failed write exits 3.
+write_marks() {  # <repo> <n> <label> <assignee> <body>
+  gh label create "$3" --repo "$1" --color BFD4F2 \
+    --description "Claimed by an agent session" --force >/dev/null 2>&1 || exit 3
+  gh issue edit "$2" --repo "$1" --add-assignee "$4" --add-label "$3" >/dev/null 2>&1 || exit 3
+  local url; url=$(gh issue comment "$2" --repo "$1" --body "$5" 2>/dev/null | tail -1) || exit 3
+  echo "url=$url"
 }
 
 if [ "$CLAIM" = 1 ]; then
   BODY="Claimed by an agent session (${SID:-id unavailable})."
   [ -z "$STAMP" ] || BODY="$BODY
 <!-- dnbg-workflow $STAMP -->"
-  ASSIGNEE="@me"; TAIL=""
+  ASSIGNEE="@me"; RUN=()
   if [ -n "$AS" ]; then
     ask --operator "$REPO"; ASSIGNEE=$(field login)
-    ask --login "$AS" "$REPO"; TAIL=" as=$(field login)"
-    [ "$(field fallback)" = none ] || TAIL="$TAIL fallback=unconfigured"
+    RUN=("$AS_ROLE" "$AS" "$REPO" --)
   fi
-  write label create "$LABEL" --repo "$REPO" --color BFD4F2 \
-    --description "Claimed by an agent session" --force >/dev/null 2>&1 || fail claim-write
-  write issue edit "$N" --repo "$REPO" --add-assignee "$ASSIGNEE" --add-label "$LABEL" \
-    >/dev/null 2>&1 || fail claim-write
-  URL=$(write issue comment "$N" --repo "$REPO" --body "$BODY" 2>/dev/null | tail -1) || fail claim-write
+  # The resolver's own line, `as-role.sh: result=…`, comes on stderr; it is
+  # read here, and anything else there (a mint's permission warning) passes on.
+  RC=0
+  OUT=$(${RUN[@]+"${RUN[@]}"} bash -c "$(declare -f write_marks); write_marks \"\$@\"" _ \
+        "$REPO" "$N" "$LABEL" "$ASSIGNEE" "$BODY" 2>&1) || RC=$?
+  URL=""; TAIL=""
+  while IFS= read -r line; do
+    case "$line" in
+      url=*) URL="${line#url=}" ;;
+      "as-role.sh: result=OK "*)
+        ANSWER=" ${line#as-role.sh: result=OK} "
+        TAIL=" as=$(field as)"
+        [ "$(field fallback)" = none ] || TAIL="$TAIL fallback=unconfigured" ;;
+      ''|"as-role.sh: result=ERROR "*) ;;
+      *) printf '%s\n' "$line" >&2 ;;
+    esac
+  done <<<"$OUT"
+  [ -z "$AS" ] || [ "$RC" -ne 125 ] || fail role
+  [ "$RC" -eq 0 ] || fail claim-write
   case "$URL" in https://*) ;; *) fail claim-write ;; esac
   echo "result=OK claim=${SID:-none} url=$URL$TAIL"
   exit 0

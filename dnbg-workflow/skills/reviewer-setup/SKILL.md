@@ -14,11 +14,10 @@ agent an *independent* reviewer and what lets it post a binding `--approve` /
 GitHub forbids when you review as yourself.
 
 A role is a directory under the plugin's `roles/`, holding the permissions its
-App is created with. The roles defined today are whatever
-`ls "<skill-dir>/../../roles"` lists. A role with no App behaves as its
-`permissions.json` says: the reviewer refuses to run at all, and a role whose
-`fallback` is `operator` acts as your own account, which a session-start notice
-names.
+App is created with; `ls "<skill-dir>/../../roles"` lists them. A role with no
+App behaves as its `permissions.json` says: the reviewer refuses to run at all,
+and a role whose `fallback` is `operator` acts as your own account, which a
+session-start notice names.
 
 Everything runs on **GitHub access only**. Each App's private key is generated
 during creation, saved on this machine (mode 600), and never leaves it;

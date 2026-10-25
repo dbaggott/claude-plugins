@@ -89,8 +89,9 @@ fi
 
 ME=""
 if [ "$MINE" = 1 ]; then
-  ME=$("$(dirname "$0")/as-role.sh" --login reviewer "$REPO" 2>/dev/null \
-    | sed -n 's/^result=OK login=\([^ ]*\) .*/\1/p') || ME=""
+  # shellcheck source=./lib-role.sh
+  . "$(dirname "$0")/lib-role.sh"
+  ME=$(role_bot_login reviewer "$REPO") || ME=""
   if [ -z "$ME" ]; then
     echo "result=ERROR reason=no-slug"
     exit 0

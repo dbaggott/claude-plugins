@@ -52,9 +52,11 @@ the first post — after a full review has been composed:
 ```
 
 The resolver mints for the App's installation on the repo's owner, and the audit
-grades that installation. A quiet run is the confirmation; a
-`result=ERROR reason=not-configured` means the bot isn't set up, which
-`reviewer-setup` fixes. `<skill-dir>` is the **Base directory** announced when
+grades that installation. Apart from the resolver's own
+`as-role.sh: result=OK as=…` line, a quiet run is the confirmation: a block
+saying the App "is missing a permission it needs" is a finding to raise with
+the operator before reviewing, and a `result=ERROR reason=not-configured` means
+the bot isn't set up, which `reviewer-setup` fixes. `<skill-dir>` is the **Base directory** announced when
 this skill loads. Rounds post as the `reviewer` role, which shares the App.
 
 **Read every issue in the set before judging any of it** — the set-level findings

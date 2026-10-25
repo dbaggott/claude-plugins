@@ -79,8 +79,9 @@ FORGE="${FORGE:-github}"
 [ "$FORGE" = github ] || fail unsupported-forge
 
 if [ "$SLUG_GIVEN" = 0 ]; then
-  SLUG=$("$(dirname "$0")/as-role.sh" --login reviewer "$REPO" 2>/dev/null \
-    | sed -n 's/^result=OK login=\([^ ]*\) .*/\1/p') || SLUG=""
+  # shellcheck source=./lib-role.sh
+  . "$(dirname "$0")/lib-role.sh"
+  SLUG=$(role_bot_login reviewer "$REPO") || SLUG=""
 fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

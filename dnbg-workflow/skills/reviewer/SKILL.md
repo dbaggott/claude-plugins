@@ -142,7 +142,7 @@ exits 125 without running it, after a stderr line
 - **`credential`** — the mint failed, and its message says why. If it says the
   App isn't installed on `<owner>`, install it there (also `reviewer-setup`).
 
-The `gh api` posts below still ask for `user.login` back. It must be the bot's,
+The `gh api` posts below ask for `user.login` back. It must be the bot's,
 `<slug>[bot]`; if it is not, stop and tell the operator before posting anything
 else.
 

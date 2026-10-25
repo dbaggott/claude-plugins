@@ -187,8 +187,8 @@ The agents act on GitHub in roles, and a role with a GitHub App of its own posts
 under that App's bot login rather than yours. Each role is a directory under
 `dnbg-workflow/roles/<role>/` holding its `permissions.json`: the permissions its
 App is created with and every minted token is checked against, and its
-`fallback`. Today the only role is `reviewer`. The `reviewer-setup` skill
-creates the Apps, for any subset of roles, in one run.
+`fallback`. The `reviewer-setup` skill creates the Apps, for any subset of
+roles, in one run.
 
 | Per role | Default | Override |
 | --- | --- | --- |
