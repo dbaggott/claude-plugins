@@ -50,6 +50,17 @@ role_fallback() {  # <role>
   case "$p" in operator|refuse) printf '%s\n' "$p" ;; *) return 1 ;; esac
 }
 
+# What a write script's OK line ends with after a call through the resolver,
+# from the resolver's stderr line `as-role.sh: result=OK as=<login>
+# fallback=<…>`: ` as=<login>`, plus ` fallback=unconfigured` when the role ran
+# as the operator.
+role_as_tail() {  # <line>
+  local rest=" ${1#as-role.sh: result=OK} " v
+  v="${rest#* as=}"
+  printf ' as=%s' "${v%% *}"
+  case "$rest" in *" fallback=none "*) ;; *) printf ' fallback=unconfigured' ;; esac
+}
+
 # The bot login a role acts under on <repo>, from the resolver's login answer;
 # nothing when the role has no bot there, a fallback to the operator included,
 # so a caller filtering on it never mistakes the operator for the bot.

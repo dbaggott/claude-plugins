@@ -1421,34 +1421,29 @@ EOF
 }
 
 # The orchestrator arms no watch of its own, and its posts on a PR are addressed
-# to the author and the reviewer, so its bot's conversation comment (GraphQL's
-# spelling, no suffix) and its inline comment (REST's, `[bot]`) wake both roles.
+# to the author and the reviewer, so its bot's conversation comment wakes both
+# roles, in either spelling of its login. Its App has no `pull_requests` write,
+# so it posts no inline comment.
 @test "an orchestrator bot comment wakes a reviewer watch and an author watch" {
-  export ORCH_KIND
+  export ORCH_LOGIN
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'STUB'
 case "$1 $2" in
   "pr view")
-    if [ "$ORCH_KIND" = conversation ]; then
-      c='[{"author":{"login":"agent-orchestrator-t"},"createdAt":"2999-01-01T00:00:00Z"}]'
-    else c='[]'; fi
-    echo "{\"state\":\"OPEN\",\"isDraft\":false,\"headRefOid\":\"0000000000000000000000000000000000000000\",\"reviews\":[],\"comments\":$c}" ;;
-  "api "*|"api")
-    if [ "$ORCH_KIND" = inline ]; then
-      echo '[{"created_at":"2999-01-01T00:00:00Z","user":{"login":"agent-orchestrator-t[bot]"}}]'
-    else echo '[]'; fi ;;
+    printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[{"author":{"login":"%s"},"createdAt":"2999-01-01T00:00:00Z"}]}\n' 0 "$ORCH_LOGIN" ;;
+  "api "*|"api") echo '[]' ;;
   *) exit 1 ;;
 esac
 STUB
   chmod +x "$STUB/gh"
   local role slug
-  for ORCH_KIND in conversation inline; do
+  for ORCH_LOGIN in agent-orchestrator-t 'agent-orchestrator-t[bot]'; do
     for role in reviewer:agent-reviewer-t author:agent-author-t; do
       slug="${role#*:}"; role="${role%%:*}"
       echo 0 > "$CLOCK"
       INTERVAL=1 SETTLE=1 WINDOW=10 \
         run "$WATCH" o/r 1 "$(sha40 0)" 2000-01-01T00:00:00Z "$slug" --role="$role"
       [[ "$output" == *"result=ACTIVITY"* ]] \
-        || { echo "$ORCH_KIND comment did not wake the $role watch: $output"; return 1; }
+        || { echo "$ORCH_LOGIN did not wake the $role watch: $output"; return 1; }
     done
   done
 }

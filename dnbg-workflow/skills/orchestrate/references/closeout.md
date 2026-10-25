@@ -88,11 +88,11 @@ a run meets its `A#` is the reviewer's call, on this PR.
 First fold in the items a child's orchestrator relayed because it was not the
 parent's writer: the comments on the parent whose first line reads
 `Friction log items from <child URL>` (`issue-workflow`'s
-`references/tracking-issue.md`, "Who writes the body"), posted by the
-orchestrator's login about a child in the set. That login is the `login=` of
-`"<skill-dir>/../../scripts/as-role.sh" --login orchestrator <owner>/<repo>`,
-spelled `<login>[bot]` by the REST API when it is an App's, and your own login
-when the orchestrator falls back. Pass each bullet to one
+`references/tracking-issue.md`, "Who writes the body"), about a child in the
+set and posted by your own login or the orchestrator's, the `login=` of
+`"<skill-dir>/../../scripts/as-role.sh" --login orchestrator <owner>/<repo>`
+in either spelling, `<login>` or `<login>[bot]`. Yours covers a child run
+whose orchestrator fell back. Pass each bullet to one
 `log-row.sh --bullet="Friction log" --as=orchestrator` call as a `--text`
 without its leading `- `. The call adds only the bullets the log does not already carry.
 

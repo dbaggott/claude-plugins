@@ -261,7 +261,7 @@ STUB
   grep -q "^gh issue edit 7 --repo acme/r --body-file .* token=$STUB_TOKEN\$" "$NET_LOG"
   # The query spans lines; each read's log entry ends on its variables.
   grep -q -- "-F n=7 token=$STUB_TOKEN\$" "$NET_LOG"
-  ! grep -- '-F n=7 token=' "$NET_LOG" | grep -vq "token=$STUB_TOKEN\$"
+  ! grep -- '-F n=7 token=' "$NET_LOG" | grep -vq "token=$STUB_TOKEN\$" || false
   [ "$(grep -c '/access_tokens$' "$NET_LOG")" -eq 1 ]
 }
 
@@ -279,7 +279,7 @@ STUB
   run --separate-stderr "$LOG" acme/r 7 --bullet="Friction log" --text='x' --as=orchestrator
   [[ "$output" == "result=ERROR reason=role now="* ]]
   [[ "$stderr" == *"produced no output"* ]]
-  ! grep -q '^gh ' "$NET_LOG"
+  ! grep -q '^gh ' "$NET_LOG" || false
   ! grep -qx -- '- x' "$BODY"
 }
 

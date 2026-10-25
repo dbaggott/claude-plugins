@@ -35,9 +35,13 @@
 # replaces the constant below with host detection; the output above is not
 # GitHub-shaped.
 set -euo pipefail
-# The run `--as` starts under the resolver keeps the role's token it was given.
-[ "${LOG_ROW_UNDER_ROLE:-}" = 1 ] || unset GH_TOKEN
-unset LOG_ROW_UNDER_ROLE
+# `--under-role` is this script's own re-run under the resolver (`--as`, below),
+# which keeps the role's token the resolver put in place. Not for callers.
+UNDER_ROLE=0
+if [ "${1:-}" = --under-role ]; then UNDER_ROLE=1; shift; fi
+[ "$UNDER_ROLE" = 1 ] || unset GH_TOKEN
+# shellcheck source=./lib-role.sh
+. "$(dirname "$0")/lib-role.sh"
 
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 fail() { echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0; }
@@ -75,16 +79,13 @@ if [ -n "$AS" ]; then
   # This script again, under the role. The resolver's own line,
   # `as-role.sh: result=…`, comes on stderr and is read here; the inner run's
   # result line is the one stdout line, and anything else passes on to stderr.
-  OUT=$(LOG_ROW_UNDER_ROLE=1 "$(dirname "$0")/as-role.sh" "$AS" "$REPO" -- \
-        bash "$0" "$REPO" "$N" "${ARGS[@]}" 2>&1) || true
+  OUT=$("$(dirname "$0")/as-role.sh" "$AS" "$REPO" -- \
+        bash "$0" --under-role "$REPO" "$N" "${ARGS[@]}" 2>&1) || true
   RESULT=""; TAIL=""; REFUSED=0
   while IFS= read -r line; do
     case "$line" in
       result=*) RESULT="$line" ;;
-      "as-role.sh: result=OK "*)
-        rest=" ${line#as-role.sh: result=OK} "
-        v="${rest#* as=}"; TAIL=" as=${v%% *}"
-        case "$rest" in *" fallback=none "*) ;; *) TAIL="$TAIL fallback=unconfigured" ;; esac ;;
+      "as-role.sh: result=OK "*) TAIL=$(role_as_tail "$line") ;;
       "as-role.sh: result=ERROR "*) REFUSED=1 ;;
       '') ;;
       *) printf '%s\n' "$line" >&2 ;;

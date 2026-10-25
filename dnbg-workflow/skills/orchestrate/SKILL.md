@@ -52,9 +52,8 @@ the operator to run themselves.
 
 Every GitHub write you make, whether a comment, a body edit, a label or a claim,
 goes through the role resolver as `orchestrator`. It posts under the
-orchestrator's App, or under the operator's login when that App is not set up,
-so a watch can tell your posts from the operator's by login. A comment, from a
-body file made with `mktemp`:
+orchestrator's App, or under the operator's login when that App is not set up.
+A comment, from a body file made with `mktemp`:
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
@@ -97,8 +96,9 @@ one state a restart cannot recover.
    - `UNCLAIMED` — check the issue's project per `issue-workflow`'s
      `references/project-pickup.md`, where a child of a project gets one
      question first. Then claim it: `claim-issue.sh <owner>/<repo> <n>
-     --as=orchestrator --claim`, adding `--label=<label>` when a `dnbg-workflow` note at session start names
-     a claim label, and `--stamp=<version>` when one names a version.
+     --as=orchestrator --claim`, adding `--label=<label>` when a
+     `dnbg-workflow` note at session start names a claim label, and
+     `--stamp=<version>` when one names a version.
    - `OWN` — your own claim from earlier in this session. Proceed.
    - `FOREIGN` — someone else holds it: another session (often a predecessor
      orchestrator that died) when `claim=` carries an id, otherwise whoever
@@ -272,9 +272,8 @@ Triage it against the design (step 5) under the allowlist in
 
 - **Answerable** — the design's recorded rationale covers the case, and the
   answer is on the allowlist. Post the `Decision log:` row on the issue with the
-  command `references/triage.md` gives, then
-  continue the agent that asked with `SendMessage`, carrying the same answer and
-  the row's URL.
+  command `references/triage.md` gives, then continue the agent that asked with
+  `SendMessage`, carrying the same answer and the row's URL.
 - **Not answerable** — post a `proposed` row, the same way, then ask the
   operator with `AskUserQuestion`, giving the question, the options it names,
   and your recommendation. Post the operator's answer as a `decided` row, the

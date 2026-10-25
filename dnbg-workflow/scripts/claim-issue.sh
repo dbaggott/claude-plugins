@@ -44,6 +44,9 @@
 set -euo pipefail
 unset GH_TOKEN
 
+# shellcheck source=./lib-role.sh
+. "$(dirname "$0")/lib-role.sh"
+
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 fail() { echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0; }
 
@@ -110,10 +113,7 @@ if [ "$CLAIM" = 1 ]; then
   while IFS= read -r line; do
     case "$line" in
       url=*) URL="${line#url=}" ;;
-      "as-role.sh: result=OK "*)
-        ANSWER=" ${line#as-role.sh: result=OK} "
-        TAIL=" as=$(field as)"
-        [ "$(field fallback)" = none ] || TAIL="$TAIL fallback=unconfigured" ;;
+      "as-role.sh: result=OK "*) TAIL=$(role_as_tail "$line") ;;
       "as-role.sh: result=ERROR "*) REFUSED=1 ;;
       '') ;;
       *) printf '%s\n' "$line" >&2 ;;
