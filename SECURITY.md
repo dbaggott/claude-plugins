@@ -157,6 +157,18 @@ The scoping lever is therefore the installation's repository list, not the
 permission set. An App you have granted more to for other purposes can do
 whatever you granted.
 
+### The orchestrator
+
+`dnbg-workflow/roles/orchestrator/permissions.json`: `issues: write`, to post
+decision-log rows and questions, edit tracking-issue bodies and claim issues for
+its authors, and `pull_requests` and `metadata` at **read**. On every repo where
+the App is installed, a leaked key reads and writes any issue's body, comments
+and labels as the bot, and reads pull requests, their diffs included. It has no
+`contents` permission, so it cannot push, merge, or read the repository's files
+outside a pull request's diff. Without an App the orchestrator falls back to
+your account, and the session-start notice says so. Rotate its key as below,
+with `orchestrator` as the role.
+
 ### Where a key lives
 
 Three sources per role, first hit wins, shown for the reviewer (each role has

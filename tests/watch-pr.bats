@@ -1419,3 +1419,36 @@ EOF
   local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
   [[ "$rearm" == "WINDOW=21600 \""* ]]
 }
+
+# The orchestrator arms no watch of its own, and its posts on a PR are addressed
+# to the author and the reviewer, so its bot's conversation comment (GraphQL's
+# spelling, no suffix) and its inline comment (REST's, `[bot]`) wake both roles.
+@test "an orchestrator bot comment wakes a reviewer watch and an author watch" {
+  export ORCH_KIND
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'STUB'
+case "$1 $2" in
+  "pr view")
+    if [ "$ORCH_KIND" = conversation ]; then
+      c='[{"author":{"login":"agent-orchestrator-t"},"createdAt":"2999-01-01T00:00:00Z"}]'
+    else c='[]'; fi
+    echo "{\"state\":\"OPEN\",\"isDraft\":false,\"headRefOid\":\"0000000000000000000000000000000000000000\",\"reviews\":[],\"comments\":$c}" ;;
+  "api "*|"api")
+    if [ "$ORCH_KIND" = inline ]; then
+      echo '[{"created_at":"2999-01-01T00:00:00Z","user":{"login":"agent-orchestrator-t[bot]"}}]'
+    else echo '[]'; fi ;;
+  *) exit 1 ;;
+esac
+STUB
+  chmod +x "$STUB/gh"
+  local role slug
+  for ORCH_KIND in conversation inline; do
+    for role in reviewer:agent-reviewer-t author:agent-author-t; do
+      slug="${role#*:}"; role="${role%%:*}"
+      echo 0 > "$CLOCK"
+      INTERVAL=1 SETTLE=1 WINDOW=10 \
+        run "$WATCH" o/r 1 "$(sha40 0)" 2000-01-01T00:00:00Z "$slug" --role="$role"
+      [[ "$output" == *"result=ACTIVITY"* ]] \
+        || { echo "$ORCH_KIND comment did not wake the $role watch: $output"; return 1; }
+    done
+  done
+}

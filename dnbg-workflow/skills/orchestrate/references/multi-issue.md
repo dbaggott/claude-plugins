@@ -16,8 +16,8 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
 2. **Take over the in-flight children**: the open ones carrying a claim, which
    are the ready set's `waiting` entries whose `reasons` include `claimed` (the
    loop's step 3, run now). Run `claim-issue.sh` on each. `OWN` is yours.
-   `FOREIGN` with the predecessor's id is re-claimed with `--claim` once the
-   operator has said the predecessor is gone. Any other holder is not part of
+   `FOREIGN` with the predecessor's id is re-claimed with `--as=orchestrator
+   --claim` once the operator has said the predecessor is gone. Any other holder is not part of
    this run: leave the child alone, and it waits like a blocker outside the
    project. For each child you hold, run `SKILL.md`'s steps 3 to 5 on it, then
    dispatch a fresh author, and a reviewer when its PR is out of draft, per
@@ -65,7 +65,8 @@ verdict on a child. On a child closing, first collect that child's rows (below).
    operator set: take the next `ready` child, skipping any that a `decided` row
    still being applied reaches, or whose blocker is still in flight, since its
    body may yet need that blocker's merge sweep (below). Claim it first, with
-   `claim-issue.sh <owner>/<repo> <child> --claim` and the same `--label` and
+   `claim-issue.sh <owner>/<repo> <child> --as=orchestrator --claim` and the
+   same `--label` and
    `--stamp` as any claim. The claim is what keeps the next ready set from
    offering the child again, so a child whose claim did not return `result=OK`
    is not dispatched. Then run `SKILL.md`'s steps 3 to 5 on it and dispatch its
@@ -116,7 +117,7 @@ Append the table row with:
 
 ```bash
 "<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --table="Decision log" \
-  --row='| <date> | <ID> | <child URL or —> | <entry> | <state> |'
+  --row='| <date> | <ID> | <child URL or —> | <entry> | <state> |' --as=orchestrator
 ```
 
 `result=OK` means the row is in the body. A re-run never adds it twice, so on
@@ -136,14 +137,14 @@ You are the parent body's only writer. A child's body is its author's, per
 dispatched (`references/design-change.md`), or in a merge's sweep of a child no
 one holds (below). Any other
 body edit, a row's state cell included, is reading the body, changing it, and
-writing it back with `gh issue edit <n> --body-file <file>`, re-read just before
-each write. `<file>` comes from `mktemp`, per `git-workflow`'s "Writing the PR
-description".
+writing it back with the body edit in `SKILL.md`'s "Write as the orchestrator",
+re-read just before each write. A sweep's edit of a child's body is the same.
 
 **An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
 the loop pauses until they answer, and the events that arrived meanwhile are
 handled after. Without it, post the question on the parent per
-`issue-workflow`'s `references/delegated.md` and end the turn with it as your
+`issue-workflow`'s `references/delegated.md`, with the comment command in
+`SKILL.md`'s "Write as the orchestrator", and end the turn with it as your
 report. Only the child that asked waits; the rest of the loop keeps moving as
 reports arrive. The operator's answer is a comment on the parent: at each loop
 while the question is open, read the parent's comments newer than it. With no
@@ -178,11 +179,12 @@ replaces `SKILL.md`'s "Stop" for that sweep. Mark each item shipped, with the
 PR's URL, as `issue-workflow`'s "Maintaining issues" does, by who holds the
 sibling:
 
-- **No one** — edit its body yourself.
+- **No one** — edit its body yourself, as the orchestrator.
 - **Its author in this run** — `SendMessage` it the PR's URL and the items to
   mark shipped in its body.
 - **Anyone else** — comment them on it, as that section does for an issue
-  someone else has claimed.
+  someone else has claimed, with the comment command in `SKILL.md`'s
+  "Write as the orchestrator".
 
 Marking shipped work changes no design, so it takes no log row and no
 re-review.
@@ -208,7 +210,8 @@ raised again.
 After each write to the parent, if its body passes 50,000 characters, which
 `log-row.sh` prints as `body_chars`, move every table row whose child is closed
 and whose state is final into one comment opening `Decision log: archived
-rows`, and leave one row in its place pointing at that comment. `proposed` rows and `decided` rows not yet applied stay.
+rows`, and leave one row in its place pointing at that comment. Both writes are
+`SKILL.md`'s "Write as the orchestrator" ones. `proposed` rows and `decided` rows not yet applied stay.
 
 ## Stop
 

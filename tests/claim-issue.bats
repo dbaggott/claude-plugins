@@ -259,3 +259,22 @@ as_tree() {
   [[ "$output" == "result=ERROR reason=role now="* ]]
   ! grep -q '^gh label\|^gh issue' "$NET_LOG"
 }
+
+# The shipped orchestrator role, which claims issues for its authors.
+
+@test "--as=orchestrator with no orchestrator App claims as the operator, and says so" {
+  as_tree
+  ship_role orchestrator
+  run --separate-stderr "$CLAIM" acme/r 7 --claim --as=orchestrator
+  [ "$output" = "result=OK claim=c7f40c25 url=https://github.com/acme/r/issues/7#issuecomment-1 as=operator-login fallback=unconfigured" ]
+  grep -q '^gh issue comment 7 .* token=none$' "$NET_LOG"
+}
+
+@test "--as=orchestrator whose key command prints nothing claims nothing" {
+  as_tree
+  ship_role orchestrator
+  export DNBG_ORCHESTRATOR_APP_ID=9 DNBG_ORCHESTRATOR_PRIVATE_KEY_COMMAND=true
+  run --separate-stderr "$CLAIM" acme/r 7 --claim --as=orchestrator
+  [[ "$output" == "result=ERROR reason=role now="* ]]
+  ! grep -q '^gh label\|^gh issue' "$NET_LOG"
+}

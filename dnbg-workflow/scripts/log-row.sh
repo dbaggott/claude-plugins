@@ -2,8 +2,8 @@
 # Append rows to a table, or bullets to a list, under one heading of an issue's
 # body — a tracking issue's decision log or friction log.
 #
-#   log-row.sh <owner/repo> <n> --table=<heading>  --row='| … |' [--row=…]
-#   log-row.sh <owner/repo> <n> --bullet=<heading> --text='…'    [--text=…]
+#   log-row.sh <owner/repo> <n> --table=<heading>  --row='| … |' [--row=…] [--as=<role>]
+#   log-row.sh <owner/repo> <n> --bullet=<heading> --text='…'    [--text=…] [--as=<role>]
 #
 # The section is the heading whose text is exactly <heading>, at any level, down
 # to the next heading of the same or a higher level; a heading inside a code
@@ -11,7 +11,7 @@
 # (`- <text>`) after its last non-blank line, set off by a blank line when that
 # line is not part of a list. Prints exactly one result line, then exits 0:
 #   result=OK appended=<k> body_edited=<iso|none> body_chars=<n>
-#   result=ERROR reason=bad-args|unsupported-forge|issue-query|section-missing|table-missing|write|write-lost now=<iso>
+#   result=ERROR reason=bad-args|unsupported-forge|issue-query|section-missing|table-missing|write|write-lost|role now=<iso>
 #
 # A line the section already holds outside a code fence is not appended again,
 # nor is one given twice, so `appended` can be less than the lines given, and
@@ -24,11 +24,20 @@
 # missing are appended to the new body, up to MAX_WRITES writes; `write-lost`
 # means they were still missing after the last.
 #
+# `--as=<role>` makes the reads and writes under that role, through one
+# `as-role.sh` call, so a role mints once for the whole run. The OK line then
+# ends with `as=<login>`, plus `fallback=unconfigured` when the role ran as the
+# operator. `role` means the resolver refused; its stderr says why, and nothing
+# was read or written. Without `--as` the script runs as the operator, as it
+# always has, and its output is unchanged.
+#
 # ⚠️ THE FORGE IS ASSUMED TO BE GITHUB. https://github.com/dbaggott/claude-plugins/issues/149
 # replaces the constant below with host detection; the output above is not
 # GitHub-shaped.
 set -euo pipefail
-unset GH_TOKEN
+# The run `--as` starts under the resolver keeps the role's token it was given.
+[ "${LOG_ROW_UNDER_ROLE:-}" = 1 ] || unset GH_TOKEN
+unset LOG_ROW_UNDER_ROLE
 
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 fail() { echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0; }
@@ -39,9 +48,10 @@ shift 2
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 case "$N" in ''|0*|*[!0-9]*) fail bad-args ;; esac
 
-MODE=""; HEADING=""; LINES=()
+MODE=""; HEADING=""; LINES=(); AS=""; ARGS=()
 for a in "$@"; do
   case "$a" in
+    --as=?*) AS="${a#--as=}"; continue ;;
     --table=*|--bullet=*)
       [ -z "$MODE" ] || fail bad-args
       MODE="${a%%=*}"; MODE="${MODE#--}"; HEADING="${a#*=}" ;;
@@ -49,6 +59,7 @@ for a in "$@"; do
     --text=*) [ "$MODE" = bullet ] || fail bad-args; LINES+=("- ${a#--text=}") ;;
     *) fail bad-args ;;
   esac
+  ARGS+=("$a")
 done
 [ -n "$HEADING" ] && [ "${#LINES[@]}" -gt 0 ] || fail bad-args
 NL=$'\n'; CR=$'\r'
@@ -59,6 +70,34 @@ done
 
 FORGE="${FORGE:-github}"
 [ "$FORGE" = github ] || fail unsupported-forge
+
+if [ -n "$AS" ]; then
+  # This script again, under the role. The resolver's own line,
+  # `as-role.sh: result=…`, comes on stderr and is read here; the inner run's
+  # result line is the one stdout line, and anything else passes on to stderr.
+  OUT=$(LOG_ROW_UNDER_ROLE=1 "$(dirname "$0")/as-role.sh" "$AS" "$REPO" -- \
+        bash "$0" "$REPO" "$N" "${ARGS[@]}" 2>&1) || true
+  RESULT=""; TAIL=""; REFUSED=0
+  while IFS= read -r line; do
+    case "$line" in
+      result=*) RESULT="$line" ;;
+      "as-role.sh: result=OK "*)
+        rest=" ${line#as-role.sh: result=OK} "
+        v="${rest#* as=}"; TAIL=" as=${v%% *}"
+        case "$rest" in *" fallback=none "*) ;; *) TAIL="$TAIL fallback=unconfigured" ;; esac ;;
+      "as-role.sh: result=ERROR "*) REFUSED=1 ;;
+      '') ;;
+      *) printf '%s\n' "$line" >&2 ;;
+    esac
+  done <<<"$OUT"
+  [ "$REFUSED" = 0 ] || fail role
+  case "$RESULT" in
+    result=OK\ *) echo "$RESULT$TAIL" ;;
+    result=ERROR\ *) echo "$RESULT" ;;
+    *) fail write ;;
+  esac
+  exit 0
+fi
 
 OWNER="${REPO%%/*}"; NAME="${REPO##*/}"
 MAX_WRITES=${MAX_WRITES:-3}

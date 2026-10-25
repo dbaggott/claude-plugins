@@ -228,10 +228,29 @@ setup() {
   [ -z "$output" ]
 }
 
-@test "the shipped roles print no notice, set up or not" {
+@test "the shipped roles' notice names the orchestrator until it is set up" {
   run "$ROLE_ROOT/hooks/role-fallback-notice.sh"
   [ "$status" -eq 0 ]
+  [[ "$output" == *"login (the fallback tier): orchestrator."* ]]
+  export DNBG_ORCHESTRATOR_APP_ID=9
+  run "$ROLE_ROOT/hooks/role-fallback-notice.sh"
   [ -z "$output" ]
+}
+
+@test "an orchestrator post through the resolver with no App runs as the operator" {
+  ship_role orchestrator
+  run --separate-stderr "$AS" orchestrator acme/r -- gh issue comment 7 --repo acme/r --body x
+  [ "$status" -eq 0 ]
+  [ "$stderr" = "as-role.sh: result=OK as=operator-login fallback=unconfigured" ]
+  grep -q '^gh issue comment 7 --repo acme/r --body x token=none$' "$NET_LOG"
+}
+
+@test "an orchestrator post whose key command prints nothing does not post" {
+  ship_role orchestrator
+  export DNBG_ORCHESTRATOR_APP_ID=9 DNBG_ORCHESTRATOR_PRIVATE_KEY_COMMAND=true
+  run "$AS" orchestrator acme/r -- gh issue comment 7 --repo acme/r --body x
+  [ "$status" -eq 125 ]
+  ! grep -q '^gh issue' "$NET_LOG"
 }
 
 @test "the notice reports two roles sharing one App" {

@@ -41,11 +41,46 @@ acceptance criterion only a main session can run is yours to run, per
 so where `AskUserQuestion` is absent, as in a headless session, every place
 below that asks the operator follows `issue-workflow`'s
 `references/delegated.md`: an answer given in your prompt settles the question
-it names, and a question nothing answered is posted on the issue and ends the
-run with it as your report. Your `proposed` row for the author's operator
+it names, and a question nothing answered is posted on the issue, as a comment
+under "Write as the orchestrator" below, and ends the run with it as your
+report. Your `proposed` row for the author's operator
 check before review carries no port, since the run's end takes the author's
 server with it: it names the branch, the worktree path, and the recipe, for
 the operator to run themselves.
+
+## Write as the orchestrator
+
+Every GitHub write you make, whether a comment, a body edit, a label or a claim,
+goes through the role resolver as `orchestrator`. It posts under the
+orchestrator's App, or under the operator's login when that App is not set up,
+so a watch can tell your posts from the operator's by login. A comment, from a
+body file made with `mktemp`:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
+  gh issue comment <n> --repo <owner>/<repo> --body-file <file>
+```
+
+A body edit, from a body file made with `mktemp` too:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
+  gh issue edit <n> --repo <owner>/<repo> --body-file <file>
+```
+
+The write scripts, `claim-issue.sh` and `log-row.sh`, take
+`--as=orchestrator` instead and end their `result=OK` line with `as=<login>`.
+
+The resolver's stderr line, `as-role.sh: result=OK as=<login>
+fallback=<none|unconfigured>`, says whom a call ran as. On `as-role.sh:
+result=ERROR`, or a script's `reason=role`, nothing was written: tell the
+operator the reason it gives. Never make the write again without the resolver,
+since that posts as the operator past an App that is set up. Reads stay under
+your own `gh` auth, with no resolver.
+
+The closeout PR's own writes, its pushes, `gh pr create` and `gh pr ready
+--undo`, are a PR author's, made as `git-workflow` makes them
+(`references/closeout.md`).
 
 ## On start, read everything from GitHub
 
@@ -61,8 +96,8 @@ one state a restart cannot recover.
 2. **The claim.** `claim-issue.sh <owner>/<repo> <n>`:
    - `UNCLAIMED` — check the issue's project per `issue-workflow`'s
      `references/project-pickup.md`, where a child of a project gets one
-     question first. Then claim it: `claim-issue.sh <owner>/<repo> <n> --claim`,
-     adding `--label=<label>` when a `dnbg-workflow` note at session start names
+     question first. Then claim it: `claim-issue.sh <owner>/<repo> <n>
+     --as=orchestrator --claim`, adding `--label=<label>` when a `dnbg-workflow` note at session start names
      a claim label, and `--stamp=<version>` when one names a version.
    - `OWN` — your own claim from earlier in this session. Proceed.
    - `FOREIGN` — someone else holds it: another session (often a predecessor
@@ -236,13 +271,14 @@ Triage it against the design (step 5) under the allowlist in
 `references/triage.md`, which also gives the log row's exact shape:
 
 - **Answerable** — the design's recorded rationale covers the case, and the
-  answer is on the allowlist. Post the `Decision log:` row on the issue, then
+  answer is on the allowlist. Post the `Decision log:` row on the issue with the
+  command `references/triage.md` gives, then
   continue the agent that asked with `SendMessage`, carrying the same answer and
   the row's URL.
-- **Not answerable** — post a `proposed` row, then ask the operator with
-  `AskUserQuestion`, giving the question, the options it names, and your
-  recommendation. Post the operator's answer as a `decided` row, then continue
-  the agent that asked the same way.
+- **Not answerable** — post a `proposed` row, the same way, then ask the
+  operator with `AskUserQuestion`, giving the question, the options it names,
+  and your recommendation. Post the operator's answer as a `decided` row, the
+  same way again, then continue the agent that asked.
 
 Every answer, every escalation outcome, and every application of a decision
 already in the log to a new case is a row. Applying a prior decision without a
@@ -292,7 +328,8 @@ post-merge cleanup, and the reviewer's end are both in. If the issue is still
 open then, say so in the report. In each sibling the author's final report
 names, mark shipped the items it lists, with the PR's URL, as `issue-workflow`'s
 "Maintaining issues" does, which comments them instead on a sibling someone
-else has claimed. Under a tracking issue, `references/multi-issue.md` says how.
+else has claimed. The edit or the comment is yours, so it runs under "Write as
+the orchestrator". Under a tracking issue, `references/multi-issue.md` says how.
 Collect both agents' retrospectives, write your own, and fold the project-level
 items into the parent, all per `references/retrospective.md`. Then report the cycle under three headings:
 

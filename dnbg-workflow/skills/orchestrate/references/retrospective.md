@@ -131,7 +131,7 @@ item naming its source. The parent may live in another repo, so take
 
 ```bash
 "<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --bullet="Friction log" \
-  --text='**<YYYY-MM-DD>.** <item> (<role> on <issue URL>)' [--text=…]
+  --text='**<YYYY-MM-DD>.** <item> (<role> on <issue URL>)' [--text=…] --as=orchestrator
 ```
 
 A re-run adds only the bullets still missing, so on `write-lost`, `write` or
@@ -140,5 +140,11 @@ where the parent has nowhere to put them, say so in the Stop report instead.
 
 **Otherwise**, post the same bullets, each `- ` followed by one `--text` value,
 as one comment on the parent whose first line is exactly
-`Friction log items from <issue URL>`, and say in the Stop report that they
-await folding by the parent's writer.
+`Friction log items from <issue URL>`, from a body file made with `mktemp`:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
+  gh issue comment <parent> --repo <owner>/<repo> --body-file <file>
+```
+
+Say in the Stop report that they await folding by the parent's writer.

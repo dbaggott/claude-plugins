@@ -8,7 +8,16 @@ checks the current state rather than assuming it is first to run. A row whose
 entry the parent's body and every child it reaches already carry (step 2,
 whose set serves every row of the pass) is not swept: set its state to
 `applied` and post one line on the parent, `Decision log: <date> <ID> set to
-applied, already in the body and every child`.
+applied, already in the body and every child`, as the orchestrator, from a
+file made with `mktemp`:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
+  gh issue comment <parent> --repo <owner>/<repo> --body-file <file>
+```
+
+Every body edit below, the parent's and a child's, is the body edit in
+`SKILL.md`'s "Write as the orchestrator".
 
 Act on the row at once. The decision is the gate, and the edits below are part
 of applying it, not a precondition for acting on it.
@@ -61,7 +70,9 @@ For an in-flight child, dispatch the re-review only once its author has
 reported the edit. A child whose latest verdict is newer than its step 3 edit has had its
 re-review. Answer the rounds as the bodies' writer, relaying them to the author
 for a child in flight, per `issue-workflow`'s
-`references/spec-review-rounds.md`, except its wait: each round reaches you as
+`references/spec-review-rounds.md`, making its body edits and posting its
+response comments as the orchestrator (`SKILL.md`, "Write as the
+orchestrator"), except its wait: each round reaches you as
 the `issue-reviewer`'s report, which ends on its own wait for your answer, so
 read that report as a round to answer rather than as a wait; and except its
 marking of the row `applied`, which is step 6 here. A finding that asks for a design change is
@@ -71,8 +82,9 @@ reads `READY`.
 When the re-review's reviewer ends, before step 6, take the retrospective path
 its final report gives. That file's issue is the parent, so the fold section's
 trigger in `references/retrospective.md` does not fire: apply that section's
-selection rule and its `log-row.sh` call yourself, as the parent's writer,
-naming `reviewer on <parent URL>` as the source.
+selection rule and its `log-row.sh` call yourself, `--as=orchestrator`
+included, as the parent's writer, naming `reviewer on <parent URL>` as the
+source.
 
 ## 5. Tell the agents working on it
 

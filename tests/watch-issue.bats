@@ -662,3 +662,21 @@ EOF
   local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
   [[ "$rearm" == "WINDOW=21600 WINDOW_LEFT=21570 \""* ]]
 }
+
+# The orchestrator arms no watch of its own, and its posts (decision-log rows,
+# answers) are addressed to the author and the reviewer, so its bot's comment
+# wakes both roles' watches in either spelling of its login.
+@test "an orchestrator bot comment wakes a reviewer watch and an author watch" {
+  local login role slug
+  for login in agent-orchestrator-t 'agent-orchestrator-t[bot]'; do
+    repo "$(issue 163 "$(comment "$login" 2026-01-02T00:00:00Z)")"
+    for role in reviewer:agent-reviewer-t author:agent-author-t; do
+      slug="${role#*:}"; role="${role%%:*}"
+      echo 0 > "$CLOCK"
+      INTERVAL=1 SETTLE=1 WINDOW=10 \
+        run "$WATCH" o/r 163 --role="$role" --since=2026-01-01T00:00:00Z --slug="$slug"
+      [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=comment"* ]] \
+        || { echo "$login did not wake the $role watch: ${lines[-1]}"; return 1; }
+    done
+  done
+}
