@@ -74,9 +74,9 @@ you trust it is a reasonable thing to want.
 **The skills are different, and the difference is consent.** A skill is text
 that Claude loads on demand; the commands it describes — `gh`, `git`, `curl`,
 `openssl`, `python3` — run when you ask for that workflow, under your own
-credentials, in the session you are watching. The `reviewer` skill is the one
-exception worth reading closely, because it is the only component that holds a
-long-lived secret; it has its own section below.
+credentials, in the session you are watching. The agent roles' GitHub Apps are
+the one exception worth reading closely, because each holds a long-lived
+secret; they have their own section below.
 
 The watcher scripts (`watch-pr.sh`, `watch-issue.sh`) write a trace log per run
 to `${TMPDIR:-/tmp}/dnbg-watch/`, swept after three days. It records the
@@ -87,11 +87,11 @@ tokens, no diff content. `WATCH_LOG=off` disables it.
 
 No telemetry. No analytics. Nothing sends your code, prompts, or session
 contents anywhere. No server component, no hosted service, no shared secret,
-no webhook — the reviewer App is created without one deliberately
+no webhook — every role's App is created without one deliberately
 (`build_manifest` sets no `hook_attributes`), so GitHub never calls out to
 anything. No credential
-is read from a repository you clone: the reviewer's key sources are your user
-config and environment only, never the working directory.
+is read from a repository you clone: a role's key sources are your user config
+and environment only, never the working directory.
 
 ### The enforcement hooks are not a security boundary
 
@@ -113,38 +113,60 @@ They are workflow guardrails against accidental edits. Please do report a way
 to make one misfire *against a repo it should not touch* — that is a real bug —
 but a way to deliberately work around your own gate is working as designed.
 
-## The reviewer bot's private key
+## Role Apps' private keys
 
-`reviewer-setup` creates a GitHub App under your account and saves its private
-key on your machine. That key is the bot's entire credential: anyone holding it
-can mint installation tokens for every account the App is installed on, without
-your GitHub session and without touching your account.
+Each agent role that acts on GitHub under its own identity has a GitHub App,
+created under your account by `reviewer-setup`, with its private key saved on
+your machine. A role's key is that bot's entire credential: anyone holding it can
+mint installation tokens for every account the App is installed on, without
+your GitHub session and without touching your account. The roles are the
+directories under `dnbg-workflow/roles/`; each one's `permissions.json` is the
+exact set its App is created with and every mint is checked against.
 
-**What it can do.** The App is created with the set in
-`dnbg-workflow/skills/reviewer-setup/permissions.json`: `pull_requests: write`
-— submit reviews, inline comments, thread replies — `contents: write`, and
-`checks`, `actions`, `statuses` and `metadata` at **read**.
+**How a role acts.** Every write a role makes runs through
+`dnbg-workflow/scripts/as-role.sh <role> <repo> -- <command>`, which mints a
+short-lived installation token for the App's installation on that repo's owner
+and execs the command with it in `GH_TOKEN`. The token exists only in that
+process's environment: it is not written to disk, to git config or to a remote
+URL, and is not printed. A role with no App acts as your own account only if its
+`permissions.json` sets `"fallback": "operator"`, and a notice at session start
+names every role doing so. A role whose App is configured but whose credential
+fails is an error, never a silent switch to your account.
+
+These Apps are not a boundary between roles. Every role's key sits under the
+same OS user, so any agent session can mint any role's token; what separate Apps
+buy is honest attribution and a narrower permission set per call.
+
+### The reviewer
+
+`dnbg-workflow/roles/reviewer/permissions.json`: `pull_requests: write` —
+submit reviews, inline comments, thread replies — `issues: write`, to post an
+issue-body review's verdicts, `contents: write`, and `checks`, `actions`,
+`statuses` and `metadata` at **read**. The reviewer never falls back: posting as
+you would deadlock the author's watch, which ignores exactly your login.
 
 ⚠️ **`contents: write` means a leaked key can write source.** GitHub gates
 creating commits and refs on it, and merging a pull request too, so the blast
 radius is not read-only: on every repo where the App is installed, a leaked key
-reads private source, pushes commits, can merge, and writes reviews and comments
-as the bot. It is granted because GitHub also gates two things the reviewer
-cannot work without on it — resolving a review thread, and having its verdict
-counted at all — and offers no narrower permission for either.
+reads private source, pushes commits, can merge, writes reviews and comments,
+and edits issues as the bot. It is granted because GitHub also gates two things
+the reviewer cannot work without on it — resolving a review thread, and having
+its verdict counted at all — and offers no narrower permission for either.
 
 The scoping lever is therefore the installation's repository list, not the
-permission set. `issues` is not requested, so a bot created by this bootstrap
-cannot alter issues; an App you have granted more to for other purposes can do
+permission set. An App you have granted more to for other purposes can do
 whatever you granted.
 
-**Where it lives.** Three sources, first hit wins: the
+### Where a key lives
+
+Three sources per role, first hit wins, shown for the reviewer (each role has
+its own `DNBG_<ROLE>_*` set and `~/.config/dnbg/<role>/` directory): the
 `DNBG_REVIEWER_PRIVATE_KEY` environment variable, a command you configure via
 `DNBG_REVIEWER_PRIVATE_KEY_COMMAND` or `private_key_command` in `config.json`
 (any secret manager), or a plaintext PEM at
 `~/.config/dnbg/reviewer/private-key.pem`, mode `0600` in a `0700` directory —
 the default `bootstrap.py` writes.
-[`docs/configuration.md`](docs/configuration.md#the-reviewer-bots-private-key)
+[`docs/configuration.md`](docs/configuration.md#role-apps-private-keys)
 covers configuring these and why the plaintext default is a considered choice
 rather than an oversight.
 
@@ -159,17 +181,17 @@ unencrypted, or sat on a machine you no longer control. Deleting a file or
 force-pushing over a commit does **not** revoke anything — the key stays valid
 until GitHub is told otherwise.
 
-Do these in order, in your App's settings on GitHub
-(`https://github.com/settings/apps/<slug>`; your slug is in
-`~/.config/dnbg/reviewer/config.json`):
+Do these in order, for the exposed role's App, in its settings on GitHub
+(`https://github.com/settings/apps/<slug>`; the slug is in
+`~/.config/dnbg/<role>/config.json`):
 
 1. **Generate a replacement key, then delete the exposed one.** That order is
    forced: an App must always have at least one key, so the old one cannot be
    deleted until a new one exists. Deleting it invalidates it immediately.
    Only key *deletion* revokes — rotating the file on your disk does nothing.
 2. **Install the replacement.** Put the downloaded PEM wherever your setup
-   resolves the key from (by default `~/.config/dnbg/reviewer/private-key.pem`,
-   mode `0600`), then confirm with `mint-token.sh <owner>`.
+   resolves the key from (by default `~/.config/dnbg/<role>/private-key.pem`,
+   mode `0600`), then confirm with `as-role.sh <role> <owner>/<repo> -- true`.
 3. **Consider the tokens already minted.** An installation token
    [expires after 1 hour](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app),
    so anything minted before you rotated is good for up to that long. GitHub
@@ -179,7 +201,8 @@ Do these in order, in your App's settings on GitHub
    are scoped to, and reinstall afterwards.
 
 If you would rather retire the App than rotate it, deleting it revokes
-everything in one step; re-run `bootstrap.py` to create a fresh one. Note that
+everything in one step; re-run `bootstrap.py --roles <role>` to create a fresh
+one. Note that
 `bootstrap.py` cannot repair an existing App — GitHub returns an App's key
 exactly once, at creation (`convert_manifest` is the one-shot exchange that
 receives it), so re-running it always

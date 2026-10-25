@@ -8,7 +8,8 @@ nothing you didn't write.
 - [`owners`](#owners--which-repos-it-enforces-on) — **the only setting that turns the hooks on**
 - [`worktree_path`, `claim_label`, `retrospective_dir` and `followup_dir`](#the-mechanical-opinions) — names and paths you can change
 - [`version_stamp`](#version_stamp--recording-which-prompts-published-what) — off by default; adds a hidden version marker to what you publish
-- [The reviewer bot's private key](#the-reviewer-bots-private-key) — where it is read from
+- [Agent roles](#agent-roles--whose-login-each-agent-posts-under) — each role's App, the resolver, and the fallback to your own account
+- [Role Apps' private keys](#role-apps-private-keys) — where each is read from
 
 ## Install scope
 
@@ -180,12 +181,69 @@ repository must not be able to change what your machine enforces, and this is
 the one direction where the repo genuinely is the right authority — it is the
 project, not the machine, that has the risk profile.
 
-## The reviewer bot's private key
+## Agent roles — whose login each agent posts under
+
+The agents act on GitHub in roles, and a role with a GitHub App of its own posts
+under that App's bot login rather than yours. Each role is a directory under
+`dnbg-workflow/roles/<role>/` holding its `permissions.json`: the permissions its
+App is created with and every minted token is checked against, and its
+`fallback`. The `reviewer-setup` skill creates the Apps, for any subset of
+roles, in one run.
+
+| Per role | Default | Override |
+| --- | --- | --- |
+| Config directory | `~/.config/dnbg/<role>/` | `DNBG_<ROLE>_CONFIG_DIR` |
+| App id, installation, key | `config.json`, `private-key.pem` there | `DNBG_<ROLE>_APP_ID`, `_INSTALLATION_ID`, `_PRIVATE_KEY`, `_PRIVATE_KEY_COMMAND` |
+| Login (App slug) | `slug` in `config.json` | `DNBG_<ROLE>_SLUG` |
+
+`<ROLE>` is the role's name upper-cased, with hyphens as underscores
+(`DNBG_REVIEWER_*`). The reviewer's existing directory and variables are this
+layout, so a setup made before roles existed keeps working.
+
+### The resolver
+
+`dnbg-workflow/scripts/as-role.sh` is the one place that knows how a role
+reaches the forge; skills and scripts ask it. `<repo>` is `owner/name` (short
+for `github.com/owner/name`), `host/namespace/name`, or a remote URL — never a
+bare owner. Only github.com is implemented.
+
+| Call | Answer |
+| --- | --- |
+| `as-role.sh <role> <repo> -- <cmd…>` | Runs `<cmd…>` with the role's token in `GH_TOKEN`, after one stderr line `as-role.sh: result=OK as=<login> fallback=<none\|unconfigured>`. If the resolver fails, the command does not run: exit 125, with `as-role.sh: result=ERROR reason=<reason>` on stderr. |
+| `as-role.sh --login <role> <repo>` | `result=OK login=<login> fallback=<none\|unconfigured>` — the App slug (GitHub's REST spelling adds `[bot]`), or your login when the role falls back. |
+| `as-role.sh --operator <repo>` | `result=OK login=<your login> fallback=none`, read under your own `gh` auth with no role token in place. |
+| `as-role.sh --fallbacks` | `result=OK roles=<role,…\|none>`: the roles that would act as you, read from configuration presence only, with no network call. The session-start notice uses it. |
+
+The last three print exactly one line on stdout and exit 0; when they cannot
+answer, that line is `result=ERROR reason=<reason>`, with what to do on stderr.
+A configured role whose login is unknown (an env-only setup without
+`DNBG_<ROLE>_SLUG`) answers `--login` with `reason=no-login`, never with your
+login. Since a wrapped command can exit 125 itself, the credential form's stderr
+`result=ERROR` line, not the exit status, is what says the resolver refused.
+
+The token is minted for the App's installation on the repo's owner, lives only
+in the command's environment, and is never written to disk, git config or a
+remote URL, or printed.
+
+### Falling back to your account
+
+A role with no configuration (no `config.json`, and none of
+`DNBG_<ROLE>_APP_ID`, `_PRIVATE_KEY` or `_PRIVATE_KEY_COMMAND`) acts as your own
+account only when its `permissions.json` says
+`"fallback": "operator"`; the reviewer says `"refuse"`, which is also what an
+absent key means. A session-start notice names each role falling back, from
+configuration presence alone, with no network call. A role that *is* configured
+but whose credential fails — a failed mint, a revoked grant, a key command that
+prints nothing — is an error and never falls back, and so is any setup where two
+roles resolve to the same App.
+
+## Role Apps' private keys
 
 That key is the bot's entire credential, so it's worth being explicit about how
 it's handled rather than leaving you to read the scripts. [`SECURITY.md`](../SECURITY.md)
 covers what a leaked key can do and how to revoke one; this section covers where
-the key is read from.
+the key is read from. It is shown for the reviewer; every role reads the same
+three sources from its own `DNBG_<ROLE>_*` variables and directory.
 
 **By default it is a plaintext PEM at `~/.config/dnbg/reviewer/private-key.pem`,
 mode `0600`, in a `0700` directory.** That is a deliberate choice, not an
@@ -215,7 +273,7 @@ the owner argument. Both fall back to `config.json` when one exists.
 
 Two things to weigh before switching off the default:
 
-- **The command runs on every mint**, and the reviewer mints per review action.
+- **The command runs on every mint**, and a role mints per write.
   If yours prompts — a Touch ID or vault unlock on `op read` — you will see that
   prompt repeatedly during a busy PR. Nothing here caches the key.
 - **Route 1 puts the PEM in your environment**, where any process you own can
@@ -228,7 +286,7 @@ Three properties worth knowing:
 - **The command is read only from your user config or environment — never from a
   repository.** Nothing reads config from the working directory. This is the
   property the feature's safety rests on: the command is harmless because anyone
-  who can write `~/.config/dnbg/reviewer` can already edit your shell profile,
+  who can write `~/.config/dnbg/<role>` can already edit your shell profile,
   and that stops being true the moment a repo you cloned can supply the value.
 - **A key from routes 1 or 2 is never written to disk.** It reaches `openssl`
   through a pipe, so there is no temp file to leak on a crash or a `SIGKILL` —

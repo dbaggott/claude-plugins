@@ -1,8 +1,8 @@
 # Reviewer: issue mode, the discovery loop and the wait
 
 Part of the `reviewer` skill. Read this straight after `references/issue-mode.md`'s
-first discovery pass, on every issue-scoped assignment. The `env -u GH_TOKEN`
-rule that file opens with covers every `gh issue` command here too.
+first discovery pass, on every issue-scoped assignment. The reads-as-you,
+writes-as-the-bot rule that file opens with covers this file too.
 ⚠️ **Discovery is continuous, not one-shot — the set is never frozen.** `issue-mode.md`'s
 whole-set rule guards the *spatial* miss (reviewing one PR of a pair). The
 *temporal* miss is the likelier one and needs its own guard: siblings are paired
@@ -56,12 +56,13 @@ the `now=` of `issue-mode.md`'s `fetch-issue-set.sh` snapshot, which that file
 takes after posting the "acting as reviewer" comment, so the wait counts only
 what follows that comment: don't stamp `since` before posting it. On a later
 pass it is the `since` the returning PR watch was armed with, since its
-`CLOSED` carries no `now=`.
+`CLOSED` carries no `now=`. `<slug>` is the bot's login, the `login=` of
+`SKILL.md`'s login answer (`as-role.sh --login reviewer <owner>/<repo>`).
 
 ```bash
 "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
   --role=reviewer --since=<as above> \
-  --slug="$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")" \
+  --slug=<slug> \
   [--exclude=<url,url,...>]
 ```
 

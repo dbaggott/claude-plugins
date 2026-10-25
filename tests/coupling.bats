@@ -1303,6 +1303,10 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
 # refuses with `unsupported-forge` — or is listed here as GitHub-shaped throughout, so a
 # new forge call is one or the other by decision rather than by omission.
 GITHUB_ONLY_SCRIPTS="fetch-tree.sh pr-round.sh pr-sources.sh pr-threads.sh pr-verdict.sh watch-issue.sh watch-pr.sh"
+# The role resolver is the seam itself: it reads the forge from the repo it is
+# given rather than assuming one, so it needs only the refusal for a forge with
+# no backend.
+FORGE_DISPATCH_SCRIPTS="as-role.sh"
 
 calls_forge() {  # <script>
   grep -v '^[[:space:]]*#' "$1" | grep -qE '(^|[^[:alnum:]_./-])gh[[:space:]]+[a-z]'
@@ -1321,6 +1325,11 @@ forge_seam_problems() {  # <scripts-dir> <github-only list>
   for f in "$1"/*.sh; do
     name=$(basename "$f")
     case " $2 " in *" $name "*) listed=1 ;; *) listed=0 ;; esac
+    case " $FORGE_DISPATCH_SCRIPTS " in *" $name "*)
+      grep -qE '\bfail unsupported-forge\b' "$f" \
+        || echo "$name picks a forge but never refuses one with unsupported-forge"
+      continue ;;
+    esac
     if [ "$listed" = 1 ]; then
       calls_forge "$f" || echo "$name is listed GitHub-only but calls no forge"
       ! has_forge_seam "$f" || echo "$name carries the forge seam — take it off the GitHub-only list"

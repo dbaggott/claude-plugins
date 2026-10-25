@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for where the reviewer bot's private key comes from, and for the two
+# Tests for where a role App's private key comes from (shown for the reviewer), and for the two
 # properties that make the key-command hook safe to have at all:
 #
 #   - a repository cannot influence which command runs;
@@ -10,7 +10,7 @@
 # actually signed — because the whole point of the resolution order is that each
 # source produces a key openssl accepts. Only the network is stubbed.
 
-MINT="${BATS_TEST_DIRNAME}/../dnbg-workflow/skills/reviewer/mint-token.sh"
+MINT="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/mint-token.sh"
 
 setup() {
   # Cleared here rather than with `env -u` at the call site, for two reasons: a
@@ -25,7 +25,7 @@ setup() {
   # A test wanting a shortfall exports STUB_PERMS.
   export FULL_PERMS
   FULL_PERMS=$(jq -c '.required' \
-    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/roles/reviewer/permissions.json")
   unset STUB_PERMS
 
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
@@ -60,7 +60,7 @@ EOF
 # whatever DNBG_REVIEWER_* the test has exported.
 mint() {
   run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" DNBG_REVIEWER_CONFIG_DIR="$CONFDIR" \
-    bash "$MINT" acme
+    bash "$MINT" reviewer acme
 }
 
 write_config() { printf '%s\n' "$1" > "$CONFDIR/config.json"; chmod 600 "$CONFDIR/config.json"; }
@@ -210,7 +210,7 @@ EOF
   # strand anything. A slow key command holds the run open to be interrupted.
   write_config '{"app_id":"42","private_key_command":"sleep 5; cat '"$KEYFILE"'"}'
   env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" DNBG_REVIEWER_CONFIG_DIR="$CONFDIR" \
-    bash "$MINT" acme >/dev/null 2>&1 &
+    bash "$MINT" reviewer acme >/dev/null 2>&1 &
   local pid=$! i=0
   while [ "$i" -lt 20 ] && ! pgrep -P "$pid" >/dev/null 2>&1; do sleep 0.1; i=$((i + 1)); done
   kill -INT "$pid" 2>/dev/null
@@ -265,7 +265,7 @@ EOF
   ( umask 000; ln -s "$real" "$BATS_TEST_TMPDIR/linkconf" )
 
   run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" \
-    DNBG_REVIEWER_CONFIG_DIR="$BATS_TEST_TMPDIR/linkconf" bash "$MINT" acme
+    DNBG_REVIEWER_CONFIG_DIR="$BATS_TEST_TMPDIR/linkconf" bash "$MINT" reviewer acme
   [ "$status" -eq 0 ]
   [ "$output" = "ghs_stubbed_token" ]
 }
@@ -281,7 +281,7 @@ EOF
   ln -s "$real" "$BATS_TEST_TMPDIR/openlink"
 
   run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" \
-    DNBG_REVIEWER_CONFIG_DIR="$BATS_TEST_TMPDIR/openlink" bash "$MINT" acme
+    DNBG_REVIEWER_CONFIG_DIR="$BATS_TEST_TMPDIR/openlink" bash "$MINT" reviewer acme
   [ "$status" -ne 0 ]
   [[ "$output" == *"group- or world-writable"* ]]
 }
@@ -341,7 +341,7 @@ EOF
 @test "extra permissions are not a shortfall" {
   export STUB_PERMS
   STUB_PERMS=$(jq -c '.required + {issues: "write", packages: "read"}' \
-    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/roles/reviewer/permissions.json")
   export DNBG_REVIEWER_APP_ID=42
   export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
   mint
@@ -351,7 +351,7 @@ EOF
 @test "a permission granted too weakly is reported, with its consequence" {
   export STUB_PERMS
   STUB_PERMS=$(jq -c '.required + {contents: "read"}' \
-    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/roles/reviewer/permissions.json")
   export DNBG_REVIEWER_APP_ID=42
   export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
   mint
@@ -364,7 +364,7 @@ EOF
 @test "a permission not granted at all is reported, not a crash" {
   export STUB_PERMS
   STUB_PERMS=$(jq -c '.required | del(.checks)' \
-    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/roles/reviewer/permissions.json")
   export DNBG_REVIEWER_APP_ID=42
   export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
   mint
@@ -378,11 +378,11 @@ EOF
 @test "a shortfall warns without corrupting the token" {
   export STUB_PERMS
   STUB_PERMS=$(jq -c '{metadata: "read"}' \
-    "$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json")
+    "$BATS_TEST_DIRNAME/../dnbg-workflow/roles/reviewer/permissions.json")
   export DNBG_REVIEWER_APP_ID=42
   export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
   run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" DNBG_REVIEWER_CONFIG_DIR="$CONFDIR" \
-    bash -c 'bash "$1" acme 2>/dev/null' _ "$MINT"
+    bash -c 'bash "$1" reviewer acme 2>/dev/null' _ "$MINT"
   [ "$status" -eq 0 ]
   [ "$output" = "ghs_stubbed_token" ]
 }
@@ -394,7 +394,33 @@ EOF
 import sys, json
 sys.path.insert(0, '$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup')
 import bootstrap
-spec = json.load(open('$BATS_TEST_DIRNAME/../dnbg-workflow/skills/reviewer-setup/permissions.json'))
-print('same' if bootstrap._permissions() == spec['required'] else 'DIFFERENT')"
+spec = json.load(open('$BATS_TEST_DIRNAME/../dnbg-workflow/roles/reviewer/permissions.json'))
+print('same' if bootstrap.role_permissions('reviewer') == spec['required'] else 'DIFFERENT')"
   [ "$output" = same ]
+}
+
+# Every role reads its own DNBG_<ROLE>_* set and config dir, so one role's
+# setup never answers for another.
+@test "a role reads its own variables, not the reviewer's" {
+  export DNBG_REVIEWER_APP_ID=42
+  export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
+  local tree="$BATS_TEST_TMPDIR/tree"
+  mkdir -p "$tree/scripts" "$tree/roles/review-bot"
+  cp "$MINT" "$BATS_TEST_DIRNAME/../dnbg-workflow/scripts/lib-role.sh" "$tree/scripts/"
+  cp "$BATS_TEST_DIRNAME/../dnbg-workflow/roles/reviewer/permissions.json" "$tree/roles/review-bot/"
+  run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/xdg" \
+    bash "$tree/scripts/mint-token.sh" review-bot acme
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"DNBG_REVIEW_BOT_APP_ID"* ]]
+  run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/xdg" \
+    DNBG_REVIEW_BOT_APP_ID=42 DNBG_REVIEW_BOT_PRIVATE_KEY="$DNBG_REVIEWER_PRIVATE_KEY" \
+    bash "$tree/scripts/mint-token.sh" review-bot acme
+  [ "$status" -eq 0 ]
+  [ "$output" = "ghs_stubbed_token" ]
+}
+
+@test "a name that is not a role is refused before anything is read" {
+  run env PATH="$STUB:$PATH" bash "$MINT" ../reviewer acme
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"is not a role"* ]]
 }

@@ -7,6 +7,11 @@
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/inject-rules.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/role-fallback-notice.sh",
+            "timeout": 10
           }
         ]
       }

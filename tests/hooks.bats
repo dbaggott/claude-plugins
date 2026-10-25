@@ -356,10 +356,8 @@ MSG')"
 }
 
 @test "an env-prefixed invocation is still gated" {
-  # The form reviewer/references/issue-mode.md mandates for every `gh` call once a bot token is
-  # exported. Anchoring the match straight to `gh` un-gates it — a hole worse than
-  # the over-blocking the anchor was added to fix, because it fails OPEN on the
-  # commonest real invocation in this repo.
+  # Anchoring the match straight to `gh` un-gates it — a hole worse than the
+  # over-blocking the anchor was added to fix, because it fails OPEN.
   run_issue_hook "$(bash_payload 'env -u GH_TOKEN gh issue create --title x')"
   [ "$status" -eq 2 ]
 }
@@ -372,6 +370,28 @@ MSG')"
 @test "a prefixed invocation after a separator is still gated" {
   run_issue_hook "$(bash_payload 'git add -A && env -u GH_TOKEN gh issue create --title x')"
   [ "$status" -eq 2 ]
+}
+
+# Every role's write runs behind the resolver, so `as-role.sh <role> <repo> --`
+# is a prefix like `env -u GH_TOKEN`, whether its path is quoted or not.
+@test "an as-role-prefixed invocation is still gated" {
+  run_issue_hook "$(bash_payload 'dnbg-workflow/scripts/as-role.sh author o/r -- gh issue create --title x')"
+  [ "$status" -eq 2 ]
+}
+
+@test "an as-role prefix with a quoted path and repo is still gated" {
+  run_issue_hook "$(bash_payload '"/p/scripts/as-role.sh" author "o/r" -- gh issue create --title x')"
+  [ "$status" -eq 2 ]
+}
+
+@test "an as-role-prefixed invocation after a separator is still gated" {
+  run_issue_hook "$(bash_payload 'cd /tmp && "/p/as-role.sh" author o/r -- gh issue create --title x')"
+  [ "$status" -eq 2 ]
+}
+
+@test "an as-role-prefixed gh issue edit is not gated" {
+  run_issue_hook "$(bash_payload '"/p/as-role.sh" author o/r -- gh issue edit 5 --add-label x')"
+  [ "$status" -eq 0 ]
 }
 
 @test "ignores gh issue edit" {

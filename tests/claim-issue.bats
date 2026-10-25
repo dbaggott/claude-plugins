@@ -181,3 +181,81 @@ EOF
   run "$CLAIM" o/r 7
   [ "$output" = "result=FOREIGN claim=none at=none assignees=alice labels=none" ]
 }
+
+# --- --as=<role> -------------------------------------------------------------
+#
+# A copy of the scripts beside fixture roles (role-tree.bash), so a role that
+# falls back and one that has an App can both be exercised. Each gh call is
+# logged with the token it ran under.
+
+bats_require_minimum_version 1.5.0
+load role-tree
+
+as_tree() {
+  make_role_tree
+  stub_forge
+  add_role author operator
+  CLAIM="$TREE/scripts/claim-issue.sh"
+}
+
+@test "--as with a fallback role assigns the operator and posts as the operator" {
+  as_tree
+  run "$CLAIM" acme/r 7 --claim --as=author
+  [ "$output" = "result=OK claim=c7f40c25 url=https://github.com/acme/r/issues/7#issuecomment-1 as=operator-login fallback=unconfigured" ]
+  grep -q '^gh issue edit 7 --repo acme/r --add-assignee operator-login --add-label assigned:agent-session token=none$' "$NET_LOG"
+  grep -q '^gh issue comment 7 .* token=none$' "$NET_LOG"
+  ! grep -q -- '@me' "$NET_LOG"
+}
+
+@test "--as with a configured role writes under its App, still assigning the operator" {
+  as_tree
+  configure_role author 7 agent-author-t
+  run "$CLAIM" acme/r 7 --claim --as=author
+  [ "$output" = "result=OK claim=c7f40c25 url=https://github.com/acme/r/issues/7#issuecomment-1 as=agent-author-t" ]
+  grep -q "^gh label create assigned:agent-session .* token=$STUB_TOKEN\$" "$NET_LOG"
+  grep -q "^gh issue edit 7 --repo acme/r --add-assignee operator-login --add-label assigned:agent-session token=$STUB_TOKEN\$" "$NET_LOG"
+  grep -q "^gh issue comment 7 .* token=$STUB_TOKEN\$" "$NET_LOG"
+}
+
+@test "--as with a role the resolver refuses writes nothing" {
+  as_tree
+  run "$CLAIM" acme/r 7 --claim --as=reviewer
+  [[ "$output" == *"result=ERROR reason=role now="* ]]
+  ! grep -q '^gh label\|^gh issue' "$NET_LOG"
+}
+
+@test "--as in check mode adds the operator's login to OWN and FOREIGN" {
+  as_tree
+  export GQL="$BATS_TEST_TMPDIR/gql.json"
+  issue '["operator-login"]' '["assigned:agent-session"]' \
+    "[$(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z)]"
+  run "$CLAIM" acme/r 7 --as=author
+  [ "$output" = "result=OWN claim=c7f40c25 at=2026-01-02T00:00:00Z assignees=operator-login labels=assigned:agent-session operator=operator-login" ]
+  issue '["someone"]' '[]'
+  run "$CLAIM" acme/r 7 --as=author
+  [ "$output" = "result=FOREIGN claim=none at=none assignees=someone labels=none operator=operator-login" ]
+  issue '[]' '[]'
+  run "$CLAIM" acme/r 7 --as=author
+  [ "$output" = "result=UNCLAIMED claim=none at=none" ]
+}
+
+@test "--as with no role name is a bad argument" {
+  run "$CLAIM" o/r 7 --as=
+  [[ "$output" == "result=ERROR reason=bad-args"* ]]
+}
+
+@test "--as mints once for all three marks" {
+  as_tree
+  configure_role author 7 agent-author-t
+  run "$CLAIM" acme/r 7 --claim --as=author
+  [[ "$output" == "result=OK "* ]]
+  [ "$(grep -c '/access_tokens$' "$NET_LOG")" -eq 1 ]
+}
+
+@test "--as with a credential that fails at write time is a role error, and writes nothing" {
+  as_tree
+  configure_role author 7 agent-author-t
+  run --separate-stderr "$CLAIM" elsewhere/r 7 --claim --as=author
+  [[ "$output" == "result=ERROR reason=role now="* ]]
+  ! grep -q '^gh label\|^gh issue' "$NET_LOG"
+}

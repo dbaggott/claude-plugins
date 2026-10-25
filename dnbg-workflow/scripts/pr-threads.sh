@@ -37,8 +37,8 @@
 # selects no thread at all, which reads as "nothing outstanding" — the same
 # silent-blindness shape the watcher's slug guard exists to prevent. Bail instead.
 #
-# `--resolve` runs under whatever `GH_TOKEN` the caller exports, which for the
-# reviewer is its own App token. That needs `contents: write`; without it
+# `--resolve` runs under whatever credential the caller puts in place, which for
+# the reviewer is `as-role.sh reviewer <repo> -- pr-threads.sh …`. That needs `contents: write`; without it
 # `resolveReviewThread` answers `FORBIDDEN: Resource not accessible by
 # integration`.
 #
@@ -89,9 +89,10 @@ fi
 
 ME=""
 if [ "$MINE" = 1 ]; then
-  CONFIG="${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json"
-  ME=$(jq -r '.slug // empty' "$CONFIG" 2>/dev/null || true)
-  if [ -z "$ME" ] || [ "$ME" = null ]; then
+  # shellcheck source=./lib-role.sh
+  . "$(dirname "$0")/lib-role.sh"
+  ME=$(role_bot_login reviewer "$REPO") || ME=""
+  if [ -z "$ME" ]; then
     echo "result=ERROR reason=no-slug"
     exit 0
   fi

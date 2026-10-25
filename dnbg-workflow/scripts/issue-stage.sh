@@ -42,8 +42,8 @@
 # children=<n> open=<n>, verdict=READY|CHANGES-REQUESTED|none|unknown-verdict,
 # acceptance_row=yes|no, prs=<url,...|none>, parent=<url> parent_stage=<stage>.
 #
-# The verdicts are the reviewer bot's, so `--slug` names it; absent, it is read
-# from the reviewer config as orchestrate's multi-issue.md does. With neither, a
+# The verdicts are the reviewer bot's, so `--slug` names it; absent, it is the
+# resolver's login answer for the reviewer (`as-role.sh --login`). With neither, a
 # stage that turns on a verdict prints `stage=unknown next=unknown` with
 # `verdict=unknown-verdict`, rather than reading an unreadable verdict as none.
 #
@@ -79,8 +79,9 @@ FORGE="${FORGE:-github}"
 [ "$FORGE" = github ] || fail unsupported-forge
 
 if [ "$SLUG_GIVEN" = 0 ]; then
-  CONF="${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json"
-  SLUG=$(jq -r '.slug // empty' "$CONF" 2>/dev/null) || SLUG=""
+  # shellcheck source=./lib-role.sh
+  . "$(dirname "$0")/lib-role.sh"
+  SLUG=$(role_bot_login reviewer "$REPO") || SLUG=""
 fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
