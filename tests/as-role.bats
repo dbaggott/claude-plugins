@@ -206,6 +206,14 @@ setup() {
   [ ! -s "$NET_LOG" ]
 }
 
+@test "--fallbacks counts a role set up by its variables alone as configured" {
+  export DNBG_AUTHOR_APP_ID=7
+  run "$AS" --fallbacks
+  [ "$output" = "result=OK roles=orchestrator" ]
+  run "$TREE/hooks/role-fallback-notice.sh"
+  [[ "$output" == *"login (the fallback tier): orchestrator."* ]]
+}
+
 @test "the notice names each falling-back role, with no network call" {
   run "$TREE/hooks/role-fallback-notice.sh"
   [ "$status" -eq 0 ]

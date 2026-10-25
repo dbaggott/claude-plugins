@@ -22,7 +22,8 @@
 # When the resolver itself fails, the command does not run, and it exits 125
 # after writing to stderr:
 #   as-role.sh: result=ERROR reason=<reason>
-# followed by what to do about it.
+# followed by what to do about it. The command may exit 125 itself, so that
+# stderr line, not the exit status, is what says the resolver refused.
 #
 # ## Login, operator, fallbacks
 #
@@ -33,10 +34,12 @@
 #
 # On GitHub a role's login is its App slug; GitHub spells the bot's user
 # `<slug>[bot]` in REST and `<slug>` in GraphQL, and consumers add the suffix
-# where they need it. `--operator` reads the operator's login under the
+# where they need it. A configured role with no known login is `no-login`,
+# never the operator's. `--operator` reads the operator's login under the
 # operator's own forge auth, with no role credential in place. `--fallbacks`
-# reads configuration presence only and makes no network call, for the
-# SessionStart notice.
+# reads configuration presence only, through the same test the other calls
+# use, and makes no network call, for the SessionStart notice. It takes no
+# repo, and answers for GitHub, the only backend.
 #
 # ## Fallback
 #

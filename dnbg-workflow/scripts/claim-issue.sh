@@ -30,7 +30,7 @@
 #   result=OK claim=<id|none> url=<comment-url>
 #   result=ERROR reason=bad-args|unsupported-forge|claim-write|role now=<iso>
 #
-# `--as=<role>` makes the writes under that role, through `as-role.sh`: the
+# `--as=<role>` makes the writes under that role, through one `as-role.sh` call: the
 # label and the comment post as the role's App (or as the operator, when the
 # role falls back), and the assignee is the operator's login from the resolver,
 # since an App cannot be assigned and `@me` would name whichever credential is
@@ -106,7 +106,7 @@ if [ "$CLAIM" = 1 ]; then
   RC=0
   OUT=$(${RUN[@]+"${RUN[@]}"} bash -c "$(declare -f write_marks); write_marks \"\$@\"" _ \
         "$REPO" "$N" "$LABEL" "$ASSIGNEE" "$BODY" 2>&1) || RC=$?
-  URL=""; TAIL=""
+  URL=""; TAIL=""; REFUSED=0
   while IFS= read -r line; do
     case "$line" in
       url=*) URL="${line#url=}" ;;
@@ -114,11 +114,12 @@ if [ "$CLAIM" = 1 ]; then
         ANSWER=" ${line#as-role.sh: result=OK} "
         TAIL=" as=$(field as)"
         [ "$(field fallback)" = none ] || TAIL="$TAIL fallback=unconfigured" ;;
-      ''|"as-role.sh: result=ERROR "*) ;;
+      "as-role.sh: result=ERROR "*) REFUSED=1 ;;
+      '') ;;
       *) printf '%s\n' "$line" >&2 ;;
     esac
   done <<<"$OUT"
-  [ -z "$AS" ] || [ "$RC" -ne 125 ] || fail role
+  [ "$REFUSED" = 0 ] || fail role
   [ "$RC" -eq 0 ] || fail claim-write
   case "$URL" in https://*) ;; *) fail claim-write ;; esac
   echo "result=OK claim=${SID:-none} url=$URL$TAIL"

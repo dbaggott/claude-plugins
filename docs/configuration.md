@@ -212,6 +212,14 @@ bare owner. Only github.com is implemented.
 | `as-role.sh <role> <repo> -- <cmd…>` | Runs `<cmd…>` with the role's token in `GH_TOKEN`, after one stderr line `as-role.sh: result=OK as=<login> fallback=<none\|unconfigured>`. If the resolver fails, the command does not run: exit 125, with `as-role.sh: result=ERROR reason=<reason>` on stderr. |
 | `as-role.sh --login <role> <repo>` | `result=OK login=<login> fallback=<none\|unconfigured>` — the App slug (GitHub's REST spelling adds `[bot]`), or your login when the role falls back. |
 | `as-role.sh --operator <repo>` | `result=OK login=<your login> fallback=none`, read under your own `gh` auth with no role token in place. |
+| `as-role.sh --fallbacks` | `result=OK roles=<role,…\|none>`: the roles that would act as you, read from configuration presence only, with no network call. The session-start notice uses it. |
+
+The last three print exactly one line on stdout and exit 0; when they cannot
+answer, that line is `result=ERROR reason=<reason>`, with what to do on stderr.
+A configured role whose login is unknown (an env-only setup without
+`DNBG_<ROLE>_SLUG`) answers `--login` with `reason=no-login`, never with your
+login. Since a wrapped command can exit 125 itself, the credential form's stderr
+`result=ERROR` line, not the exit status, is what says the resolver refused.
 
 The token is minted for the App's installation on the repo's owner, lives only
 in the command's environment, and is never written to disk, git config or a
@@ -219,8 +227,9 @@ remote URL, or printed.
 
 ### Falling back to your account
 
-A role with no configuration (no `config.json` and no `DNBG_<ROLE>_*` variable)
-acts as your own account only when its `permissions.json` says
+A role with no configuration (no `config.json`, and none of
+`DNBG_<ROLE>_APP_ID`, `_PRIVATE_KEY` or `_PRIVATE_KEY_COMMAND`) acts as your own
+account only when its `permissions.json` says
 `"fallback": "operator"`; the reviewer says `"refuse"`, which is also what an
 absent key means. A session-start notice names each role falling back, from
 configuration presence alone, with no network call. A role that *is* configured
