@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
-"""Bootstrap a per-developer GitHub App for the local reviewer bot.
+"""Bootstrap per-developer GitHub Apps for the agent roles.
 
-Drives the GitHub App Manifest flow end to end, except the one browser click
-GitHub requires to create any App:
+Creates one App per chosen role (`reviewer`, and any other role defined under
+`dnbg-workflow/roles/`), one after another, by driving the GitHub App Manifest
+flow end to end except the one browser click GitHub requires to create any App:
 
-  1. Build an App manifest from `permissions.json` (no webhook).
+  1. Build the role's App manifest from `roles/<role>/permissions.json` (no
+     webhook).
   2. Serve a local page that POSTs the manifest to GitHub's create-from-manifest
      URL; you click "Create GitHub App" in the browser.
   3. GitHub redirects back to this server with a temporary code.
   4. Exchange the code via POST /app-manifests/{code}/conversions for the App's
      id, slug, and private key (PEM) — returned exactly once, here.
-  5. Save the key (mode 600) and config locally. The key never leaves this
-     machine; the reviewer skill mints short-lived tokens from it.
+  5. Save the key (mode 600) and config in the role's own config dir. The key
+     never leaves this machine; `as-role.sh` mints short-lived tokens from it.
 
 Stdlib only — no third-party packages.
 
 Example:
-  # org-owned, private App (needs app-creation rights in the org):
-  python3 bootstrap.py --owner-type org --org my-org
-  # user-owned, public App (self-serve; an org owner approves the install):
-  python3 bootstrap.py --owner-type user
+  # every role not yet set up, user-owned public Apps:
+  python3 bootstrap.py
+  # just the reviewer, org-owned private App (needs app-creation rights there):
+  python3 bootstrap.py --roles reviewer --owner-type org --org my-org
 """
 from __future__ import annotations
 
@@ -40,6 +42,19 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 API_ROOT = "https://api.github.com"
+ROLES_DIR = Path(__file__).resolve().parent.parent.parent / "roles"
+
+
+def defined_roles() -> list[str]:
+    """Every role with data under roles/, in name order."""
+    return sorted(d.name for d in ROLES_DIR.iterdir() if (d / "permissions.json").is_file())
+
+
+def default_config_dir(role: str) -> Path:
+    """DNBG_<ROLE>_CONFIG_DIR, else ~/.config/dnbg/<role> — as lib-role.sh reads it."""
+    env = os.environ.get(f"DNBG_{role.upper().replace('-', '_')}_CONFIG_DIR")
+    base = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+    return Path(env).expanduser() if env else base / "dnbg" / role
 
 
 def gh_login() -> str:
@@ -54,14 +69,14 @@ def gh_login() -> str:
         return ""
 
 
-def build_manifest(name: str, redirect_url: str, public: bool) -> dict:
+def build_manifest(role: str, name: str, redirect_url: str, public: bool) -> dict:
     return {
         "name": name,
         "url": "https://github.com/dbaggott/claude-plugins",
         "redirect_url": redirect_url,
         "public": public,
-        # No hook_attributes => no webhook. The reviewer is invoked locally,
-        # not driven by GitHub events.
+        # No hook_attributes => no webhook. Every role is driven locally, not
+        # by GitHub events.
         "default_events": [],
         # `gh pr checks` alone needs three of these, because statusCheckRollup
         # spans check runs, the workflow run each check suite points at, and
@@ -69,14 +84,13 @@ def build_manifest(name: str, redirect_url: str, public: bool) -> dict:
         # node it covers. `actions` was confirmed against a live failure;
         # `statuses` is the one an Actions-only repo never exercises, and is
         # here for repos whose CI posts commit statuses instead of check runs.
-        "default_permissions": _permissions(),
+        "default_permissions": role_permissions(role),
     }
 
 
-def _permissions() -> dict:
-    """The App's permission set, shared with mint-token.sh's runtime audit."""
-    here = Path(__file__).resolve().parent
-    return json.loads((here / "permissions.json").read_text())["required"]
+def role_permissions(role: str) -> dict:
+    """The role's App permission set, shared with mint-token.sh's runtime audit."""
+    return json.loads((ROLES_DIR / role / "permissions.json").read_text())["required"]
 
 
 def convert_manifest(code: str) -> dict:
@@ -128,14 +142,11 @@ def save_credentials(config_dir: Path, owner_type: str, org: str, app: dict) -> 
     config_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
 
 
-def run_flow(args: argparse.Namespace) -> int:
-    login = gh_login()
-    name = args.name or (f"agent-reviewer-{login}" if login else "agent-reviewer")
-    config_dir = Path(args.config_dir).expanduser()
-
+def run_flow(args: argparse.Namespace, role: str, name: str, config_dir: Path) -> dict | None:
+    """Create one role's App. Returns its summary, or None after printing why not."""
     # Default to user-owned + public: the only model installable on BOTH the org
     # (for org PRs) and your personal account (for personal repos). Private Apps
-    # install only on their owner, so --owner-type org reviews org repos only.
+    # install only on their owner, so --owner-type org covers org repos only.
     owner_type = args.owner_type or "user"
     public = owner_type == "user"
 
@@ -143,9 +154,6 @@ def run_flow(args: argparse.Namespace) -> int:
     # callback handler only accepts a code that came from the page we served.
     state = secrets.token_urlsafe(24)
     if owner_type == "org":
-        if not args.org:
-            print("--org is required for an org-owned App", file=sys.stderr)
-            return 2
         create_url = f"https://github.com/organizations/{args.org}/settings/apps/new?state={state}"
     else:
         create_url = f"https://github.com/settings/apps/new?state={state}"
@@ -166,7 +174,7 @@ def run_flow(args: argparse.Namespace) -> int:
         def do_GET(self):  # noqa: N802
             parsed = urlparse(self.path)
             if parsed.path == "/":
-                manifest = build_manifest(name, f"http://localhost:{args.port}/callback", public)
+                manifest = build_manifest(role, name, f"http://localhost:{args.port}/callback", public)
                 # Auto-submitting form: the manifest must be POSTed to GitHub.
                 # html.escape so the embedded JSON is safe in the attribute
                 # regardless of manifest content (defense-in-depth).
@@ -175,7 +183,7 @@ def run_flow(args: argparse.Namespace) -> int:
 <form id="f" action="{html.escape(create_url, quote=True)}" method="post">
   <input type="hidden" name="manifest" value="{manifest_attr}">
 </form>
-<p>Redirecting you to GitHub to create the reviewer App
+<p>Redirecting you to GitHub to create the {html.escape(role)} App
 (<b>{name}</b>)&hellip; if nothing happens, click Create.</p>
 <button form="f" type="submit">Create GitHub App</button>
 <script>document.getElementById('f').submit();</script>
@@ -221,7 +229,7 @@ def run_flow(args: argparse.Namespace) -> int:
                 result["app"] = app
                 install_url = f"https://github.com/apps/{app.get('slug', '')}/installations/new"
                 self._html(200, f"""<!doctype html><html><body>
-<h3>Reviewer App created: {html.escape(app.get('slug', ''))}</h3>
+<h3>{html.escape(role)} App created: {html.escape(app.get('slug', ''))}</h3>
 <p>Credentials saved to {html.escape(str(config_dir))}. You can close this tab and return to the terminal.</p>
 <p>Next: install it &mdash; <a href="{html.escape(install_url)}">{html.escape(install_url)}</a></p>
 </body></html>""")
@@ -234,54 +242,102 @@ def run_flow(args: argparse.Namespace) -> int:
     except OSError as exc:
         print(f"Could not bind localhost:{args.port} ({exc}) — it may be in use by a "
               f"previous run. Retry with --port <other>.", file=sys.stderr)
-        return 1
+        return None
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
     open_url = f"http://localhost:{args.port}/"
-    print(f"Opening {open_url} — complete the App creation in your browser.", file=sys.stderr)
+    print(f"Opening {open_url} — complete the {role} App's creation in your browser.", file=sys.stderr)
     if not args.no_browser:
         webbrowser.open(open_url)
 
     if not done.wait(timeout=args.timeout):
         print(f"Timed out after {args.timeout}s waiting for the GitHub callback.", file=sys.stderr)
         server.shutdown()
-        return 1
+        server.server_close()
+        return None
     server.shutdown()
+    # Released here, so the next role's flow can bind the same port.
+    server.server_close()
 
     if "error" in result or "app" not in result:
-        print(f"Setup failed: {result.get('error', 'unknown error')}", file=sys.stderr)
-        return 1
+        print(f"Setup failed for {role}: {result.get('error', 'unknown error')}", file=sys.stderr)
+        return None
 
     app = result["app"]
     slug = app.get("slug", "")
-    print(json.dumps({
+    return {
+        "role": role,
         "app_id": str(app["id"]),
         "slug": slug,
         "bot_login": f"{slug}[bot]" if slug else "",
         "config_dir": str(config_dir),
         "install_url": f"https://github.com/apps/{slug}/installations/new",
-    }, indent=2))
-    return 0
+    }
+
+
+def choose_roles(requested: str | None) -> list[str]:
+    """The named roles, or by default every defined role with no config yet."""
+    known = defined_roles()
+    if requested:
+        roles = [r.strip() for r in requested.split(",") if r.strip()]
+        unknown = [r for r in roles if r not in known]
+        if unknown:
+            raise SystemExit(f"unknown role(s) {', '.join(unknown)}; defined: {', '.join(known)}")
+        return roles
+    return [r for r in known if not (default_config_dir(r) / "config.json").exists()]
+
+
+def run(args: argparse.Namespace) -> int:
+    roles = choose_roles(args.roles)
+    if not roles:
+        print("Every role already has an App set up; name one with --roles to create "
+              "another.", file=sys.stderr)
+        return 0
+    if len(roles) > 1 and (args.name or args.config_dir):
+        print("--name and --config-dir apply to one role; pass --roles <one role>.", file=sys.stderr)
+        return 2
+    if (args.owner_type or "user") == "org" and not args.org:
+        print("--org is required for an org-owned App", file=sys.stderr)
+        return 2
+
+    login = gh_login()
+    created: list[dict] = []
+    status = 0
+    for role in roles:
+        name = args.name or (f"agent-{role}-{login}" if login else f"agent-{role}")
+        config_dir = Path(args.config_dir).expanduser() if args.config_dir else default_config_dir(role)
+        summary = run_flow(args, role, name, config_dir)
+        if summary is None:
+            status = 1
+            left = roles[roles.index(role) + 1:]
+            if left:
+                print(f"Stopped before: {', '.join(left)}.", file=sys.stderr)
+            break
+        created.append(summary)
+    print(json.dumps(created, indent=2))
+    return status
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Bootstrap the local reviewer GitHub App.")
+    p = argparse.ArgumentParser(description="Bootstrap the agent roles' GitHub Apps.")
+    p.add_argument("--roles",
+                   help="comma-separated roles to create Apps for (default: every role "
+                        "under roles/ with no config.json yet)")
     p.add_argument("--owner-type", choices=["org", "user"], default=None,
                    help="user (default): user-owned public App — installable on the org AND "
-                        "your personal account, so it reviews both. "
+                        "your personal account, so it covers both. "
                         "org: org-owned private App — org repos only (no personal repos).")
     p.add_argument("--org", default=None,
                    help="organization login; required only with --owner-type org")
-    p.add_argument("--name", help="App name (default agent-reviewer-<your-login>; must be globally unique)")
+    p.add_argument("--name", help="App name, with one role (default agent-<role>-<your-login>; "
+                                  "must be globally unique)")
     p.add_argument("--port", type=int, default=8765, help="localhost callback port")
     p.add_argument("--timeout", type=int, default=600, help="seconds to wait for the browser callback")
     p.add_argument("--no-browser", action="store_true", help="don't auto-open the browser")
     p.add_argument("--config-dir",
-                   default=os.environ.get("DNBG_REVIEWER_CONFIG_DIR")
-                   or str(Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
-                          / "dnbg" / "reviewer"),
-                   help="where to store credentials")
-    return run_flow(p.parse_args())
+                   help="where to store credentials, with one role "
+                        "(default DNBG_<ROLE>_CONFIG_DIR, else ~/.config/dnbg/<role>)")
+    return run(p.parse_args())
 
 
 if __name__ == "__main__":

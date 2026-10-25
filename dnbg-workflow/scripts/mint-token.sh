@@ -1,37 +1,37 @@
 #!/usr/bin/env bash
-# Mint a short-lived GitHub App installation token for the local
-# reviewer bot, and print it to stdout. Use it as `GH_TOKEN` for the `gh`
-# commands that post the review, so the review posts under the bot identity
-# rather than your own account.
+# The GitHub backend of `as-role.sh`: mint a short-lived installation token for
+# a role's GitHub App and print it to stdout. Call `as-role.sh`, not this —
+# it decides whether the role is configured at all, and runs the command with
+# the token in place so the token never passes through a caller.
 #
-#   GH_TOKEN="$(.../mint-token.sh <owner>)" gh api repos/<owner>/<repo>/pulls/<n>/reviews --input - ...
+#   mint-token.sh <role> [<owner>]
 #
-# The optional first argument is the target repo's owner (org or personal login;
-# `owner/repo` is also accepted and trimmed). The bot may be installed on several
-# accounts (an org and your personal account), so the token is scoped to the
-# installation on that owner. With no argument it falls back to the first/only
-# installation (fine for a single-account setup, e.g. the setup verify step).
+# `<owner>` is the target repo's owner (org or personal login; `owner/repo` is
+# also accepted and trimmed). The App may be installed on several accounts, so
+# the token is scoped to the installation on that owner. With no owner it falls
+# back to the first/only installation.
 #
-# Credentials are written by the `reviewer-setup` skill into the config dir
-# (default ~/.config/dnbg/reviewer): config.json + private-key.pem. The App
-# private key never leaves this machine — this script signs a JWT locally and
-# exchanges it with GitHub for an installation token.
+# Credentials are written by the `reviewer-setup` skill into the role's config
+# dir (default ~/.config/dnbg/<role>, or DNBG_<ROLE>_CONFIG_DIR): config.json +
+# private-key.pem. The App private key never leaves this machine — this script
+# signs a JWT locally and exchanges it with GitHub for an installation token.
+# `<ROLE>` below is the role name upper-cased, hyphens as underscores.
 #
 # ## Where the key comes from
 #
 # Three sources, tried in this order. The first that yields a key wins:
 #
-#   1. DNBG_REVIEWER_PRIVATE_KEY          the PEM itself, in the environment
-#   2. DNBG_REVIEWER_PRIVATE_KEY_COMMAND  a command whose stdout is the PEM
+#   1. DNBG_<ROLE>_PRIVATE_KEY          the PEM itself, in the environment
+#   2. DNBG_<ROLE>_PRIVATE_KEY_COMMAND  a command whose stdout is the PEM
 #      (or `private_key_command` in config.json)
-#   3. $CONFIG_DIR/private-key.pem        the plaintext file bootstrap.py writes
+#   3. $CONFIG_DIR/private-key.pem      the plaintext file bootstrap.py writes
 #
 # Two more variables stand in for config.json fields, so a headless run needs no
 # config file at all. Both fall back to config.json when it exists:
 #
-#   DNBG_REVIEWER_APP_ID           required — without it there is no JWT to sign
-#   DNBG_REVIEWER_INSTALLATION_ID  optional — skips the /app/installations
-#                                  lookup; otherwise it is resolved from <owner>
+#   DNBG_<ROLE>_APP_ID           required — without it there is no JWT to sign
+#   DNBG_<ROLE>_INSTALLATION_ID  optional — skips the /app/installations
+#                                lookup; otherwise it is resolved from <owner>
 #
 # (2) is the single hook that reaches every secret manager without this project
 # knowing any of them exist — `op read`, `pass show`, `security find-generic-
@@ -40,17 +40,22 @@
 #
 # ⚠️ THE COMMAND IS READ ONLY FROM USER CONFIG OR THE ENVIRONMENT, NEVER FROM A
 # REPOSITORY, and that is the property the whole feature's safety rests on. It is
-# safe because someone who can write `~/.config/dnbg/reviewer` can already write
+# safe because someone who can write `~/.config/dnbg/<role>` can already write
 # `~/.zshrc` or swap the PEM outright — so the command grants no capability they
 # lacked. That argument evaporates the instant a repo can supply the value, which
 # is the class of bug `credential.helper` has been bitten by repeatedly. Nothing
 # here reads a config file from the working directory, and a test asserts it.
 set -euo pipefail
 
-OWNER="${1:-}"; OWNER="${OWNER%%/*}"   # optional target repo owner; trim owner/repo -> owner
+# shellcheck source=./lib-role.sh
+. "$(dirname "$0")/lib-role.sh"
 
-CONFIG_DIR="${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}"
-CONFIG_DIR="${CONFIG_DIR/#\~/$HOME}"   # expand a leading ~, matching bootstrap.py's expanduser()
+ROLE="${1:-}"
+role_valid "$ROLE" || { echo "usage: mint-token.sh <role> [<owner>] — '$ROLE' is not a role under $ROLES_DIR" >&2; exit 1; }
+OWNER="${2:-}"; OWNER="${OWNER%%/*}"   # optional target repo owner; trim owner/repo -> owner
+ENV_PREFIX="$(role_env_prefix "$ROLE")"
+
+CONFIG_DIR="$(role_config_dir "$ROLE")"
 CONFIG="$CONFIG_DIR/config.json"
 PEM="$CONFIG_DIR/private-key.pem"
 
@@ -87,21 +92,22 @@ refuse_if_writable() {  # <path> <what>
 # The env-var route must stand alone — that is the headless/CI case, where there
 # is no config dir at all. So app_id has its own variable: it lives in
 # config.json on a workstation, and without it there is no JWT to sign.
-APP_ID="${DNBG_REVIEWER_APP_ID:-}"
-INSTALLATION_ID="${DNBG_REVIEWER_INSTALLATION_ID:-}"
-KEY_COMMAND="${DNBG_REVIEWER_PRIVATE_KEY_COMMAND:-}"
+APP_ID="$(role_env "$ROLE" APP_ID)"
+INSTALLATION_ID="$(role_env "$ROLE" INSTALLATION_ID)"
+KEY_COMMAND="$(role_env "$ROLE" PRIVATE_KEY_COMMAND)"
+ENV_KEY="$(role_env "$ROLE" PRIVATE_KEY)"
 
 if [ -f "$CONFIG" ]; then
-  refuse_if_writable "$CONFIG_DIR" "the reviewer config directory"
-  refuse_if_writable "$CONFIG" "the reviewer config"
+  refuse_if_writable "$CONFIG_DIR" "the $ROLE config directory"
+  refuse_if_writable "$CONFIG" "the $ROLE config"
   [ -n "$APP_ID" ] || APP_ID=$(jq -r '.app_id // empty' "$CONFIG")
   [ -n "$INSTALLATION_ID" ] || INSTALLATION_ID=$(jq -r '.installation_id // empty' "$CONFIG")
   [ -n "$KEY_COMMAND" ] || KEY_COMMAND=$(jq -r '.private_key_command // empty' "$CONFIG")
 fi
 
 if [ -z "$APP_ID" ]; then
-  echo "reviewer bot is not set up: no app_id." >&2
-  echo "Run the reviewer-setup skill, or set DNBG_REVIEWER_APP_ID for a headless run." >&2
+  echo "the $ROLE App is not set up: no app_id." >&2
+  echo "Run the reviewer-setup skill, or set ${ENV_PREFIX}APP_ID for a headless run." >&2
   exit 1
 fi
 
@@ -109,8 +115,8 @@ fi
 # here on and is never written anywhere.
 KEY=""
 KEY_SOURCE=""
-if [ -n "${DNBG_REVIEWER_PRIVATE_KEY:-}" ]; then
-  KEY="$DNBG_REVIEWER_PRIVATE_KEY"; KEY_SOURCE="DNBG_REVIEWER_PRIVATE_KEY"
+if [ -n "$ENV_KEY" ]; then
+  KEY="$ENV_KEY"; KEY_SOURCE="${ENV_PREFIX}PRIVATE_KEY"
 elif [ -n "$KEY_COMMAND" ]; then
   # `sh -c` so the configured value can be an ordinary command line with flags
   # and pipes, which is what every manager's documented invocation looks like.
@@ -131,8 +137,8 @@ elif [ -n "$KEY_COMMAND" ]; then
   }
   KEY_SOURCE="private key command"
 elif [ -f "$PEM" ]; then
-  refuse_if_writable "$CONFIG_DIR" "the reviewer config directory"
-  refuse_if_writable "$PEM" "the reviewer private key"
+  refuse_if_writable "$CONFIG_DIR" "the $ROLE config directory"
+  refuse_if_writable "$PEM" "the $ROLE private key"
   # The path, not the contents. This route's key is already a file on this
   # disk, at this mode — so reading it into memory and piping it back to openssl
   # protects nothing, and would make the *default* setup depend on /dev/fd for no
@@ -142,9 +148,9 @@ elif [ -f "$PEM" ]; then
 fi
 
 if [ -z "$KEY" ] && [ -z "${KEY_PATH:-}" ]; then
-  echo "reviewer bot is not set up (no private key)." >&2
-  echo "Tried: DNBG_REVIEWER_PRIVATE_KEY, a key command, then $PEM." >&2
-  echo "Run the reviewer-setup skill first to create your reviewer App." >&2
+  echo "the $ROLE App is not set up (no private key)." >&2
+  echo "Tried: ${ENV_PREFIX}PRIVATE_KEY, a key command, then $PEM." >&2
+  echo "Run the reviewer-setup skill first to create your $ROLE App." >&2
   exit 1
 fi
 
@@ -207,13 +213,13 @@ if [ -n "$OWNER" ]; then
   INSTALLATION_ID=$(gh_app_api https://api.github.com/app/installations \
     | jq -r --arg o "$OWNER" 'map(select(.account.login | ascii_downcase == ($o | ascii_downcase))) | .[0].id // empty')
   [ -n "$INSTALLATION_ID" ] || {
-    echo "reviewer App is not installed on '$OWNER' — install it there (reviewer-setup covers this)" >&2
+    echo "the $ROLE App is not installed on '$OWNER' — install it there (reviewer-setup covers this)" >&2
     exit 1
   }
 elif [ -z "$INSTALLATION_ID" ]; then
   INSTALLATION_ID=$(gh_app_api https://api.github.com/app/installations | jq -r '.[0].id // empty')
   [ -n "$INSTALLATION_ID" ] || {
-    echo "the reviewer App has no installations — install it first (reviewer-setup covers this)" >&2
+    echo "the $ROLE App has no installations — install it first (reviewer-setup covers this)" >&2
     exit 1
   }
 fi
@@ -223,7 +229,7 @@ fi
 MINTED=$(gh_app_api -X POST \
   "https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens")
 
-PERMS_FILE="$(dirname "$0")/../reviewer-setup/permissions.json"
+PERMS_FILE="$(role_perms_file "$ROLE")"
 if [ -r "$PERMS_FILE" ]; then
   SHORTFALL=$(printf '%s' "$MINTED" | jq -r --slurpfile spec "$PERMS_FILE" '
     {"read":1, "write":2, "admin":3} as $rank
@@ -239,7 +245,7 @@ if [ -r "$PERMS_FILE" ]; then
   if [ -n "$SHORTFALL" ]; then
     SLUG=$(jq -r '.slug // "<your-app>"' "$CONFIG" 2>/dev/null || echo "<your-app>")
     cat >&2 <<EOM
-The reviewer App is missing a permission it needs:
+The $ROLE App is missing a permission it needs:
 
 $SHORTFALL
 

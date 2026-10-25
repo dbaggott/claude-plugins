@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Who holds an issue's claim, or claim it.
 #
-#   claim-issue.sh <owner/repo> <n>
-#   claim-issue.sh <owner/repo> <n> --claim [--label=<assigned:…>] [--stamp=<version>]
+#   claim-issue.sh <owner/repo> <n> [--as=<role>]
+#   claim-issue.sh <owner/repo> <n> --claim [--as=<role>] [--label=<assigned:…>] [--stamp=<version>]
 #
 # Without `--claim`, the own-claim test from `issue-workflow`'s
 # `references/claiming.md`. Exactly one result line, then exit 0:
 #   result=UNCLAIMED claim=none at=none
 #   result=OWN       claim=<id> at=<iso> assignees=<login,…> labels=<label,…|none>
 #   result=FOREIGN   claim=<id|none> at=<iso|none> assignees=<login,…|none> labels=<label,…|none>
-#   result=ERROR     reason=bad-args|unsupported-forge|not-found|issue-query|issue-query-shape now=<iso>
+#   result=ERROR     reason=bad-args|unsupported-forge|not-found|issue-query|issue-query-shape|role now=<iso>
 #
 # An issue is claimed when it has an assignee or any `assigned:*` label. The
 # claim is then the latest line, across its comments, that opens with
@@ -20,13 +20,23 @@
 # one made where no session id was exported. `assignees` and `labels` (the
 # `assigned:*` ones) say who holds a claim with no id, since a teammate assigned
 # by hand and an agent session's id-less claim read the same otherwise.
+# With `--as`, the OWN and FOREIGN lines end with `operator=<login>`, the
+# resolver's operator answer, for the caller to compare `assignees` against.
 #
 # With `--claim`, the three marks: the label (created if the repo lacks it), the
 # operator as assignee, and the claim comment carrying this session's id, with
 # the version stamp on a line of its own when `--stamp` names one. The label
 # defaults to `assigned:agent-session` and must sit in the `assigned:` namespace.
 #   result=OK claim=<id|none> url=<comment-url>
-#   result=ERROR reason=bad-args|unsupported-forge|claim-write now=<iso>
+#   result=ERROR reason=bad-args|unsupported-forge|claim-write|role now=<iso>
+#
+# `--as=<role>` makes the writes under that role, through `as-role.sh`: the
+# label and the comment post as the role's App (or as the operator, when the
+# role falls back), and the assignee is the operator's login from the resolver,
+# since an App cannot be assigned and `@me` would name whichever credential is
+# in place. The OK line then ends with `as=<login>`, plus `fallback=unconfigured`
+# when the role ran as the operator. `role` means the resolver refused; its
+# stderr says why, and no mark was written.
 #
 # ⚠️ THE FORGE IS ASSUMED TO BE GITHUB. https://github.com/dbaggott/claude-plugins/issues/149
 # replaces the constant below with host detection; the output above is not
@@ -43,10 +53,11 @@ shift 2
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 case "$N" in ''|*[!0-9]*) fail bad-args ;; esac
 
-CLAIM=0; LABEL="assigned:agent-session"; STAMP=""
+CLAIM=0; LABEL="assigned:agent-session"; STAMP=""; AS=""
 for a in "$@"; do
   case "$a" in
     --claim)   CLAIM=1 ;;
+    --as=?*)   AS="${a#--as=}" ;;
     --label=*) LABEL="${a#--label=}" ;;
     --stamp=*) STAMP="${a#--stamp=}" ;;
     *) fail bad-args ;;
@@ -60,17 +71,44 @@ FORGE="${FORGE:-github}"
 
 SID="${CLAUDE_CODE_SESSION_ID:-}"; SID="${SID:0:8}"
 
+AS_ROLE="$(dirname "$0")/as-role.sh"
+# Ask the resolver, in this shell so a refusal exits the script: ANSWER holds
+# its OK line with a space at each end, for field() to read.
+ask() {  # <as-role args…>
+  ANSWER=$("$AS_ROLE" "$@") || fail role
+  case "$ANSWER" in result=OK\ *) ANSWER=" ${ANSWER#result=OK} " ;; *) fail role ;; esac
+}
+field() {  # <key> — from ANSWER
+  local v="${ANSWER#* "$1"=}"
+  printf '%s' "${v%% *}"
+}
+# A write, as the role when --as names one. The resolver exits 125 when it
+# refused before running anything.
+write() {  # <gh args…>
+  local rc=0
+  if [ -n "$AS" ]; then "$AS_ROLE" "$AS" "$REPO" -- gh "$@" || rc=$?
+  else gh "$@" || rc=$?; fi
+  [ "$rc" -ne 125 ] || [ -z "$AS" ] || fail role
+  return "$rc"
+}
+
 if [ "$CLAIM" = 1 ]; then
   BODY="Claimed by an agent session (${SID:-id unavailable})."
   [ -z "$STAMP" ] || BODY="$BODY
 <!-- dnbg-workflow $STAMP -->"
-  gh label create "$LABEL" --repo "$REPO" --color BFD4F2 \
+  ASSIGNEE="@me"; TAIL=""
+  if [ -n "$AS" ]; then
+    ask --operator "$REPO"; ASSIGNEE=$(field login)
+    ask --login "$AS" "$REPO"; TAIL=" as=$(field login)"
+    [ "$(field fallback)" = none ] || TAIL="$TAIL fallback=unconfigured"
+  fi
+  write label create "$LABEL" --repo "$REPO" --color BFD4F2 \
     --description "Claimed by an agent session" --force >/dev/null 2>&1 || fail claim-write
-  gh issue edit "$N" --repo "$REPO" --add-assignee "@me" --add-label "$LABEL" \
+  write issue edit "$N" --repo "$REPO" --add-assignee "$ASSIGNEE" --add-label "$LABEL" \
     >/dev/null 2>&1 || fail claim-write
-  URL=$(gh issue comment "$N" --repo "$REPO" --body "$BODY" 2>/dev/null | tail -1) || fail claim-write
+  URL=$(write issue comment "$N" --repo "$REPO" --body "$BODY" 2>/dev/null | tail -1) || fail claim-write
   case "$URL" in https://*) ;; *) fail claim-write ;; esac
-  echo "result=OK claim=${SID:-none} url=$URL"
+  echo "result=OK claim=${SID:-none} url=$URL$TAIL"
   exit 0
 fi
 
@@ -116,6 +154,9 @@ OUT=$(printf '%s' "$RAW" | jq -r '
 
 IFS='|' read -r CLAIMED ID AT WHO LABELS <<<"$OUT"
 HOLDERS="assignees=${WHO:-none} labels=${LABELS:-none}"
+if [ -n "$AS" ] && [ "$CLAIMED" = 1 ]; then
+  ask --operator "$REPO"; HOLDERS="$HOLDERS operator=$(field login)"
+fi
 
 if [ "$CLAIMED" = 0 ]; then
   echo "result=UNCLAIMED claim=none at=none"

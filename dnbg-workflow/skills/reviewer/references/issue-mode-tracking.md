@@ -3,8 +3,8 @@
 Part of the `reviewer` skill. Read this when `references/issue-mode.md`'s
 sub-issue snapshot shows children. It reuses that file's discovery,
 `references/issue-mode-wait.md`'s wait, and `SKILL.md`'s per-PR review; the
-`env -u GH_TOKEN` rule `issue-mode.md` opens with covers every `gh issue` command
-here too.
+reads-as-you, writes-as-the-bot rule `issue-mode.md` opens with covers this file
+too.
 
 ## A tracking issue: whole-project acceptance
 
@@ -79,18 +79,15 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    Then post a new bot comment on the parent linking that review, one per
    round, so each verdict is reachable from the issue it closes. Write the
    body to a file from `mktemp` first, the review's first line and then the
-   review's URL, and mint the token in the same call that posts:
+   review's URL, and post it as the bot:
 
    ```bash
-   GH_TOKEN="$("<skill-dir>/mint-token.sh" <owner>)" || exit 1
-   export GH_TOKEN
-   gh api repos/<repo>/issues/<parent>/comments -F body=@<path> --jq '"\(.user.login) \(.id)"'
+   "<skill-dir>/../../scripts/as-role.sh" reviewer <repo> -- \
+     gh api repos/<repo>/issues/<parent>/comments -F body=@<path> --jq '"\(.user.login) \(.id)"'
    ```
 
-   The printed login must be the bot's. If it is not, the token never arrived and the link
-   is under the operator's name: delete it with
-   `gh api -X DELETE repos/<repo>/issues/comments/<id>`, then fix the mint and
-   post again.
+   The printed login must be the bot's, `<slug>[bot]`; if it is not, stop and
+   tell the operator.
 7. **Keep watching the parent while you watch the PR**, with step 2's call on
    the parent alone and the closeout PR's URL in its `--exclude`, since the
    PR's own watch covers it, so a child added or reopened reaches you even when

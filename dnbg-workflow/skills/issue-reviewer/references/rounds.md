@@ -95,9 +95,7 @@ minimize both its own comments and the author's, which
 `IssueComment.viewerCanMinimize` confirms per comment.
 
 ```bash
-GH_TOKEN="$("<skill-dir>/../reviewer/mint-token.sh" <owner>)" || exit 1
-export GH_TOKEN
-gh api graphql -f query='mutation($id: ID!) {
+"<skill-dir>/../../scripts/as-role.sh" reviewer <repo> -- gh api graphql -f query='mutation($id: ID!) {
   minimizeComment(input: {subjectId: $id, classifier: RESOLVED}) {
     minimizedComment { isMinimized minimizedReason }
   }
@@ -115,11 +113,13 @@ returns no result line. Its `--since` follows the first-arm rule in
 ```bash
 "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
   --role=reviewer --since=<your round's first created_at> \
-  --slug="$(jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json")"
+  --slug=<slug>
 ```
 
-`--slug` is the login the watch ignores, matched against both `<slug>` and
-`<slug>[bot]`; passing the bot's is what stops your own round waking you. Watching
+`<slug>` is the bot's login, the `login=` of
+`"<skill-dir>/../../scripts/as-role.sh" --login reviewer <owner>/<repo>`. It is
+the login the watch ignores, matched against both `<slug>` and `<slug>[bot]`;
+passing the bot's is what stops your own round waking you. Watching
 the whole set costs one call per tick, so waiting on every issue you were handed
 is no more expensive than waiting on one.
 

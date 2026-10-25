@@ -1,12 +1,18 @@
 {
   "_comment": [
-    "The permissions a reviewer needs, declared once. bootstrap.py builds a new",
-    "App's manifest from it, and mint-token.sh checks every minted token against",
-    "it.",
+    "The reviewer role's data, declared once. bootstrap.py builds the role's App",
+    "manifest from `required`, mint-token.sh checks every minted token against it,",
+    "and as-role.sh reads `fallback`.",
+    "",
+    "`fallback` is what as-role.sh does when this role has no App configured:",
+    "\"operator\" runs the command as the operator's own account, \"refuse\" fails",
+    "it. Absent means \"refuse\". The reviewer refuses, for the reason the `issues`",
+    "consequence gives.",
     "",
     "`consequence` is printed to whoever hits a shortfall, so it is addressed to",
     "them: what stops working, not why the permission exists."
   ],
+  "fallback": "refuse",
   "required": {
     "pull_requests": "write",
     "issues": "write",
@@ -28,7 +34,7 @@
   "consequence": {
     "pull_requests": "reviews and inline comments cannot be posted",
     "issues": "an issue-body review cannot post its verdicts. Falling back to your own account instead deadlocks it silently — the author's watch excludes exactly that login, so it never wakes while both sides report a healthy watch.",
-    "contents": "reviews post but do not count \u2014 GitHub leaves a review by an App without this out of latestOpinionatedReviews, so reviewDecision never moves and the merge box ignores the verdict. Resolving a thread also fails.",
+    "contents": "reviews post but do not count — GitHub leaves a review by an App without this out of latestOpinionatedReviews, so reviewDecision never moves and the merge box ignores the verdict. Resolving a thread also fails.",
     "checks": "check runs are invisible, so a red build reads as no build",
     "actions": "the rollup cannot dereference workflow runs",
     "statuses": "CI that posts commit statuses instead of check runs is invisible",

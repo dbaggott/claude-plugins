@@ -43,18 +43,19 @@ named by full URL carries its host, and only a bare number falls back to
 `git remote get-url origin`. If it is not `github.com`, say so, name what you
 found, and stop.
 
-**Mint a token before reviewing anything, and discard it.** The mint audits what
-the App was actually granted, so a missing `issues` permission surfaces now rather
-than with the first post — after a full review has been composed:
+**Check the bot before reviewing anything.** Every mint audits what the App was
+actually granted, so a missing `issues` permission surfaces now rather than with
+the first post — after a full review has been composed:
 
 ```bash
-"<skill-dir>/../reviewer/mint-token.sh" <owner> >/dev/null || exit 1
+"<skill-dir>/../../scripts/as-role.sh" reviewer <owner>/<repo> -- true
 ```
 
-Pass the target repo's owner: the bot may be installed on several accounts, and
-the audit grades whichever installation it minted against. A quiet run is the
-confirmation. `<skill-dir>` is the **Base directory** announced when this skill
-loads; the script lives in `reviewer`, which shares the App.
+The resolver mints for the App's installation on the repo's owner, and the audit
+grades that installation. A quiet run is the confirmation; a
+`result=ERROR reason=not-configured` means the bot isn't set up, which
+`reviewer-setup` fixes. `<skill-dir>` is the **Base directory** announced when
+this skill loads. Rounds post as the `reviewer` role, which shares the App.
 
 **Read every issue in the set before judging any of it** — the set-level findings
 below are visible only once every body is in hand.
@@ -227,23 +228,21 @@ decide whether a child may be dispatched.
 detectable afterwards.** The gate in `references/rounds.md` narrows that window;
 nothing closes it, because re-validating is never atomic with posting.
 
-Rounds post under the bot identity. Mint the token in the same call that spends
-it: an agent harness starts a fresh shell per call, so a mint in an earlier call
-is not in scope for this one and the post silently runs as you. `<path>` is a
-file from `mktemp`, never a name you chose.
+Rounds post under the bot identity, each post behind the resolver, which puts
+the bot's token in place for that one command. `<path>` is a file from `mktemp`,
+never a name you chose.
 
 ```bash
-GH_TOKEN="$("<skill-dir>/../reviewer/mint-token.sh" <owner>)" || exit 1
-export GH_TOKEN
-gh api repos/<repo>/issues/<n>/comments -F body=@<path> --jq '.user.login + " " + .created_at'
+"<skill-dir>/../../scripts/as-role.sh" reviewer <repo> -- \
+  gh api repos/<repo>/issues/<n>/comments -F body=@<path> --jq '.user.login + " " + .created_at'
 ```
 
 ⚠️ **The printed login is the identity check, and it must be the bot's.** A
 comment landing under the operator's login is excluded by the author's own watch,
 which filters exactly that login — so the author never wakes, you wait for a
 response to a comment nobody was told about, and both sides report a healthy
-watch. Anything else means the token never arrived; fix that before posting the
-rest of the round.
+watch. On anything else, stop and tell the operator before posting the rest of
+the round.
 
 Creating and editing issues stays under the operator's credentials, per
 `issue-workflow`; only review rounds post as the bot, and only because they must

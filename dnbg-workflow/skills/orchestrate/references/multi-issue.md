@@ -5,8 +5,8 @@ start" finds sub-issues. The parent's body is the design, in the shape
 `issue-workflow`'s `references/tracking-issue.md` gives it, and each child is
 driven by `SKILL.md`'s single-issue flow, changed only where this file says.
 
-`<slug>` is the reviewer bot's login:
-`jq -r .slug "${DNBG_REVIEWER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/reviewer}/config.json"`.
+`<slug>` is the reviewer bot's login, the `login=` of
+`"<skill-dir>/../../scripts/as-role.sh" --login reviewer <owner>/<repo>`.
 
 ## On start
 

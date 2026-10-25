@@ -20,8 +20,8 @@ the reviewer bot:
 | `git` | `check-worktree.sh` resolves the edited path to a repo | **`check-worktree` never fires**; `check-issue-create` still gates a `--repo`-qualified command |
 | `gh` | Every workflow skill, for all PR/issue/review operations | The skills cannot run |
 | `python3` | `reviewer-setup`'s `bootstrap.py` (stdlib only) | Cannot create the reviewer App |
-| `openssl` | `mint-token.sh` signs the App JWT locally | Cannot mint a reviewer token |
-| `curl` | `mint-token.sh` exchanges that JWT with GitHub | Cannot mint a reviewer token |
+| `openssl` | `mint-token.sh` signs the App JWT locally | Cannot mint a role token |
+| `curl` | `mint-token.sh` exchanges that JWT with GitHub | Cannot mint a role token |
 
 The two hooks **fail open**, so a missing `jq` or `git` does not block your work
 — it silently stops protecting it. Claude Code classes a hook exiting non-zero

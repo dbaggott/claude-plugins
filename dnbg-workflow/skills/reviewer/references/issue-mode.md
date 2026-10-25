@@ -47,18 +47,14 @@ Honor the same reading discipline the body's own labels set (`issue-workflow`):
 "Related (optional — do not read unless blocked)" links stay unread, depth 1
 only.
 
-**Every `gh issue` command in issue mode — this file and both siblings — runs under your own auth, not the
-bot's** — prefix each with `env -u GH_TOKEN`. The bot reviews; the issue itself
-is the operator's, and the only bot write to one is the project review's link
-in `references/issue-mode-tracking.md`, which posts through `gh api`. What the prefix
-guards is a call that mints a bot token and then touches the issue: `SKILL.md`
-has every `gh` write mint in its own tool call, so the token is only ever live
-inside one. The prefix costs
-nothing in the calls where none was minted, and is what saves the ones where one
-was. `gh search prs` is unaffected — it works under either identity.
-
-The `scripts/` helpers this file calls clear `GH_TOKEN` themselves, so the
-prefix is only ever needed on the bare `gh issue` commands in issue mode.
+**Reads in issue mode — this file and both siblings — run under your own auth,
+and every write runs as the bot.** Each write is one command behind
+`"<skill-dir>/../../scripts/as-role.sh" reviewer <repo> --`, which puts the bot's
+token in place for that command alone, so nothing is left live for a later read
+to pick up. The reads keep your auth because the issue and its timeline are the
+operator's, and no read needs the bot. There are two writes: the assignment
+comment below, and the project review's link in
+`references/issue-mode-tracking.md`.
 
 **Record the assignment, but do not claim the issue.** Setting an assignee or an
 `assigned:*` label marks the issue as *being implemented* — `issue-workflow`'s
@@ -68,10 +64,10 @@ unless one is already there: a replacement reviewer inherits its predecessor's
 assignment, and one comment records it.
 
 ```bash
-env -u GH_TOKEN gh issue view <n> --repo <repo> --json comments --jq \
+gh issue view <n> --repo <repo> --json comments --jq \
   '[.comments[].body | select(startswith("Claude Code is acting as reviewer on this issue."))] | length'
 # post only when that printed 0
-env -u GH_TOKEN gh issue comment <n> --repo <repo> \
+"<skill-dir>/../../scripts/as-role.sh" reviewer <repo> -- gh issue comment <n> --repo <repo> \
   --body "Claude Code is acting as reviewer on this issue."
 ```
 
