@@ -156,6 +156,14 @@ Decision log: D4 — applied
 **Basis:** allowlist (a). D4's rationale, "body edits are whole-body replaces and two writers clobber each other", names this case.
 ```
 
+Post it under the orchestrator role (`SKILL.md`, "Write as the orchestrator"),
+from a body file made with `mktemp`:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
+  gh issue comment <n> --repo <owner>/<repo> --body-file <file>
+```
+
 Under a tracking issue you orchestrate, each row is also a row of the parent's
 decision-log table, per `references/multi-issue.md`. Orchestrating only a child,
 write the comment alone: the parent's orchestrator collects it from the child

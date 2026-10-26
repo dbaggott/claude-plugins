@@ -200,6 +200,14 @@ roles, in one run.
 (`DNBG_REVIEWER_*`). The reviewer's existing directory and variables are this
 layout, so a setup made before roles existed keeps working.
 
+| Role | Posts | App permissions | Without an App |
+| --- | --- | --- | --- |
+| `reviewer` | PR reviews, inline comments, issue-body verdicts | `pull_requests`, `issues`, `contents` write; `checks`, `actions`, `statuses`, `metadata` read | refuses |
+| `orchestrator` | `orchestrate`'s claims, decision-log rows, questions and tracking-issue body edits | `issues` write; `metadata` read | posts as you |
+
+[`SECURITY.md`](../SECURITY.md#role-apps-private-keys) says what a leaked key of
+each can reach, and how to rotate it.
+
 ### The resolver
 
 `dnbg-workflow/scripts/as-role.sh` is the one place that knows how a role

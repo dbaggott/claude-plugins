@@ -5,6 +5,7 @@
 #
 #   make_role_tree             -> TREE, with the real reviewer role
 #   add_role <name> <fallback> -> a fixture role; fallback operator|refuse|''
+#   ship_role <name>           -> the plugin's own data for that role
 #   stub_forge                 -> STUB on PATH: gh and curl answering as GitHub
 #   configure_role <role> <app-id> <slug>  -> a config dir with a real key
 #
@@ -26,6 +27,10 @@ make_role_tree() {
   cp "$ROLE_ROOT"/hooks/*.sh "$TREE/hooks/"
   cp "$ROLE_ROOT/skills/reviewer-setup/bootstrap.py" "$TREE/skills/reviewer-setup/"
   cp -R "$ROLE_ROOT/roles/reviewer" "$TREE/roles/"
+}
+
+ship_role() {  # <name>
+  cp -R "$ROLE_ROOT/roles/$1" "$TREE/roles/"
 }
 
 add_role() {  # <name> <fallback>

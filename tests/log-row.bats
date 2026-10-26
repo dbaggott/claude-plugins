@@ -209,3 +209,83 @@ bad() { run "$LOG" "$@"; [[ "$output" == "result=ERROR reason=bad-args "* ]] || 
   bad o/r --bullet="Friction log" --text='x'
   [ ! -s "$CALLS" ]
 }
+
+@test "--as with no role name is a bad argument" {
+  bad o/r 7 --bullet="Friction log" --text='x' --as=
+  [ ! -s "$CALLS" ]
+}
+
+# --- --as=<role> -------------------------------------------------------------
+#
+# A copy of the scripts beside the shipped orchestrator role (role-tree.bash).
+# The body stub above, with each call also logged with the token it ran under.
+
+bats_require_minimum_version 1.5.0
+load role-tree
+
+as_tree() {
+  make_role_tree
+  stub_forge
+  ship_role orchestrator
+  LOG="$TREE/scripts/log-row.sh"
+  cat > "$STUB/gh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CALLS"
+printf 'gh %s token=%s\n' "$*" "${GH_TOKEN:-none}" >> "$NET_LOG"
+case "$1 $2" in
+  "api user") echo operator-login ;;
+  "api graphql")
+    jq -n --rawfile b "$BODY" \
+      '{data: {repository: {issue: {body: $b, lastEditedAt: "2026-10-14T00:00:00Z"}}}}' ;;
+  "issue edit")
+    while [ "$#" -gt 0 ]; do [ "$1" = --body-file ] && cp "$2" "$BODY"; shift; done ;;
+esac
+STUB
+  chmod +x "$STUB/gh"
+  body "$TRACKING"
+}
+
+@test "--as with a role that falls back writes as the operator, and says so" {
+  as_tree
+  run --separate-stderr "$LOG" acme/r 7 --bullet="Friction log" --text='x' --as=orchestrator
+  [ "$output" = "result=OK appended=1 body_edited=2026-10-14T00:00:00Z body_chars=$(jq -Rrs length "$BODY") as=operator-login fallback=unconfigured" ]
+  grep -q '^gh issue edit 7 --repo acme/r --body-file .* token=none$' "$NET_LOG"
+  grep -qx -- '- x' "$BODY"
+}
+
+@test "--as with a configured role reads and writes under its App, minting once" {
+  as_tree
+  configure_role orchestrator 9 agent-orchestrator-t
+  run --separate-stderr "$LOG" acme/r 7 --table="Decision log" --row='| 2026-10-14 | D2 | — | Second | proposed |' --as=orchestrator
+  [[ "$output" == "result=OK appended=1 "*" as=agent-orchestrator-t" ]]
+  grep -q "^gh issue edit 7 --repo acme/r --body-file .* token=$STUB_TOKEN\$" "$NET_LOG"
+  # The query spans lines; each read's log entry ends on its variables.
+  grep -q -- "-F n=7 token=$STUB_TOKEN\$" "$NET_LOG"
+  ! grep -- '-F n=7 token=' "$NET_LOG" | grep -vq "token=$STUB_TOKEN\$" || false
+  [ "$(grep -c '/access_tokens$' "$NET_LOG")" -eq 1 ]
+}
+
+@test "--as passes an error through without an as= field" {
+  as_tree
+  configure_role orchestrator 9 agent-orchestrator-t
+  run --separate-stderr "$LOG" acme/r 7 --bullet="No such section" --text='x' --as=orchestrator
+  [[ "$output" == "result=ERROR reason=section-missing now="* ]]
+  [[ "$output" != *"as="* ]]
+}
+
+@test "--as with a configured role whose key command prints nothing posts nothing" {
+  as_tree
+  export DNBG_ORCHESTRATOR_APP_ID=9 DNBG_ORCHESTRATOR_PRIVATE_KEY_COMMAND=true
+  run --separate-stderr "$LOG" acme/r 7 --bullet="Friction log" --text='x' --as=orchestrator
+  [[ "$output" == "result=ERROR reason=role now="* ]]
+  [[ "$stderr" == *"produced no output"* ]]
+  ! grep -q '^gh ' "$NET_LOG" || false
+  ! grep -qx -- '- x' "$BODY"
+}
+
+@test "--as with a role the resolver refuses reads and writes nothing" {
+  as_tree
+  run --separate-stderr "$LOG" acme/r 7 --bullet="Friction log" --text='x' --as=reviewer
+  [[ "$output" == "result=ERROR reason=role now="* ]]
+  ! grep -q '^gh ' "$NET_LOG"
+}
