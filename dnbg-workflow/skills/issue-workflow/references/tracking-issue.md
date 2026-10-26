@@ -172,7 +172,8 @@ writer: the session orchestrating the parent, `orchestrate`'s multi-issue mode.
 An edit replaces the whole body, so a second writer can silently undo the first.
 Anyone else, a child's orchestrator or author included, leaves what the body
 should carry where its record already lives, for that writer to collect, and
-posts it as a comment on the parent only when it has no such record. With no
+posts it as a comment on the parent, under its own role, only when it has no
+such record. With no
 session orchestrating the parent, it waits for the one that does.
 
 A decision-log row needs no comment on the parent: it is already the child's

@@ -1,0 +1,46 @@
+{
+  "_comment": [
+    "The author role's data, declared once. bootstrap.py builds the role's App",
+    "manifest from `required`, mint-token.sh checks every minted token against it,",
+    "and as-role.sh reads `fallback`.",
+    "",
+    "`fallback` is what as-role.sh does when this role has no App configured:",
+    "\"operator\" runs the command as the operator's own account, \"refuse\" fails",
+    "it. The author falls back: on a forge or plan where a bot per role costs too",
+    "much, acting as the operator is the supported configuration.",
+    "",
+    "`consequence` is printed to whoever hits a shortfall, so it is addressed to",
+    "them: what stops working, not why the permission exists."
+  ],
+  "fallback": "operator",
+  "required": {
+    "contents": "write",
+    "pull_requests": "write",
+    "issues": "write",
+    "workflows": "write",
+    "checks": "read",
+    "actions": "read",
+    "statuses": "read",
+    "metadata": "read"
+  },
+  "why": {
+    "contents": "push branches; delete a merged branch",
+    "pull_requests": "open PRs, edit their descriptions, mark them ready, reply to and resolve review threads",
+    "issues": "claim issues, file them, edit their bodies, comment, label",
+    "workflows": "push a commit that touches .github/workflows/",
+    "checks": "check runs",
+    "actions": "checkSuite.workflowRun, which the rollup dereferences",
+    "statuses": "combined commit status, for CI that posts statuses instead of check runs",
+    "metadata": "mandatory"
+  },
+  "consequence": {
+    "contents": "pushes from a worktree are refused",
+    "pull_requests": "PRs cannot be opened, edited or marked ready, and review threads cannot be answered",
+    "issues": "claims, filed issues, issue comments and body edits all fail",
+    "workflows": "a push that changes a file under .github/workflows/ is refused",
+    "checks": "check runs are invisible, so a red build reads as no build",
+    "actions": "the rollup cannot dereference workflow runs",
+    "statuses": "CI that posts commit statuses instead of check runs is invisible",
+    "metadata": "nothing works"
+  }
+}

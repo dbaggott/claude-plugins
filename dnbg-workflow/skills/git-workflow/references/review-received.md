@@ -12,10 +12,10 @@ here with the merge handoff; a review with findings continues in
 **Run the `── next ──` command the watcher printed.** It is this, with every argument already filled in:
 
 ```bash
-"<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-handled-sha> <since-iso> <your-login>
+"<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-handled-sha> <since-iso> <author-login>
 ```
 
-The same values the watcher was armed with — the SHA you last handled, the timestamp marking "handled up to here", and your own login, whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta — which is what the printed command already does on a first round.
+The same values the watcher was armed with — the SHA you last handled, the timestamp marking "handled up to here", and the author role's login (the author App's, or yours when the role falls back), whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta — which is what the printed command already does on a first round.
 
 What the sections are for, and the mistake each one prevents:
 

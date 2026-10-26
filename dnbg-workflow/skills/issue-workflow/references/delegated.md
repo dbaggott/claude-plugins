@@ -28,7 +28,19 @@ Only a question nothing answered stops you.
 1. **Post the question as a comment on the issue you are working**, or on the
    PR when there is no issue. The issue is where the dispatcher watches, so a
    question about a PR still goes on its issue when there is one. A reviewer
-   posts on what it was asked to review.
+   posts on what it was asked to review. Post it as your role, with the body
+   drafted in a file from `mktemp`:
+
+   ```bash
+   "<skill-dir>/../../scripts/as-role.sh" <role> <owner>/<repo> -- \
+     gh issue comment <n> --repo <owner>/<repo> --body-file <file>
+   ```
+
+   `<skill-dir>` is the Base directory of the skill you loaded. `<role>` is
+   `author` under `git-workflow` and `issue-workflow`, `orchestrator` under
+   `orchestrate`, and `reviewer` under `reviewer` and `issue-reviewer`. A PR's number takes the
+   same command. Posted under any other login, the question would wake your own
+   watch, which ignores only your role's.
 2. **End the turn with the question as your report.** Include the comment's URL.
    Take no step the answer would decide: don't pick an option, don't mark a PR
    ready, don't start the next phase.

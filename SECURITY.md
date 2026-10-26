@@ -83,6 +83,13 @@ to `${TMPDIR:-/tmp}/dnbg-watch/`, swept after three days. It records the
 repo, PR number and poll outcomes so a watch that dies can be diagnosed — no
 tokens, no diff content. `WATCH_LOG=off` disables it.
 
+`git-workflow` writes git config in each worktree it creates: it sets
+`extensions.worktreeConfig` in the repository's shared config, and, in that
+worktree's own config, a credential helper that pushes as the author role and
+an HTTPS push URL for an SSH `origin`. The main checkout's credential helpers
+and remotes are left as they were. "The author" below covers what the helper
+does.
+
 ### What it does not do
 
 No telemetry. No analytics. Nothing sends your code, prompts, or session
@@ -142,8 +149,10 @@ buy is honest attribution and a narrower permission set per call.
 `dnbg-workflow/roles/reviewer/permissions.json`: `pull_requests: write` —
 submit reviews, inline comments, thread replies — `issues: write`, to post an
 issue-body review's verdicts, `contents: write`, and `checks`, `actions`,
-`statuses` and `metadata` at **read**. The reviewer never falls back: posting as
-you would deadlock the author's watch, which ignores exactly your login.
+`statuses` and `metadata` at **read**. The reviewer never falls back. With no
+author App, the author's watch ignores exactly your login, so a review posted as
+you would never wake it, and GitHub refuses your approval of a PR you opened.
+With one, a review under your login would read as your own.
 
 ⚠️ **`contents: write` means a leaked key can write source.** GitHub gates
 creating commits and refs on it, and merging a pull request too, so the blast
@@ -167,6 +176,43 @@ as the bot, and nothing more: with no `contents` or `pull_requests` permission,
 it cannot push, merge, or read the repository's code or its pull requests' diffs. Without an App the orchestrator falls back to
 your account, and the session-start notice says so. Rotate its key as below,
 with `orchestrator` as the role.
+
+### The author
+
+`dnbg-workflow/roles/author/permissions.json`: `contents: write`, to push
+branches; `pull_requests: write`, to open, edit and mark ready PRs and answer
+review threads; `issues: write`, to claim, file, edit and comment on issues;
+`workflows: write`, without which GitHub refuses a push that touches
+`.github/workflows/`; and `checks`, `actions`, `statuses` and `metadata` at
+**read**. It has no administration permission. Commits stay yours: the author
+App pushes them and opens the PR, and changes no author or committer.
+
+⚠️ **A leaked author key pushes code, workflow files included, to every repo
+where the App is installed.** A pushed workflow runs in CI with whatever secrets
+the repo gives it, so on a repo with secrets the key reaches those too. It can
+also merge, open and edit PRs, and edit issues as the bot. As for the reviewer,
+the scoping lever is the installation's repository list.
+
+The author falls back to your account when it has no App, and that is a
+supported configuration rather than a migration step: its writes and pushes go
+up as you, as they did before roles existed.
+
+**Pushes.** `git-workflow` configures each worktree it creates, in that
+worktree's own git config, with `dnbg-workflow/scripts/git-credential-as-role.sh
+author` as its only credential helper; the main checkout's config is untouched.
+On each `get`, the helper mints through `as-role.sh` and hands the token to git
+on the credential protocol, so nothing is stored (`store` and `erase` do
+nothing) and the token reaches no config file, remote URL or log. A configured
+author whose mint fails stops the push; it is never answered with your
+credential. With no author App, the helper hands on your own
+`gh auth git-credential` answer. An SSH `origin` gets an HTTPS push URL in the
+worktree config, so the helper is asked at all; with no author App, those pushes
+use `gh`'s OAuth token instead of your SSH key, and that token needs the
+`workflow` scope to push a workflow change (`gh auth status` lists its scopes;
+`gh auth refresh -s workflow` adds one).
+
+Rotating or revoking the author's key is the procedure below, for the author's
+App.
 
 ### Where a key lives
 

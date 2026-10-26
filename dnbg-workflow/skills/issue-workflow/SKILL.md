@@ -58,19 +58,43 @@ someone else is a stop, not a merge conflict to discover later.
 
 Everything below applies to both.
 
+## Writing as the author
+
+Every issue write this skill has you make goes up as the **author role**:
+filing an issue, editing its body or labels, commenting, claiming, minting a
+label. Each runs through the role resolver, with any body drafted in a file
+from `mktemp`:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
+  gh issue edit <n> --repo <owner>/<repo> --body-file <file>
+"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
+  gh issue comment <n> --repo <owner>/<repo> --body-file <file>
+```
+
+`<skill-dir>` is this skill's Base directory. The resolver runs the one command
+with the author App's token in place, or as the operator's own account when no
+author App is set up, and says which on stderr (`as-role.sh: result=OK
+as=<login> fallback=<none|unconfigured>`). Reads run under your own auth. When
+it refuses, it exits 125 without running the command, and a `credential`
+refusal is an App that is set up and could not mint: fix what it names rather
+than writing another way. The write scripts take the role as a flag instead
+(`claim-issue.sh --as=author`), and `git-workflow`'s "Acting as the author"
+carries the same rule for PRs and pushes.
+
 ## Maintaining issues
 
 The cheapest sweep is the one never owed — write state-independent references (`references/creating.md`) and most of this section never triggers. For the drift that remains:
 
 **The body is the current truth; comments are history.** A cold resolver reads the body as "this is the work," so a body that has drifted from reality actively misleads — and no comment thread repairs that, because resolvers under the link-following discipline in `references/resolving.md` won't reconstruct truth from a comment archaeology dig.
 
-This isn't a standing patrol duty. The trigger is touching the issue for any reason — commenting on it, shipping part of it, closing or merging a PR it references. For the merge case, find the issues to sweep via `gh pr view <n> --json closingIssuesReferences` (the keyword-linked set), any issue URLs in the PR description, and the open issues each closed issue blocks (`gh issue view <n> --json blocking`), whose bodies were written before this merge and may still ask for what it shipped — this sweep is maintenance, not context exploration, so the depth-1 reading cap in `references/resolving.md` doesn't apply to it (it is stated there; you do not need to load that file to take this exemption). A swept issue someone else has claimed (`claim-issue.sh` reads `FOREIGN`, per `references/claiming.md`) is its holder's to edit: comment what shipped there instead, for the holder to fold into the body. So is a tracking issue whose children are being worked, unless you orchestrate it (`references/tracking-issue.md`, "Who writes the body"). When triggered, bring the body back to current truth before moving on:
+This isn't a standing patrol duty. The trigger is touching the issue for any reason — commenting on it, shipping part of it, closing or merging a PR it references. For the merge case, find the issues to sweep via `gh pr view <n> --json closingIssuesReferences` (the keyword-linked set), any issue URLs in the PR description, and the open issues each closed issue blocks (`gh issue view <n> --json blocking`), whose bodies were written before this merge and may still ask for what it shipped — this sweep is maintenance, not context exploration, so the depth-1 reading cap in `references/resolving.md` doesn't apply to it (it is stated there; you do not need to load that file to take this exemption). A swept issue someone else has claimed (`claim-issue.sh` reads `FOREIGN`, per `references/claiming.md`) is its holder's to edit: comment what shipped there instead (as the author, per "Writing as the author"), for the holder to fold into the body. So is a tracking issue whose children are being worked, unless you orchestrate it (`references/tracking-issue.md`, "Who writes the body"). When triggered, bring the body back to current truth before moving on, with the body edit in "Writing as the author":
 
 - **Status-mark shipped work.** If part of the issue has landed, mark that section shipped (with the PR URL) instead of leaving it presented as open work — otherwise a cold resolver re-implements it.
 - **Promote comment-borne facts into the body.** New evidence or decisions that arrived as comments get folded into the body. A fact that lives only in a comment is invisible to the handoff.
 - **Sweep cross-references on state changes.** When a referenced PR or issue closes or is superseded, update the body text that depends on it — a "how to apply" that names a mechanism from a closed PR sends the resolver hunting for a file that doesn't exist.
 
-**A plain issue that has grown** until a test in `references/creating.md`, "Is this one issue or a project?", fires: ask with `AskUserQuestion` once per issue, recording the answer as a comment on it, with two options. **"Rewrite as a tracking issue"** rewrites its body and title in place per `references/tracking-issue.md`; **"Leave as is"** keeps it a plain issue, and the recorded answer stands for later touches. Without `AskUserQuestion`, leave it as is and say in the report which test fired.
+**A plain issue that has grown** until a test in `references/creating.md`, "Is this one issue or a project?", fires: ask with `AskUserQuestion` once per issue, recording the answer as a comment on it (the comment command in "Writing as the author"), with two options. **"Rewrite as a tracking issue"** rewrites its body and title in place per `references/tracking-issue.md`; **"Leave as is"** keeps it a plain issue, and the recorded answer stands for later touches. Without `AskUserQuestion`, leave it as is and say in the report which test fired.
 
 ## Referencing issues and PRs
 

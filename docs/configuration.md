@@ -233,13 +233,34 @@ The token is minted for the App's installation on the repo's owner, lives only
 in the command's environment, and is never written to disk, git config or a
 remote URL, or printed.
 
+### Pushing as the author
+
+`git-workflow` runs `dnbg-workflow/scripts/git-credential-as-role.sh --install
+author <worktree>` on each worktree it works in. That writes, in the worktree's
+own `config.worktree` only, after enabling `extensions.worktreeConfig` in the
+repository's shared config:
+
+| Key | Value | Why |
+| --- | --- | --- |
+| `credential.helper` | an empty entry, then the helper | the empty entry clears every helper read before it, `gh auth setup-git`'s `credential.https://github.com.helper` included, so your own helpers never answer first |
+| `credential.useHttpPath` | `true` | git then sends the repository path, which picks the App installation |
+| `remote.origin.pushurl` | the HTTPS form of an SSH `origin` | git asks no credential helper over SSH; fetches stay on SSH |
+
+The helper answers each push with a freshly minted author token, or with your
+`gh auth git-credential` answer when the author falls back, so an author App set
+up partway through a session takes effect at the next push. With no author App
+and an SSH `origin`, pushes go over HTTPS with `gh`'s token: check that it has
+the `workflow` scope (`gh auth status`) if you push workflow changes. The helper
+path recorded is that plugin version's, so re-run `--install` on a worktree that
+outlives a plugin update.
+
 ### Falling back to your account
 
 A role with no configuration (no `config.json`, and none of
 `DNBG_<ROLE>_APP_ID`, `_PRIVATE_KEY` or `_PRIVATE_KEY_COMMAND`) acts as your own
 account only when its `permissions.json` says
-`"fallback": "operator"`; the reviewer says `"refuse"`, which is also what an
-absent key means. A session-start notice names each role falling back, from
+`"fallback": "operator"`; the author and the orchestrator do, the reviewer says `"refuse"`, which
+is also what an absent key means. A session-start notice names each role falling back, from
 configuration presence alone, with no network call. A role that *is* configured
 but whose credential fails — a failed mint, a revoked grant, a key command that
 prints nothing — is an error and never falls back, and so is any setup where two

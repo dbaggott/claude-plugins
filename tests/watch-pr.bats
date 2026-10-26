@@ -58,6 +58,10 @@ EOF
 
 setup() {
   contain_traces
+  # An author watch asks the role resolver for its login, so no role setup of the
+  # developer's may reach it.
+  local v; for v in $(compgen -v DNBG_); do unset "$v"; done
+  export XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/xdg"
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
   setup_clock
@@ -77,16 +81,18 @@ if [ "$2" = view ]; then
   fi
 fi
 case "$*" in
+  "api user"*) echo operator; exit 0 ;;
   *"/actions/jobs/"*"/logs") [ -f "$RUNLOG" ] || exit 1; cat "$RUNLOG"; exit 0 ;;
 esac
 case "$1 $2" in
   "pr view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
     n=0; [ -f "$HEADCOUNT" ] && read -r n < "$HEADCOUNT"
-    printf '{"state":"%s","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":[],"statusCheckRollup":%s,"mergeStateStatus":"%s","reviewDecision":"%s"}' \
+    printf '{"state":"%s","isDraft":%s,"headRefOid":"%040d","reviews":%s,"comments":%s,"statusCheckRollup":%s,"mergeStateStatus":"%s","reviewDecision":"%s"}' \
       "$(or_default "$PRSTATE" OPEN)" \
       "$(or_default "$DRAFT_FILE" false)" "$n" \
       "$(or_default "$REVIEWS" '[]')" \
+      "$(or_default "$COMMENTS" '[]')" \
       "$(or_default "$ROLLUP" '[]')" \
       "$(or_default "$MERGESTATE" CLEAN)" \
       "$(or_default "$REVIEWDECISION" '')" ;;
@@ -110,6 +116,7 @@ EOF
   export FAIL_COMMENTS="$BATS_TEST_TMPDIR/fail_comments"
   export HEADCOUNT="$BATS_TEST_TMPDIR/headcount"
   export REVIEWS="$BATS_TEST_TMPDIR/reviews"
+  export COMMENTS="$BATS_TEST_TMPDIR/comments"
   # NOT `DRAFT`: watch-pr.sh assigns its own `DRAFT` from the payload, and an
   # assignment to an already-exported name keeps the export — so the stub, a
   # grandchild of the watch, would receive `DRAFT=true` in place of this path, find
@@ -1446,4 +1453,52 @@ STUB
         || { echo "$ORCH_LOGIN did not wake the $role watch: $output"; return 1; }
     done
   done
+}
+
+# --- the author's login, from the role resolver ------------------------------
+
+pr_comment() {  # <login> — one PR comment, after any since these tests arm with
+  printf '[{"author":{"login":"%s"},"createdAt":"2026-01-02T00:00:00Z","body":"b"}]' "$1" > "$COMMENTS"
+}
+
+author_watch() {  # an author-side watch with no slug: the resolver supplies it
+  INTERVAL=1 SETTLE=1 WINDOW=5 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z "" --role=author --last-verdict=
+}
+
+@test "with an author App, the author watch wakes on the operator's comment" {
+  export DNBG_AUTHOR_APP_ID=7 DNBG_AUTHOR_SLUG=agent-author-t
+  pr_comment operator
+  author_watch
+  [[ "$output" == *"result=ACTIVITY"* ]]
+}
+
+@test "with an author App, the author watch wakes on the orchestrator bot's comment" {
+  export DNBG_AUTHOR_APP_ID=7 DNBG_AUTHOR_SLUG=agent-author-t
+  pr_comment 'agent-orchestrator-t[bot]'
+  author_watch
+  [[ "$output" == *"result=ACTIVITY"* ]]
+}
+
+# The author's own posts, a `Delegated question:` among them, land under its bot.
+@test "with an author App, the author watch ignores the author bot's own comment" {
+  export DNBG_AUTHOR_APP_ID=7 DNBG_AUTHOR_SLUG=agent-author-t
+  pr_comment 'agent-author-t[bot]'
+  author_watch
+  [[ "$output" == *"result=IDLE"* ]]
+  [[ "$output" == *" agent-author-t --role=author"* ]]
+}
+
+@test "with no author App, the author watch ignores the operator's comment, as before" {
+  pr_comment operator
+  author_watch
+  [[ "$output" == *"result=IDLE"* ]]
+  [[ "$output" == *" operator --role=author"* ]]
+}
+
+@test "an author watch whose login the resolver refuses says so, not bad-args" {
+  export DNBG_AUTHOR_APP_ID=7   # configured, with no slug: no-login
+  pr_comment operator
+  author_watch
+  [[ "$output" == *"result=ERROR reason=role"* ]]
 }

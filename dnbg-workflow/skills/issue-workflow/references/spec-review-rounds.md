@@ -75,7 +75,17 @@ already replaced — say so rather than answering findings that may no longer ap
 
 **Edit the body first, then comment.** The comment is the receipt for edits
 already made. Reversing it makes the reviewer read a body that does not yet carry
-what you claimed, and report a fix missing that is not.
+what you claimed, and report a fix missing that is not. Both go up as the author
+(`SKILL.md`, "Writing as the author"), each drafted in a file from `mktemp`:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
+  gh issue edit <n> --repo <owner>/<repo> --body-file <body-file>
+"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
+  gh issue comment <n> --repo <owner>/<repo> --body-file <response-file>
+```
+
+`<skill-dir>` is this skill's Base directory.
 
 **Respond per finding ID**, dispositioning each one:
 
@@ -98,7 +108,7 @@ a fresh comment.
 
 **A fix that edits another issue already at `READY` reopens that issue's round**,
 as when a finding on one child is fixed in a sibling. Make the edit and post its
-note before the response on the issue that carried the finding, so the response
+note, with the two commands above on the sibling's number, before the response on the issue that carried the finding, so the response
 stays your latest post, and add that issue to the watch below. The note names the
 finding, by its ID and the URL of the comment carrying it, then the section that
 changed, and ends `No blocking findings were open here.`
@@ -121,8 +131,10 @@ from the URL `gh issue comment` printed):
   --role=author --since=<your response comment's created_at>
 ```
 
-`--role=author` resolves the ignored login from `gh api user` when no `--slug` is
-given, so the watch ignores your own comments and wakes on the reviewer's. Arm it
+With no `--slug`, `--role=author` asks the role resolver for the login to ignore:
+the author App's, or yours when the author has no App. So the watch ignores the
+author's own comments and wakes on the reviewer's, and on yours too when the
+author has an App. Arm it
 *after* posting the response. The first-arm rule's time is the comment's own,
 not your clock's, because a body edit carries no login to filter: a `since`
 before your last edit by GitHub's clock wakes the watch on your own round.
@@ -139,7 +151,8 @@ Dispatch on the result:
   re-arm**, and do not report that the reviewer has not answered: you do not know
   that. `reason=issue-query` points at auth or the issue numbers;
   `issue-query-shape` means the payload stopped parsing, so auth will look fine;
-  `bad-args` and `unsupported-forge` mean it never started.
+  `bad-args` and `unsupported-forge` mean it never started, and `role` that the
+  resolver refused the author's login, with why on stderr.
 
 **Re-arm from the `── re-arm ──` line the watch prints, never from the clock.** It
 carries `since` set to that run's own `now`; activity is counted against `since`,
@@ -186,7 +199,7 @@ other issue is plain.
      review."
 
   On "Accept", write the row `references/tracking-issue.md`'s "Acceptance"
-  gives, with the round comment's URL and `operator sign-off in session`, then:
+  gives, as a body edit with the first command in "Answering", with the round comment's URL and `operator sign-off in session`, then:
   "Accepted. In a fresh session: `decompose <URL>`." On "Not yet", write
   nothing, and ask what the operator still wants to change. Without
   `AskUserQuestion`, post the question as a `Delegated question:` per

@@ -8,7 +8,7 @@ review, before spawning anything. `SKILL.md` carries the flow up to that point;
 
 When the operator picks "Send to review" in `SKILL.md`'s picker, or otherwise signals the PR is ready (says "ready", "go", "mark it ready", etc.):
 
-1. Note the time, then run `gh pr ready <num> --repo <repo>` if the PR isn't already out of draft. That time is the first arm's `since`, per the first-arm rule in `watch-issue.sh`'s header: the review responds to this step. A PR already out of draft was ready before this step, so its review responds to your last push instead: take `since` from your last commit, `gh pr view <num> --repo <repo> --json commits --jq '.commits[-1].committedDate'`, which is no later than the push.
+1. Note the time, then run `"<skill-dir>/../../scripts/as-role.sh" author <repo> -- gh pr ready <num> --repo <repo>` if the PR isn't already out of draft. That time is the first arm's `since`, per the first-arm rule in `watch-issue.sh`'s header: the review responds to this step. A PR already out of draft was ready before this step, so its review responds to your last push instead: take `since` from your last commit, `gh pr view <num> --repo <repo> --json commits --jq '.commits[-1].committedDate'`, which is no later than the push.
 2. **Record the current head SHA.** Everything else the next arm needs comes back on the watch's own `── re-arm ──` line; this is a first arm, so there is nothing yet to carry.
 3. **Spawn `watch-pr.sh`** as a **background** task (Bash `run_in_background: true`, `timeout: 7200000`), and every re-arm of it the same way. Without the timeout a headless session stops the watch after 10 minutes, and it returns no result line. It blocks until something happens, so its idle polling never enters the conversation, and the harness wakes you when it returns.
 
@@ -17,10 +17,12 @@ HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
 # A blank value means the `gh` call above failed. Catch it here rather than
 # letting the watcher act on it.
 [ -n "$HEAD" ] || { echo "could not resolve head SHA — re-run the watch"; exit 1; }
-# --role=author is what makes this an author-side watch: it ignores your own
-# login, does not wake on your own pushes, reports DIRTY and a terminal block
+# --role=author is what makes this an author-side watch: it ignores the author
+# role's login, does not wake on any push, reports DIRTY and a terminal block
 # because you own the merge, and sizes the window for a wait that should be
-# short. The slug is derived from your own account, so it is not passed.
+# short. The slug is not passed: the watch asks the role resolver for the
+# author's login, which is the author App's, or yours when the role falls back.
+# So with an author App, your own comments on the PR wake it.
 # --last-verdict= is empty here and only here: it says "no verdict handled yet".
 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
   "$HEAD" "<the time you noted in step 1>" "" --role=author --last-verdict=

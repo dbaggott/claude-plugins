@@ -89,10 +89,10 @@ First fold in the items a child's orchestrator relayed because it was not the
 parent's writer: the comments on the parent whose first line reads
 `Friction log items from <child URL>` (`issue-workflow`'s
 `references/tracking-issue.md`, "Who writes the body"), about a child in the
-set and posted by your own login or the orchestrator's, the `login=` of
-`"<skill-dir>/../../scripts/as-role.sh" --login orchestrator <owner>/<repo>`
-in either spelling, `<login>` or `<login>[bot]`. Yours covers a child run
-whose orchestrator fell back. Pass each bullet to one
+set and posted by your own login, the author's or the orchestrator's: the
+`login=` of `"<skill-dir>/../../scripts/as-role.sh" --login author <owner>/<repo>`
+or of `… --login orchestrator <owner>/<repo>`, in either spelling, `<login>` or
+`<login>[bot]`. Yours covers a child run whose role fell back. Pass each bullet to one
 `log-row.sh --bullet="Friction log" --as=orchestrator` call as a `--text`
 without its leading `- `. The call adds only the bullets the log does not already carry.
 
@@ -121,7 +121,11 @@ Put the approved table in the description first, then file each approved
 follow-up per `issue-workflow`'s `references/creating.md`, writing its URL into
 its row as soon as it is filed. A row still without a URL on resume is searched
 for by its title before it is filed. A follow-up that a review round turns into
-a drop is closed as not planned, citing the round.
+a drop is closed as not planned, citing the round:
+`"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh issue close <n> --repo <owner>/<repo> --reason "not planned" --comment "<round URL>"`.
+Every write in this file is the author's, as `git-workflow`'s "Acting as the
+author" describes, except the parent-body rows `log-row.sh` writes and the
+disposition question posted on the parent, which are the orchestrator's.
 
 ## 6. Send it to review, and see it through
 
@@ -140,7 +144,7 @@ recorded run is answered by running it and recording it, as in step 4.
 A finding this PR cannot answer, such as unbuilt work that a new child would
 own, is an escalation, as `references/multi-issue.md`'s "Triage and the log"
 describes: what to build next is the operator's call. When the answer adds or
-reopens a child, return the PR to draft with `gh pr ready <pr> --undo` and go
+reopens a child, return the PR to draft with `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh pr ready <pr> --repo <owner>/<repo> --undo` and go
 back to the loop. It reaches this file again at `open=0`, where step 1 finds
 the PR and you bring its doc up to date before sending it back to review.
 

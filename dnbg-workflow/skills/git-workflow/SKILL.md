@@ -42,7 +42,13 @@ per plugin.
 1. `git fetch origin` — fetches all refs so later diffs against other branches don't surprise you with stale data.
 2. `gh pr list --repo <repo> --state open` — if any open PR might touch the files you're about to change, check its diff (`gh pr diff <num>`) and either coordinate or hold off. Independent staleness check from the fetch above: that one catches a stale base, this one catches concurrent work — without it, two PRs against the same node in the same file can both rebase cleanly and one becomes a wasted no-op the moment the other merges.
 3. Re-read any files you touched in a prior session — code may have changed.
-4. `git worktree add .worktrees/<branch-name> -b <branch-name> origin/<default-branch>` — the default branch comes from the settings read below; don't assume `main`. If the change spans repos, the branch name is the pairing key; see "Multi-repo changes" below before picking it.
+4. `git worktree add .worktrees/<branch-name> -b <branch-name> origin/<default-branch>` — the default branch comes from the settings read below; don't assume `main`. If the change spans repos, the branch name is the pairing key; see "Multi-repo changes" below before picking it. Then point the worktree's pushes at the author role, per "Acting as the author" below:
+
+   ```bash
+   "<skill-dir>/../../scripts/git-credential-as-role.sh" --install author <worktree-path>
+   ```
+
+   Run it on every worktree you work in, one you take over or continue included. It reads `result=OK`; on `result=ERROR`, stop and say what it named.
 5. Make changes in the worktree.
 6. Commit.
 7. **Self-review the branch, and address what it finds** — before pushing. When the issue declares an operator check before review, that check comes first and moves the push and the draft PR ahead of this step: see "Operator check before review" below.
@@ -58,10 +64,16 @@ per plugin.
    - **A rename the issue specifies in full**, in any file, as long as each hunk only swaps the old name for the new one or rewraps the line it lands on. Its standards pass checks that the new name was not already taken, and greps the tree for the old one, which may stay only in released history such as CHANGELOG.md.
 
    Size alone never qualifies. Say the defect pass was skipped, and why, when you announce the PR and in the PR description, which names the files for generated, data or prose hunks and the issue for a rename.
-8. Push, and **open the PR as a draft** (`gh pr create --draft ...`).
-9. After each commit, update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description.
+8. Push, and **open the PR as a draft**, its description drafted in a file from `mktemp` per "Writing the PR description":
+
+   ```bash
+   git -C <worktree-path> push -u origin <branch-name>
+   "<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
+     gh pr create --draft --repo <owner>/<repo> --head <branch-name> --title "<title>" --body-file <file>
+   ```
+9. After each commit, push, and update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description. The new description goes in a file from `mktemp` too: `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh pr edit <number> --repo <owner>/<repo> --body-file <file>`.
 10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker. Without `AskUserQuestion`, follow `<skill-dir>/../issue-workflow/references/delegated.md`.
-11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`gh pr ready <number> --repo <repo>`) and start watching for the first review — see `references/review-rounds.md`, which carries the watch, and `references/watch-results.md` for what each of its results means. A review that comes in goes to `references/review-received.md`, findings to `references/review-findings.md`, and a clean verdict to `references/merge.md` for the handoff.
+11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`"<skill-dir>/../../scripts/as-role.sh" author <repo> -- gh pr ready <number> --repo <repo>`) and start watching for the first review — see `references/review-rounds.md`, which carries the watch, and `references/watch-results.md` for what each of its results means. A review that comes in goes to `references/review-received.md`, findings to `references/review-findings.md`, and a clean verdict to `references/merge.md` for the handoff.
 12. Never merge. Only a human merges PRs.
 
 Worktrees live in `.worktrees/` inside the repo. Ensure `.worktrees` is in `.gitignore`.
@@ -71,6 +83,36 @@ Worktrees live in `.worktrees/` inside the repo. Ensure `.worktrees` is in `.git
 **Concurrent work is the norm — other worktrees are not a finding.** `.worktrees/` routinely holds branches from other sessions, other agents, and the operator's own in-flight work. Their presence is expected, needs no report, and is not evidence anything is wrong. Never touch one you didn't create.
 
 What *is* worth raising is a concrete collision: step 2's open-PR check, or a sibling worktree, shows work landing on the same files or the same design surface as yours. Flag that with the specific overlap — "`<branch>` also edits `src/auth.ts:40-70`" — so the operator can decide whether to coordinate. The signal is the conflict, not the parallelism.
+
+## Acting as the author
+
+Every write you make on the forge goes up as the **author role**: the PR, its
+description and state, comments, thread replies and resolutions, labels, and
+the issues you file, edit or comment on. Each runs through the role resolver:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh …
+```
+
+It runs the one command with the author App's token in place, or as your own
+account when no author App is set up; its stderr line, `as-role.sh: result=OK
+as=<login> fallback=<none|unconfigured>`, says which. Prefix the write itself,
+not a block around it: reads (`gh pr view`, `gh pr diff`, a `gh api` GET) run
+under your own auth. When the resolver refuses, it exits 125 without running the
+command, after `as-role.sh: result=ERROR reason=<reason>` and what to do. A
+`credential` refusal means the author App is set up and its token could not be
+had; fix what the message names (`reviewer-setup` covers installing an App on
+an account) rather than running the command another way. A configured author
+never falls back to your account.
+
+Pushes take no prefix: step 4's `--install` configures the worktree's own git
+config with a credential helper that asks the resolver on every push, and turns
+an SSH `origin` into an HTTPS push URL so the helper is asked at all. The main
+checkout keeps your own credential. Commits stay yours: nothing changes
+`user.name`, `user.email` or the Co-Authored-By trailer. With no author App and
+an SSH `origin`, pushes then go over HTTPS with `gh`'s own token, which needs
+the `workflow` scope to push a change under `.github/workflows/`: `gh auth
+status` lists the scopes, and `gh auth refresh -s workflow` adds it.
 
 ## Operator check before review
 
@@ -194,7 +236,7 @@ When one logical change spans repos (e.g. an infrastructure change plus the appl
 
 Single-repo PRs (the common case) stay untagged, apart from the project tag below — a tag that is a branch name is itself the signal that siblings exist in other repos.
 
-If a change turns multi-repo midway — the first PR is already open when you discover a second repo needs to change — reuse its branch name for the new worktree and retitle the open PR to add the tag (`gh pr edit <num> --repo <repo> --title "..."`), replacing any project tag below, when you open the sibling.
+If a change turns multi-repo midway — the first PR is already open when you discover a second repo needs to change — reuse its branch name for the new worktree and retitle the open PR to add the tag (`"<skill-dir>/../../scripts/as-role.sh" author <repo> -- gh pr edit <num> --repo <repo> --title "..."`), replacing any project tag below, when you open the sibling.
 
 ## Project tag
 
