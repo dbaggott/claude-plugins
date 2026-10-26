@@ -4,22 +4,20 @@
     "permissions.json). It falls back to the operator: an orchestrator posting as",
     "the operator deadlocks nothing, it only loses attribution, and while the",
     "author also falls back, the author's watches skip its posts, as they did",
-    "before roles existed. It has no `contents`: it writes no code."
+    "before roles existed. It has no `contents` and no `pull_requests`: it writes",
+    "no code, and reads pull requests under the operator's own auth."
   ],
   "fallback": "operator",
   "required": {
     "issues": "write",
-    "pull_requests": "read",
     "metadata": "read"
   },
   "why": {
     "issues": "post decision-log rows and questions, edit tracking-issue bodies, claim issues for its authors",
-    "pull_requests": "read the pull requests that resolve the issues it drives",
     "metadata": "mandatory"
   },
   "consequence": {
     "issues": "no decision-log row, question, body edit or claim can be posted",
-    "pull_requests": "pull requests read as absent to any call made under the orchestrator's App",
     "metadata": "nothing works"
   }
 }

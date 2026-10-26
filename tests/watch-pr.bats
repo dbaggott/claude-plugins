@@ -1422,8 +1422,8 @@ EOF
 
 # The orchestrator arms no watch of its own, and its posts on a PR are addressed
 # to the author and the reviewer, so its bot's conversation comment wakes both
-# roles, in either spelling of its login. Its App has no `pull_requests` write,
-# so it posts no inline comment.
+# roles, in either spelling of its login. Its App has no `pull_requests`
+# permission, so it posts no inline comment.
 @test "an orchestrator bot comment wakes a reviewer watch and an author watch" {
   export ORCH_LOGIN
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'STUB'

@@ -2,8 +2,8 @@
 rows, questions, tracking-issue body edits and friction-log relays go through
 the new `orchestrator` role, so a watch can tell them from your own comments by
 login. Create the App with `reviewer-setup` (`--roles orchestrator`); it needs
-only `issues` write and read on `pull_requests` and `metadata`, and no
-`contents`.
+only `issues` write and the mandatory `metadata` read, with no access to code
+or pull requests.
 
 Until you do, the orchestrator posts as you, exactly as before, and the
 session-start notice names it. `log-row.sh` gains `--as=<role>`, whose result

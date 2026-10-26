@@ -161,11 +161,10 @@ whatever you granted.
 
 `dnbg-workflow/roles/orchestrator/permissions.json`: `issues: write`, to post
 decision-log rows and questions, edit tracking-issue bodies and claim issues for
-its authors, and `pull_requests` and `metadata` at **read**. On every repo where
-the App is installed, a leaked key reads and writes any issue's body, comments
-and labels as the bot, and reads pull requests, their diffs included. It has no
-`contents` permission, so it cannot push, merge, or read the repository's files
-outside a pull request's diff. Without an App the orchestrator falls back to
+its authors, and the mandatory `metadata: read`. On every repo where the App is
+installed, a leaked key reads and writes any issue's body, comments and labels
+as the bot, and nothing more: with no `contents` or `pull_requests` permission,
+it cannot push, merge, or read the repository's code or its pull requests' diffs. Without an App the orchestrator falls back to
 your account, and the session-start notice says so. Rotate its key as below,
 with `orchestrator` as the role.
 
