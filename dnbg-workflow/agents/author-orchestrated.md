@@ -32,8 +32,10 @@ report carries: a server never exits, so no wake would come.
 When your prompt names a PR to continue, work on its branch rather than a new
 one: in the worktree the prompt names, reading `git status` and `git diff`
 there first, since the predecessor may have died mid-edit; otherwise with
-`git worktree add .worktrees/<branch> <branch>` in place of `git-workflow`'s
-step 4, which would start a new branch at the default branch.
+`git worktree add .worktrees/<branch> <branch>` in place of the `git worktree
+add` in `git-workflow`'s step 4, which would start a new branch at the default
+branch. Either way, run the rest of step 4, the push credential `--install`, on
+that worktree.
 
 Stop a background task of yours, such as a watch or a background review, with
 the harness's task-stop tool by its id, never with `pkill -f` or a pattern:

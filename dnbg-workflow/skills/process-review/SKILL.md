@@ -32,9 +32,10 @@ the report with what it lacks, and counts toward nothing.
 `gh issue view <url> --json body,comments` and take the bullets under the body's
 **Friction log** heading, and those of each comment whose first line reads
 `Friction log items from <child URL>`, which a child's orchestrator posts when
-it is not the parent's writer, and whose author is your own login or the
-orchestrator's: the `login=` of `"<skill-dir>/../../scripts/as-role.sh" --login
-orchestrator <owner>/<repo>`, in either spelling, `<login>` or `<login>[bot]`.
+it is not the parent's writer, and whose author is your own login, the author's
+or the orchestrator's: the `login=` of `"<skill-dir>/../../scripts/as-role.sh"
+--login author <owner>/<repo>` or of `… --login orchestrator <owner>/<repo>`, in
+either spelling, `<login>` or `<login>[bot]`.
 Count a bullet found in both once. Each bullet is
 one more source: sort it under whichever of the four headings fits, and cite it
 as `friction log <date>`. This step is GitHub-only; for a URL on another host,

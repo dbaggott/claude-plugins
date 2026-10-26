@@ -1302,7 +1302,7 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
 # https://github.com/dbaggott/claude-plugins/issues/149 and the `FORGE` guard that
 # refuses with `unsupported-forge` — or is listed here as GitHub-shaped throughout, so a
 # new forge call is one or the other by decision rather than by omission.
-GITHUB_ONLY_SCRIPTS="fetch-tree.sh pr-round.sh pr-sources.sh pr-threads.sh pr-verdict.sh watch-issue.sh watch-pr.sh"
+GITHUB_ONLY_SCRIPTS="fetch-tree.sh pr-round.sh pr-sources.sh pr-threads.sh pr-verdict.sh watch-pr.sh"
 # The role resolver is the seam itself: it reads the forge from the repo it is
 # given rather than assuming one, so it needs only the refusal for a forge with
 # no backend.

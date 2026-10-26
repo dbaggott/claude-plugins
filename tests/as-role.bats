@@ -228,9 +228,12 @@ setup() {
   [ -z "$output" ]
 }
 
-@test "the shipped roles' notice names the orchestrator until it is set up" {
+@test "the shipped roles' notice names the author and orchestrator until each is set up" {
   run "$ROLE_ROOT/hooks/role-fallback-notice.sh"
   [ "$status" -eq 0 ]
+  [[ "$output" == *"login (the fallback tier): author, orchestrator."* ]]
+  configure_role author 7 agent-author-t
+  run "$ROLE_ROOT/hooks/role-fallback-notice.sh"
   [[ "$output" == *"login (the fallback tier): orchestrator."* ]]
   export DNBG_ORCHESTRATOR_APP_ID=9
   run "$ROLE_ROOT/hooks/role-fallback-notice.sh"

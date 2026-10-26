@@ -33,7 +33,7 @@
   },
   "consequence": {
     "pull_requests": "reviews and inline comments cannot be posted",
-    "issues": "an issue-body review cannot post its verdicts. Falling back to your own account instead deadlocks it silently — the author's watch excludes exactly that login, so it never wakes while both sides report a healthy watch.",
+    "issues": "an issue-body review cannot post its verdicts. Falling back to your own account instead would deadlock it silently wherever the author has no App of its own — the author's watch excludes exactly that login, so it never wakes while both sides report a healthy watch.",
     "contents": "reviews post but do not count — GitHub leaves a review by an App without this out of latestOpinionatedReviews, so reviewDecision never moves and the merge box ignores the verdict. Resolving a thread also fails.",
     "checks": "check runs are invisible, so a red build reads as no build",
     "actions": "the rollup cannot dereference workflow runs",

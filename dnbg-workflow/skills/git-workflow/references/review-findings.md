@@ -43,7 +43,12 @@ If at any point the operator says "stop" / "pause" / "let me drive", drop the au
 
 ## Responding to reviewers
 
-Address comments to the reviewer using `@username` mentions.
+Address comments to the reviewer using `@username` mentions. A PR comment goes up as the author, like every write (`SKILL.md`'s "Acting as the author"), drafted in a file from `mktemp`:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
+  gh pr comment <n> --repo <owner>/<repo> --body-file <file>
+```
 
 **Put the answer where the next review will look**, and prefer the durable forms — **enforceable > prose > nothing**, applied to review:
 
@@ -54,9 +59,11 @@ Address comments to the reviewer using `@username` mentions.
 **Reply in the thread itself, and resolve it.** A top-level PR comment does not close a thread, and an unresolved thread is how a reviewer tracks outstanding work — so answering at the top level leaves the finding looking untouched no matter how thoroughly you fixed it. Use the `PRRT_…` id from the round packet's `── threads ──` section:
 
 ```bash
-gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(
+"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
+  gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(
   input:{pullRequestReviewThreadId:$t,body:$b}){clientMutationId}}' -f t=<thread-id> -f b='<reply>'
-"<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --resolve <thread-id>
+"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
+  "<skill-dir>/../../scripts/pr-threads.sh" <owner>/<repo> <n> --resolve <thread-id>
 ```
 
 Resolve only what you actually addressed. A thread you are declining to act on stays open with your reasoning in it — that is a disagreement to surface, not a box to tick.

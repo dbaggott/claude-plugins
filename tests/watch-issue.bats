@@ -33,6 +33,10 @@ EOF
 
 setup() {
   contain_traces
+  # An author watch asks the role resolver for its login, so no role setup of the
+  # developer's may reach it.
+  local v; for v in $(compgen -v DNBG_); do unset "$v"; done
+  export XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/xdg"
   STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
   export GQL="$BATS_TEST_TMPDIR/gql.json"
   export GQL_EXIT="$BATS_TEST_TMPDIR/gql_exit"
@@ -679,4 +683,44 @@ EOF
         || { echo "$login did not wake the $role watch: ${lines[-1]}"; return 1; }
     done
   done
+}
+
+# --- the author's login, from the role resolver ------------------------------
+
+author_issue_watch() {  # <comment-login> — an author-side watch with no --slug
+  repo "$(issue 163 "$(comment "$1" 2026-01-02T00:00:00Z)")"
+  INTERVAL=1 SETTLE=1 WINDOW=4 \
+    run "$WATCH" o/r 163 --role=author --since=2026-01-01T00:00:00Z
+}
+
+@test "with an author App, the author issue watch wakes on the operator's comment" {
+  export DNBG_AUTHOR_APP_ID=7 DNBG_AUTHOR_SLUG=agent-author-t
+  author_issue_watch operator
+  [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=comment"* ]]
+}
+
+@test "with an author App, the author issue watch wakes on the orchestrator bot's comment" {
+  export DNBG_AUTHOR_APP_ID=7 DNBG_AUTHOR_SLUG=agent-author-t
+  author_issue_watch 'agent-orchestrator-t[bot]'
+  [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=comment"* ]]
+}
+
+# A `Delegated question:` the author posted is one of these: it lands under its bot.
+@test "with an author App, the author issue watch ignores the author bot's own comment" {
+  export DNBG_AUTHOR_APP_ID=7 DNBG_AUTHOR_SLUG=agent-author-t
+  author_issue_watch 'agent-author-t[bot]'
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "$output" == *"--slug=agent-author-t"* ]]
+}
+
+@test "with no author App, the author issue watch ignores the operator's comment, as before" {
+  author_issue_watch operator
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  [[ "$output" == *"--slug=operator"* ]]
+}
+
+@test "an author watch whose login the resolver refuses says so, not bad-args" {
+  export DNBG_AUTHOR_APP_ID=7   # configured, with no slug: no-login
+  author_issue_watch operator
+  [[ "${lines[-1]}" == "result=ERROR reason=role"* ]]
 }

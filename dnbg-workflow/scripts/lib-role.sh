@@ -68,3 +68,14 @@ role_bot_login() {  # <role> <repo>
   "$ROLE_LIB_DIR/as-role.sh" --login "$1" "$2" 2>/dev/null \
     | sed -n 's/^result=OK login=\([^ ]*\) fallback=none$/\1/p'
 }
+
+# The login a role acts under on <repo> in either tier: its bot's, or the
+# operator's own when the role falls back. When the resolver refuses, nothing on
+# stdout, and its result line and reason on stderr.
+role_login() {  # <role> <repo>
+  local out; out=$("$ROLE_LIB_DIR/as-role.sh" --login "$1" "$2")
+  case "$out" in
+    "result=OK login="*) out="${out#result=OK login=}"; printf '%s\n' "${out%% *}" ;;
+    *) printf 'as-role.sh: %s\n' "$out" >&2 ;;
+  esac
+}

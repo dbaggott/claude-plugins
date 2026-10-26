@@ -78,7 +78,8 @@ since that posts as the operator past an App that is set up. Reads stay under
 your own `gh` auth, with no resolver.
 
 The closeout PR's own writes, its pushes, `gh pr create` and `gh pr ready
---undo`, are a PR author's, made as `git-workflow` makes them
+--undo`, and its follow-up filing, including closing a dropped follow-up, are
+the author's, made as `git-workflow` and `issue-workflow` make them
 (`references/closeout.md`).
 
 ## On start, read everything from GitHub

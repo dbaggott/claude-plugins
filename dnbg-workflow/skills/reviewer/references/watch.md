@@ -48,10 +48,9 @@ verdict together. **Run it first; it is what their handling below reads from.**
   `reviewer` are accepted), an empty `<slug>` (its filter would match no login,
   so the watch wakes on its own posts), a `<last_head>` or `--last-verdict`
   value that is neither empty nor a full 40-character lowercase SHA, or a
-  trailing argument outside the accepted set. Auth is the one exception to
-  "nothing failed": the author role derives its own slug from `gh api user`, so
-  expired auth arrives here as an empty slug rather than as a source failure.
-  On the reviewer side you pass the slug, so it cannot be that.
+  trailing argument outside the accepted set. An author-side watch that
+  cannot get its own login from the role resolver reports `reason=role`
+  instead. On the reviewer side you pass the slug, so it cannot be that.
 - **No `result=` line at all** — the task was killed or failed rather than
   returning (a session ending, a reload, exit 143). This is the dangerous one,
   because it looks exactly like a quiet PR while being the opposite: the

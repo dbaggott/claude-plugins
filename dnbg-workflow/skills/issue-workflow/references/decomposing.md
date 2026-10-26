@@ -80,9 +80,11 @@ Children live in the parent's repository. Before filing any, mint the project
 label there and put it on the parent:
 
 ```bash
-gh label create "project:<slug>" --repo <owner/repo> --force --color 5319E7 \
+"<skill-dir>/../../scripts/as-role.sh" author <owner/repo> -- \
+  gh label create "project:<slug>" --repo <owner/repo> --force --color 5319E7 \
   --description "Tracked by <parent URL>"
-gh issue edit <parent> --repo <owner/repo> --add-label "project:<slug>"
+"<skill-dir>/../../scripts/as-role.sh" author <owner/repo> -- \
+  gh issue edit <parent> --repo <owner/repo> --add-label "project:<slug>"
 ```
 
 `--force` updates a label that already exists rather than failing on it, so run
@@ -95,7 +97,8 @@ that URL in an edit once the child exists. For each, file it per `creating.md`
 one call:
 
 ```bash
-"<skill-dir>/../../scripts/set-issue-relations.sh" <owner/repo> <child> --parent=<parent> [--blocked-by=<n,...>]
+"<skill-dir>/../../scripts/as-role.sh" author <owner/repo> -- \
+  "<skill-dir>/../../scripts/set-issue-relations.sh" <owner/repo> <child> --parent=<parent> [--blocked-by=<n,...>]
 ```
 
 `<skill-dir>` is this skill's announced Base directory. Read the result line:

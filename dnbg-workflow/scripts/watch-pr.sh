@@ -31,6 +31,7 @@
 #                   # window_left: only this run ended, at lib-poll.sh's WINDOW_CEILING;
 #                   # the window goes on in the re-arm line
 #   result=ERROR    reason=<source> now=<iso>               # the watch is broken — do NOT re-arm
+#                   # reason=role: the resolver refused the author's login (why, on stderr)
 #
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
 # carrying the next invocation, whose `since` is that result's `now=` — except an
@@ -48,8 +49,9 @@
 # removes the caller's choice of which watcher to run:
 #
 #   author    waits for a verdict. Its own pushes are not news, so COMMITS is not
-#             a wake. It owns the merge, so DIRTY is. Ignores the operator's
-#             login. Shorter window — quiet here is suspect.
+#             a wake. It owns the merge, so DIRTY is. Ignores the author role's
+#             login, the resolver's answer: the author App's, or the operator's
+#             when the role falls back. Shorter window — quiet here is suspect.
 #
 # --merge-stage says the review is over and the wait is now for the merge, which
 # is the only point at which a terminal block is worth stopping for. Before it,
@@ -97,6 +99,8 @@ WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
 . "$(dirname "$0")/lib-watch.sh"
 # shellcheck source=./lib-activity.sh
 . "$(dirname "$0")/lib-activity.sh"
+# shellcheck source=./lib-role.sh
+. "$(dirname "$0")/lib-role.sh"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 fatal() { echo "result=ERROR reason=$1 now=$(poll_now_iso)"; exit 0; }
@@ -121,10 +125,12 @@ sha_ok "$LAST_VERDICT" || bad=1
 sha_ok "$LAST_CHECKS_HEAD" || bad=1
 [ -n "$SINCE" ] || SINCE="1970-01-01T00:00:00Z"
 
-# Only the author's own login is derivable here. A reviewer's is its bot's,
-# which only the reviewer config knows, so that role has to be told.
-if [ -z "$SLUG" ] && [ "$ROLE" = author ]; then
-  SLUG=$(gh api user --jq .login 2>/dev/null) || SLUG=""
+# The author's login comes from the resolver. A reviewer's is its bot's, which
+# its caller reads from the same resolver and passes, so that role has to be told.
+if [ -z "$SLUG" ] && [ "$ROLE" = author ] && [ "$bad" = 0 ]; then
+  SLUG=$(role_login author "$REPO")
+  # The resolver's own reason is on stderr; bad-args would point at the arguments.
+  [ -n "$SLUG" ] || fatal role
 fi
 [ -n "$SLUG" ] || bad=1
 

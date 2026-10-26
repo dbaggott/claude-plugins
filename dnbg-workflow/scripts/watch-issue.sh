@@ -15,6 +15,7 @@
 #                   # window_left: only this run ended, at lib-poll.sh's WINDOW_CEILING;
 #                   # the window goes on in the re-arm line
 #   result=ERROR    reason=<source> now=<iso>
+#                   # reason=role: the resolver refused the author's login (why, on stderr)
 #
 # THE RE-ARM CONTRACT. Results a caller re-arms from carry a `── re-arm ──` line,
 # the next invocation with every argument filled in: `since` set to this run's
@@ -42,8 +43,8 @@
 # ignored, in both spellings as below, to `--slug`. Without `--wake-on`, every
 # kind wakes the watch.
 #
-# A harness waiting for a body edit made under the operator's own login, which
-# no login filter can single out, wakes on that alone:
+# A body edit carries no login here, so no login filter can single one out. A
+# harness waiting for a body edit, such as the operator's, wakes on that alone:
 #   --role=author --wake-on=body-edit,close
 #
 # `missing=` names numbers that resolve to no issue — a typo, a transfer, a PR
@@ -67,9 +68,11 @@
 #
 # ⚠️ THE EXCLUSION IS AN EXACT LOGIN MATCH — of both spellings, `<slug>` and
 # `<slug>[bot]`, since a GitHub App posts under the suffixed one — AND THE TWO
-# ROLES EXCLUDE DIFFERENT ONES. A reviewer excludes its bot; an author excludes their own account — and
-# the operator's login is a SUBSTRING of the bot's, so a substring match on the
-# author side drops every reviewer comment the watch exists to catch. That
+# ROLES EXCLUDE DIFFERENT ONES. A reviewer excludes its bot; an author excludes
+# the author role's login from the resolver, which is the operator's own account
+# when the role falls back — and the operator's login is a SUBSTRING of the
+# reviewer bot's, so a substring match on the author side drops every reviewer
+# comment the watch exists to catch. That
 # failure is silent: the watch reports a quiet issue while seeing everything.
 set -euo pipefail
 unset GH_TOKEN
@@ -101,6 +104,8 @@ WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
 . "$(dirname "$0")/lib-poll.sh"
 # shellcheck source=./lib-watch.sh
 . "$(dirname "$0")/lib-watch.sh"
+# shellcheck source=./lib-role.sh
+. "$(dirname "$0")/lib-role.sh"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 fatal() { echo "result=ERROR reason=$1 now=$(poll_now_iso)"; exit 0; }
@@ -111,8 +116,10 @@ case "$REPO" in */*) ;; *) bad=1 ;; esac
 [ -n "$NUMS" ] || bad=1
 [ -n "$SINCE" ] || SINCE="1970-01-01T00:00:00Z"
 
-if [ -z "$SLUG" ] && [ "$ROLE" = author ]; then
-  SLUG=$(gh api user --jq .login 2>/dev/null) || SLUG=""
+if [ -z "$SLUG" ] && [ "$ROLE" = author ] && [ "$bad" = 0 ]; then
+  SLUG=$(role_login author "$REPO")
+  # The resolver's own reason is on stderr; bad-args would point at the arguments.
+  [ -n "$SLUG" ] || fatal role
 fi
 [ -n "$SLUG" ] || bad=1
 

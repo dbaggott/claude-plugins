@@ -111,6 +111,19 @@ Litmus test before filing: for each cross-reference, ask "if the referenced thin
 
 Every issue gets labels, per `references/labeling.md`.
 
+### File it
+
+File it as the author (`SKILL.md`, "Writing as the author"), with the body
+drafted in a file from `mktemp`, and `<skill-dir>` this skill's Base directory:
+
+```bash
+"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
+  gh issue create --repo <owner>/<repo> --title "<title>" --body-file <file> \
+  --label <label> [--label <label>…]
+```
+
+An update to an existing issue is the body edit in "Writing as the author".
+
 ### Reporting a gap upstream
 
 An issue filed against someone else's project — reporting that tooling you
@@ -118,7 +131,7 @@ installed doesn't fit your case — is governed by the always-on rule "When
 shipped tooling doesn't fit, tell the user", not by the operator's own
 conventions. Two constraints that don't apply to an issue in your own repo:
 it is published under the user's identity to a project they don't control, so
-it is filed only if they ask for it and only after they have approved the exact
+it is filed with their own `gh issue create`, not as the author role, and only if they ask for it and only after they have approved the exact
 text; and the body is written from the **generic** case, so the session that
 exposed the gap contributes the shape of the problem and none of its content.
 Everything above about being self-documenting still applies to what remains.
