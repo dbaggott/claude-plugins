@@ -10,6 +10,20 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.59 — 2026-10-26
+
+`orchestrate` now posts under its own GitHub App: its claims, `Decision log:`
+rows, questions, tracking-issue body edits and friction-log relays go through
+the new `orchestrator` role, so a watch can tell them from your own comments by
+login. Create the App with `reviewer-setup` (`--roles orchestrator`); it needs
+only `issues` write and the mandatory `metadata` read, with no access to code
+or pull requests.
+
+Until you do, the orchestrator posts as you, exactly as before, and the
+session-start notice names it. `log-row.sh` gains `--as=<role>`, whose result
+line names the login it wrote as.
+
+
 ## dnbg-workflow 2026.10.58 — 2026-10-25
 
 Agent roles now get their GitHub identity through one resolver,
