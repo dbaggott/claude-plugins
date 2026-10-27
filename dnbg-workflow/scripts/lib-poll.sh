@@ -423,9 +423,13 @@ _poll_heartbeat() {
 # Sleep one interval, then reconcile the clock with what actually elapsed. The
 # interval is slept in pieces that end on heartbeat boundaries, so a beat falls
 # due mid-nap rather than only between polls.
+#
+# An argument replaces the curve's interval for this one nap, for a caller that
+# needs its next read at a fixed delay whatever the curve has backed off to. It
+# leaves the curve's position alone.
 poll_nap() {
   local iv left piece before after over to_ceiling
-  iv=$(poll_interval)
+  iv=${1:-$(poll_interval)}
   # Never sleep through the ceiling: a nap at the 300 s cap that started just
   # under it would spend most of the margin the ceiling keeps for the settle.
   # Past it, only a settle is still running, and that naps on the curve as usual.
