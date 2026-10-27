@@ -216,6 +216,17 @@ against them.
 **You do not edit the bodies.** A reviewer who fixes the artifact has removed the
 record of what was wrong with it, and nobody reviews the fix.
 
+## The round protocol
+
+`references/rounds.md` carries what every round needs, round 1 included: the
+gate each post passes, and the wait armed after it. It also carries everything
+from the author's first response onwards: reading a round as a delta, the
+ordering and quiescence rules both sides obey, and how the review converges or
+halts. Read it before posting round 1.
+
+The author's side of the same protocol is `issue-workflow`'s
+`references/spec-review-rounds.md`.
+
 ## Posting a round
 
 One comment per issue per round, never one per finding, with the detail folded
@@ -255,13 +266,10 @@ artifact goes in the comment first; the chat summary points at it rather than
 adding to it. A conclusion that reaches only the chat is invisible to the author,
 to the next reader, and to you next round.
 
-## Rounds after the first
-
-`references/rounds.md` carries everything from the author's first response
-onwards — the gate that re-validates a snapshot before the post, reading a round
-as a delta, the ordering and quiescence rules both sides obey, waiting, and how
-the review converges or halts. Read it before the second round, and before arming
-any wait.
-
-The author's side of the same protocol is `issue-workflow`'s
-`references/spec-review-rounds.md`.
+**Then arm the wait, in the same turn.** Once every issue in the round has its
+comment, start the wait in `references/rounds.md`, "Waiting for the author",
+with `--since` as that section gives it under the first-arm rule, unless the
+round converged or halted per that file's "Dispositioning, convergence, and the
+halt". Without a watcher, that file's manual relay stands in for it. The review
+runs until it converges or halts, not for one round: with no wait running, the
+author's response is never read.
