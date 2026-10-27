@@ -10,6 +10,19 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.61 — 2026-10-27
+
+Fixed spec reviews stopping after their first round. `issue-reviewer` now arms
+the wait for the author's response as the last step of posting every round that
+did not converge or halt, so a `CHANGES REQUESTED` round is followed up when the
+author answers instead of going unread.
+
+Fixed the merge wait sometimes telling you a PR needed a human to unblock it when
+it was seconds from mergeable. GitHub can briefly report a PR as blocked just
+after its last check finishes; the merge wait now re-reads after a few seconds
+before calling a block final, so it keeps waiting and catches the merge.
+
+
 ## dnbg-workflow 2026.10.60 — 2026-10-26
 
 The author is now a role with its own GitHub App. Once you create it with
