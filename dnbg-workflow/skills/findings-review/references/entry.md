@@ -81,8 +81,9 @@ disposition: open
 
 - **`project`** is the URL of the tracking issue the work is under, which is
   how its closeout finds the entry. The issue the work resolves names it as its
-  `parent` (`gh issue view <n> --repo <owner>/<repo> --json parent`); a
-  closeout PR's issue is the tracking issue itself. Leave the line out for work
+  `parent` (`gh issue view <n> --repo <owner>/<repo> --json parent`). Work on
+  the tracking issue itself, such as its closeout PR or a systemic finding its
+  orchestrator raises, takes the tracking issue's own URL. Leave the line out for work
   under no tracking issue.
 - **`kind`**: `defect` for a bug in code the change did not own, a flaky test
   among them; `deferred-finding` for a review finding left for later, or an
