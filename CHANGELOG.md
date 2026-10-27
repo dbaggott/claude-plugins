@@ -10,6 +10,28 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.63 — 2026-10-27
+
+Decomposing a tracking issue now checks whether two children would rewrite the
+same section of a file before leaving them independent. A shared section gets a
+dependency, moves into one child, or is split by sentence between the two
+bodies, so parallel children are told up front who owns the shared text instead
+of finding out in review. A file near a size cap that a test enforces counts as
+one section when both children add to it.
+
+A design review of a tracking issue now checks that each child in the candidate
+decomposition can meet the requirements it covers when it merges: the code each
+one needs ships in that child or in one it depends on. It also checks that a
+requirement moving a write to a different role is covered by the child that owns
+the place the write happens. Either failure is a blocking finding on the parent,
+caught before the children are filed rather than during decomposition.
+
+An author now treats adding to or removing from an interface the issue spelled
+out (its calls, flags, variables, exit codes or outputs), or moving where the
+issue said a value is computed, as a design change to surface, rather than a
+routine choice. A dispatched author asks before building it.
+
+
 ## dnbg-workflow 2026.10.62 — 2026-10-27
 
 When a review finding is fixed only in the PR description, the author now
