@@ -113,8 +113,9 @@ fi
 # 3. Activity since `$SINCE`. Review bodies, conversation comments, inline
 # findings and description edits all come from one fetch — the same tick
 # watch-pr.sh polls — so a caller reads the same objects whichever produced
-# them, and the filters below read one shape rather than several raw payloads. Fetch and parse stay split so a
-# payload that stops parsing is never reported as "nothing new".
+# them, and the filters below read one shape rather than several raw payloads.
+# Fetch and parse stay split so a payload that stops parsing is never reported
+# as "nothing new".
 REVS=""; reviews_src=ok
 STATE_OUT=$("$(dirname "$0")/fetch-pr-state.sh" "$REPO" "$PR" 2>/dev/null) || STATE_OUT=""
 STATE_LINE=$(printf '%s\n' "$STATE_OUT" | tail -1)

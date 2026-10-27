@@ -9,8 +9,8 @@
 # normalised object fetch-pr-state.sh produces — ACTIVITY_JQ_REVIEWS the whole
 # object, ACTIVITY_JQ_INLINE its `.inline` array, since inline findings appear in
 # neither of the other sources, and ACTIVITY_JQ_EDITS the whole object again,
-# kept apart because a failed edits fetch is graded apart from the reviews and
-# comments. ACTIVITY_JQ_SUMMARY projects any of their results down to the
+# separate from the reviews program because its source can fail while that one
+# answers. ACTIVITY_JQ_SUMMARY projects any of their results down to the
 # body-less form watch-pr.sh reports.
 #
 # Reading a normalised shape rather than two raw payloads is what lets one
