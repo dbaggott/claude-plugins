@@ -87,12 +87,7 @@ EOF
 CONFIGURED_WORKTREE_PATH="${CLAUDE_PLUGIN_OPTION_WORKTREE_PATH:-}"
 CONFIGURED_CLAIM_LABEL="${CLAUDE_PLUGIN_OPTION_CLAIM_LABEL:-}"
 CONFIGURED_RETROSPECTIVE_DIR="${CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR:-}"
-CONFIGURED_FINDINGS_DIR=$(configured_findings_dir)
-# shellcheck disable=SC2016  # Markdown backticks, printed as they are.
-FINDINGS_DIR_KEY='`findings_dir`'
-# shellcheck disable=SC2016
-[ -n "${CLAUDE_PLUGIN_OPTION_FINDINGS_DIR:-}" ] ||
-  FINDINGS_DIR_KEY='`followup_dir`, the old name of `findings_dir`,'
+CONFIGURED_FINDINGS_DIR="${CLAUDE_PLUGIN_OPTION_FINDINGS_DIR:-}"
 
 WORKTREE_PATH_BAD=""
 CLAIM_LABEL_BAD=""
@@ -138,7 +133,7 @@ used: $RETROSPECTIVE_DIR_BAD. **Using \`$DEFAULT_RETROSPECTIVE_DIR\` instead.**
 EOF
 
 [ -n "$FINDINGS_DIR_BAD" ] && cat <<EOF
-The findings directory \`$CONFIGURED_FINDINGS_DIR\` set as $FINDINGS_DIR_KEY cannot be used:
+The configured findings directory \`$CONFIGURED_FINDINGS_DIR\` cannot be used:
 $FINDINGS_DIR_BAD. **Using \`$DEFAULT_FINDINGS_DIR\` instead.**
 EOF
 

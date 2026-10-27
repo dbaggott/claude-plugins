@@ -41,12 +41,6 @@
       "description": "Directory agents write a findings entry under for each finding about the code in their reports, one subdirectory per repo (<dir>/<owner>/<repo>/); findings-review and a tracking issue's closeout read them from there. Must be an absolute path or one under '~/', using only letters, digits and '. _ - /'; anything else is rejected and the default used instead. Leave empty for '~/.claude/dnbg-findings'.",
       "default": "~/.claude/dnbg-findings"
     },
-    "followup_dir": {
-      "type": "string",
-      "title": "Deprecated: renamed findings_dir",
-      "description": "The old name of findings_dir, still read while findings_dir is empty, and dropped in a later release. Set findings_dir instead.",
-      "default": ""
-    },
     "version_stamp": {
       "type": "boolean",
       "title": "Stamp published PRs, reviews and issue claims with the plugin version",

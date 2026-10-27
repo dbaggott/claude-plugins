@@ -256,7 +256,7 @@ EOF
 @test "the plugin exposes exactly the intended configuration keys" {
   local keys
   keys=$(jq -r '.userConfig | keys_unsorted[]' "$ROOT/dnbg-workflow/.claude-plugin/plugin.json" | sort | tr '\n' ' ')
-  [ "$keys" = "claim_label findings_dir followup_dir owners retrospective_dir version_stamp worktree_path " ] || {
+  [ "$keys" = "claim_label findings_dir owners retrospective_dir version_stamp worktree_path " ] || {
     echo "userConfig keys are: $keys"
     echo "adding one means deciding it is mechanical, or that it governs what gets published — see docs/configuration.md"
     false
