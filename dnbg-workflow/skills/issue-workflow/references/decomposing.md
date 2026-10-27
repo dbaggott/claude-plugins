@@ -35,17 +35,20 @@ design author's first guess:
   are one child, or a third holds what they share: the dependencies form no
   cycle.
 - **Two children that rewrite the same section are not independent**, even
-  when neither needs the other to exist. Before marking two children
-  independent, list the sections each one's requirements change, by file and
-  heading or step (`closeout.md` step 5). Different sections of one file stay
-  independent: git merges them, and their meanings cannot collide. A file whose
-  total size a repo test caps is one section, since two children that each add
-  to it can pass alone and fail together. Where the lists share a section,
-  record one of:
+  when neither needs the other to exist. Before leaving two children without a
+  dependency between them, list the sections each one's requirements change,
+  by file and heading or step (`orchestrate/references/closeout.md`, "5.
+  Dispose of the friction log"). Different sections of one file stay
+  independent: git merges them, and their meanings cannot collide. A child
+  that renames or renumbers a heading or step also changes each section that
+  refers to it. A file whose total size a repo test caps, and that both
+  children add to near the cap, is one section, since each can pass alone and
+  the two fail together. Where the lists share a section, record one of:
   - one child depends on the other;
   - the shared text moves into one child;
   - both children's Proposed approach names the shared section and says which
-    child owns which sentences of it.
+    child owns which sentences of it. This does not fit a size cap, which no
+    split of sentences relieves.
 
 ## 2. Write each child's title and body
 
