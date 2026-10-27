@@ -1,4 +1,4 @@
-An author now asks before adding to, removing from, or moving the computation
-of an interface the issue spelled out (its calls, flags, variables, exit codes or
-outputs), instead of treating those as routine and reporting them at
-send-to-review.
+An author now treats adding to or removing from an interface the issue spelled
+out (its calls, flags, variables, exit codes or outputs), or moving where the
+issue said a value is computed, as a design change to surface, rather than a
+routine choice. A dispatched author asks before building it.
