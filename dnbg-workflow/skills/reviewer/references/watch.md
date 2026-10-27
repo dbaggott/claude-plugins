@@ -144,9 +144,13 @@ routinely leaves the section empty.
 - **Actionable** — a non-blocking finding the author didn't take, a thread you
   resolved on the author's reasoning that you still think deserves a follow-up,
   a coverage gap the merged diff carries. One line each, naming the concrete
-  next step and where. Write each item as a follow-up entry per
-  `<skill-dir>/../followup-review/references/entry.md`, which says which items
-  the author writes instead, and name the entry's path on the item's line.
+  next step and where.
+
+A finding you raised in a comment that the author did not act on goes under
+Observations or Actionable. Write each finding as a findings entry per
+`<skill-dir>/../findings-review/references/entry.md`, which says which items
+get one and which the author writes instead, and name the entry's path on the
+item's line.
 
 Beyond writing those entries, don't act on that list — you are the reviewer, and
 filing or fixing is somebody else's side of the flow.

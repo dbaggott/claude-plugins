@@ -36,7 +36,7 @@ Required, in this order, even while a log is still empty:
 - **Decisions** (`D#`) — format below.
 - **Open questions** (`Q#`) — format below.
 - **End-to-end acceptance criteria** (`A#`) — below.
-- **Decision log** and **Friction log** — below.
+- **Decision log** and **Findings log** — below.
 
 Optional:
 
@@ -136,12 +136,14 @@ A table, newest row last:
 A decision is acted on once it is `decided`; the body edit applying it is part of
 the work, not a precondition for it.
 
-## Friction log
+## Findings log
 
-Dated bullets recording where the **process** hurt — a skill that did not fit,
-tooling that got in the way, a review step done by hand — as distinct from the
-project's own problems. It is read into follow-up issues, or explicit drops, when
-the project closes.
+Dated bullets recording the project's own findings: a gap the design missed, a
+convention the children diverged on, a defect found next to the work. Each one
+links the findings entry it was drawn from (`findings-review`'s
+`references/entry.md`). At the closeout each gets a follow-up issue, a drop, or
+a deferral to `findings-review`. Where the **process** hurt is not a finding: it
+stays in the retrospectives, for `process-review`.
 
 ## Acceptance
 
@@ -178,7 +180,7 @@ session orchestrating the parent, it waits for the one that does.
 
 A decision-log row needs no comment on the parent: it is already the child's
 `Decision log:` comment (`orchestrate`'s `references/triage.md`, "The row"),
-which the writer collects. Friction-log items live in local retrospective files,
-not on GitHub, so they are relayed in one comment whose first line is exactly
-`Friction log items from <child URL>`, followed by one bullet per item, each on
-a single line in the friction log's own form.
+which the writer collects. Findings entries live in local files, not on GitHub,
+so their bullets are relayed in one comment whose first line is exactly
+`Findings log items from <child URL>`, followed by one bullet per item, each on
+a single line in the findings log's own form.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Append rows to a table, or bullets to a list, under one heading of an issue's
-# body — a tracking issue's decision log or friction log.
+# body — a tracking issue's decision log or findings log.
 #
 #   log-row.sh <owner/repo> <n> --table=<heading>  --row='| … |' [--row=…] [--as=<role>]
 #   log-row.sh <owner/repo> <n> --bullet=<heading> --text='…'    [--text=…] [--as=<role>]

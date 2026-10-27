@@ -38,7 +38,7 @@ design author's first guess:
   when neither needs the other to exist. Before leaving two children without a
   dependency between them, list the sections each one's requirements change,
   by file and heading or step (`orchestrate/references/closeout.md`, "5.
-  Dispose of the friction log"). Different sections of one file stay
+  Dispose of the findings log"). Different sections of one file stay
   independent: git merges them, and their meanings cannot collide. A child
   that renames or renumbers a heading or step also changes each section that
   refers to it. A file whose total size a repo test caps, and that both

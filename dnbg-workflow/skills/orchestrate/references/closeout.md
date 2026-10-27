@@ -6,8 +6,8 @@ one PR closes it, `reviewer`'s issue mode on the parent reviews that PR, and the
 operator merges it. You are that PR's author. Step 5 needs the operator's
 approval, so this runs in the main session.
 
-The closeout PR writes the project's as-built design into the repo and disposes
-of its friction log. The parent's shape and IDs are in `issue-workflow`'s
+The closeout PR writes the project's as-built design into the repo and settles
+its findings log. The parent's shape and IDs are in `issue-workflow`'s
 `references/tracking-issue.md`.
 
 `<skill-dir>` is the **Base directory** announced when this skill loads, or,
@@ -29,16 +29,31 @@ Read the per-source fields before treating `count=0` as none, as
 `closingIssuesReferences` include the parent is a predecessor's closeout PR.
 Continue it rather than opening a second, at the first of steps 4 to 6 its
 description does not carry; one out of draft resumes at step 6, with a reviewer
-dispatched as step 6 does if none is reviewing it. Run step 2 too while its description has
-no step-5 table; once it has one, write your retrospective at "Stop" instead,
-for `process-review` alone.
+dispatched as step 6 does if none is reviewing it. Run step 2 too while its
+description has no step-5 table.
 
-## 2. Fold your retrospective
+## 2. Gather the findings into the log
 
-Write your own retrospective, once for the run, per
-`references/retrospective.md` with the parent as its issue, and fold its
-project-level items into the parent's friction log, so step 5 disposes of them
-too.
+Bring every finding of the project into the parent's **Findings log**, each as
+one bullet in the form `references/retrospective.md`'s "Fold the project's
+findings into the parent" gives, added with one
+`log-row.sh --bullet="Findings log" --as=orchestrator` call. The call adds only
+the bullets the log does not already carry. The bullets come from two places:
+
+- **The comments relayed by a child's orchestrator** that was not the parent's
+  writer: those on the parent whose first line reads
+  `Findings log items from <child URL>` (`issue-workflow`'s
+  `references/tracking-issue.md`, "Who writes the body"), about a child in the
+  set and posted by your own login, the author's or the orchestrator's: the
+  `login=` of `"<skill-dir>/../../scripts/as-role.sh" --login author <owner>/<repo>`
+  or of `… --login orchestrator <owner>/<repo>`, in either spelling, `<login>`
+  or `<login>[bot]`. Yours covers a child run whose role fell back. Pass each
+  bullet as a `--text` without its leading `- `.
+- **The findings store**: every entry under the findings root
+  (`<skill-dir>/../findings-review/references/entry.md`, "Where it goes"),
+  across every repo's directory, whose `project:` is the parent's URL and whose
+  `disposition` is `open`, which takes in entries no run folded. Skip an entry
+  whose path a bullet already names.
 
 ## 3. Write the as-built design and open the PR
 
@@ -71,7 +86,7 @@ The doc is the parent body as built, not as planned:
 - **Replace the candidate decomposition with a "Where it was built" table**: each
   child's title, its `Covers`, and its merged PR URLs.
 - **Drop execution state**: the decision log's states, `Depends on`, claims,
-  the friction log, and Required reading.
+  the findings log, and Required reading.
 
 ## 4. Run the criteria no child recorded
 
@@ -83,38 +98,35 @@ for when a later commit changes a file under the run's invalidating paths,
 and link it from the doc's `A#`. Running a criterion is not judging it: whether
 a run meets its `A#` is the reviewer's call, on this PR.
 
-## 5. Dispose of the friction log
+## 5. Dispose of the findings log
 
-First fold in the items a child's orchestrator relayed because it was not the
-parent's writer: the comments on the parent whose first line reads
-`Friction log items from <child URL>` (`issue-workflow`'s
-`references/tracking-issue.md`, "Who writes the body"), about a child in the
-set and posted by your own login, the author's or the orchestrator's: the
-`login=` of `"<skill-dir>/../../scripts/as-role.sh" --login author <owner>/<repo>`
-or of `… --login orchestrator <owner>/<repo>`, in either spelling, `<login>` or
-`<login>[bot]`. Yours covers a child run whose role fell back. Pass each bullet to one
-`log-row.sh --bullet="Friction log" --as=orchestrator` call as a `--text`
-without its leading `- `. The call adds only the bullets the log does not already carry.
+Every findings-log entry is reviewed with the operator and gets exactly one
+disposition:
 
-Every friction-log entry gets exactly one disposition: a follow-up issue, or
-`Dropped, because <reason>`. Draft them all first, as a table, then show the
-operator the table and the exact text of every follow-up before filing any. An
-entry about a `dnbg-*` plugin's own tooling is filed upstream under the
-always-on "When shipped tooling doesn't fit, tell the user" rule, and that rule
-needs the operator's approval of the exact text. Without `AskUserQuestion`, the
-table and the follow-up texts are the question in
+- **a follow-up issue** in the project's repo;
+- **`Dropped, because <reason>`**;
+- **`Deferred`**, which leaves its findings entry `disposition: open` for
+  `findings-review` to decide later, against a fresher tree.
+
+Propose one for each the way `findings-review`'s steps 2 to 4 do: re-check the
+entry against the default branch, merge entries that describe one problem, and
+draft each follow-up's exact text, with **Deferred** where that skill would
+propose **keep**. Draft them all first, as a table, then show the operator the
+table and the exact text of every follow-up before filing any. Without
+`AskUserQuestion`, the table and the follow-up texts are the question in
 `<skill-dir>/../issue-workflow/references/delegated.md`, posted on the parent
 as the orchestrator (`SKILL.md`, "Write as the orchestrator"); file nothing
 until it is answered.
 
-The table goes in the PR description, not the parent body. It is the friction
+The table goes in the PR description, not the parent body. It is the findings
 log's final state, and the merged PR is what the closed parent links to:
 
 ```markdown
 | Entry | Disposition |
 | --- | --- |
-| 2026-10-13: the issue-create hook matches `--help` | <follow-up issue URL> |
-| 2026-10-14: author side of a set review is manual | Dropped, because the multi-issue orchestrator now does it |
+| 2026-10-13: export drops rows past the page size | <follow-up issue URL> |
+| 2026-10-14: children diverged on date formatting | Dropped, because child 6 settled it |
+| 2026-10-15: no test for the empty-archive path | Deferred |
 ```
 
 Put the approved table in the description first, then file each approved
@@ -123,6 +135,11 @@ its row as soon as it is filed. A row still without a URL on resume is searched
 for by its title before it is filed. A follow-up that a review round turns into
 a drop is closed as not planned, citing the round:
 `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh issue close <n> --repo <owner>/<repo> --reason "not planned" --comment "<round URL>"`.
+
+Record each filed or dropped row in its entry, as `findings-review`'s step 5
+does, when the entry is on this machine; a row whose entry is not stays in the
+table alone.
+
 Every write in this file is the author's, as `git-workflow`'s "Acting as the
 author" describes, except the parent-body rows `log-row.sh` writes and the
 disposition question posted on the parent, which are the orchestrator's.

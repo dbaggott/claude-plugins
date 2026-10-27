@@ -328,30 +328,43 @@ run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
   [[ "$output" != *"configuration overrides"* ]]
 }
 
-@test "announces a configured follow-up directory and names it" {
+@test "announces a configured findings directory and names it" {
   stub_path jq git gh
-  run_hook_configured '' '' '' '~/followups'
+  run_hook_configured '' '' '' '~/findings'
   [ "$status" -eq 0 ]
   [[ "$output" == *"configuration overrides"* ]]
-  [[ "$output" == *'`~/followups/<owner>/<repo>/`'* ]]
+  [[ "$output" == *'`~/findings/<owner>/<repo>/`'* ]]
   [[ "$output" != *"Retrospectives live under"* ]]
 }
 
-@test "says nothing when the follow-up directory is set to its default" {
+@test "says nothing when the findings directory is set to its default" {
   stub_path jq git gh
-  run_hook_configured '' '' '' '~/.claude/dnbg-followups/'
+  run_hook_configured '' '' '' '~/.claude/dnbg-findings/'
   [ "$output" = "$RULES_TEXT" ]
 }
 
-@test "a rejected follow-up directory is reported with its value, reason and fallback" {
+@test "a rejected findings directory is reported with its value, reason and fallback" {
   stub_path jq git gh
-  run_hook_configured '' '' '' 'followups'
+  run_hook_configured '' '' '' 'findings'
   [ "$status" -eq 0 ]
   [[ "$output" == *"INVALID configuration"* ]]
-  [[ "$output" == *'`followups`'* ]]
+  [[ "$output" == *'`findings`'* ]]
   [[ "$output" == *"neither an absolute path"* ]]
-  [[ "$output" == *'`~/.claude/dnbg-followups`'* ]]
+  [[ "$output" == *'`~/.claude/dnbg-findings`'* ]]
   [[ "$output" != *"configuration overrides"* ]]
+}
+
+@test "a root set under the old followup_dir name is announced as the findings directory" {
+  stub_path jq git gh
+  run_hook_configured '' '' '' '' '~/followups'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'`~/followups/<owner>/<repo>/`'* ]]
+}
+
+@test "says nothing when the old followup_dir name holds its own default" {
+  stub_path jq git gh
+  run_hook_configured '' '' '' '' '~/.claude/dnbg-followups'
+  [ "$output" = "$RULES_TEXT" ]
 }
 
 @test "announces only the knob that moved" {

@@ -70,8 +70,9 @@ so the issues implementing it can cite its requirements and decisions by ID.
    is written back into it, and the children that cite what changed are updated.
 5. When the last child closes, the orchestrator opens the closeout PR, which
    resolves the tracking issue the way any PR resolves its issue: it writes the
-   as-built design into the repo and turns the project's friction log into
-   follow-up issues, filing none whose text you haven't approved. Its review is
+   as-built design into the repo and settles the project's findings log with
+   you: each finding becomes a follow-up issue, a drop, or a deferral, and no
+   issue is filed whose text you haven't approved. Its review is
    the whole-project review, grading the result against the design's own
    end-to-end acceptance criteria, and its merge closes the tracking issue.
 
@@ -194,7 +195,7 @@ you wrote.
 | `orchestrate` | `dnbg-workflow` | GitHub only | Driving one issue, or every child of a tracking issue, to merged PRs with author and reviewer subagents |
 | `project-status` | `dnbg-workflow` | GitHub only | Which stage of the project flow an issue is at, and the prompt to paste next |
 | `process-review` | `dnbg-workflow` | GitHub only | Finding patterns across orchestration retrospectives and drafting upstream issues |
-| `followup-review` | `dnbg-workflow` | GitHub only | Sweeping the follow-up entries agents keep for each Actionable item, and filing or dropping each with you |
+| `findings-review` | `dnbg-workflow` | GitHub only | Sweeping the findings entries agents keep for what they found about the code, and filing, dropping or keeping each with you |
 | `reviewer` | `dnbg-workflow` | GitHub only | Reviewing a pushed PR under an independent GitHub App identity |
 | `reviewer-setup` | `dnbg-workflow` | GitHub only | One-time creation of that App (no cloud service, no shared secret) |
 | `velocity-tradeoff` | `dnbg-workflow` | **Any** | Opt-in: how to size work where the risk/benefit trade favors speed |

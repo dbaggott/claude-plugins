@@ -55,6 +55,6 @@ Notes are kept as Markdown files under `notes/`, one per note. Nothing can read 
 | {{DATE}} | D1, D2 | — | Initial decisions recorded with the design | applied |
 | {{DATE}} | — | [1]({{CHILD_EXPORT}}), [2]({{CHILD_CHECK}}), [3]({{CHILD_IMPORT}}) | Children filed from the candidate decomposition | applied |
 
-## Friction log
+## Findings log
 
 Nothing yet.
