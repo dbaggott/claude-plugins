@@ -354,26 +354,6 @@ run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
   [[ "$output" != *"configuration overrides"* ]]
 }
 
-@test "a root set under the old followup_dir name is announced as the findings directory" {
-  stub_path jq git gh
-  run_hook_configured '' '' '' '' '~/followups'
-  [ "$status" -eq 0 ]
-  [[ "$output" == *'`~/followups/<owner>/<repo>/`'* ]]
-}
-
-@test "a rejected root set under the old followup_dir name is reported under that name" {
-  stub_path jq git gh
-  run_hook_configured '' '' '' '' 'followups'
-  [[ "$output" == *"INVALID configuration"* ]]
-  [[ "$output" == *'`followups` set as `followup_dir`, the old name of `findings_dir`,'* ]]
-}
-
-@test "says nothing when the old followup_dir name holds its own default" {
-  stub_path jq git gh
-  run_hook_configured '' '' '' '' '~/.claude/dnbg-followups'
-  [ "$output" = "$RULES_TEXT" ]
-}
-
 @test "announces only the knob that moved" {
   # Both are reported from the same block, so a bug that prints both whenever
   # either is set would be invisible to the two tests above.

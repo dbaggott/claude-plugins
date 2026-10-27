@@ -124,9 +124,6 @@ DEFAULT_CLAIM_LABEL='assigned:agent-session'
 DEFAULT_RETROSPECTIVE_DIR='~/.claude/dnbg-retrospectives'
 # shellcheck disable=SC2088
 DEFAULT_FINDINGS_DIR='~/.claude/dnbg-findings'
-# The default of `followup_dir`, the name `findings_dir` had before.
-# shellcheck disable=SC2088
-FOLLOWUP_DIR_DEFAULT='~/.claude/dnbg-followups'
 
 # The namespace every claim label has to sit in. `issue-workflow`'s in-progress
 # check matches this prefix rather than an enumerated list, deliberately, so that
@@ -266,21 +263,8 @@ resolve_retrospective_dir() {
   resolve_outside_repo_dir "${CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR:-}" "$DEFAULT_RETROSPECTIVE_DIR"
 }
 
-# The findings root as configured: `findings_dir`, or while that is unset, the
-# `followup_dir` it was renamed from, so a root set under the old name keeps
-# working until that name is dropped. The old name holding its own default
-# configures nothing, and falls through to the new default.
-configured_findings_dir() {
-  local legacy="${CLAUDE_PLUGIN_OPTION_FOLLOWUP_DIR:-}"
-  if [ -n "${CLAUDE_PLUGIN_OPTION_FINDINGS_DIR:-}" ]; then
-    printf '%s' "$CLAUDE_PLUGIN_OPTION_FINDINGS_DIR"
-    return
-  fi
-  [ "${legacy%/}" = "$FOLLOWUP_DIR_DEFAULT" ] || printf '%s' "$legacy"
-}
-
 resolve_findings_dir() {
-  resolve_outside_repo_dir "$(configured_findings_dir)" "$DEFAULT_FINDINGS_DIR"
+  resolve_outside_repo_dir "${CLAUDE_PLUGIN_OPTION_FINDINGS_DIR:-}" "$DEFAULT_FINDINGS_DIR"
 }
 
 # Has the operator asked for the version stamp?

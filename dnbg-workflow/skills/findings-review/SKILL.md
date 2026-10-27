@@ -19,11 +19,9 @@ directory** announced when this skill loads.
 The batch is every `*.md` file under `~/.claude/dnbg-findings/`, recursively,
 whose frontmatter reads `disposition: open`. That root is the default, not a
 constant: if a `dnbg-workflow` note at session start names a different findings
-root, read that one. Entries written before the rename sit under
-`~/.claude/dnbg-followups/`: when that directory exists, add its open entries to
-the batch, and record their decisions where they are. The operator may narrow
-the batch to one repo's `<owner>/<repo>/` directory, one project's `project:`
-URL, a date range against the frontmatter `date`, or `judgement: unclear` only.
+root, read that one. The operator may narrow the batch to one repo's
+`<owner>/<repo>/` directory, one project's `project:` URL, a date range against
+the frontmatter `date`, or `judgement: unclear` only.
 
 Read every entry in the batch in full. One missing `source`, `repo`,
 `observed_at` or a `YYYY-MM-DD` `date`, or any of the four body headings, goes

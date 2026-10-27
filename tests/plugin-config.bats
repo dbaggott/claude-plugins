@@ -18,7 +18,6 @@ setup() {
   . "$LIB"
   unset CLAUDE_PLUGIN_OPTION_WORKTREE_PATH CLAUDE_PLUGIN_OPTION_CLAIM_LABEL \
     CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR CLAUDE_PLUGIN_OPTION_FINDINGS_DIR \
-    CLAUDE_PLUGIN_OPTION_FOLLOWUP_DIR \
     CLAUDE_PLUGIN_OPTION_VERSION_STAMP
 }
 
@@ -41,14 +40,6 @@ with_retrospective_dir() {  # <value>
 
 with_findings_dir() {  # <value>
   ( export CLAUDE_PLUGIN_OPTION_FINDINGS_DIR="$1"; resolve_findings_dir )
-}
-
-# `followup_dir`, the name `findings_dir` had before, with `findings_dir` as
-# given (unset when omitted).
-with_followup_dir() {  # <value> [findings-dir]
-  ( export CLAUDE_PLUGIN_OPTION_FOLLOWUP_DIR="$1"
-    [ -z "${2-}" ] || export CLAUDE_PLUGIN_OPTION_FINDINGS_DIR="$2"
-    resolve_findings_dir )
 }
 
 # Same subshell discipline, but the answer is an exit status rather than output,
@@ -268,20 +259,6 @@ with_version_stamp() {  # <value>
 
 @test "the findings default passes its own rule" {
   [ -z "$(outside_repo_dir_rejection "$DEFAULT_FINDINGS_DIR")" ]
-}
-
-@test "a root set under the old followup_dir name is used while findings_dir is unset" {
-  [ "$(with_followup_dir '~/notes/followups')" = "~/notes/followups" ]
-  [ "$(with_followup_dir 'followups')" = "~/.claude/dnbg-findings" ]
-}
-
-@test "findings_dir wins over the old followup_dir name" {
-  [ "$(with_followup_dir '~/notes/followups' '~/notes/findings')" = "~/notes/findings" ]
-}
-
-@test "the old followup_dir name holding its own default resolves to the findings default" {
-  [ "$(with_followup_dir '~/.claude/dnbg-followups')" = "~/.claude/dnbg-findings" ]
-  [ "$(with_followup_dir '~/.claude/dnbg-followups/')" = "~/.claude/dnbg-findings" ]
 }
 
 # --- the version stamp -------------------------------------------------------
