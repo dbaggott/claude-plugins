@@ -264,11 +264,11 @@ author's response is never read.
 
 ## The round protocol
 
-`references/rounds.md` carries the gate every post passes, round 1's included;
-the wait armed after each round, round 1's included; and everything from the
-author's first response onwards: reading a round as a delta, the ordering and
-quiescence rules both sides obey, and how the review converges or halts. Read it
-before posting round 1.
+`references/rounds.md` carries what every round needs, round 1 included: the
+gate each post passes, and the wait armed after it. It also carries everything
+from the author's first response onwards: reading a round as a delta, the
+ordering and quiescence rules both sides obey, and how the review converges or
+halts. Read it before posting round 1.
 
 The author's side of the same protocol is `issue-workflow`'s
 `references/spec-review-rounds.md`.
