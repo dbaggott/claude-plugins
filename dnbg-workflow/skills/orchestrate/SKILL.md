@@ -25,7 +25,11 @@ in `references/multi-issue.md`, which applies design changes per
 `references/design-change.md`. Its parent is resolved by a closeout PR that you
 author, per `references/closeout.md`: the one artifact that is yours. Every
 agent in a run, you included, ends its part with a retrospective, per
-`references/retrospective.md`; read it before dispatching.
+`references/retrospective.md`; read it before dispatching. A retrospective
+carries only process. A finding about the code goes in a findings entry, per
+`<skill-dir>/../findings-review/references/entry.md`, and that includes each
+systemic finding `references/multi-issue.md` raises, written when its row is,
+with the parent as its `source`.
 
 `<skill-dir>` is the **Base directory** announced when this skill loads. The
 scripts are at `<skill-dir>/../../scripts/`.
@@ -351,8 +355,9 @@ names, mark shipped the items it lists, with the PR's URL, as `issue-workflow`'s
 "Maintaining issues" does, which comments them instead on a sibling someone
 else has claimed. The edit or the comment is yours, so it runs under "Write as
 the orchestrator". Under a tracking issue, `references/multi-issue.md` says how.
-Collect both agents' retrospectives, write your own, and fold the project-level
-items into the parent, all per `references/retrospective.md`. Then report the cycle under three headings:
+Collect both agents' retrospectives, write your own, and, once the entries the
+report below needs are written, fold the run's findings entries into the
+parent, all per `references/retrospective.md`. Then report the cycle under three headings:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the
@@ -360,8 +365,10 @@ items into the parent, all per `references/retrospective.md`. Then report the cy
   any role that left none.
 - **Actionable** — what the operator may want to do, including any item in the
   author's handoff, the author's final report, or the reviewer's report that
-  needs them. Give each item's follow-up entry path, writing the entry per
-  `<skill-dir>/../followup-review/references/entry.md` for any item no agent
-  gave a path for.
+  needs them.
+
+Give each finding under Observations or Actionable its findings entry path,
+writing the entry per `<skill-dir>/../findings-review/references/entry.md` for
+any item no agent gave a path for.
 
 Never merge.

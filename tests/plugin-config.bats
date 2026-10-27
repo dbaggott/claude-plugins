@@ -17,7 +17,8 @@ setup() {
   # shellcheck source=../dnbg-workflow/hooks/lib.sh
   . "$LIB"
   unset CLAUDE_PLUGIN_OPTION_WORKTREE_PATH CLAUDE_PLUGIN_OPTION_CLAIM_LABEL \
-    CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR CLAUDE_PLUGIN_OPTION_FOLLOWUP_DIR \
+    CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR CLAUDE_PLUGIN_OPTION_FINDINGS_DIR \
+    CLAUDE_PLUGIN_OPTION_FOLLOWUP_DIR \
     CLAUDE_PLUGIN_OPTION_VERSION_STAMP
 }
 
@@ -38,8 +39,16 @@ with_retrospective_dir() {  # <value>
   ( export CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR="$1"; resolve_retrospective_dir )
 }
 
-with_followup_dir() {  # <value>
-  ( export CLAUDE_PLUGIN_OPTION_FOLLOWUP_DIR="$1"; resolve_followup_dir )
+with_findings_dir() {  # <value>
+  ( export CLAUDE_PLUGIN_OPTION_FINDINGS_DIR="$1"; resolve_findings_dir )
+}
+
+# `followup_dir`, the name `findings_dir` had before, with `findings_dir` as
+# given (unset when omitted).
+with_followup_dir() {  # <value> [findings-dir]
+  ( export CLAUDE_PLUGIN_OPTION_FOLLOWUP_DIR="$1"
+    [ -z "${2-}" ] || export CLAUDE_PLUGIN_OPTION_FINDINGS_DIR="$2"
+    resolve_findings_dir )
 }
 
 # Same subshell discipline, but the answer is an exit status rather than output,
@@ -59,7 +68,7 @@ with_version_stamp() {  # <value>
   [ "$(resolve_worktree_path)" = ".worktrees" ]
   [ "$(resolve_claim_label)" = "assigned:agent-session" ]
   [ "$(resolve_retrospective_dir)" = "~/.claude/dnbg-retrospectives" ]
-  [ "$(resolve_followup_dir)" = "~/.claude/dnbg-followups" ]
+  [ "$(resolve_findings_dir)" = "~/.claude/dnbg-findings" ]
 }
 
 @test "an empty value is the same as unset" {
@@ -68,7 +77,7 @@ with_version_stamp() {  # <value>
   [ "$(with_worktree_path '')" = ".worktrees" ]
   [ "$(with_claim_label '')" = "assigned:agent-session" ]
   [ "$(with_retrospective_dir '')" = "~/.claude/dnbg-retrospectives" ]
-  [ "$(with_followup_dir '')" = "~/.claude/dnbg-followups" ]
+  [ "$(with_findings_dir '')" = "~/.claude/dnbg-findings" ]
 }
 
 @test "the claim label default is the one issue-workflow claims with" {
@@ -239,26 +248,40 @@ with_version_stamp() {  # <value>
   [ -z "$(outside_repo_dir_rejection "$DEFAULT_RETROSPECTIVE_DIR")" ]
 }
 
-# --- follow-up directory -----------------------------------------------------
+# --- findings directory ------------------------------------------------------
 #
 # It shares the retrospective directory's rule, so the rejection cases above
 # cover it; these pin that its resolver applies that rule to its own variable and
 # falls back to its own default.
 
-@test "a configured absolute or home-relative follow-up directory is used" {
-  [ "$(with_followup_dir '/var/followups')" = "/var/followups" ]
+@test "a configured absolute or home-relative findings directory is used" {
+  [ "$(with_findings_dir '/var/findings')" = "/var/findings" ]
+  [ "$(with_findings_dir '~/notes/findings')" = "~/notes/findings" ]
+  [ "$(with_findings_dir '~/notes/findings/')" = "~/notes/findings" ]
+}
+
+@test "a rejected findings directory falls back to the findings default" {
+  [ "$(with_findings_dir 'findings')" = "~/.claude/dnbg-findings" ]
+  [ "$(with_findings_dir '~/')" = "~/.claude/dnbg-findings" ]
+  [ "$(with_findings_dir '/my findings')" = "~/.claude/dnbg-findings" ]
+}
+
+@test "the findings default passes its own rule" {
+  [ -z "$(outside_repo_dir_rejection "$DEFAULT_FINDINGS_DIR")" ]
+}
+
+@test "a root set under the old followup_dir name is used while findings_dir is unset" {
   [ "$(with_followup_dir '~/notes/followups')" = "~/notes/followups" ]
-  [ "$(with_followup_dir '~/notes/followups/')" = "~/notes/followups" ]
+  [ "$(with_followup_dir 'followups')" = "~/.claude/dnbg-findings" ]
 }
 
-@test "a rejected follow-up directory falls back to the follow-up default" {
-  [ "$(with_followup_dir 'followups')" = "~/.claude/dnbg-followups" ]
-  [ "$(with_followup_dir '~/')" = "~/.claude/dnbg-followups" ]
-  [ "$(with_followup_dir '/my followups')" = "~/.claude/dnbg-followups" ]
+@test "findings_dir wins over the old followup_dir name" {
+  [ "$(with_followup_dir '~/notes/followups' '~/notes/findings')" = "~/notes/findings" ]
 }
 
-@test "the follow-up default passes its own rule" {
-  [ -z "$(outside_repo_dir_rejection "$DEFAULT_FOLLOWUP_DIR")" ]
+@test "the old followup_dir name holding its own default resolves to the findings default" {
+  [ "$(with_followup_dir '~/.claude/dnbg-followups')" = "~/.claude/dnbg-findings" ]
+  [ "$(with_followup_dir '~/.claude/dnbg-followups/')" = "~/.claude/dnbg-findings" ]
 }
 
 # --- the version stamp -------------------------------------------------------

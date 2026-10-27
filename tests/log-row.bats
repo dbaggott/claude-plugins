@@ -41,9 +41,9 @@ TRACKING='# Project
 | --- | --- | --- | --- | --- |
 | 2026-10-01 | D1 | — | First | decided |
 
-## Friction log
+## Findings log
 
-- **2026-10-02.** Slow watch (author on https://github.com/o/r/issues/2)
+- **2026-10-02.** A gap in the export (author on https://github.com/o/r/issues/2)
 
 ## Related
 '
@@ -58,18 +58,18 @@ TRACKING='# Project
 | 2026-10-14 | D2 | — | Second | proposed |
 
 EOF
-  grep -qx -- '- \*\*2026-10-02.\*\* Slow watch (author on https://github.com/o/r/issues/2)' "$BODY"
+  grep -qx -- '- \*\*2026-10-02.\*\* A gap in the export (author on https://github.com/o/r/issues/2)' "$BODY"
   grep -qx '## Related' "$BODY"
 }
 
 @test "bullets go after the list's last item, in the order given" {
   body "$TRACKING"
-  run "$LOG" o/r 7 --bullet="Friction log" --text='**2026-10-14.** One' --text='**2026-10-14.** Two'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='**2026-10-14.** One' --text='**2026-10-14.** Two'
   [[ "$output" == "result=OK appended=2 "* ]]
-  diff <(sed -n '/^## Friction log/,/^## Related/p' "$BODY") - <<'EOF'
-## Friction log
+  diff <(sed -n '/^## Findings log/,/^## Related/p' "$BODY") - <<'EOF'
+## Findings log
 
-- **2026-10-02.** Slow watch (author on https://github.com/o/r/issues/2)
+- **2026-10-02.** A gap in the export (author on https://github.com/o/r/issues/2)
 - **2026-10-14.** One
 - **2026-10-14.** Two
 
@@ -78,25 +78,25 @@ EOF
 }
 
 @test "an empty section gets a blank line between its heading and the first bullet" {
-  body $'## Friction log\n## Next\n'
-  run "$LOG" o/r 7 --bullet="Friction log" --text='first'
+  body $'## Findings log\n## Next\n'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='first'
   [[ "$output" == "result=OK appended=1 "* ]]
-  [ "$(cat "$BODY")" = $'## Friction log\n\n- first\n## Next' ]
+  [ "$(cat "$BODY")" = $'## Findings log\n\n- first\n## Next' ]
 }
 
 @test "a first bullet under the section's prose is set off from it" {
-  body $'## Friction log\n\nWhere the process hurt.\n\n## Next\n'
-  run "$LOG" o/r 7 --bullet="Friction log" --text='first'
+  body $'## Findings log\n\nFindings about the code.\n\n## Next\n'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='first'
   [[ "$output" == "result=OK appended=1 "* ]]
-  [ "$(cat "$BODY")" = $'## Friction log\n\nWhere the process hurt.\n\n- first\n\n## Next' ]
+  [ "$(cat "$BODY")" = $'## Findings log\n\nFindings about the code.\n\n- first\n\n## Next' ]
 }
 
 # A sub-heading belongs to the section; a sibling heading ends it.
 @test "the section runs through deeper headings to the next sibling" {
-  body $'## Friction log\n- a\n### Older\n- b\n## Next\n- c\n'
-  run "$LOG" o/r 7 --bullet="Friction log" --text='new'
+  body $'## Findings log\n- a\n### Older\n- b\n## Next\n- c\n'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='new'
   [[ "$output" == "result=OK appended=1 "* ]]
-  [ "$(cat "$BODY")" = $'## Friction log\n- a\n### Older\n- b\n- new\n## Next\n- c' ]
+  [ "$(cat "$BODY")" = $'## Findings log\n- a\n### Older\n- b\n- new\n## Next\n- c' ]
 }
 
 @test "a body without the heading is refused and not written" {
@@ -107,8 +107,8 @@ EOF
 }
 
 @test "a heading inside a code fence is not the section" {
-  body $'# Project\n\n```markdown\n## Friction log\n```\n'
-  run "$LOG" o/r 7 --bullet="Friction log" --text='x'
+  body $'# Project\n\n```markdown\n## Findings log\n```\n'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='x'
   [[ "$output" == "result=ERROR reason=section-missing "* ]]
 }
 
@@ -128,16 +128,16 @@ EOF
 
 @test "a line given twice in one call is appended once" {
   body "$TRACKING"
-  run "$LOG" o/r 7 --bullet="Friction log" --text='x' --text='x'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='x' --text='x'
   [[ "$output" == "result=OK appended=1 "* ]]
   [ "$(grep -cx -- '- x' "$BODY")" = 1 ]
 }
 
 @test "a body with no final newline gains none" {
-  body $'## Friction log\n- a'
-  run "$LOG" o/r 7 --bullet="Friction log" --text='b'
+  body $'## Findings log\n- a'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='b'
   [[ "$output" == "result=OK appended=1 "* ]]
-  [ "$(od -An -c "$BODY" | tr -d ' \n')" = '##Frictionlog\n-a\n-b' ]
+  [ "$(od -An -c "$BODY" | tr -d ' \n')" = '##Findingslog\n-a\n-b' ]
 }
 
 # A fenced example table, or a fenced copy of the row, is not the log.
@@ -156,14 +156,14 @@ EOF
 }
 
 @test "seven hashes are not a heading" {
-  body $'####### Friction log\n- a\n'
-  run "$LOG" o/r 7 --bullet="Friction log" --text='b'
+  body $'####### Findings log\n- a\n'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='b'
   [[ "$output" == "result=ERROR reason=section-missing "* ]]
 }
 
 @test "a write a concurrent writer replaced is made again on the new body" {
   body "$TRACKING"
-  LOSE=1 run "$LOG" o/r 7 --bullet="Friction log" --text='kept'
+  LOSE=1 run "$LOG" o/r 7 --bullet="Findings log" --text='kept'
   [[ "$output" == "result=OK appended=1 "* ]]
   [ "$(edits)" = 2 ]
   grep -qx -- '- kept' "$BODY"
@@ -171,27 +171,27 @@ EOF
 
 @test "a write that never lands is reported lost after the last attempt" {
   body "$TRACKING"
-  LOSE=99 MAX_WRITES=3 run "$LOG" o/r 7 --bullet="Friction log" --text='gone'
+  LOSE=99 MAX_WRITES=3 run "$LOG" o/r 7 --bullet="Findings log" --text='gone'
   [[ "$output" == "result=ERROR reason=write-lost "* ]]
   [ "$(edits)" = 3 ]
 }
 
 @test "a rejected write is reported as one" {
   body "$TRACKING"
-  EDIT_FAILS=1 run "$LOG" o/r 7 --bullet="Friction log" --text='x'
+  EDIT_FAILS=1 run "$LOG" o/r 7 --bullet="Findings log" --text='x'
   [[ "$output" == "result=ERROR reason=write "* ]]
 }
 
 @test "a CRLF body keeps CRLF on the inserted line" {
-  body $'## Friction log\r\n- a\r\n'
-  run "$LOG" o/r 7 --bullet="Friction log" --text='b'
+  body $'## Findings log\r\n- a\r\n'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='b'
   [[ "$output" == "result=OK appended=1 "* ]]
-  [ "$(cat "$BODY")" = $'## Friction log\r\n- a\r\n- b\r' ]
+  [ "$(cat "$BODY")" = $'## Findings log\r\n- a\r\n- b\r' ]
 }
 
 @test "an unreadable issue is a query error" {
   printf '#!/usr/bin/env bash\nexit 1\n' > "$STUB/gh"
-  run "$LOG" o/r 7 --bullet="Friction log" --text='x'
+  run "$LOG" o/r 7 --bullet="Findings log" --text='x'
   [[ "$output" == "result=ERROR reason=issue-query "* ]]
 }
 
@@ -200,18 +200,18 @@ bad() { run "$LOG" "$@"; [[ "$output" == "result=ERROR reason=bad-args "* ]] || 
 @test "malformed calls are refused before any request" {
   body "$TRACKING"
   bad o/r 7 --table="Decision log" --row='not a row'
-  bad o/r 7 --bullet="Friction log" --row='| x |'
+  bad o/r 7 --bullet="Findings log" --row='| x |'
   bad o/r 7 --table="Decision log" --text='x'
   bad o/r 7 --table="Decision log"
-  bad o/r 7 --table="Decision log" --bullet="Friction log" --text='x'
-  bad o/r 7 --bullet="Friction log" --text=$'a\nb'
-  bad o/r 07 --bullet="Friction log" --text='x'
-  bad o/r --bullet="Friction log" --text='x'
+  bad o/r 7 --table="Decision log" --bullet="Findings log" --text='x'
+  bad o/r 7 --bullet="Findings log" --text=$'a\nb'
+  bad o/r 07 --bullet="Findings log" --text='x'
+  bad o/r --bullet="Findings log" --text='x'
   [ ! -s "$CALLS" ]
 }
 
 @test "--as with no role name is a bad argument" {
-  bad o/r 7 --bullet="Friction log" --text='x' --as=
+  bad o/r 7 --bullet="Findings log" --text='x' --as=
   [ ! -s "$CALLS" ]
 }
 
@@ -247,7 +247,7 @@ STUB
 
 @test "--as with a role that falls back writes as the operator, and says so" {
   as_tree
-  run --separate-stderr "$LOG" acme/r 7 --bullet="Friction log" --text='x' --as=orchestrator
+  run --separate-stderr "$LOG" acme/r 7 --bullet="Findings log" --text='x' --as=orchestrator
   [ "$output" = "result=OK appended=1 body_edited=2026-10-14T00:00:00Z body_chars=$(jq -Rrs length "$BODY") as=operator-login fallback=unconfigured" ]
   grep -q '^gh issue edit 7 --repo acme/r --body-file .* token=none$' "$NET_LOG"
   grep -qx -- '- x' "$BODY"
@@ -276,7 +276,7 @@ STUB
 @test "--as with a configured role whose key command prints nothing posts nothing" {
   as_tree
   export DNBG_ORCHESTRATOR_APP_ID=9 DNBG_ORCHESTRATOR_PRIVATE_KEY_COMMAND=true
-  run --separate-stderr "$LOG" acme/r 7 --bullet="Friction log" --text='x' --as=orchestrator
+  run --separate-stderr "$LOG" acme/r 7 --bullet="Findings log" --text='x' --as=orchestrator
   [[ "$output" == "result=ERROR reason=role now="* ]]
   [[ "$stderr" == *"produced no output"* ]]
   ! grep -q '^gh ' "$NET_LOG" || false
@@ -285,7 +285,7 @@ STUB
 
 @test "--as with a role the resolver refuses reads and writes nothing" {
   as_tree
-  run --separate-stderr "$LOG" acme/r 7 --bullet="Friction log" --text='x' --as=reviewer
+  run --separate-stderr "$LOG" acme/r 7 --bullet="Findings log" --text='x' --as=reviewer
   [[ "$output" == "result=ERROR reason=role now="* ]]
   ! grep -q '^gh ' "$NET_LOG"
 }

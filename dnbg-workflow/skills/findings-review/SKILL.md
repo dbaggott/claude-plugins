@@ -1,27 +1,29 @@
 ---
-name: followup-review
-description: Sweep the follow-up entries agents leave behind for each Actionable item in their reports — re-check each against the repo's current default branch, merge duplicates, propose filing, dropping or keeping it, and record the operator's decision in the entry. Load when asked to review the follow-ups, sweep the follow-up entries, or decide what to do with deferred Actionable items. Skip for writing an entry, which is `references/entry.md`, and for process friction across orchestration runs, which is `process-review`.
+name: findings-review
+description: Sweep the findings entries agents leave behind for what their reports found about the code — re-check each against the repo's current default branch, merge duplicates, propose filing, dropping or keeping it, and record the operator's decision in the entry. Load when asked to review the findings, sweep the findings entries, review the follow-ups, or decide what to do with deferred Actionable items. Skip for writing an entry, which is `references/entry.md`, for a tracking issue's Findings log at closeout, which is `orchestrate`'s `references/closeout.md`, and for process friction across orchestration runs, which is `process-review`.
 ---
 
-# Follow-up review
+# Findings review
 
-Each Actionable item an agent reports, such as a deferred finding, an
-out-of-scope defect or setup the merged change needs, is kept as an entry. This
-sweeps those entries: it checks each is still true, proposes what to do with it,
-and records the operator's decision so no entry is decided twice. One entry is
-enough to file; nothing waits for a second.
+Each finding about the code an agent reports, such as a deferred review finding,
+an out-of-scope defect or setup the merged change needs, is kept as an entry.
+This sweeps those entries: it checks each is still true, proposes what to do
+with it, and records the operator's decision so no entry is decided twice. One
+entry is enough to file; nothing waits for a second.
 
 The entry format is in `references/entry.md`. `<skill-dir>` is the **Base
 directory** announced when this skill loads.
 
 ## 1. Gather the batch
 
-The batch is every `*.md` file under `~/.claude/dnbg-followups/`, recursively,
+The batch is every `*.md` file under `~/.claude/dnbg-findings/`, recursively,
 whose frontmatter reads `disposition: open`. That root is the default, not a
-constant: if a `dnbg-workflow` note at session start names a different follow-up
-root, read that one. The operator may narrow the batch to one repo's
-`<owner>/<repo>/` directory, a date range against the frontmatter `date`, or
-`judgement: unclear` only.
+constant: if a `dnbg-workflow` note at session start names a different findings
+root, read that one. Entries written before the rename sit under
+`~/.claude/dnbg-followups/`: when that directory exists, add its open entries to
+the batch, and record their decisions where they are. The operator may narrow
+the batch to one repo's `<owner>/<repo>/` directory, one project's `project:`
+URL, a date range against the frontmatter `date`, or `judgement: unclear` only.
 
 Read every entry in the batch in full. One missing `source`, `repo`,
 `observed_at` or a `YYYY-MM-DD` `date`, or any of the four body headings, goes

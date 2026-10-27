@@ -5,8 +5,12 @@ and every agent it dispatches reads it once, when its part of the run is over:
 the author after its post-merge cleanup, the reviewer when its review ends. Turns
 that end earlier, such as the author's at send-to-review, do not write one. A
 retrospective records where the **process** hurt one agent on one issue: the
-skills, the scripts, the waits. The issue's own bugs belong on the issue or the
-PR. `process-review` reads retrospectives in batches to find what recurs.
+skills, the scripts, the waits. `process-review` reads retrospectives in batches
+to find what recurs. A finding about the code the run built or touched, such as
+a gap the design missed or a defect next to the work, is not a retrospective
+item: it goes in a findings entry, per
+`<skill-dir>/../findings-review/references/entry.md`, written with the report
+that lists it.
 
 `<skill-dir>` is the `orchestrate` skill's **Base directory**, or, for an agent
 sent here by path, the directory holding this file's `references/`.
@@ -108,30 +112,28 @@ so the loss is not recovered. Say in the Stop report which roles have none.
 
 At Stop, once the agents' retrospectives are in, write one with
 `role: orchestrator` that answers the same prompt about your own run: the
-triage, the escalations, and the dispatches. On a tracking issue
-it comes earlier, at `references/closeout.md`'s step 2, so its items reach the
-friction log before the closeout disposes of it.
+triage, the escalations, and the dispatches.
 
-## Fold project-level items into the parent
+## Fold the project's findings into the parent
 
 When the issue is a child of a tracking issue, its body opens with
-`Sub-issue of <parent URL>`. Read the run's retrospectives and pick out each
-item the parent's closeout should dispose of: anything about this project's
-design, its children, or the conventions they share, and any tooling friction
-that cost this run real time. Leave out minor plugin-wide friction, which the
-files keep for `process-review`.
+`Sub-issue of <parent URL>`. Take the findings entries this run wrote whose
+`project:` is the parent's URL: the paths the author's and the reviewer's
+reports name, and your own from Stop.
 
 Only the parent's writer edits its body (`issue-workflow`'s
 `references/tracking-issue.md`, "Who writes the body").
 
 **If this session orchestrates the parent** (`references/multi-issue.md`), add
-the items to the parent body's **Friction log** in one call, a dated bullet per
-item naming its source. The parent may live in another repo, so take
-`<owner>/<repo>` and `<parent>` from its URL:
+the entries to the parent body's **Findings log** in one call, a dated bullet
+per entry naming its source and its path below the findings root, which
+leaves your home directory out of the issue. The parent may live in another repo,
+so take `<owner>/<repo>` and `<parent>` from its URL:
 
 ```bash
-"<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --bullet="Friction log" \
-  --text='**<YYYY-MM-DD>.** <item> (<role> on <issue URL>)' [--text=…] --as=orchestrator
+"<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --bullet="Findings log" \
+  --text='**<YYYY-MM-DD>.** <what it found, in one line> (<role> on <source URL>; `<owner>/<repo>/<file>`)' \
+  [--text=…] --as=orchestrator
 ```
 
 A re-run adds only the bullets still missing, so on `write-lost`, `write` or
@@ -140,7 +142,7 @@ where the parent has nowhere to put them, say so in the Stop report instead.
 
 **Otherwise**, post the same bullets, each `- ` followed by one `--text` value,
 as one comment on the parent whose first line is exactly
-`Friction log items from <issue URL>`, from a body file made with `mktemp`:
+`Findings log items from <issue URL>`, from a body file made with `mktemp`:
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \

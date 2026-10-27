@@ -46,6 +46,6 @@ None.
 | --- | --- | --- | --- | --- |
 | {{DATE}} | D1 | — | Initial decision recorded with the design | applied |
 
-## Friction log
+## Findings log
 
 Nothing yet.

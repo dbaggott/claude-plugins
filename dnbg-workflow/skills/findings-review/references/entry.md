@@ -1,20 +1,26 @@
-# Follow-up review: writing an entry
+# Findings review: writing an entry
 
-Part of the `followup-review` skill. Every agent that writes a report with an
-**Actionable** section reads this when it writes that report: the author at its
-merge handoff and its post-merge report, the reviewer at its report, the
-orchestrator at Stop. An entry
-keeps one Actionable item after the session ends, so `followup-review` can
-decide it later against a fresh tree. Writing one is not filing an issue: filing
-stays the operator's call.
+Part of the `findings-review` skill. Every agent that writes a report with an
+**Actionable** or **Observations** section reads this when it writes that
+report: the author at its merge handoff and its post-merge report, the reviewer
+at its report, the orchestrator at Stop. An entry keeps one finding after the
+session ends, so `findings-review`, or a tracking issue's closeout, can decide
+it later against a fresh tree. Writing one is not filing an issue: filing stays
+the operator's call.
 
 `<skill-dir>` is the Base directory of the skill that sent you here.
 
 ## Which items get an entry
 
-Each item you list under **Actionable** gets one entry, written as you write the
-report, and the report names the entry's path beside the item. Items under
-**Observations** get none.
+Each item you list under **Actionable** gets one entry, and so does each item
+under **Observations** that is a finding about the code the run built or
+touched: a gap the design missed, a convention the change diverged from, a
+missing test, a defect seen next to the work. An observation about the run
+itself, such as a timing or what you checked and found handled, gets none.
+Write the entry as you write the report, and name its path beside the item.
+
+Process friction, such as a skill that did not fit or a script that got in the
+way, is not a finding. It goes in a retrospective, when the run asks for one.
 
 One item has one writer:
 
@@ -32,12 +38,12 @@ A duplicate that gets through anyway is merged by the sweep.
 
 ## Where it goes
 
-In `~/.claude/dnbg-followups/<owner>/<repo>/`, where `<owner>/<repo>` is the repo
-the work happened in, which is where the follow-up would be filed. Expand `~` to
+In `~/.claude/dnbg-findings/<owner>/<repo>/`, where `<owner>/<repo>` is the repo
+the work happened in, which is where a follow-up would be filed. Expand `~` to
 your home directory and create the directory if it is missing.
 
-**`~/.claude/dnbg-followups` is the default, not a constant.** If a
-`dnbg-workflow` note at session start names a different follow-up root, that
+**`~/.claude/dnbg-findings` is the default, not a constant.** If a
+`dnbg-workflow` note at session start names a different findings root, that
 root wins, and `<owner>/<repo>/` goes under it the same way.
 
 Name the file `<YYYY-MM-DD>T<HHMMSS>Z-<n>-<slug>.md`, in UTC, where `<n>` is the
@@ -49,9 +55,10 @@ a few lowercase-dashed words naming the problem. One file per item.
 ```markdown
 ---
 tags:
-  - followup
+  - finding
 source: <PR or issue URL>
 repo: <owner>/<repo>
+project: <tracking issue URL>
 observed_at: <commit SHA the claim was checked at>
 role: author | reviewer | orchestrator
 kind: defect | deferred-finding | follow-up | setup
@@ -72,10 +79,16 @@ disposition: open
 ## Why it was deferred
 ```
 
+- **`project`** is the URL of the tracking issue the work is under, which is
+  how its closeout finds the entry. The issue the work resolves names it as its
+  `parent` (`gh issue view <n> --repo <owner>/<repo> --json parent`). Work on
+  the tracking issue itself, such as its closeout PR or a systemic finding its
+  orchestrator raises, takes the tracking issue's own URL. Leave the line out for work
+  under no tracking issue.
 - **`kind`**: `defect` for a bug in code the change did not own, a flaky test
-  among them; `deferred-finding` for a review finding left for later;
-  `follow-up` for work the change makes possible or needed; `setup` for setup or
-  config the merged change needs.
+  among them; `deferred-finding` for a review finding left for later, or an
+  observation about the code nobody acted on; `follow-up` for work the change
+  makes possible or needed; `setup` for setup or config the merged change needs.
 - **`judgement: unclear`** marks an item that needs the operator to think, not
   just approve: the next step is a choice between options, or whether to act at
   all is open.

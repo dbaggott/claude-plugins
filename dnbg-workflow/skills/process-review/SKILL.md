@@ -1,6 +1,6 @@
 ---
 name: process-review
-description: Read a batch of the retrospectives that `orchestrate` runs leave behind, report the process patterns in them with counts and quoted examples, and draft upstream issues for the operator to approve. Load when asked to review the retrospectives, find process patterns, or say what keeps slowing the agents down. Skip for writing a retrospective, which is `orchestrate`'s `references/retrospective.md`, and for disposing of a tracking issue's friction log at closeout, which is `orchestrate`'s `references/closeout.md`.
+description: Read a batch of the retrospectives that `orchestrate` runs leave behind, report the process patterns in them with counts and quoted examples, and draft upstream issues for the operator to approve. Load when asked to review the retrospectives, find process patterns, or say what keeps slowing the agents down. It reads only the retrospective files, never a tracking issue. Skip for writing a retrospective, which is `orchestrate`'s `references/retrospective.md`, and for findings about the code, which are `findings-review`'s and a tracking issue's closeout's.
 ---
 
 # Process review
@@ -28,19 +28,6 @@ Read every file in the batch in full. A file missing `role` or `issue` in its
 frontmatter, or missing any of the four headings, goes under **Unreadable** in
 the report with what it lacks, and counts toward nothing.
 
-**Given a tracking issue URL, read its friction log too.** Fetch it with
-`gh issue view <url> --json body,comments` and take the bullets under the body's
-**Friction log** heading, and those of each comment whose first line reads
-`Friction log items from <child URL>`, which a child's orchestrator posts when
-it is not the parent's writer, and whose author is your own login, the author's
-or the orchestrator's: the `login=` of `"<skill-dir>/../../scripts/as-role.sh"
---login author <owner>/<repo>` or of `… --login orchestrator <owner>/<repo>`, in
-either spelling, `<login>` or `<login>[bot]`.
-Count a bullet found in both once. Each bullet is
-one more source: sort it under whichever of the four headings fits, and cite it
-as `friction log <date>`. This step is GitHub-only; for a URL on another host,
-say so and review the files alone.
-
 ## 2. Find the patterns
 
 Group the items by heading, then within a heading put together the items that
@@ -48,8 +35,8 @@ describe one problem: the same skill step, script, or missing instruction, even
 when worded differently.
 
 - **The count is the number of sources carrying the problem.** A source is one
-  role on one issue, all its files together, or one friction-log bullet. So one
-  agent repeating itself counts once.
+  role on one issue, all its files together. So one agent repeating itself
+  counts once.
 - **A pattern has a count of at least two.** Everything else is a singleton.
 - **One problem under two headings is one pattern.** File it under the heading
   most of its sources use, and count each source once.
