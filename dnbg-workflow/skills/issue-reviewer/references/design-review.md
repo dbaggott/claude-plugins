@@ -85,6 +85,20 @@ posting. This adds checks to each pass, and changes what the round comment says.
 - **The candidate decomposition, if present, covers every requirement not
   retired** — each such `R#` appears in some row's `Covers`, or carries an
   end-to-end or deferred marking.
+- **Each child in the candidate decomposition can meet what it covers when it
+  merges.** For each `R#` in a row's `Covers`, name the code meeting it needs,
+  such as a script, a reference file or a mode, and the child that ships it.
+  That child is the row itself or one its `Depends on` reaches. A table with no
+  `Depends on` column reads as every child depending on nothing, and the check
+  still runs. Blocking on the parent when the code comes only from a child
+  outside that reach: the covering child cannot meet the requirement at its own
+  merge.
+- **The right role makes each write.** When a requirement moves a write, such
+  as a comment, a label or a push, to a different role, find the place in the
+  code where that write happens and the role that runs it there. The child
+  covering the requirement owns that place, and an acceptance criterion naming
+  the role names the one the requirement does. Blocking on the parent when
+  either fails.
 
 ## The round comment
 

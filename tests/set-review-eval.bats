@@ -51,7 +51,7 @@ line() { tail -1 <<<"$1"; }
   run "$CREATE" o/r
   run ! grep -l '{{' "$BODIES"/*
   grep -qF "| [1]($U/2) | Export script | R0, R1 |" "$BODIES/edited-1"
-  grep -qF "| [3]($U/4) | Import script | R3 | 1 |" "$BODIES/edited-1"
+  grep -qF "| [3]($U/4) | Import script | R3, R5 | 1 |" "$BODIES/edited-1"
   grep -qF "Sub-issue of $U/1" "$BODIES/2"
   grep -qF "**Depends on:** $U/2" "$BODIES/4"
   grep -qF '**Depends on:** none' "$BODIES/3"
@@ -90,6 +90,15 @@ line() { tail -1 <<<"$1"; }
   grep -q '^- \*\*R4\.\*\*' "$fix/parent.md"
   run ! grep -E '^- \*\*R4\.\*\*.*\*\((end-to-end|deferred):' "$fix/parent.md"
   run ! grep -l R4 <(grep -h '^\*\*Covers:\*\*' "$fix"/child-*.md)
+}
+
+@test "the planted unmeetable cover is present: R5 needs the checker, which the import child's row does not depend on" {
+  local fix="${BATS_TEST_DIRNAME}/evals/set-review/fixtures"
+  grep -q '^- \*\*R5\.\*\* .*`scripts/check-export.sh`' "$fix/parent.md"
+  grep -qF '| [3]({{CHILD_IMPORT}}) | Import script | R3, R5 | 1 |' "$fix/parent.md"
+  grep -qF '| [2]({{CHILD_CHECK}}) | Export checker | R2 |' "$fix/parent.md"
+  grep -qx '\*\*Covers:\*\* R3, R5' "$fix/child-import.md"
+  grep -qx '\*\*Depends on:\*\* {{CHILD_EXPORT}}' "$fix/child-import.md"
 }
 
 @test "a failed create stops before any linking" {

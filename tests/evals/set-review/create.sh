@@ -18,6 +18,12 @@
 #     neither a blocked-by edge nor a `Depends on` entry for it.
 #   - Missing project label, on the import child: its title carries the
 #     `[notes-export]` tag, and it is filed without `project:notes-export`.
+#   - Unmeetable cover, on the parent: the candidate decomposition puts R5 on
+#     the import child, and R5 needs the checker child's script, which the
+#     import child's row does not depend on. Its design-mode round reports it
+#     under the check that each child can meet what it covers. The import child
+#     may also draw an unrealized dependency for the same missing edge; that
+#     finding alone, without the parent's, does not pass this plant.
 #
 # The import child's edge to the export child is real and declared, so a review
 # that flags it has misread the check; the export and checker children carry
