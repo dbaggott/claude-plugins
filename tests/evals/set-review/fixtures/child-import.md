@@ -1,6 +1,6 @@
 Sub-issue of {{PARENT}} (the design). Section IDs below refer to that body.
 
-**Covers:** R3
+**Covers:** R3, R5
 **Depends on:** {{CHILD_EXPORT}}
 
 ### Problem
@@ -9,7 +9,7 @@ An export cannot be turned back into notes.
 
 ### Proposed approach
 
-Add `scripts/import.sh <file> <dir>`. Refuse a `<dir>` that exists and is not empty. Before writing anything, refuse a file in which any slug or title is not in R0's form, naming the note. Otherwise, for each element of `notes`, write `<dir>/<slug>.md` containing `# <title>`, a blank line, then the body.
+Add `scripts/import.sh <file> <dir>`. Refuse a `<dir>` that exists and is not empty. Before writing anything, run `scripts/check-export.sh <file>` per R5, and exit 1 when it fails, leaving its message naming the note. Otherwise, for each element of `notes`, write `<dir>/<slug>.md` containing `# <title>`, a blank line, then the body.
 
 ### Acceptance criteria
 
@@ -19,4 +19,4 @@ Add `scripts/import.sh <file> <dir>`. Refuse a `<dir>` that exists and is not em
 
 ### Required reading
 
-- Parent: R0, R3, D2.
+- Parent: R0, R3, R5, D2.

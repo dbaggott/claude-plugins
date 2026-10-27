@@ -25,6 +25,7 @@ Notes are kept as Markdown files under `notes/`, one per note. Nothing can read 
 - **R2.** `scripts/check-export.sh <file>` exits non-zero, naming the first offending note, when the file is not in R1's shape or a note's slug or title is not in R0's form.
 - **R3.** `scripts/import.sh <file> <dir>` writes an export's notes into `<dir>` in R0's format, refusing a `<dir>` that is not empty and, before writing anything, a file with a slug or title not in R0's form, so that exporting the imported notes reproduces the original export byte for byte.
 - **R4.** Every script prints usage and exits 2 when called with the wrong number of arguments.
+- **R5.** `scripts/import.sh` runs `scripts/check-export.sh` on `<file>` before writing anything, and refuses the file, writing nothing, when the check fails.
 
 ## Decisions
 
@@ -45,7 +46,7 @@ Notes are kept as Markdown files under `notes/`, one per note. Nothing can read 
 | --- | --- | --- | --- |
 | [1]({{CHILD_EXPORT}}) | Export script | R0, R1 | — |
 | [2]({{CHILD_CHECK}}) | Export checker | R2 | — |
-| [3]({{CHILD_IMPORT}}) | Import script | R3 | 1 |
+| [3]({{CHILD_IMPORT}}) | Import script | R3, R5 | 1 |
 
 ## Decision log
 
