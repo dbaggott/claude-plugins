@@ -172,16 +172,19 @@ per `git-workflow`'s "Writing the PR description".
 the issue's `## Operator steps` (`issue-workflow`'s `references/creating.md`)
 with `AskUserQuestion`, listing each step with when the work needs it, and two
 options: **"Done"**, already done, and **"Not yet"**, the author stops at each
-step when it gets there. On a tracking issue, ask once, before the loop's first
-dispatch, about every open child's steps together, each under its child's URL,
+step when it gets there; a split answer comes through "Other". On a tracking
+issue, ask once, before the run's first dispatch, re-dispatches on start
+included, about every open child's steps together, each under its child's URL,
 so a conflict in their order, such as a permission changed before the setup
-that needed it, shows before any work. Each answer is a row on its issue,
+that needed it, shows before any work. An answer that holds a child until a
+step is done holds its dispatch. Each answer is a row on its issue,
 `Decision log: Operator steps — decided`, with **Question** `none, asked at
-dispatch`, the answer, and **Basis** `operator`, in session. An issue that
-already carries one is not asked again. The answer changes no design, so a
-tracking issue's table row for it goes straight to `applied` with the note
-`references/design-change.md` gives for a row already in the body. Dispatch
-does not wait on "Not yet", since most steps are needed late.
+dispatch`, the answer, and **Basis** `operator`, in session. The operator's
+answer to an author's stop at a step is a later row of the same ID. An issue
+that already carries one is not asked again, and the latest row is the answer.
+The answer changes no design: it is not promoted into the body, and a tracking
+issue's table row for it is written as `applied`. Dispatch does not wait on
+"Not yet", since most steps are needed late.
 
 **The author**, at once, prompted with the recipe below. The claim you made is
 already the author's: a subagent shares your session id, so its pickup reads
