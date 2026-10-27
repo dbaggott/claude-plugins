@@ -162,6 +162,15 @@ EOF
   [ "$output" = 30 ]
 }
 
+# A caller confirming a reading needs its next read at a set delay, wherever the
+# curve has got to, and the curve must pick up where it was afterwards.
+@test "a nap given an interval sleeps that long and leaves the curve where it was" {
+  setup_clock
+  run bash -c ". '$LIB'; poll_init; poll_nap 3; echo \$(poll_awake) \$(poll_interval)"
+  [ "$status" -eq 0 ]
+  [ "$output" = "3 10" ]
+}
+
 # The reason this clock exists. A watch that spent the night suspended has not
 # been watching, so the window must not have been spent.
 @test "a suspend does not consume the window" {

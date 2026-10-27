@@ -1363,6 +1363,94 @@ EOF
   [[ "$output" != *"re-arm"* ]]
 }
 
+# One poll can see every check done and the PR still BLOCKED, a terminal reading
+# on a PR that is clean seconds later. Stopping on it ends the merge wait with no
+# re-arm line, and the merge then goes uncaught.
+@test "a terminal block that clears on the confirming read does not stop a merge-stage watch" {
+  echo BLOCKED > "$MERGESTATE"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  AT_TICK=2 AT_TICK_FILE="$MERGESTATE" AT_TICK_VALUE=CLEAN \
+    INTERVAL=60 WINDOW=30 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "$output" != *"result=BLOCKED"* ]]
+  [[ "${lines[-1]}" == result=IDLE* ]]
+  # The confirming read is the fixed delay, not the curve's minute.
+  [ "$(grep ' pr view ' "$CALLS" | sed -n 2p | cut -d' ' -f1)" = $(( CLOCK_BASE + 10 )) ]
+}
+
+@test "a terminal block that persists across the confirming read stops a merge-stage watch" {
+  echo BLOCKED > "$MERGESTATE"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  local log="$BATS_TEST_TMPDIR/trace.log"
+  WATCH_LOG="$log" INTERVAL=60 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
+  [[ "$output" != *"re-arm"* ]]
+  [ "$(grep -c ' pr view ' "$CALLS")" -eq 2 ]
+  [ "$(grep ' pr view ' "$CALLS" | sed -n 2p | cut -d' ' -f1)" = $(( CLOCK_BASE + 10 )) ]
+  # The trace records what the stopping poll saw, which the result line does not.
+  grep -q 'stop result=BLOCKED merge=blocked cause=terminal' "$log"
+}
+
+# Only two terminal reads in a row confirm. The observed shape began with a check
+# still running, which is a wait, so the first terminal read after it is the one
+# that needs confirming, not the confirmation.
+@test "a wait before the first terminal read does not count toward confirming it" {
+  echo BLOCKED > "$MERGESTATE"
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"IN_PROGRESS","conclusion":""}]' > "$ROLLUP"
+  AT_TICK=2 AT_TICK_FILE="$ROLLUP" \
+    AT_TICK_VALUE='[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' \
+    INTERVAL=1 WINDOW=30 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
+  [ "$(grep -c ' pr view ' "$CALLS")" -eq 3 ]
+}
+
+# A read in between that is anything but terminal starts the confirmation over,
+# so a terminal read after it is a first sighting again, not the second.
+@test "a non-terminal read between two terminal reads restarts the confirmation" {
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  # Merge state per poll, the last line holding for every poll after it.
+  export SEQ="$BATS_TEST_TMPDIR/seq"
+  printf '%s\n' BLOCKED CLEAN BLOCKED BLOCKED > "$SEQ"
+  mv "$STUB/gh" "$STUB/gh.stub"
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF2'
+if [ "$1 $2" = "pr view" ]; then
+  t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"
+  sed -n "$(( t + 1 ))p" "$SEQ" | grep . > "$MERGESTATE.next" \
+    && mv "$MERGESTATE.next" "$MERGESTATE"
+fi
+exec "$(dirname "$0")/gh.stub" "$@"
+EOF2
+  chmod +x "$STUB/gh"
+  INTERVAL=1 WINDOW=60 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=BLOCKED cause=terminal"* ]]
+  [ "$(grep -c ' pr view ' "$CALLS")" -eq 4 ]
+}
+
+# The window can close between the first terminal read and its confirmation. The
+# IDLE then still says the PR read as blocked, as it does at the review stage.
+@test "a merge-stage window closing before the confirming read names the block on its IDLE" {
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  AT_TICK=2 AT_TICK_FILE="$MERGESTATE" AT_TICK_VALUE=BLOCKED \
+    INTERVAL=5 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=IDLE merge=blocked"* ]]
+  [[ "$output" == *"re-arm"* ]]
+}
+
+@test "a TERMINAL_CONFIRM that is not a positive whole number is refused" {
+  TERMINAL_CONFIRM=0 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=ERROR reason=bad-args"* ]]
+}
+
 # The stage has to survive the re-arm, or the first wake silently drops the merge
 # wait back to review-stage behaviour and the terminal block never lands.
 @test "the merge stage is carried on the re-arm line" {

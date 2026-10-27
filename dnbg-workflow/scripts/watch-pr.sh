@@ -25,7 +25,9 @@
 #   result=READY    new_head=<sha> activity=0|1 now=<iso>   # draft marked ready — only with --was-draft
 #   result=DIRTY    now=<iso>                               # conflict with base — author role only
 #   result=BLOCKED  cause=terminal now=<iso>                # nothing pending will clear it
-#                                                           # — author role WITH --merge-stage only
+#                                                           # — author role WITH --merge-stage only,
+#                                                           # and only once two reads agree; see
+#                                                           # TERMINAL_CONFIRM
 #   result=CLOSED   state=MERGED|CLOSED                     # finished — stop watching
 #   result=IDLE     [merge=behind|blocked|unrecognised:<v>] [since=<iso>] [window_left=<s>] now=<iso>
 #                   # window_left: only this run ended, at lib-poll.sh's WINDOW_CEILING;
@@ -145,6 +147,18 @@ fi
 SETTLE=${SETTLE:-45}
 SETTLE_MAX=${SETTLE_MAX:-300}
 
+# Seconds between the read that first classifies a merge-stage block as terminal
+# and the re-read that confirms it. A poll has been seen to find every check
+# finished and the PR still BLOCKED, with the PR clean seconds later — most
+# likely GitHub recomputing `mergeStateStatus` after the check rollup — and that
+# wait classifies as terminal.
+# Stopping on that read ends the merge wait with no re-arm line, on a PR that
+# turns clean seconds later. A fixed delay rather than the next tick on the
+# curve, which at the merge stage can be minutes and would hold back a real
+# terminal report by as much.
+TERMINAL_CONFIRM=${TERMINAL_CONFIRM:-10}
+case $TERMINAL_CONFIRM in ''|0*|*[!0-9]*) fatal bad-args ;; esac
+
 poll_init
 
 saw_commits=0; saw_activity=0; saw_ready=0; saw_checks=""
@@ -167,6 +181,10 @@ obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0; obs_verdict=""
 # in none of them.
 rearm_head="$LAST_HEAD"
 settle_until=0; settle_cap=0; holding_draft=0; stop_merge=""; idle_merge=""; split_left=""
+# Set by a merge-stage read that classified as terminal and not yet confirmed by
+# a second; any other state read in between clears it. A failed read is no
+# state, so it leaves it as it was.
+terminal_seen=0
 # Stamped once per report, so the re-arm line's `since` and `now=` are one value.
 NOW=""
 J=""; RAWC="[]"
@@ -321,12 +339,22 @@ report_burst() {
 # ERROR carry none: neither clears without a human, so a caller re-arming from
 # one wakes on the same state every tick until someone intervenes.
 report_stop() {  # <result> [extra]
+  # The trace is the only record of what the stopping poll saw: the result line
+  # carries the cause alone, and the state may have moved by the time anyone looks.
+  poll_log "stop result=$1 merge=${MSTATUS-} cause=${MCAUSE-}"
   # Anything already in hand rides out first, carrying the block as a field. The
-  # caller then re-arms from that line and gets the bare stop on the next tick,
+  # caller then re-arms from that line and gets the bare stop once the new run
+  # reads the state again (twice, for a terminal block),
   # so nothing is lost and the stop still happens.
   if have_burst; then stop_merge="$1"; report_burst; fi
   echo "result=$1${2:+ $2} now=$(poll_now_iso)"
   exit 0
+}
+
+# A terminal sighting awaiting its confirming read waits the fixed delay, failed
+# reads in between included, so the confirmation always lands that long after it.
+nap() {
+  if [ "$terminal_seen" = 1 ]; then poll_nap "$TERMINAL_CONFIRM"; else poll_nap; fi
 }
 
 while :; do
@@ -356,7 +384,7 @@ while :; do
       report_burst
     fi
     { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out && report_idle
-    poll_nap; continue
+    nap; continue
   fi
 
   STATE=$(printf '%s' "$J" | jq -r '.state')
@@ -498,11 +526,22 @@ while :; do
     # cause falls through to terminal. Stopping there ends the review watch on
     # its first tick, every round, for the ordinary reason that a reviewer has
     # opened a thread. `--merge-stage` is what says the review is done.
-    if [ "$MERGE_STAGE" = 1 ] && [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
-      report_stop BLOCKED "cause=terminal"
+    #
+    # And only once a second read, TERMINAL_CONFIRM seconds on, agrees: see the
+    # knob for the race a single read loses.
+    #
+    # Either way the window's IDLE names it, including a merge-stage window that
+    # closes before the confirming read.
+    if [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
+      idle_merge=blocked
+      if [ "$MERGE_STAGE" = 1 ]; then
+        [ "$terminal_seen" = 1 ] && report_stop BLOCKED "cause=terminal"
+        terminal_seen=1
+        poll_log "merge=blocked cause=terminal unconfirmed"
+      fi
+    else
+      terminal_seen=0
     fi
-    [ "$MERGE_STAGE" = 0 ] && [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ] \
-      && idle_merge=blocked
   fi
 
   [ "$saw_ready" = 1 ] && report_burst
@@ -525,5 +564,5 @@ while :; do
   fi
 
   { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out && report_idle
-  poll_nap
+  nap
 done
