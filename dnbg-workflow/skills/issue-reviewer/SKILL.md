@@ -187,7 +187,9 @@ home, so it goes on the nearest owner and says explicitly that it is unowned —
 otherwise it is filed against nothing. In a tracking set:
 
 - An unrealized dependency goes on the child that needs the output, which is
-  where the edge and the `Depends on` line are added.
+  where the edge and the `Depends on` line are added, unless a requirement the
+  child covers needs it too: `references/design-review.md` then reports it on
+  the parent.
 - A coverage gap goes on the parent, since closing it is a parent decision: a
   child takes the requirement on, or the parent marks it.
 - Drift goes on the child — unless the child is right and the design is wrong.

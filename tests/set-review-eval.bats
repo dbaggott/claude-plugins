@@ -45,6 +45,8 @@ line() { tail -1 <<<"$1"; }
   grep -qx "issue edit $U/4 --repo o/r --add-blocked-by $U/2" "$LOG"
   # The planted dependency has no edge: the checker is never blocked by anything.
   run ! grep -q "edit $U/3 .*--add-blocked-by" "$LOG"
+  # The planted unmeetable cover has no edge either: import is blocked by export alone.
+  [ "$(grep -c "edit $U/4 .*--add-blocked-by" "$LOG")" -eq 1 ]
 }
 
 @test "every placeholder is filled, and the parent's table links the children" {
