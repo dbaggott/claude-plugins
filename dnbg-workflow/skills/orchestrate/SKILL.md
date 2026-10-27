@@ -177,7 +177,8 @@ issue, ask once, before the run's first dispatch, re-dispatches on start
 included, about every open child's steps together, each under its child's URL,
 so a conflict in their order, such as a permission changed before the setup
 that needed it, shows before any work. An answer that holds a child until a
-step is done holds its dispatch. Each answer is a row on its issue,
+step is done holds its dispatch until the operator confirms the step, in a later
+row of the same ID. Each answer is a row on its issue,
 `Decision log: Operator steps — decided`, with **Question** `none, asked at
 dispatch`, the answer, and **Basis** `operator`, in session. The operator's
 answer to an author's stop at a step is a later row of the same ID. An issue
