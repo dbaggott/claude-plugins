@@ -10,6 +10,14 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.62 — 2026-10-27
+
+When a review finding is fixed only in the PR description, the author now
+replies on the finding to say so. Editing the description alone does not wake
+the reviewer's watch, so before this the reviewer could sit idle until someone
+happened to comment.
+
+
 ## dnbg-workflow 2026.10.61 — 2026-10-27
 
 Fixed spec reviews stopping after their first round. `issue-reviewer` now arms
