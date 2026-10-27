@@ -168,6 +168,21 @@ Each also shares your scratchpad directory, so a draft file at a chosen name
 there is one you and it can both write; every draft file comes from `mktemp`,
 per `git-workflow`'s "Writing the PR description".
 
+**Operator steps first.** Before dispatching an author, ask the operator about
+the issue's `## Operator steps` (`issue-workflow`'s `references/creating.md`)
+with `AskUserQuestion`, listing each step with when the work needs it, and two
+options: **"Done"**, already done, and **"Not yet"**, the author stops at each
+step when it gets there. On a tracking issue, ask once, before the loop's first
+dispatch, about every open child's steps together, each under its child's URL,
+so a conflict in their order, such as a permission changed before the setup
+that needed it, shows before any work. Each answer is a row on its issue,
+`Decision log: Operator steps — decided`, with **Question** `none, asked at
+dispatch`, the answer, and **Basis** `operator`, in session. An issue that
+already carries one is not asked again. The answer changes no design, so a
+tracking issue's table row for it goes straight to `applied` with the note
+`references/design-change.md` gives for a row already in the body. Dispatch
+does not wait on "Not yet", since most steps are needed late.
+
 **The author**, at once, prompted with the recipe below. The claim you made is
 already the author's: a subagent shares your session id, so its pickup reads
 `OWN`. When the operator asks at the start of the run for an operator check
@@ -181,6 +196,7 @@ promote it into the body as its `## Operator check before review` section.
 > feedback. The issue is already claimed under your session id. [The check
 > cleared at `<row URL>`; do not stop for it.] [The check is pending: rework to
 > these feedback rows in order, then stop for it again: `<row URLs>`.]
+> [Its operator steps: `<answer>`, per `<row URL>`.]
 > [Continue `<PR URL>`, which is already open for it, on its branch
 > `<branch>`.] [Its worktree from a predecessor is at `<path>`; continue
 > there.] [The author before you died mid-task. It left unpushed commits
@@ -191,6 +207,7 @@ promote it into the body as its `## Operator check before review` section.
 The bracketed phrase replaces "when you're done" whenever the check is declared
 (step 5); of the two bracketed lines after it, the first goes in for a check
 step 4 read as cleared and the second, with its rows, for one read as pending.
+The operator-steps line goes in for an issue with an `Operator steps` row.
 The next line goes in only for an open PR
 that step 3 found as `closes` or `sibling`, that the operator handed over, or
 that a dead author left; the one after only for a worktree that step 3 found or

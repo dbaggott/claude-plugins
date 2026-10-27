@@ -78,6 +78,22 @@ acceptance criterion: the reviewer grades nothing in it (`reviewer`'s
 `references/issue-mode.md`). The recipe's command is an anchor, verified before
 filing like any other.
 
+### Declare operator steps
+
+When the work needs something only the operator can do, such as a browser
+flow, installing an App or providing a credential, the body names each step in
+a section of its own, outside the acceptance criteria:
+
+```markdown
+## Operator steps
+
+- <the step>: <when the work needs it, such as before the first live run>
+```
+
+`orchestrate` asks the operator about them before the resolver reaches them.
+Like the operator check, the section is a declaration, not an acceptance
+criterion: the reviewer grades nothing in it.
+
 ### Inline summary over links
 
 - If the relevant content is a schema, a reviewer's specific concern, or a short code excerpt, **paste it into the issue body** and cite the source URL beneath it — don't rely on the reader clicking through.
