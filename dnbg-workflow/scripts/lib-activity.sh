@@ -39,16 +39,18 @@ ACTIVITY_JQ_INLINE='
   .[] | select(.at > $s and (.author | mine | not))
   | {kind: "inline", author, path, line, id, at, body}'
 
-# Edits to the PR description, read from the whole normalised object. `body` is
-# the description as it stands now, not as that edit left it: the forge keeps
-# each version, but fetching them every tick to tell two edits apart buys a
-# caller nothing it would do differently.
+# Edits to the PR description, read from the whole normalised object, newest
+# first. Only the newest carries a `body`, the description as it stands now:
+# the forge keeps each version, but telling two edits apart buys a caller
+# nothing it would do differently, and a copy per edit only repeats it.
 # shellcheck disable=SC2016,SC2034
 ACTIVITY_JQ_EDITS='
   def mine: . == $slug or . == ($slug + "[bot]");
   .description as $d
-  | .edits[]? | select(.at > $s and (.author | mine | not))
-  | {kind: "edit", author, at, body: $d}'
+  | [ .edits[]? | select(.at > $s and (.author | mine | not)) ]
+  | to_entries[]
+  | {kind: "edit", author: .value.author, at: .value.at}
+    + (if .key == 0 then {body: $d} else {} end)'
 
 # The same objects with the body dropped, for a producer that signals rather than
 # delivers. watch-pr.sh emits this; pr-round.sh emits the full objects. Defined

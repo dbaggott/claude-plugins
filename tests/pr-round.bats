@@ -248,6 +248,15 @@ section() {  # <name> <output>
   [ "$(field edits_src "$(result "$output")")" = ok ]
 }
 
+@test "several edits carry the description once, on the newest" {
+  edits '[{"editedAt":"2026-08-03T00:00:00Z","editor":{"login":"human"}},
+          {"editedAt":"2026-08-02T00:00:00Z","editor":{"login":"other"}}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(section activity "$output" | grep -c '"kind":"edit"')" = 2 ]
+  [ "$(section activity "$output" | grep -c 'the description')" = 1 ]
+  [[ "$(section activity "$output")" == *'"at":"2026-08-03T00:00:00Z","body":"the description"'* ]]
+}
+
 @test "a failing edits fetch does not read as an unedited description" {
   : > "$FAIL_EDITS"
   run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me

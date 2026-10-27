@@ -481,15 +481,16 @@ while :; do
     if [ "$ROLE" = reviewer ]; then saw_commits=1; changed=1; new_head="$HEAD"; fi
     obs_head="$HEAD"
   fi
-  # Each count only ratchets up: a degraded tick reads its source as empty, and
-  # lowering the mark there turns the source's recovery into a wake.
   if [ "$new_reviews" -gt "$obs_new" ] || [ "$new_inline" -gt "$obs_newc" ] \
      || [ "$new_edits" -gt "$obs_edits" ]; then
     saw_activity=1; changed=1
-    [ "$new_reviews" -gt "$obs_new" ] && obs_new="$new_reviews"
-    [ "$new_inline" -gt "$obs_newc" ] && obs_newc="$new_inline"
-    [ "$new_edits" -gt "$obs_edits" ] && obs_edits="$new_edits"
   fi
+  # Each mark follows its own source down as well as up, so a deletion followed
+  # by a new post still wakes; but not on a tick where that source is degraded,
+  # which reads it as empty and would make its recovery a wake.
+  obs_new="$new_reviews"
+  case "$LINE" in *degraded=*inline-comments*) ;; *) obs_newc="$new_inline" ;; esac
+  case "$LINE" in *degraded=*description-edits*) ;; *) obs_edits="$new_edits" ;; esac
   if [ -n "$verdict_line" ]; then
     vsha="${verdict_line%% *}"
     # Two different facts, so two variables. `obs_verdict` stops one standing
