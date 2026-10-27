@@ -17,9 +17,12 @@ setup() {
   export INLINE_JSON="$BATS_TEST_TMPDIR/inline.json"
   export FAIL_PR="$BATS_TEST_TMPDIR/fail_pr"
   export FAIL_INLINE="$BATS_TEST_TMPDIR/fail_inline"
+  export EDITS_JSON="$BATS_TEST_TMPDIR/edits.json"
+  export FAIL_EDITS="$BATS_TEST_TMPDIR/fail_edits"
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
 case "$*" in
+  *graphql*)               [ -f "$FAIL_EDITS" ] && exit 1;  cat "$EDITS_JSON" ;;
   *"pr view"*)             [ -f "$FAIL_PR" ] && exit 1;     cat "$PR_JSON" ;;
   *"pulls/"*"/comments"*)  [ -f "$FAIL_INLINE" ] && exit 1; cat "$INLINE_JSON" ;;
 esac
@@ -27,6 +30,14 @@ EOF
   chmod +x "$STUB/gh"
   export PATH="$STUB:$PATH"
   echo '[]' > "$INLINE_JSON"
+  edits '[]'
+}
+
+# The description-edits reply, for a PR opened at the epoch.
+edits() {  # <nodes-json>
+  jq -cn --argjson n "$1" '{data:{repository:{pullRequest:{
+    createdAt:"1970-01-01T00:00:00Z", body:"the description",
+    userContentEdits:{nodes:$n}}}}}' > "$EDITS_JSON"
 }
 
 # A minimal open PR, with the rollup and merge status the case is about.
@@ -176,6 +187,40 @@ line() { tail -1 <<<"$1"; }
   run "$FETCH" o/r 1
   [[ "$(line "$output")" == "result=OK"*"degraded=inline-comments"* ]]
   [ "$(obj "$output" | jq -r '.state')" = OPEN ]
+}
+
+# GitHub lists the description as first written among its edits, stamped with the
+# time the PR was opened. Kept, it reads as an edit to anyone armed before then.
+@test "description edits are carried, without the opening of the PR" {
+  pr CLEAN '[]'
+  edits '[{"editedAt":"1970-01-02T00:00:00Z","editor":{"login":"someone"}},
+          {"editedAt":"1970-01-01T00:00:00Z","editor":{"login":"someone"}}]'
+  run "$FETCH" o/r 1
+  [ "$(obj "$output" | jq -c '.edits')" = '[{"author":"someone","at":"1970-01-02T00:00:00Z"}]' ]
+  [ "$(obj "$output" | jq -r '.description')" = "the description" ]
+}
+
+@test "description edits failing degrades the object rather than losing it" {
+  pr CLEAN '[]'
+  touch "$FAIL_EDITS"
+  run "$FETCH" o/r 1
+  [[ "$(line "$output")" == "result=OK"*"degraded=description-edits"* ]]
+  [ "$(obj "$output" | jq -c '.edits')" = '[]' ]
+}
+
+# An error body parses. Read as an empty edit list, it says "never edited".
+@test "an edits reply without the edit list is degraded, not read as no edits" {
+  pr CLEAN '[]'
+  echo '{"errors":[{"message":"rate limited"}]}' > "$EDITS_JSON"
+  run "$FETCH" o/r 1
+  [[ "$(line "$output")" == *"degraded=description-edits"* ]]
+}
+
+@test "every degraded source is named" {
+  pr CLEAN '[]'
+  touch "$FAIL_INLINE" "$FAIL_EDITS"
+  run "$FETCH" o/r 1
+  [[ "$(line "$output")" == *"degraded=inline-comments,description-edits"* ]]
 }
 
 @test "a healthy tick reports no degradation" {

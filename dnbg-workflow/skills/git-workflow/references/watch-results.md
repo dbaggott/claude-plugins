@@ -11,7 +11,7 @@ apply there too.
 
 After any `alive` heartbeat lines, the script prints a summary of the activity it saw as one JSON object per line — who posted what kind of thing, where, without the text — then, on the results with a round behind them, a `── next ──` line carrying the `pr-round.sh` call that reads that round in full, then one result line. Treat the returns differently:
 
-- **`result=ACTIVITY`** — a review, comment or reply landed. Go to `references/review-received.md`.
+- **`result=ACTIVITY`** — a review, comment, reply or edit to the PR description landed. Go to `references/review-received.md`.
 - **`result=COMMITS`** — someone pushed to the branch. **Reviewer role only**: this role cannot tell your push from anyone else's, so it reports none of them rather than waking you on your own. A third party's push is not lost by that — it is not *announced*, but the head the re-arm carries does not advance past it, so the next round's `── next ──` diff still spans it. A reviewer who pushes *and* comments does wake you, as `ACTIVITY`, and that diff covers the push too.
 - **`activity=1` on any burst** — comments or replies landed alongside whatever the result names. **Handle them in this same pass**, per `references/review-received.md`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good. `activity=0` means the burst was something else (a verdict, a check), so there is no conversation to go looking for.
 - **`result=CLOSED`** — merged or closed. Stop watching; if `state=MERGED`, run the post-merge cleanup in `references/post-merge.md`.

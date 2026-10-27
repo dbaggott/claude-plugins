@@ -9,7 +9,8 @@
 #
 # Exactly one result line, then exit 0:
 #   result=COMMITS  new_head=<sha> activity=0|1 now=<iso>   # someone pushed
-#   result=ACTIVITY activity=1 now=<iso>                    # review/comment/reply, not the caller's
+#   result=ACTIVITY activity=1 now=<iso>                    # review/comment/reply/description edit,
+#                                                           # not the caller's
 #   result=CHECKS   checks='<names>' [failed_tests='<names>'] now=<iso>
 #                   # only a check stopped passing; failed_tests is best effort,
 #                   # the `not ok` lines of the failing jobs' logs, `; `-joined
@@ -173,7 +174,7 @@ checks_baseline="$LAST_CHECKS"
 # forward — see where it is compared, below.
 checks_head="$LAST_CHECKS_HEAD"
 last_json=""
-obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0; obs_verdict=""
+obs_head="$LAST_HEAD"; obs_new=0; obs_newc=0; obs_edits=0; obs_verdict=""
 # What the caller has HANDLED, which only a report advances — as against
 # `obs_head`, what this run has SEEN, which stops it re-detecting one move every
 # tick. Sharing them advances the head past a push the author role never
@@ -187,7 +188,7 @@ settle_until=0; settle_cap=0; holding_draft=0; stop_merge=""; idle_merge=""; spl
 terminal_seen=0
 # Stamped once per report, so the re-arm line's `since` and `now=` are one value.
 NOW=""
-J=""; RAWC="[]"
+J=""; RAWC="[]"; RAWE="{}"
 
 # A check name is forge-supplied and routinely contains a space — `build
 # (macos-latest)` is what a default matrix job is called — so anywhere a name is
@@ -220,6 +221,7 @@ emit_activity() {
   [ "$saw_activity" = 1 ] || return 0
   { printf '%s' "${last_json:-}" | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_REVIEWS" 2>/dev/null || true
     printf '%s' "${RAWC:-}"  | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_INLINE"  2>/dev/null || true
+    printf '%s' "${RAWE:-}"  | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_EDITS"   2>/dev/null || true
   } | jq -c "$ACTIVITY_JQ_SUMMARY" 2>/dev/null || true
 }
 
@@ -367,10 +369,12 @@ while :; do
   case "$LINE" in
     result=OK*)
       ok=1; watch_ok pr-view
-      case "$LINE" in
-        *degraded=inline-comments*) watch_fail inline-comments report_error ;;
-        *)                          watch_ok inline-comments ;;
-      esac ;;
+      for src in inline-comments description-edits; do
+        case "$LINE" in
+          *degraded=*"$src"*) watch_fail "$src" report_error ;;
+          *)                  watch_ok "$src" ;;
+        esac
+      done ;;
     *reason=pr-view-shape*) watch_fail_shape pr-view report_error ;;
     *reason=bad-args*|*reason=unsupported-forge*) fatal "$(r="${LINE#*reason=}"; printf %s "${r%% *}")" ;;
     *reason=*)              watch_fail "$(printf '%s' "$LINE" | sed -n 's/.*reason=\([^ ]*\).*/\1/p')" report_error ;;
@@ -390,12 +394,16 @@ while :; do
   STATE=$(printf '%s' "$J" | jq -r '.state')
   DRAFT=$(printf '%s' "$J" | jq -r '.draft')
   HEAD=$(printf '%s' "$J" | jq -r '.head')
-  # Guarded like `last_json`: a degraded tick carries `[]` for this half, and
-  # overwriting on one empties the summary for a burst whose activity was inline
-  # comments in the first place.
+  # Guarded like `last_json`: a degraded tick carries an empty value for that
+  # source, and overwriting on one empties the summary for a burst whose activity
+  # came from that source in the first place.
   case "$LINE" in
-    *degraded=inline-comments*) ;;
+    *degraded=*inline-comments*) ;;
     *) RAWC=$(printf '%s' "$J" | jq -c '.inline') ;;
+  esac
+  case "$LINE" in
+    *degraded=*description-edits*) ;;
+    *) RAWE=$(printf '%s' "$J" | jq -c '{edits, description}') ;;
   esac
 
   if [ "$STATE" = MERGED ] || [ "$STATE" = CLOSED ]; then
@@ -454,6 +462,8 @@ while :; do
   new_inline=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" '
     [ .inline[]? | select(.at > $s)
       | select(.author != $slug and .author != ($slug + "[bot]")) ] | length')
+  new_edits=$(printf '%s' "$J" | jq -r --arg s "$SINCE" --arg slug "$SLUG" \
+    "[ $ACTIVITY_JQ_EDITS ] | length")
 
   verdict_line=$(printf '%s' "$J" | jq -r --arg head "$HEAD" --arg slug "$SLUG" '
     [ .reviews[]?
@@ -471,8 +481,14 @@ while :; do
     if [ "$ROLE" = reviewer ]; then saw_commits=1; changed=1; new_head="$HEAD"; fi
     obs_head="$HEAD"
   fi
-  if [ "$new_reviews" -gt "$obs_new" ] || [ "$new_inline" -gt "$obs_newc" ]; then
-    saw_activity=1; changed=1; obs_new="$new_reviews"; obs_newc="$new_inline"
+  # Each count only ratchets up: a degraded tick reads its source as empty, and
+  # lowering the mark there turns the source's recovery into a wake.
+  if [ "$new_reviews" -gt "$obs_new" ] || [ "$new_inline" -gt "$obs_newc" ] \
+     || [ "$new_edits" -gt "$obs_edits" ]; then
+    saw_activity=1; changed=1
+    [ "$new_reviews" -gt "$obs_new" ] && obs_new="$new_reviews"
+    [ "$new_inline" -gt "$obs_newc" ] && obs_newc="$new_inline"
+    [ "$new_edits" -gt "$obs_edits" ] && obs_edits="$new_edits"
   fi
   if [ -n "$verdict_line" ]; then
     vsha="${verdict_line%% *}"

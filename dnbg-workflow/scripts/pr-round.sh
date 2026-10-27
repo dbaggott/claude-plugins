@@ -15,13 +15,14 @@
 #   ── diff ──
 #   <unified diff>
 #   ── activity ──
-#   {"kind":"review|comment|inline","author":…,"at":…,"body":…}
+#   {"kind":"review|comment|inline|edit","author":…,"at":…,"body":…}
 #   ── threads ──
 #   {"id":"PRRT_…","path":…,"line":…,"author":…,"body":…}
 #   result=OK head=<sha> verdict=<state> verdict_sha=<sha> at_head=0|1
 #     reviewed_after_head=0|1|unknown
 #     review_decision=<state> verdict_src=<s> diff=delta|full|none|fail
-#     activity=<n> reviews_src=<s> inline_src=<s> threads=<n> threads_src=<s>
+#     activity=<n> reviews_src=<s> inline_src=<s> edits_src=<s>
+#     threads=<n> threads_src=<s>
 #
 #   result=ERROR reason=bad-args   # nothing was queried
 #
@@ -109,17 +110,17 @@ else
   diff_src="fail"; DIFF=""
 fi
 
-# 3. Activity since `$SINCE`. Review bodies, conversation comments and inline
-# findings all come from one fetch — the same tick watch-pr.sh polls — so a
-# caller reads the same objects whichever produced them, and the filters below
-# read one shape rather than two raw payloads. Fetch and parse stay split so a
+# 3. Activity since `$SINCE`. Review bodies, conversation comments, inline
+# findings and description edits all come from one fetch — the same tick
+# watch-pr.sh polls — so a caller reads the same objects whichever produced
+# them, and the filters below read one shape rather than several raw payloads. Fetch and parse stay split so a
 # payload that stops parsing is never reported as "nothing new".
 REVS=""; reviews_src=ok
 STATE_OUT=$("$(dirname "$0")/fetch-pr-state.sh" "$REPO" "$PR" 2>/dev/null) || STATE_OUT=""
 STATE_LINE=$(printf '%s\n' "$STATE_OUT" | tail -1)
 STATE_JSON=$(printf '%s\n' "$STATE_OUT" | sed '$d')
 
-INLINE=""; inline_src=ok
+INLINE=""; inline_src=ok; EDITS=""; edits_src=ok
 case "$STATE_LINE" in
   result=OK*)
     REVS=$(printf '%s' "$STATE_JSON" | jq -c --arg s "$SINCE" --arg slug "$SLUG" \
@@ -127,9 +128,12 @@ case "$STATE_LINE" in
     INLINE=$(printf '%s' "$STATE_JSON" | jq -c '.inline' \
              | jq -c --arg s "$SINCE" --arg slug "$SLUG" "$ACTIVITY_JQ_INLINE" 2>/dev/null) \
              || { inline_src=shape; INLINE=""; }
-    case "$STATE_LINE" in *degraded=inline-comments*) inline_src=fail ;; esac ;;
-  *reason=*-shape*) reviews_src=shape; inline_src=shape ;;
-  *)                reviews_src=fail;  inline_src=fail ;;
+    EDITS=$(printf '%s' "$STATE_JSON" | jq -c --arg s "$SINCE" --arg slug "$SLUG" \
+             "$ACTIVITY_JQ_EDITS" 2>/dev/null) || { edits_src=shape; EDITS=""; }
+    case "$STATE_LINE" in *degraded=*inline-comments*) inline_src=fail ;; esac
+    case "$STATE_LINE" in *degraded=*description-edits*) edits_src=fail ;; esac ;;
+  *reason=*-shape*) reviews_src=shape; inline_src=shape; edits_src=shape ;;
+  *)                reviews_src=fail;  inline_src=fail;  edits_src=fail ;;
 esac
 
 # 4. Every unresolved thread, via the sibling that already owns the GraphQL. It
@@ -150,7 +154,7 @@ else
   esac
 fi
 
-ACTIVITY=$(printf '%s\n%s\n' "$REVS" "$INLINE" | grep -v '^[[:space:]]*$' || true)
+ACTIVITY=$(printf '%s\n%s\n%s\n' "$REVS" "$INLINE" "$EDITS" | grep -v '^[[:space:]]*$' || true)
 
 printf '── diff ──\n'
 [ -n "$DIFF" ] && printf '%s\n' "$DIFF"
@@ -163,5 +167,5 @@ echo "result=OK head=$HEAD verdict=$VERDICT verdict_sha=$VSHA at_head=$AT_HEAD" 
      "reviewed_after_head=$REVIEWED_AFTER" \
      "review_decision=$DECISION verdict_src=$verdict_src diff=$diff_src" \
      "activity=$(printf '%s' "$ACTIVITY" | grep -c . || true)" \
-     "reviews_src=$reviews_src inline_src=$inline_src" \
+     "reviews_src=$reviews_src inline_src=$inline_src edits_src=$edits_src" \
      "threads=$TCOUNT threads_src=$threads_src"

@@ -1247,6 +1247,7 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
   local lib="$ROOT/dnbg-workflow/scripts/lib-activity.sh"
   grep -q '^ACTIVITY_JQ_REVIEWS=' "$lib"
   grep -q '^ACTIVITY_JQ_INLINE=' "$lib"
+  grep -q '^ACTIVITY_JQ_EDITS=' "$lib"
   # The summary is a projection of those two, not a third description of the
   # shape. Spelled anywhere else it drifts from what it claims to be a subset of.
   grep -q '^ACTIVITY_JQ_SUMMARY=' "$lib"

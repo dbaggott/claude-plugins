@@ -16,7 +16,8 @@ verdict together. **Run it first; it is what their handling below reads from.**
 
 - **`COMMITS`** (`new_head=…`) — the author pushed. Re-review at the new HEAD
   per `references/re-review.md`, and resolve threads the new diff addressed.
-- **`ACTIVITY`** — a new review, comment, or reply (not the bot's). Handle per
+- **`ACTIVITY`** — a new review, comment, reply, or description edit (not the
+  bot's). Handle per
   **Responding to comments and replies** in `SKILL.md`; resolve threads now
   answered.
 - **`READY`** (`new_head=…`) — a draft you were holding back was marked ready.
