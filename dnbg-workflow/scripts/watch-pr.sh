@@ -148,9 +148,10 @@ SETTLE=${SETTLE:-45}
 SETTLE_MAX=${SETTLE_MAX:-300}
 
 # Seconds between the read that first classifies a merge-stage block as terminal
-# and the re-read that confirms it. GitHub updates the check rollup before it
-# recomputes `mergeStateStatus`, so a poll landing between the two sees every
-# check finished and the PR still BLOCKED — a wait that classifies as terminal.
+# and the re-read that confirms it. A poll has been seen to find every check
+# finished and the PR still BLOCKED, with the PR clean seconds later — most
+# likely GitHub recomputing `mergeStateStatus` after the check rollup — and that
+# wait classifies as terminal.
 # Stopping on that read ends the merge wait with no re-arm line, on a PR that
 # turns clean seconds later. A fixed delay rather than the next tick on the
 # curve, which at the merge stage can be minutes and would hold back a real
@@ -342,11 +343,18 @@ report_stop() {  # <result> [extra]
   # carries the cause alone, and the state may have moved by the time anyone looks.
   poll_log "stop result=$1 merge=${MSTATUS-} cause=${MCAUSE-}"
   # Anything already in hand rides out first, carrying the block as a field. The
-  # caller then re-arms from that line and gets the bare stop on the next tick,
+  # caller then re-arms from that line and gets the bare stop once the new run
+  # reads the state again (twice, for a terminal block),
   # so nothing is lost and the stop still happens.
   if have_burst; then stop_merge="$1"; report_burst; fi
   echo "result=$1${2:+ $2} now=$(poll_now_iso)"
   exit 0
+}
+
+# A terminal sighting awaiting its confirming read waits the fixed delay, failed
+# reads in between included, so the confirmation always lands that long after it.
+nap() {
+  if [ "$terminal_seen" = 1 ]; then poll_nap "$TERMINAL_CONFIRM"; else poll_nap; fi
 }
 
 while :; do
@@ -376,7 +384,7 @@ while :; do
       report_burst
     fi
     { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out && report_idle
-    poll_nap; continue
+    nap; continue
   fi
 
   STATE=$(printf '%s' "$J" | jq -r '.state')
@@ -521,15 +529,19 @@ while :; do
     #
     # And only once a second read, TERMINAL_CONFIRM seconds on, agrees: see the
     # knob for the race a single read loses.
-    if [ "$MERGE_STAGE" = 1 ] && [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
-      [ "$terminal_seen" = 1 ] && report_stop BLOCKED "cause=terminal"
-      terminal_seen=1
-      poll_log "merge=blocked cause=terminal unconfirmed, re-reading in ${TERMINAL_CONFIRM}s"
+    #
+    # Either way the window's IDLE names it, including a merge-stage window that
+    # closes before the confirming read.
+    if [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ]; then
+      idle_merge=blocked
+      if [ "$MERGE_STAGE" = 1 ]; then
+        [ "$terminal_seen" = 1 ] && report_stop BLOCKED "cause=terminal"
+        terminal_seen=1
+        poll_log "merge=blocked cause=terminal unconfirmed"
+      fi
     else
       terminal_seen=0
     fi
-    [ "$MERGE_STAGE" = 0 ] && [ "$MSTATUS" = blocked ] && [ "$MCAUSE" = terminal ] \
-      && idle_merge=blocked
   fi
 
   [ "$saw_ready" = 1 ] && report_burst
@@ -552,5 +564,5 @@ while :; do
   fi
 
   { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out && report_idle
-  if [ "$terminal_seen" = 1 ]; then poll_nap "$TERMINAL_CONFIRM"; else poll_nap; fi
+  nap
 done
