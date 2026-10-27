@@ -1,8 +1,9 @@
-# Issue reviewer: rounds after the first
+# Issue reviewer: the round protocol
 
-Part of the `issue-reviewer` skill, covering everything from the author's first
-response onwards. `SKILL.md` carries the routing rule, the two passes, and what a
-verdict comment contains.
+Part of the `issue-reviewer` skill, covering the gate every post passes and the
+wait armed after each round, round 1 included, and everything from the author's
+first response onwards. `SKILL.md` carries the routing rule, the two passes, and
+what a verdict comment contains.
 
 The author obeys the matching half of the ordering and quiescence rules below,
 from `issue-workflow`'s `references/spec-review-rounds.md`, which is what lets

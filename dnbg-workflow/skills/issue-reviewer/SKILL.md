@@ -255,13 +255,20 @@ artifact goes in the comment first; the chat summary points at it rather than
 adding to it. A conclusion that reaches only the chat is invisible to the author,
 to the next reader, and to you next round.
 
-## Rounds after the first
+**Then arm the wait, in the same turn.** Once every issue in the round has its
+comment, start the wait in `references/rounds.md`, "Waiting for the author",
+its `--since` set by the first-arm rule there, unless the round converged or
+halted per that file's "Dispositioning, convergence, and the halt". The review
+runs until it converges or halts, not for one round: with no wait running, the
+author's response is never read.
 
-`references/rounds.md` carries everything from the author's first response
-onwards — the gate that re-validates a snapshot before the post, reading a round
-as a delta, the ordering and quiescence rules both sides obey, waiting, and how
-the review converges or halts. Read it before the second round, and before arming
-any wait.
+## The round protocol
+
+`references/rounds.md` carries the gate every post passes, round 1's included;
+the wait armed after each round, round 1's included; and everything from the
+author's first response onwards: reading a round as a delta, the ordering and
+quiescence rules both sides obey, and how the review converges or halts. Read it
+before posting round 1.
 
 The author's side of the same protocol is `issue-workflow`'s
 `references/spec-review-rounds.md`.
