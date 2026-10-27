@@ -18,8 +18,6 @@ setup() {
   export FAIL_REVIEWS="$BATS_TEST_TMPDIR/fail_reviews"
   export FAIL_INLINE="$BATS_TEST_TMPDIR/fail_inline"
   export FAIL_THREADS="$BATS_TEST_TMPDIR/fail_threads"
-  export FAIL_EDITS="$BATS_TEST_TMPDIR/fail_edits"
-  export EDITS_JSON="$BATS_TEST_TMPDIR/edits.json"
   export FAIL_DIFF="$BATS_TEST_TMPDIR/fail_diff"
   export VERDICT_JSON="$BATS_TEST_TMPDIR/verdict.json"
   export REVIEWS_JSON="$BATS_TEST_TMPDIR/reviews.json"
@@ -28,8 +26,7 @@ setup() {
   export DIFF_TXT="$BATS_TEST_TMPDIR/diff.txt"
   export CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
 
-  # Dispatch by argument shape. The edits query is matched before the threads
-  # one, both being GraphQL. `graphql` is matched before the inline-comments
+  # Dispatch by argument shape. `graphql` is matched before the inline-comments
   # pattern because pr-threads.sh's query names `pullRequest`, and ordering the
   # two the other way would serve it the comments fixture.
   cat > "$STUB/gh" <<'EOF'
@@ -43,7 +40,6 @@ case "$*" in
   *"--json state,isDraft"*)    [ -f "$FAIL_REVIEWS" ] && exit 1
                                jq -c '. + {state:"OPEN", isDraft:false, headRefOid:"bbb"}' \
                                  "$REVIEWS_JSON" 2>/dev/null || cat "$REVIEWS_JSON" ;;
-  *userContentEdits*)          [ -f "$FAIL_EDITS" ]   && exit 1; cat "$EDITS_JSON" ;;
   *graphql*)                   [ -f "$FAIL_THREADS" ] && exit 1; cat "$THREADS_JSON" ;;
   "pr diff"*|*compare*)        [ -f "$FAIL_DIFF" ]    && exit 1; cat "$DIFF_TXT" ;;
   *pulls/*comments*)           [ -f "$FAIL_INLINE" ]  && exit 1; cat "$INLINE_JSON" ;;
@@ -60,14 +56,7 @@ EOF
   printf '[{"created_at":"2026-08-02T00:00:00Z","user":{"login":"human"},"path":"a.sh","line":7,"id":99,"body":"the fourth thing"}]' \
     > "$INLINE_JSON"
   threads '[{"id":"PRRT_1","isResolved":false,"path":"a.sh","line":7,"comments":{"nodes":[{"author":{"login":"human"},"body":"still open"}]}}]'
-  edits '[]'
   printf -- '--- a/a.sh\n+++ b/a.sh\n@@ -1 +1 @@\n-old\n+new\n' > "$DIFF_TXT"
-}
-
-edits() {  # <nodes-json>
-  jq -cn --argjson n "$1" '{data:{repository:{pullRequest:{
-    createdAt:"2026-07-01T00:00:00Z", body:"the description",
-    userContentEdits:{nodes:$n}}}}}' > "$EDITS_JSON"
 }
 
 threads() {  # <nodes-json>
@@ -238,30 +227,6 @@ section() {  # <name> <output>
   run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
   [ "$(field inline_src "$(result "$output")")" = fail ]
   [ "$(field reviews_src "$(result "$output")")" = ok ]
-}
-
-# A fix can live in the description alone; the round has to carry the text.
-@test "a description edit is in the packet with the description as it stands" {
-  edits '[{"editedAt":"2026-08-02T00:00:00Z","editor":{"login":"human"}}]'
-  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
-  [[ "$(section activity "$output")" == *'{"kind":"edit","author":"human","at":"2026-08-02T00:00:00Z","body":"the description"}'* ]]
-  [ "$(field edits_src "$(result "$output")")" = ok ]
-}
-
-@test "several edits carry the description once, on the newest" {
-  edits '[{"editedAt":"2026-08-03T00:00:00Z","editor":{"login":"human"}},
-          {"editedAt":"2026-08-02T00:00:00Z","editor":{"login":"other"}}]'
-  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
-  [ "$(section activity "$output" | grep -c '"kind":"edit"')" = 2 ]
-  [ "$(section activity "$output" | grep -c 'the description')" = 1 ]
-  [[ "$(section activity "$output")" == *'"at":"2026-08-03T00:00:00Z","body":"the description"'* ]]
-}
-
-@test "a failing edits fetch does not read as an unedited description" {
-  : > "$FAIL_EDITS"
-  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
-  [ "$(field edits_src "$(result "$output")")" = fail ]
-  [ "$(field inline_src "$(result "$output")")" = ok ]
 }
 
 # A payload that came back and stopped parsing is a different fault from one that

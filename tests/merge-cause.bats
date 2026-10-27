@@ -22,12 +22,9 @@ setup() {
   export PAYLOAD="$BATS_TEST_TMPDIR/payload.json"
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
-# Inline comments and description edits are requests the fixtures do not cover;
-# the mapping under test reads neither.
-case "$*" in
-  *"pulls/"*"/comments"*) echo '[]'; exit 0 ;;
-  *graphql*) echo '{"data":{"repository":{"pullRequest":{"createdAt":"","body":"","userContentEdits":{"nodes":[]}}}}}'; exit 0 ;;
-esac
+# Inline comments are a second request the fixtures do not cover; the mapping
+# under test does not read them.
+case "$*" in *"pulls/"*"/comments"*) echo '[]'; exit 0 ;; esac
 cat "$PAYLOAD"
 EOF
   chmod +x "$STUB/gh"

@@ -85,7 +85,6 @@ case "$*" in
   *"/actions/jobs/"*"/logs") [ -f "$RUNLOG" ] || exit 1; cat "$RUNLOG"; exit 0 ;;
 esac
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view")
     [ -f "$FAIL_PRVIEW" ] && exit 1
     n=0; [ -f "$HEADCOUNT" ] && read -r n < "$HEADCOUNT"
@@ -124,17 +123,6 @@ EOF
   # no such file, and report every tick after the first as not-a-draft.
   export DRAFT_FILE="$BATS_TEST_TMPDIR/draft"
   export TICKS="$BATS_TEST_TMPDIR/ticks"
-  # The description-edits query: never edited, unless a test rewrites it.
-  export EDITS_REPLY="$BATS_TEST_TMPDIR/edits"
-  edits '[]'
-}
-
-# The description-edits reply, in the shape the GraphQL query returns, for a PR
-# opened at the epoch.
-edits() {  # <nodes-json>
-  jq -cn --argjson n "$1" '{data:{repository:{pullRequest:{
-    createdAt:"1970-01-01T00:00:00Z", body:"the description",
-    userContentEdits:{nodes:$n}}}}}' > "$EDITS_REPLY"
 }
 
 # One formal review, in the shape `gh pr view --json reviews` returns.
@@ -164,7 +152,6 @@ reviews() {  # <state> <commit-sha> <login>
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 n=0; [ -f "$CALLS.n" ] && read -r n < "$CALLS.n"; n=$((n + 1)); echo "$n" > "$CALLS.n"
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view") [ "$n" -le 2 ] && exit 1
              echo '{"state":"OPEN","isDraft":false,"headRefOid":"0000000000000000000000000000000000000000","reviews":[],"comments":[]}' ;;
   *) echo '[]' ;;
@@ -238,7 +225,6 @@ EOF
 @test "a burst in hand outranks ERROR" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view") echo '{"state":"OPEN","isDraft":false,"headRefOid":"0000000000000000000000000000000000000009","reviews":[],"comments":[]}' ;;
   *) exit 1 ;;   # comments query always fails
 esac
@@ -259,7 +245,6 @@ EOF
 @test "a persistent payload-shape break reports ERROR, not IDLE" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view") echo 'not json at all' ;;
   *) echo '[]' ;;
 esac
@@ -277,7 +262,6 @@ EOF
   # blindness this whole change removes, wearing a louder costume.
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view") echo 'not json at all' ;;
   *) echo '[]' ;;
 esac
@@ -304,7 +288,6 @@ EOF
 @test "a reply behind a page of older comments still registers" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view") echo '{"state":"OPEN","isDraft":false,"headRefOid":"0000000000000000000000000000000000000000","reviews":[],"comments":[]}' ;;
   "api "*|"api")
     case "$*" in
@@ -329,7 +312,6 @@ EOF
 @test "a payload missing state is a shape error, not a quiet wait" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view") echo '{"message":"Not Found"}' ;;
   *) echo '[]' ;;
 esac
@@ -625,7 +607,6 @@ EOF
 @test "a push that lands with replies carries the replies" {
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'EOF'
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view")
     n=0; [ -f "$TICKS" ] && read -r n < "$TICKS"; n=$((n + 1)); echo "$n" > "$TICKS"
     h=0; [ "$n" -ge 2 ] && h=1
@@ -1200,7 +1181,6 @@ if [ "$2" = view ]; then
   t=0; [ -f "$TICKS" ] && read -r t < "$TICKS"; t=$((t + 1)); echo "$t" > "$TICKS"
 fi
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view")
     printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[],"statusCheckRollup":[],"mergeStateStatus":"CLEAN","reviewDecision":""}' 0 ;;
   "api "*|"api")
@@ -1217,35 +1197,6 @@ EOF
   [[ "${lines[-1]}" == result=ACTIVITY* ]]
   # The summary must still name the inline finding that caused the wake.
   [[ "$output" == *'"kind":"inline"'* ]]
-}
-
-# --- an edit to the description is activity -----------------------------------
-
-# A finding can be fixed in the description alone, with no push and no comment,
-# and the reviewer still has to hear of it.
-@test "an edit to the description wakes the reviewer" {
-  edits '[{"editedAt":"2026-06-01T00:00:00Z","editor":{"login":"author-bot"}}]'
-  INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=reviewer
-  [[ "${lines[-1]}" == "result=ACTIVITY activity=1"* ]]
-  [[ "$output" == *'"kind":"edit","author":"author-bot"'* ]]
-  # A signal, like the rest of the summary: the description is the packet's.
-  [[ "$output" != *"the description"* ]]
-}
-
-@test "the caller's own description edits do not wake it" {
-  edits '[{"editedAt":"2026-06-01T00:00:00Z","editor":{"login":"bot"}},
-          {"editedAt":"2026-06-02T00:00:00Z","editor":{"login":"bot[bot]"}}]'
-  INTERVAL=1 SETTLE=1 WINDOW=6 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=author
-  [[ "${lines[-1]}" == result=IDLE* ]]
-}
-
-@test "an edit at or before since is not news" {
-  edits '[{"editedAt":"2026-01-01T00:00:00Z","editor":{"login":"someone"}}]'
-  INTERVAL=1 SETTLE=1 WINDOW=6 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=reviewer
-  [[ "${lines[-1]}" == result=IDLE* ]]
 }
 
 # --- <last_head> is what the caller HANDLED, not what the run saw --------------
@@ -1572,7 +1523,6 @@ EOF2
   export ORCH_LOGIN
   { echo "#!$BASH"; cat; } > "$STUB/gh" <<'STUB'
 case "$1 $2" in
-  "api graphql") cat "$EDITS_REPLY" ;;
   "pr view")
     printf '{"state":"OPEN","isDraft":false,"headRefOid":"%040d","reviews":[],"comments":[{"author":{"login":"%s"},"createdAt":"2999-01-01T00:00:00Z"}]}\n' 0 "$ORCH_LOGIN" ;;
   "api "*|"api") echo '[]' ;;

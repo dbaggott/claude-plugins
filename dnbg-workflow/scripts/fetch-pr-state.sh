@@ -6,18 +6,17 @@
 #
 # Prints the object on ONE line, then exactly one result line, then exits 0 —
 # two lines total, so a reader takes either with `head -1` / `tail -1`:
-#   {"state":…,"draft":…,"head":…,"merge":{…},"checks":[…],"reviews":[…],"comments":[…],"inline":[…],
-#    "edits":[…],"description":…}
-#   result=OK now=<iso> [degraded=<source>[,<source>]]
+#   {"state":…,"draft":…,"head":…,"merge":{…},"checks":[…],"reviews":[…],"comments":[…],"inline":[…]}
+#   result=OK now=<iso> [degraded=<source>]
 #   result=ERROR reason=bad-args|pr-view|pr-view-shape now=<iso>
 #
 # One call per question would cost this tick three or four requests on a curve
 # whose floor is ten seconds, so the unit here is the tick rather than the
 # question. Which fields a forge can answer together is a forge's own business:
-# GitHub needs further requests for inline comments and description edits,
-# GitLab's discussions arrive with the MR.
+# GitHub needs a second request for inline comments, GitLab's discussions arrive
+# with the MR.
 #
-# `degraded=` names each source that failed while others answered — the
+# `degraded=<source>` reports a source that failed while others answered — the
 # object is emitted without it rather than the whole tick being lost. The caller
 # grades a degraded source on its own counter, since one source failing forever
 # while the rest answer is a blind watch wearing a healthy one's costume.
@@ -53,29 +52,8 @@ RAW=$(gh pr view "$PR" --repo "$REPO" \
         2>/dev/null) || fail pr-view
 
 DEGRADED=""
-degrade() { DEGRADED="${DEGRADED:+$DEGRADED,}$1"; }
 INLINE=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100&sort=created&direction=desc" \
-           2>/dev/null) || { INLINE='[]'; degrade inline-comments; }
-
-# Who edited the description and when, which `gh pr view` does not expose: a fix
-# that lives only in the description is otherwise invisible to a watch. Newest
-# first, so the page holds the edits a watch has not seen yet. The shape is
-# proven here rather than in jq below, since a reply that parses with the field
-# missing would read as "never edited".
-# shellcheck disable=SC2016  # GraphQL variables, not shell ones.
-EDITS_QUERY='
-  query($owner: String!, $name: String!, $number: Int!) {
-    repository(owner: $owner, name: $name) { pullRequest(number: $number) {
-      createdAt body
-      userContentEdits(first: 100) { nodes { editedAt editor { login } } }
-    } } }'
-if ! EDITS=$(gh api graphql -f owner="${REPO%%/*}" -f name="${REPO#*/}" -F number="$PR" \
-               -f query="$EDITS_QUERY" 2>/dev/null) \
-   || ! printf '%s' "$EDITS" \
-        | jq -e '.data.repository.pullRequest.userContentEdits.nodes | type == "array"' \
-          >/dev/null 2>&1; then
-  EDITS='{}'; degrade description-edits
-fi
+           2>/dev/null) || { INLINE='[]'; DEGRADED="inline-comments"; }
 
 # GitHub overloads one status where GitLab names the cause directly, so the
 # counting that separates "a required check is still running" from "one failed"
@@ -84,9 +62,9 @@ fi
 # Two rollup shapes: CheckRun carries .name/.status/.conclusion, StatusContext
 # .context/.state. A check that has not finished carries no conclusion.
 #
-# Every reply reaches jq on stdin: they carry every review and comment body, and
+# Both replies reach jq on stdin: they carry every review and comment body, and
 # one busy PR passes the per-argument cap on Linux.
-OUT=$(printf '%s\n%s\n%s\n' "$RAW" "$INLINE" "$EDITS" | jq -cn '
+OUT=$(printf '%s\n%s\n' "$RAW" "$INLINE" | jq -cn '
   # Five states, rather than whatever vocabulary a forge uses. A CheckRun carries .status and, once
   # finished, .conclusion; a StatusContext carries .state. Handing those through
   # raw makes every caller re-derive "is this passing", and a caller that misses
@@ -113,7 +91,6 @@ OUT=$(printf '%s\n%s\n%s\n' "$RAW" "$INLINE" "$EDITS" | jq -cn '
 
   input as $pr
   | input as $inline
-  | (input | .data.repository.pullRequest // {}) as $described
   # A second workflow run on the same head leaves the checks of the first run in the
   # rollup beside its own, so only the newest run of each check speaks for the
   # head. Keyed by workflow as well, since two workflows may each have a "lint".
@@ -188,13 +165,7 @@ OUT=$(printf '%s\n%s\n%s\n' "$RAW" "$INLINE" "$EDITS" | jq -cn '
       inline:   ($inline      // [] | map({author:(.user.login // ""), at:(.created_at // ""),
                                            id:(.id // null), path:(.path // ""),
                                            line:(.line // .original_line // null),
-                                           body:(.body // "")})),
-      # GitHub lists the description as first written among its edits, stamped
-      # with the time the PR was opened, and opening a PR is not an edit to it.
-      edits: ($described.userContentEdits.nodes // []
-              | map(select(.editedAt != $described.createdAt))
-              | map({author:(.editor.login // ""), at:(.editedAt // "")})),
-      description: ($described.body // "")
+                                           body:(.body // "")}))
     }' 2>/dev/null) || fail pr-view-shape
 
 # The fields the caller branches on must be present, not merely parseable: an

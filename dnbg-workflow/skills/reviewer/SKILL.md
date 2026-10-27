@@ -697,11 +697,6 @@ of the commands below runs behind the resolver:
   One back-and-forth max, then defer to the humans and idle.
 - **A human (or other bot) review** — respond only with something substantively
   new; otherwise idle.
-- **An edit to the PR description** (`"kind":"edit"`, whose `body` is the
-  description as it now stands) — where it answers one of your findings, such
-  as the steps of an operator run, resolve that thread and post the verdict the
-  fix earns, as you would after a push. An edit that answers none, such as the
-  author bringing the description up to date after a push, needs nothing.
 - **A top-level comment that @-mentions the bot** — treat it as a direct request:
   re-review if asked ("can you re-check?"), or answer a question about a finding
   concretely from the diff. Answering the human *is* the substantive add. Reply

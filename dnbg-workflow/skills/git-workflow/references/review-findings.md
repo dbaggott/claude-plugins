@@ -68,6 +68,8 @@ Address comments to the reviewer using `@username` mentions. A PR comment goes u
 
 Resolve only what you actually addressed. A thread you are declining to act on stays open with your reasoning in it — that is a disagreement to surface, not a box to tick.
 
+**A fix made only in the PR description still gets a reply.** Editing the description, such as the steps of an operator run, pushes nothing and posts nothing, and the reviewer's watch wakes on commits and comments, not on description edits. Reply in the finding's thread, or with a PR comment when it has none, saying the description now carries the fix: that reply is what wakes the reviewer.
+
 **A code comment is the last resort, and only when it would have earned its place anyway.** A reviewer's question is not a licence to add prose that fails the bar every comment has to clear: *will this still be true after the next change, and does it change what someone does?* An answer that exists only because someone asked once is transient state — if the only action a changing world requires is deleting the line, it was never a comment — and it will read as inexplicable defensiveness to the next person. If the answer is a *current, non-obvious constraint a future editor needs*, it was already worth a comment before the review; if it isn't, the PR body is where it goes.
 
 When a finding you have already answered is re-raised, say so once and point at where the answer lives. Don't re-litigate it, and don't read the repetition as the answer having been rejected.
