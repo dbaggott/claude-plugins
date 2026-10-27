@@ -361,6 +361,13 @@ run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
   [[ "$output" == *'`~/followups/<owner>/<repo>/`'* ]]
 }
 
+@test "a rejected root set under the old followup_dir name is reported under that name" {
+  stub_path jq git gh
+  run_hook_configured '' '' '' '' 'followups'
+  [[ "$output" == *"INVALID configuration"* ]]
+  [[ "$output" == *'`followups` set as `followup_dir`, the old name of `findings_dir`,'* ]]
+}
+
 @test "says nothing when the old followup_dir name holds its own default" {
   stub_path jq git gh
   run_hook_configured '' '' '' '' '~/.claude/dnbg-followups'

@@ -7,9 +7,9 @@ description: Sweep the findings entries agents leave behind for what their repor
 
 Each finding about the code an agent reports, such as a deferred review finding,
 an out-of-scope defect or setup the merged change needs, is kept as an entry.
-This sweeps those entries: it checks each is still true, proposes what to do with it,
-and records the operator's decision so no entry is decided twice. One entry is
-enough to file; nothing waits for a second.
+This sweeps those entries: it checks each is still true, proposes what to do
+with it, and records the operator's decision so no entry is decided twice. One
+entry is enough to file; nothing waits for a second.
 
 The entry format is in `references/entry.md`. `<skill-dir>` is the **Base
 directory** announced when this skill loads.

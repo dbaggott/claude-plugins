@@ -2,8 +2,10 @@ Follow-up entries are now **findings entries**. They live in
 `~/.claude/dnbg-findings/` instead of `~/.claude/dnbg-followups/`, and the
 `followup-review` skill is now `findings-review`. The `followup_dir` setting is
 renamed `findings_dir`. A value you set under the old name is still used while
-`findings_dir` is empty, and `findings-review` still sweeps entries left in the
-old directory. Both fallbacks will be dropped in a later release. Agents now
+`findings_dir` is empty, and `findings-review` still sweeps entries left in
+`~/.claude/dnbg-followups/`. Both fallbacks will be dropped in a later release.
+If you had set `followup_dir`, move its entries into the new directory when you
+set `findings_dir`, since nothing sweeps a custom old directory after that. Agents now
 also write an entry for an observation about the code, not only for an
 Actionable item, and for a reviewer's comment the author left unacted on.
 

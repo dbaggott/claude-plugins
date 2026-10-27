@@ -126,12 +126,13 @@ Only the parent's writer edits its body (`issue-workflow`'s
 
 **If this session orchestrates the parent** (`references/multi-issue.md`), add
 the entries to the parent body's **Findings log** in one call, a dated bullet
-per entry naming its source and its path. The parent may live in another repo,
+per entry naming its source and its path below the findings root, which
+leaves your home directory out of the issue. The parent may live in another repo,
 so take `<owner>/<repo>` and `<parent>` from its URL:
 
 ```bash
 "<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --bullet="Findings log" \
-  --text='**<YYYY-MM-DD>.** <what it found, in one line> (<role> on <source URL>; `<entry path>`)' \
+  --text='**<YYYY-MM-DD>.** <what it found, in one line> (<role> on <source URL>; `<owner>/<repo>/<file>`)' \
   [--text=…] --as=orchestrator
 ```
 

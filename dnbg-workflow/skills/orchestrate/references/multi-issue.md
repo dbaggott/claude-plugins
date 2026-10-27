@@ -198,11 +198,11 @@ its reviewer's report brings it. Raise a finding when:
 - one decision has been `applied` more than three times, or the parent's `Q5`
   threshold if it sets one;
 - a reviewer finding recurs on a second child's PR, meaning the same `R#` or
-  `D#` is cited, or the same file and the same kind of finding. Compare the
-  round with the review rounds on the other children's PRs in this project.
+  `D#` is cited, or the same file and the same kind of finding. Compare it
+  with the other children's review rounds.
 
 A finding is a parent-table row, `proposed`, naming the IDs and the children
-involved, and it escalates like any question. A pattern already in a row is not
+involved, plus a findings entry (`SKILL.md`), and it escalates like any question. A pattern already in a row is not
 raised again.
 
 ## Keep the log under the body limit

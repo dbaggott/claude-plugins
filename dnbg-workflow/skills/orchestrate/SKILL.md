@@ -28,7 +28,8 @@ agent in a run, you included, ends its part with a retrospective, per
 `references/retrospective.md`; read it before dispatching. A retrospective
 carries only process. A finding about the code goes in a findings entry, per
 `<skill-dir>/../findings-review/references/entry.md`, and that includes each
-systemic finding `references/multi-issue.md` raises, written when its row is.
+systemic finding `references/multi-issue.md` raises, written when its row is,
+with the parent as its `source`.
 
 `<skill-dir>` is the **Base directory** announced when this skill loads. The
 scripts are at `<skill-dir>/../../scripts/`.

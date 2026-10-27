@@ -103,12 +103,15 @@ a run meets its `A#` is the reviewer's call, on this PR.
 Every findings-log entry is reviewed with the operator and gets exactly one
 disposition:
 
-- **a follow-up issue** in the project's repo;
+- **a follow-up issue** in the entry's `repo`;
 - **`Dropped, because <reason>`**;
 - **`Deferred`**, which leaves its findings entry `disposition: open` for
   `findings-review` to decide later, against a fresher tree.
 
-Propose one for each the way `findings-review`'s steps 2 to 4 do: re-check the
+An entry `findings-review` already decided (its `disposition` is no longer
+`open`) keeps that decision: put it in the table as it stands, and ask nothing
+about it. Propose one for each other entry the way `findings-review`'s steps 2
+to 4 do: re-check the
 entry against the default branch, merge entries that describe one problem, and
 draft each follow-up's exact text, with **Deferred** where that skill would
 propose **keep**. Draft them all first, as a table, then show the operator the
@@ -169,5 +172,7 @@ When the review is clean, give the operator the merge handoff per
 `git-workflow`'s `references/merge.md`, and re-arm the watch for the merge
 from its `── re-arm ──` line per its `references/merge-wait.md`. Never merge. The merge closes the parent. Run
 `git-workflow`'s post-merge cleanup (`references/post-merge.md`), then go to
-`references/multi-issue.md`'s "Stop", once the reviewer's final report is in.
+`references/multi-issue.md`'s "Stop", once the reviewer's final report is in,
+and write your own retrospective there, once for the whole run, with the parent
+as its issue (`references/retrospective.md`, "Your own").
 If the PR closes unmerged, ask the operator whether to open a new one or stop.
