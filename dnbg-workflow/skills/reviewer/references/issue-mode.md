@@ -40,8 +40,9 @@ differently:
   in the verdict that the approval is conditional on it.
 
 A `## Operator check before review` section is the resolver's stop for the
-operator's own look (`issue-workflow`'s `references/creating.md`), not a
-criterion: grade nothing in it.
+operator's own look, and a `## Operator steps` section lists what only the
+operator can do (`issue-workflow`'s `references/creating.md`). Neither is a
+criterion: grade nothing in them.
 
 Honor the same reading discipline the body's own labels set (`issue-workflow`):
 "Related (optional — do not read unless blocked)" links stay unread, depth 1

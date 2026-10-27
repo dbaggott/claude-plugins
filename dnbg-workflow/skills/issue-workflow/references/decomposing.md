@@ -74,6 +74,8 @@ Sub-issue of <parent URL> (the design). Section IDs below refer to that body.
   Q1"), never the whole body.
 - **Proposed approach** carries what the parent's decisions say about this
   child, inline. The child is resolved cold from its own body.
+- **`## Operator steps`** goes in a child whose work needs something only the
+  operator can do, per `creating.md`, "Declare operator steps".
 
 ## 3. Keep every child criterion runnable at its own merge
 
