@@ -338,7 +338,10 @@ line in a fenced block, the author's report beneath, and beneath that each
 reviewer handoff on that PR, oldest first, or a line saying none at the
 `verdict_sha` has arrived. Change nothing in any report. Forward a reviewer
 handoff that arrives after the relay when it comes. Any other reading, continue
-the author with it.
+the author with it. So does a PR description that still records a run as
+`pending (deferred until after the first clean round)`: that approval is
+conditional, so continue the author to make the run or ask you for it, and
+relay the handoff once the reviewer has re-verdicted on its record.
 
 Never recompose the command and never hold it for checks: `git-workflow`'s
 `references/merge.md` chose the form for the state the author read, including
