@@ -2072,8 +2072,9 @@ project_tests_present() {  # <creating.md>
 }
 
 # The resolver's configuration refusals, each of which the reviewer is told how
-# to repair. The other `fail` reasons in as-role.sh are argument or
-# operator-tier errors, not states a reviewer repairs, so they are not listed.
+# to repair. The other `fail` reasons in as-role.sh are argument errors,
+# operator-tier errors, or `bad-config`, a variable in the operator's own
+# environment, none of them states a reviewer repairs, so they are not listed.
 REVIEWER_REFUSALS=(not-configured credential shared-identity no-login)
 
 # Each refusal must be a list entry of its own in "Post as the bot", where its

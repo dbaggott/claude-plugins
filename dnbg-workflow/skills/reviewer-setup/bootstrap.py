@@ -57,15 +57,25 @@ def defined_roles() -> list[str]:
                   if ROLE_NAME.fullmatch(d.name) and (d / "permissions.json").is_file())
 
 
+def role_env_name(role: str, field: str) -> str:
+    return f"DNBG_{role.upper().replace('-', '_')}_{field}"
+
+
 def role_env(role: str, field: str) -> str:
-    return os.environ.get(f"DNBG_{role.upper().replace('-', '_')}_{field}", "")
+    return os.environ.get(role_env_name(role, field), "")
 
 
 def default_config_dir(role: str) -> Path:
-    """DNBG_<ROLE>_CONFIG_DIR, else ~/.config/dnbg/<role> — as lib-role.sh reads it."""
+    """The role's config dir, read as lib-role.sh's role_config_dir reads it."""
     env = role_env(role, "CONFIG_DIR")
-    base = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
-    return Path(env).expanduser() if env else base / "dnbg" / role
+    if not env:
+        base = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+        return base / "dnbg" / role
+    if env.startswith("~") and env != "~" and not env.startswith("~/"):
+        raise SystemExit(f"the {role} role's {role_env_name(role, 'CONFIG_DIR')} is '{env}': "
+                         "a ~user path is not supported; use an absolute path, or one "
+                         "starting with ~/.")
+    return Path(env).expanduser()
 
 
 def is_configured(role: str) -> bool:
@@ -305,8 +315,8 @@ def choose_roles(requested: str | None) -> list[str]:
 
 
 def run(args: argparse.Namespace) -> int:
-    if (args.name or args.config_dir) and (not args.roles or len(args.roles.split(",")) != 1):
-        print("--name and --config-dir apply to one role; pass --roles <one role>.", file=sys.stderr)
+    if args.name and (not args.roles or len(args.roles.split(",")) != 1):
+        print("--name applies to one role; pass --roles <one role>.", file=sys.stderr)
         return 2
     roles = choose_roles(args.roles)
     if not roles:
@@ -317,13 +327,15 @@ def run(args: argparse.Namespace) -> int:
         print("--org is required for an org-owned App", file=sys.stderr)
         return 2
 
+    # Every role's, not only the chosen ones': as-role.sh refuses all calls
+    # while any role's directory is refused.
+    config_dirs = {role: default_config_dir(role) for role in defined_roles()}
     login = gh_login()
     created: list[dict] = []
     status = 0
     for role in roles:
         name = args.name or (f"agent-{role}-{login}" if login else f"agent-{role}")
-        config_dir = Path(args.config_dir).expanduser() if args.config_dir else default_config_dir(role)
-        summary = run_flow(args, role, name, config_dir)
+        summary = run_flow(args, role, name, config_dirs[role])
         if summary is None:
             status = 1
             left = roles[roles.index(role) + 1:]
@@ -351,9 +363,6 @@ def main() -> int:
     p.add_argument("--port", type=int, default=8765, help="localhost callback port")
     p.add_argument("--timeout", type=int, default=600, help="seconds to wait for the browser callback")
     p.add_argument("--no-browser", action="store_true", help="don't auto-open the browser")
-    p.add_argument("--config-dir",
-                   help="where to store credentials, with one role "
-                        "(default DNBG_<ROLE>_CONFIG_DIR, else ~/.config/dnbg/<role>)")
     return run(p.parse_args())
 
 

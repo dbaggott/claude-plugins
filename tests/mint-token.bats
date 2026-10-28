@@ -237,6 +237,27 @@ EOF
   grep -Eq '^Authorization: Bearer [^.]+\.[^.]+\.[^.]+$' "$CURL_FILES"
 }
 
+# --- where the config dir is ------------------------------------------------
+
+@test "a config dir under ~/ is read from \$HOME" {
+  cp "$KEYFILE" "$CONFDIR/private-key.pem"; chmod 600 "$CONFDIR/private-key.pem"
+  write_config '{"app_id":"42"}'
+  run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" HOME="$BATS_TEST_TMPDIR" \
+    DNBG_REVIEWER_CONFIG_DIR='~/conf' bash "$MINT" reviewer acme
+  [ "$status" -eq 0 ]
+  [ "$output" = "ghs_stubbed_token" ]
+}
+
+@test "a ~user config dir is refused, naming the variable" {
+  export DNBG_REVIEWER_APP_ID=42
+  export DNBG_REVIEWER_PRIVATE_KEY="$(cat "$KEYFILE")"
+  run env PATH="$STUB:$PATH" TMPDIR="$PRIVTMP" DNBG_REVIEWER_CONFIG_DIR='~alice/conf' \
+    bash "$MINT" reviewer acme
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"DNBG_REVIEWER_CONFIG_DIR is '~alice/conf'"* ]]
+  [ ! -s "$CURL_ARGV" ]
+}
+
 # --- directory hardening -----------------------------------------------------
 
 @test "a world-writable config dir is refused, naming the problem" {

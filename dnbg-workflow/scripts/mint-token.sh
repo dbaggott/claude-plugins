@@ -12,7 +12,7 @@
 # back to the first/only installation.
 #
 # Credentials are written by the `reviewer-setup` skill into the role's config
-# dir (default ~/.config/dnbg/<role>, or DNBG_<ROLE>_CONFIG_DIR): config.json +
+# dir (role_config_dir in lib-role.sh): config.json +
 # private-key.pem. The App private key never leaves this machine — this script
 # signs a JWT locally and exchanges it with GitHub for an installation token.
 # `<ROLE>` below is the role name upper-cased, hyphens as underscores.
@@ -55,7 +55,7 @@ role_valid "$ROLE" || { echo "usage: mint-token.sh <role> [<owner>] — '$ROLE' 
 OWNER="${2:-}"; OWNER="${OWNER%%/*}"   # optional target repo owner; trim owner/repo -> owner
 ENV_PREFIX="$(role_env_prefix "$ROLE")"
 
-CONFIG_DIR="$(role_config_dir "$ROLE")"
+CONFIG_DIR=$(role_config_dir "$ROLE") || { role_config_dir_refusal "$ROLE" >&2; exit 1; }
 CONFIG="$CONFIG_DIR/config.json"
 PEM="$CONFIG_DIR/private-key.pem"
 

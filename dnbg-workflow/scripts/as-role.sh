@@ -52,7 +52,8 @@
 # `shared-identity`; roles falling back may share the operator.
 #
 # Reasons: bad-args, bad-repo, unsupported-forge, unknown-role, bad-role-data,
-# not-configured, shared-identity, no-login, credential, operator-auth.
+# bad-config, not-configured, shared-identity, no-login, credential,
+# operator-auth.
 #
 # Only GitHub is implemented. A backend is the four `<forge>_*` functions
 # below, chosen at the single `case` in `forge_of`.
@@ -119,7 +120,8 @@ forge_of() {  # HOST -> FORGE
 # back past a half-finished setup.
 
 github_configured() {  # <role>
-  [ -f "$(role_config_dir "$1")/config.json" ] && return 0
+  local dir; dir=$(role_config_dir "$1") || fail bad-config "$(role_config_dir_refusal "$1")"
+  [ -f "$dir/config.json" ] && return 0
   local f
   for f in APP_ID PRIVATE_KEY PRIVATE_KEY_COMMAND; do
     [ -n "$(role_env "$1" "$f")" ] && return 0
@@ -130,8 +132,8 @@ github_configured() {  # <role>
 github_config_field() {  # <role> <env-field> <json-field>
   local v; v=$(role_env "$1" "$2")
   if [ -z "$v" ]; then
-    local conf; conf="$(role_config_dir "$1")/config.json"
-    [ -f "$conf" ] && v=$(jq -r --arg k "$3" '.[$k] // empty' "$conf" 2>/dev/null || true)
+    local dir; dir=$(role_config_dir "$1") || return 0
+    [ -f "$dir/config.json" ] && v=$(jq -r --arg k "$3" '.[$k] // empty' "$dir/config.json" 2>/dev/null || true)
   fi
   printf '%s' "$v"
 }

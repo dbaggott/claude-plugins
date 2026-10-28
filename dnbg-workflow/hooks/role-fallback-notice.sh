@@ -2,11 +2,13 @@
 # SessionStart hook: name each agent role that would act as the operator's own
 # account because it has no App of its own, so the fallback tier is never
 # silent. Reads configuration presence only (`as-role.sh --fallbacks`), with no
-# network call. Prints nothing when no role falls back, or when the resolver
-# cannot answer: the resolver itself reports that at the first role call.
+# network call. Also names the configuration refusals that fail every role
+# call; prints nothing for any other answer the resolver cannot give, which it
+# reports itself at the first role call.
 set -u
 
-LINE=$("$(dirname "$0")/../scripts/as-role.sh" --fallbacks 2>/dev/null) || exit 0
+AS_ROLE="$(dirname "$0")/../scripts/as-role.sh"
+LINE=$("$AS_ROLE" --fallbacks 2>/dev/null) || exit 0
 case "$LINE" in
   "result=OK roles=none"|"") ;;
   result=OK\ roles=*)
@@ -27,6 +29,17 @@ EOM
 
 Every role call fails with `shared-identity`, naming the pair, until each role
 has its own App. The `reviewer-setup` skill creates one.
+EOM
+    ;;
+  "result=ERROR reason=bad-config")
+    # The refusal's detail, naming the role and variable, is on stderr.
+    DETAIL=$("$AS_ROLE" --fallbacks 2>&1 >/dev/null)
+    cat <<EOM
+
+## dnbg-workflow: a role's config directory is refused
+
+${DETAIL}
+Every role call fails with \`bad-config\` until that variable changes.
 EOM
     ;;
 esac

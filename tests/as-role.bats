@@ -145,6 +145,26 @@ setup() {
   [ "${lines[0]}" = "result=ERROR reason=shared-identity" ]
 }
 
+@test "a config dir under ~/ is read from \$HOME" {
+  configure_role reviewer 42 agent-reviewer-t
+  export HOME="$BATS_TEST_TMPDIR" DNBG_REVIEWER_CONFIG_DIR='~/xdg/dnbg/reviewer'
+  run "$AS" --login reviewer acme/r
+  [ "$output" = "result=OK login=agent-reviewer-t fallback=none" ]
+}
+
+@test "a ~user config dir is refused on every call, and the command never runs" {
+  export DNBG_AUTHOR_CONFIG_DIR='~alice/dnbg'
+  run --separate-stderr "$AS" author acme/r -- touch "$BATS_TEST_TMPDIR/ran"
+  [ "$status" -eq 125 ]
+  [ "${stderr_lines[0]}" = "as-role.sh: result=ERROR reason=bad-config" ]
+  [[ "$stderr" == *"DNBG_AUTHOR_CONFIG_DIR is '~alice/dnbg'"* ]]
+  [ ! -e "$BATS_TEST_TMPDIR/ran" ]
+  run "$AS" --login reviewer acme/r
+  [ "${lines[0]}" = "result=ERROR reason=bad-config" ]
+  run --separate-stderr "$AS" --fallbacks
+  [ "$output" = "result=ERROR reason=bad-config" ]
+}
+
 @test "author and orchestrator may both fall back to the operator" {
   run "$AS" --login author acme/r
   [ "$output" = "result=OK login=operator-login fallback=unconfigured" ]
@@ -261,4 +281,12 @@ setup() {
   export DNBG_ORCHESTRATOR_CONFIG_DIR="$XDG_CONFIG_HOME/dnbg/author"
   run "$TREE/hooks/role-fallback-notice.sh"
   [[ "$output" == *"two roles share one GitHub App"* ]]
+}
+
+@test "the notice reports a refused config dir, naming the role and variable" {
+  export DNBG_AUTHOR_CONFIG_DIR='~alice/dnbg'
+  run "$TREE/hooks/role-fallback-notice.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"a role's config directory is refused"* ]]
+  [[ "$output" == *"the author role's DNBG_AUTHOR_CONFIG_DIR is '~alice/dnbg'"* ]]
 }

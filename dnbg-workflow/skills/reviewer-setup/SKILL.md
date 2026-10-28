@@ -135,8 +135,10 @@ didn't land; complete it and retry.
 
 ## What got stored
 
-In each role's config dir (default `~/.config/dnbg/<role>/`, override with
-`DNBG_<ROLE>_CONFIG_DIR`, the role name upper-cased):
+In each role's config dir: `$XDG_CONFIG_HOME/dnbg/<role>/` when
+`XDG_CONFIG_HOME` is set, else `~/.config/dnbg/<role>/`. Override it with
+`DNBG_<ROLE>_CONFIG_DIR` (the role name upper-cased), an absolute path or one
+starting with `~/`, exported before the bootstrap and every later role call:
 
 - `private-key.pem` — the App private key (mode 600). **Never commit or share
   it**; it's the bot's full credential. Losing the laptop means deleting the

@@ -229,7 +229,7 @@ roles, in one run.
 
 | Per role | Default | Override |
 | --- | --- | --- |
-| Config directory | `~/.config/dnbg/<role>/` | `DNBG_<ROLE>_CONFIG_DIR` |
+| Config directory | `$XDG_CONFIG_HOME/dnbg/<role>/` when `XDG_CONFIG_HOME` is set, else `~/.config/dnbg/<role>/` | `DNBG_<ROLE>_CONFIG_DIR`: an absolute path, or one starting with `~/`; a `~user` path is refused |
 | App id, installation, key | `config.json`, `private-key.pem` there | `DNBG_<ROLE>_APP_ID`, `_INSTALLATION_ID`, `_PRIVATE_KEY`, `_PRIVATE_KEY_COMMAND` |
 | Login (App slug) | `slug` in `config.json` | `DNBG_<ROLE>_SLUG` |
 

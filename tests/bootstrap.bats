@@ -72,9 +72,26 @@ bootstrap() {
   [ -f "$XDG_CONFIG_HOME/dnbg/author/config.json" ]
 }
 
-@test "--config-dir without one named role is refused rather than ignored" {
-  bootstrap --config-dir "$BATS_TEST_TMPDIR/elsewhere"
-  [ "$status" -eq 2 ]
+@test "a config dir under ~/ is read from \$HOME" {
+  export HOME="$BATS_TEST_TMPDIR/home" DNBG_AUTHOR_CONFIG_DIR='~/author'
+  bootstrap --roles author
+  [ "$status" -eq 0 ]
+  [ -f "$HOME/author/config.json" ]
+}
+
+@test "a ~user config dir is refused before any App is created" {
+  export DNBG_AUTHOR_CONFIG_DIR='~alice/author'
+  bootstrap --roles reviewer,author
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"DNBG_AUTHOR_CONFIG_DIR is '~alice/author'"* ]]
+  [ ! -s "$MANIFESTS" ]
+}
+
+@test "another role's ~user config dir is refused too, since every role call would be" {
+  export DNBG_AUTHOR_CONFIG_DIR='~alice/author'
+  bootstrap --roles reviewer
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"DNBG_AUTHOR_CONFIG_DIR is '~alice/author'"* ]]
   [ ! -s "$MANIFESTS" ]
 }
 
