@@ -694,7 +694,18 @@ of the commands below runs behind the resolver:
   you're convinced, say so briefly and resolve. Reply in-thread with
   `gh api repos/<repo>/pulls/<n>/comments -f body="…" -F in_reply_to=<comment_id> --jq .user.login`
   — the printed login is the same identity check the review POST gets.
-  One back-and-forth max, then defer to the humans and idle.
+  Then, if your own last verdict is `CHANGES_REQUESTED` (`pr-round.sh`'s
+  `verdict=` is the last from any reviewer, so it is yours only when no one else
+  has reviewed since), check whether anything still blocks: an unresolved thread of the bot's (`pr-threads.sh --mine`,
+  below), or a blocking finding in your last review's **body** that no reply or
+  commit has answered. The thread list doesn't show body findings, so an empty
+  one is not enough on its own. Every open thread of the bot's counts; a nit
+  that is the last one goes through the nit exception in "Resolving inline
+  findings" first. If nothing blocks, post a fresh verdict through
+  `references/re-review.md`, even though HEAD has not moved. If something does,
+  post no verdict: `CHANGES_REQUESTED` is still correct, and answering the last
+  blocker brings you back here.
+  On a disagreement, one back-and-forth max, then defer to the humans and idle.
 - **A human (or other bot) review** — respond only with something substantively
   new; otherwise idle.
 - **A top-level comment that @-mentions the bot** — treat it as a direct request:
@@ -745,11 +756,13 @@ blocker, which is a blocked merge working correctly.
 Don't post comments that are neither actionable nor informative — no "Reviewed,
 looks good, posting approval" filler. The verdict and body carry the signal.
 
-This does **not** cover the re-verdict on a moved HEAD (`references/re-review.md`).
-That one is informative even when its body is a single sentence: it is the only
-thing that attaches an `APPROVED` `commit_id` to the current HEAD, so it carries
-information nothing else on the PR carries. The rule here bans content-free
-commentary, not a verdict whose content is the verdict.
+This does **not** cover a re-verdict (`references/re-review.md`), on a moved
+HEAD or after the last blocker is answered on an unmoved one. It is informative
+even when its body is a single sentence: on a moved HEAD it is the only thing
+that attaches an `APPROVED` `commit_id` to the current HEAD, and on an unmoved
+one it is the only thing that replaces a `CHANGES_REQUESTED` you no longer
+stand behind. The rule here bans content-free commentary, not a verdict whose
+content is the verdict.
 
 ## When to ask, when to skip
 

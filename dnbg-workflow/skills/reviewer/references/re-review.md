@@ -1,12 +1,13 @@
-# Reviewer: re-reviewing a moved HEAD
+# Reviewer: re-reviewing a PR you already reviewed
 
-Part of the `reviewer` skill. Read this on a `COMMITS` return, or whenever the
-author asks for another look; `references/watch.md` routes here and `SKILL.md`
-carries the first pass.
+Part of the `reviewer` skill. `references/watch.md` and `SKILL.md`'s
+"Responding to comments and replies" route here; `SKILL.md` carries the first
+pass.
 
 When asked to re-review a PR your bot already reviewed — new commits were pushed,
-or the author asks for another look — post a fresh review. The verdict is keyed
-to the new HEAD.
+the author asks for another look, or the last blocker under your
+`--request-changes` was answered without a commit — post a fresh review. The
+verdict is keyed to the current HEAD, whether or not it moved.
 
 **Take the round in one call** — the delta diff, whatever landed in
 conversation, your standing verdict, and every unresolved thread. The watcher
@@ -26,7 +27,8 @@ asks for the full diff.
 The diff is the **delta** wherever a prior SHA exists — exactly the changes your
 last verdict didn't cover, rather than the whole PR again. `diff=none` means HEAD
 hasn't moved since you handled it, which is the normal answer on an `ACTIVITY`
-wake and costs no request at all.
+wake, including the answered-last-blocker trigger, and costs no request at all.
+It is not a failed fetch.
 
 An empty section means "nothing there" only where its `_src` reads `ok`; `fail`
 or `shape` means that source went blind, which is not a quiet round.
@@ -65,7 +67,10 @@ or `shape` means that source went blind, which is not a quiet round.
   review lands (a top-level comment doesn't dismiss it). `--approve` if the new
   diff fixes the findings; `--request-changes` again if not. If the new commits
   are no-op substance that didn't address the findings, leave it — the PR stays
-  correctly blocked.
+  correctly blocked. On the unmoved-HEAD trigger there is no new diff: a finding
+  answered without a commit — a description fix you have checked
+  (`gh pr view <n> --json body`), or a rebuttal you accepted — counts as fixed,
+  so the verdict is `--approve` when nothing else blocks.
 
 "Has HEAD moved past my verdict?" is answered by the packet's own `at_head` and
 `reviewed_after_head`, which are `pr-verdict.sh`'s answer carried through — the same question the
