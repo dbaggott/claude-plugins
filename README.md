@@ -194,7 +194,7 @@ you wrote.
 | `issue-reviewer` | `dnbg-workflow` | GitHub only | Reviewing an issue body as a spec, in rounds, before anyone picks it up |
 | `orchestrate` | `dnbg-workflow` | GitHub only | Driving one issue, or every child of a tracking issue, to merged PRs with author and reviewer subagents |
 | `project-status` | `dnbg-workflow` | GitHub only | Which stage of the project flow an issue is at, and the prompt to paste next |
-| `process-review` | `dnbg-workflow` | GitHub only | Finding patterns across orchestration retrospectives and drafting upstream issues |
+| `process-review` | `dnbg-workflow` | GitHub only | Finding patterns across agents' retrospectives and drafting upstream issues |
 | `findings-review` | `dnbg-workflow` | GitHub only | Sweeping the findings entries agents keep for what they found about the code, and filing, dropping or keeping each with you |
 | `reviewer` | `dnbg-workflow` | GitHub only | Reviewing a pushed PR under an independent GitHub App identity |
 | `reviewer-setup` | `dnbg-workflow` | GitHub only | One-time creation of that App (no cloud service, no shared secret) |

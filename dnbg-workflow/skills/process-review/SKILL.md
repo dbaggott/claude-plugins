@@ -1,6 +1,6 @@
 ---
 name: process-review
-description: Read a batch of the retrospectives that `orchestrate` runs leave behind, report the process patterns in them with counts and quoted examples, and draft upstream issues for the operator to approve. Load when asked to review the retrospectives, find process patterns, or say what keeps slowing the agents down. It reads only the retrospective files and its own past reports, never a tracking issue. Skip for writing a retrospective, which is `orchestrate`'s `references/retrospective.md`, and for findings about the code, which are `findings-review`'s and a tracking issue's closeout's.
+description: Read a batch of the retrospectives that agents leave behind, report the process patterns in them with counts and quoted examples, and draft upstream issues for the operator to approve. Load when asked to review the retrospectives, find process patterns, or say what keeps slowing the agents down. It reads only the retrospective files and its own past reports, never a tracking issue. Skip for writing a retrospective, which is this skill's `references/retrospective.md`, and for findings about the code, which are `findings-review`'s and a tracking issue's closeout's.
 ---
 
 # Process review
@@ -10,10 +10,10 @@ file is an anecdote. This finds what recurs across many, and drafts an upstream
 issue for whatever the shipped tooling is to blame for. It runs cold: everything
 it needs is in the files and this page.
 
-The file format, including the four headings this groups by, is in
-`orchestrate`'s `references/retrospective.md`, at
-`<skill-dir>/../orchestrate/references/retrospective.md`. `<skill-dir>` is the
-**Base directory** announced when this skill loads.
+The file format, including the four headings this groups by, is in this
+skill's `references/retrospective.md`, at
+`<skill-dir>/references/retrospective.md`. `<skill-dir>` is the **Base
+directory** announced when this skill loads.
 
 ## 1. Gather the batch
 
@@ -50,7 +50,9 @@ that one. The batch is drawn from every `*.md` file under the root, recursively,
 
 Read every file in the batch in full. A file missing `role` or `issue` in its
 frontmatter, or missing any of the four headings, goes under **Unreadable** in
-the report with what it lacks, and counts toward nothing.
+the report with what it lacks, and counts toward nothing. A file written before
+`issue-reviewer` became a role of its own carries `reviewer` for a spec round
+as well as for a PR review: it is readable, and counts under `reviewer`.
 
 ## 2. Find the patterns
 
