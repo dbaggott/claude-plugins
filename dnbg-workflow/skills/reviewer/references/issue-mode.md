@@ -15,7 +15,7 @@ What changes is the standard you review against. A PR-scoped review judges the
 diff on its own terms. An issue-scoped review also asks **whether the issue's
 acceptance criteria are met** — a diff can be clean, well-tested, and still not
 be the thing the issue asked for. Read the issue body as the spec, and treat an
-unmet acceptance criterion as a finding like any other. Two kinds are graded
+unmet acceptance criterion as a finding like any other. These are graded
 differently:
 
 - **A criterion met by a run** (an eval, a live exercise) is met by a recorded
@@ -32,12 +32,25 @@ differently:
   criterion names paths alone, any change under them voids it. Where it names no
   paths, judge from that list whether anything the run exercises changed. Say
   which changes you judged and on what basis. No recorded run, or a stale one,
-  is a blocking finding naming the run, unless the run waits only on an
-  operator action, as below.
-- **A criterion blocked only on an operator action** outside the PR, such as a
-  merge in a test repository or a live exercise only the operator can start, is
-  an observation naming that action, not a blocking finding. Approve, and say
-  in the verdict that the approval is conditional on it.
+  is a blocking finding naming the run, unless the run is one that waits, as
+  below.
+- **A run your own blocking findings will void**, because a fix you ask for
+  lands under its invalidating paths, is not graded this round. Say in the
+  round that the run is expected to be stale once the fixes land, and ask for
+  it after them.
+- **A run that waits** is an observation naming what it waits on, not a
+  blocking finding. It is one of:
+  - a criterion blocked only on an operator action outside the PR, such as a
+    merge in a test repository or a live exercise only the operator can start;
+  - a run the PR description records as `pending (deferred until after the
+    first clean round)`, per `issue-workflow`'s `references/resolving.md`;
+  - a re-run the PR or its orchestrator has recorded as in progress.
+
+  If nothing else blocks, approve, and say in the verdict that the approval is
+  conditional on the run. When the run's record lands, re-verdict on it by the
+  rule for a criterion met by a run above. With no commit since the head you
+  approved, the record is the whole re-review; commits since it get the usual
+  delta review as well.
 
 A `## Operator check before review` section is the resolver's stop for the
 operator's own look, and a `## Operator steps` section lists what only the
