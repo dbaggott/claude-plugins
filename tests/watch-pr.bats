@@ -4,7 +4,7 @@
 # exercise the loop's own logic — failure counting, the backoff curve, and how
 # the two interact — without touching the network.
 #
-# The clock is stubbed too (see `setup_clock`), so no test in this file sleeps for
+# The clock is stubbed too (see tests/clock.bash), so no test in this file sleeps for
 # real: every WINDOW, INTERVAL and SETTLE below is in synthetic seconds. That also
 # makes the timing assertions exact rather than tolerant.
 
@@ -13,6 +13,7 @@ WATCH="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/watch-pr.sh"
 # Keeps this suite's watch traces out of the developer's real trace directory; see
 # tests/trace-dir.bash for what happens without it.
 load trace-dir
+load clock
 
 # Reaps anything a test backgrounds; see tests/reap.bash for why it is shared. No test
 # here backgrounds anything any more — mid-watch changes are scheduled by tick count
@@ -29,32 +30,6 @@ load reap
 # the argument against the observed head as strings; if the two formats drift apart,
 # every test in the file starts on tick 1 with a spurious COMMITS.
 sha40() { printf '%040d' "$1"; }
-
-# A clock the suite controls: `date +%s` reads an offset file, and `sleep N` advances
-# that file by N and returns at once.
-#
-# The pair is the unit — neither stub is useful alone, because the offset file is
-# the only thing that moves this clock. Stub `date` alone and time never advances at
-# all; stub `sleep` alone and the naps are still real while `poll_awake` barely moves.
-# Either way no WINDOW ever expires and every test that ends in IDLE hangs.
-#
-# Other `date` formats (the ISO stamp in a result line, the trace's timestamps) pass
-# through to the real binary, since nothing here asserts on them.
-setup_clock() {
-  export CLOCK="$BATS_TEST_TMPDIR/clock" CLOCK_BASE=1700000000; echo 0 > "$CLOCK"
-  # Stubs here name "$BASH" as their interpreter rather than `env bash`, and the
-  # per-tick ones read their state with `read` rather than `cat`: on CI's runner
-  # every process a tick spawns is a cost the whole suite pays.
-  { echo "#!$BASH"; cat; } > "$STUB/date" <<'EOF'
-off=0; [ -f "$CLOCK" ] && read -r off < "$CLOCK"
-if [ "$1" = "+%s" ]; then echo $(( CLOCK_BASE + off )); else exec /bin/date "$@"; fi
-EOF
-  { echo "#!$BASH"; cat; } > "$STUB/sleep" <<'EOF'
-read -r now < "$CLOCK"
-echo $(( now + ${1:-0} )) > "$CLOCK"
-EOF
-  chmod +x "$STUB/date" "$STUB/sleep"
-}
 
 setup() {
   contain_traces

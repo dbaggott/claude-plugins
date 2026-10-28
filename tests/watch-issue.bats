@@ -14,22 +14,7 @@ WATCH="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/watch-issue.sh"
 
 load trace-dir
 load reap
-
-setup_clock() {
-  export CLOCK="$BATS_TEST_TMPDIR/clock"; echo 0 > "$CLOCK"
-  # Stubs here name "$BASH" as their interpreter rather than `env bash`, and the
-  # per-tick ones read their state with `read` rather than `cat`: on CI's runner
-  # every process a tick spawns is a cost the whole suite pays.
-  { echo "#!$BASH"; cat; } > "$STUB/date" <<'EOF'
-off=0; [ -f "$CLOCK" ] && read -r off < "$CLOCK"
-if [ "$1" = "+%s" ]; then echo $(( 1700000000 + off )); else exec /bin/date "$@"; fi
-EOF
-  { echo "#!$BASH"; cat; } > "$STUB/sleep" <<'EOF'
-read -r now < "$CLOCK"
-echo $(( now + ${1:-0} )) > "$CLOCK"
-EOF
-  chmod +x "$STUB/date" "$STUB/sleep"
-}
+load clock
 
 setup() {
   contain_traces

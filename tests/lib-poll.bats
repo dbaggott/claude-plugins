@@ -6,8 +6,8 @@
 #     seconds and returns an interval, so its shape is checkable without running
 #     a watch at all — no stubs, no sleeping, no accumulated tick state.
 #   - The awake clock, which needs time to pass and a machine to suspend. Both
-#     are faked: `date` and `sleep` are stubbed on PATH so a six-hour suspend
-#     costs nothing and lands on an exact second.
+#     are faked by tests/clock.bash, so a six-hour suspend costs nothing and
+#     lands on an exact second.
 
 LIB="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/lib-poll.sh"
 
@@ -18,6 +18,7 @@ load reap
 # tests/trace-dir.bash for what happens without it. This suite has no other reason for
 # a `setup()` — the clock is opt-in per test — so the whole of it is this.
 load trace-dir
+load clock
 
 setup() {
   contain_traces
@@ -31,34 +32,6 @@ nap_child() {
     nap=$(pgrep -x -P "$1" sleep 2>/dev/null | head -1); [ -n "$nap" ] || sleep 0.1; i=$((i + 1))
   done
   [ -n "$nap" ] && echo "$nap"
-}
-
-# A clock we control. `sleep N` advances it by N instead of sleeping; if a
-# SUSPEND file holds a number, the next sleep also jumps by that much and clears
-# it — which is exactly what a laptop lid does to a poll loop.
-setup_clock() {
-  STUB="$BATS_TEST_TMPDIR/bin"; mkdir -p "$STUB"
-  export CLOCK="$BATS_TEST_TMPDIR/clock"; echo 0 > "$CLOCK"
-  export SUSPEND="$BATS_TEST_TMPDIR/suspend"
-  # Epoch seconds come from the file alone, never from the real clock. Mixing the
-  # two leaks however long the test itself took into every assertion, which turns
-  # exact expectations into flaky ranges. Other date formats (the ISO stamp in a
-  # result line) pass through, since nothing asserts on them.
-  # Stubs here name "$BASH" as their interpreter rather than `env bash`, and the
-  # per-tick ones read their state with `read` rather than `cat`: on CI's runner
-  # every process a tick spawns is a cost the whole suite pays.
-  { echo "#!$BASH"; cat; } > "$STUB/date" <<'EOF'
-off=0; [ -f "$CLOCK" ] && read -r off < "$CLOCK"
-if [ "$1" = "+%s" ]; then echo $(( 1700000000 + off )); else exec /bin/date "$@"; fi
-EOF
-  { echo "#!$BASH"; cat; } > "$STUB/sleep" <<'EOF'
-jump=0
-if [ -s "$SUSPEND" ]; then read -r jump < "$SUSPEND"; : > "$SUSPEND"; fi
-read -r now < "$CLOCK"
-echo $(( now + ${1:-0} + jump )) > "$CLOCK"
-EOF
-  chmod +x "$STUB/date" "$STUB/sleep"
-  export PATH="$STUB:$PATH"
 }
 
 # --- the curve, as a pure function -----------------------------------------
