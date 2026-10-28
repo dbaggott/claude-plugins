@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.67 — 2026-10-28
+
+The reviewer now re-verdicts when an author answers its last blocking finding without a new commit, such as a fix made only in the PR description or a rebuttal the reviewer accepts. Before, it resolved the thread and left its CHANGES REQUESTED standing on a head it no longer objected to, and the PR could not merge.
+
+
 ## dnbg-workflow 2026.10.66 — 2026-10-27
 
 The old `followup_dir` setting and the `~/.claude/dnbg-followups/` directory are no longer read. 2026.10.65 kept both as fallbacks after the rename to `findings_dir` and `~/.claude/dnbg-findings/`.
