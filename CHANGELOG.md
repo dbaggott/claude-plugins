@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.95 — 2026-10-28
+
+The spec-review offer for a batch of filed issues is written once, in
+`issue-workflow`'s `references/filing.md`, "Offer the spec review for a batch".
+`findings-review`, `process-review` and `orchestrate`'s close-out point at it
+instead of each carrying its own copy, so all three now hand over the prompts
+the same way when the review is declined or no operator can be asked.
+
+
 ## dnbg-workflow 2026.10.94 — 2026-10-28
 
 The close-out sites across `git-workflow`, `reviewer`, `issue-reviewer`,
