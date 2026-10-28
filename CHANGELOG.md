@@ -10,6 +10,13 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.75 — 2026-10-28
+
+The `retrospective_dir` setting's description in the plugin configuration no
+longer says only `orchestrate`'s agents write retrospectives there. It now says
+retrospectives are written there whenever the `retrospectives` option is on.
+
+
 ## dnbg-workflow 2026.10.74 — 2026-10-28
 
 An author or reviewer now writes each findings entry at its handoff, before the merge, and names its path on the item there, rather than leaving it for the post-merge close-out. A finding declined because the operator said to gets no entry from either side: the author's decline reply names where the operator said so, and both reports list it under Observations.
