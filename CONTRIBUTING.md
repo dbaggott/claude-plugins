@@ -112,14 +112,14 @@ docs/media/check-render.sh                  # README demos; a hook reword stales
 
 `scripts/dev/test.sh` runs CI's bats command, passing `-j` only when GNU
 `parallel` is installed. It writes the full TAP output to a temporary file and
-prints only the plan line, each failure with its diagnostics, any bats warning,
-`tap=<path>` naming that file, and `status=<n>` last, then exits with bats'
-status. Pass it test files to run only those. The full suite takes
-minutes, so from an agent's Bash tool run it as a background task rather than
-in the foreground. Read the result from its last line and read failures from the
-file, and don't pipe it into `tail` or a `not ok` filter, which reports the
-filter's status instead of bats'. A `# bats warning: Executed 0 instead of
-expected N tests` line means nothing ran.
+prints the plan line, each failure with its diagnostics, each skipped test, any
+bats warning or error, `tap=<path>` naming that file, and `status=<n>` last,
+then exits with bats' status. Pass it test files to run only those. The full
+suite takes minutes, so from an agent's Bash tool run it as a background task
+rather than in the foreground. Read the result from its last line, and don't
+pipe it into `tail` or a `not ok` filter, which reports the filter's status
+instead of bats'. A `# bats warning: Executed 0 instead of expected N tests`
+line means nothing ran.
 
 Two of the commands above are narrower than the CI step they stand for, so a
 green run here is good evidence rather than a guarantee. The `jq` lines are only
