@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.90 — 2026-10-28
+
+Fixed re-reviews after a merge from base or a rebase showing the base's changes as the PR's. `pr-round.sh` now reports `diff=interdiff` when the PR's merge base moved, and its diff section holds only the files whose own change differs from the one last reviewed, rather than every base commit in between. It falls back to the old delta wherever GitHub's compare cannot give a complete answer, such as a binary file or a PR touching 300 files or more.
+
+
 ## dnbg-workflow 2026.10.89 — 2026-10-28
 
 Fixed two ways a role App's credentials could be read back. The short-lived
