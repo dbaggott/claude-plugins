@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # A tracking issue and every one of its sub-issues, as one forge-neutral object.
 #
-#   fetch-issue-set.sh <owner/repo> <parent>
+#   fetch-issue-set.sh <owner/repo> <parent> [--json-out=<file>]
 #
 # Prints the object, then exactly one result line, then exits 0:
 #   {"parent":{"url":…,"number":…,"title":…,"body":…,"state":…,"created":…,
@@ -9,6 +9,11 @@
 #    "children":[{…the same fields…,"blocked_by":["<issue url>",…]}]}
 #   result=OK now=<iso> children=<count>
 #   result=ERROR reason=bad-args|unsupported-forge|not-found|issue-query|issue-query-shape|set-overflow now=<iso>
+#
+# With `--json-out`, the object goes to <file> instead and stdout is the result
+# line alone. Every <file> named is emptied before anything else can fail, so on
+# ERROR it never holds an earlier run's set. Its directory is created; a <file>
+# that still cannot be written is `bad-args`.
 #
 # `body_edited` is null for a body never edited since filing. `blocked_by` holds
 # URLs rather than numbers because a sub-issue may live in another repo of the
@@ -31,8 +36,22 @@ set -euo pipefail
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 fail() { echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0; }
 
-[ "$#" -eq 2 ] || fail bad-args
-REPO="$1"; N="$2"
+ARGS=(); OUTS=(); BAD=
+for a in "$@"; do
+  case "$a" in
+    --json-out=?*) OUTS+=("${a#--json-out=}") ;;
+    --*) BAD=1 ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+# Emptying every named file first is what keeps an earlier set out of it on any
+# ERROR below; it also proves the file writable before the query.
+for o in ${OUTS[@]+"${OUTS[@]}"}; do
+  { mkdir -p "$(dirname "$o")" && : > "$o"; } 2>/dev/null || BAD=1
+done
+[ -z "$BAD" ] && [ "${#OUTS[@]}" -le 1 ] && [ "${#ARGS[@]}" -eq 2 ] || fail bad-args
+JSON_OUT="${OUTS[0]:-}"
+REPO="${ARGS[0]}"; N="${ARGS[1]}"
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 case "$N" in ''|*[!0-9]*) fail bad-args ;; esac
 
@@ -96,5 +115,9 @@ OUT=$(printf '%s' "$ISSUE" | jq -c '
     children: [ .subIssues.nodes[] | fields + {blocked_by: [.blockedBy.nodes[].url]} ] }' \
   2>/dev/null) || fail issue-query-shape
 
-echo "$OUT"
+if [ -n "$JSON_OUT" ]; then
+  printf '%s\n' "$OUT" 2>/dev/null > "$JSON_OUT" || { : > "$JSON_OUT"; fail bad-args; } 2>/dev/null
+else
+  echo "$OUT"
+fi
 echo "result=OK now=$NOW children=$(printf '%s' "$OUT" | jq '.children | length')"

@@ -118,10 +118,12 @@ or the failure; when it ran before them, run it once more.
 differently:
 
 ```bash
-"<skill-dir>/../../scripts/fetch-issue-set.sh" <owner>/<repo> <n>
+"<skill-dir>/../../scripts/fetch-issue-set.sh" <owner>/<repo> <n> \
+  --json-out=<draft directory>/issue-set.json
 ```
 
-`children: []` means a plain issue: the rest of this file and
+The set goes to that file, for `jq` to read, and stdout is the result line
+alone. `children: []` means a plain issue: the rest of this file and
 `references/issue-mode-wait.md` apply. Any children make it a tracking issue: go
 to `references/issue-mode-tracking.md`, which reuses the discovery here, the wait
 and the per-PR review. A
