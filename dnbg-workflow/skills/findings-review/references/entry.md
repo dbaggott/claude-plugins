@@ -27,7 +27,7 @@ Who writes an entry:
 - **An item you already wrote an entry for**, in an earlier report on the same
   PR, is not written again. Name the existing path.
 - **The reviewer** writes one for every finding it raised that stands
-  unaddressed at its handoff.
+  unaddressed at its handoff, or at its close-out on a PR it gave no handoff.
 - **The author** writes one for every finding it declined, as
   `<skill-dir>/../git-workflow/references/merge.md`'s "The report that goes
   with the command" has it.
