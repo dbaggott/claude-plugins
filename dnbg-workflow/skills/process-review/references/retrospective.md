@@ -54,7 +54,9 @@ create the directory if it is missing.
 root wins, and `<owner>/<repo>/` goes under it the same way.
 
 Name the file `<YYYY-MM-DD>T<HHMMSS>Z-<n>-<role>.md`, in UTC, where `<n>` is the
-issue number and `<role>` is `author`, `reviewer` (a PR review, the `reviewer`
+issue number and `<role>` is `author` (a PR, the `git-workflow` skill),
+`spec-author` (answering a spec round, `issue-workflow`'s
+`references/spec-review-rounds.md`), `reviewer` (a PR review, the `reviewer`
 skill), `issue-reviewer` (a spec round, the `issue-reviewer` skill) or
 `orchestrator`. The time keeps a second dispatch of the same role from
 overwriting the first. A reviewer of a set of issues takes their parent as its

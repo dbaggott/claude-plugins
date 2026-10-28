@@ -52,7 +52,9 @@ Read every file in the batch in full. A file missing `role` or `issue` in its
 frontmatter, or missing any of the four headings, goes under **Unreadable** in
 the report with what it lacks, and counts toward nothing. A file written before
 `issue-reviewer` became a role of its own carries `reviewer` for a spec round
-as well as for a PR review: it is readable, and counts under `reviewer`. An
+as well as for a PR review: it is readable, and counts under `reviewer`. A file
+written before `spec-author` became a role of its own carries `author` for a
+spec round as well as for a PR: it is readable, and counts under `author`. An
 `issue:` that is a list names a set of issues, and its first URL is the file's
 issue wherever this skill keys on `issue`.
 
