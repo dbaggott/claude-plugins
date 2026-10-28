@@ -27,6 +27,10 @@ Read every entry in the batch in full. One missing `source`, `repo`,
 `observed_at` or a `YYYY-MM-DD` `date`, or any of the four body headings, goes
 under **Unreadable** in the report with what it lacks, and gets no proposal.
 
+This skill keeps its state in each entry's `disposition` and `swept` fields
+(step 5) and writes no report file. `process-review` persists its reports
+instead, because a retrospective is never disposed and goes on counting.
+
 ## 2. Re-check each entry
 
 Check the claim under **What** against the repo's current default branch, not

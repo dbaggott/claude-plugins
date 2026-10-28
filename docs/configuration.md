@@ -88,7 +88,7 @@ them alone is the same as not having them:
 | --- | --- | --- |
 | `worktree_path` | `.worktrees` | Repo-relative directory worktrees are created in. Must stay inside the repo and must be a plain path — an absolute path, a `~` path, any `..` segment, a leading `-`, or a character outside letters, digits and `. _ - /` is rejected and the default used instead |
 | `claim_label` | `assigned:agent-session` | Label an agent session applies when it claims an issue. Must start with `assigned:` |
-| `retrospective_dir` | `~/.claude/dnbg-retrospectives` | Where `orchestrate`'s agents write their retrospectives, one subdirectory per repo (`<dir>/<owner>/<repo>/`), and where `process-review` reads them. Must be an absolute path or one under `~/`, with the same character rule as `worktree_path`; anything else is rejected and the default used instead |
+| `retrospective_dir` | `~/.claude/dnbg-retrospectives` | Where `orchestrate`'s agents write their retrospectives, one subdirectory per repo (`<dir>/<owner>/<repo>/`), and where `process-review` reads them and keeps its own reports, under `<dir>/_reviews/`. Must be an absolute path or one under `~/`, with the same character rule as `worktree_path`; anything else is rejected and the default used instead |
 | `findings_dir` | `~/.claude/dnbg-findings` | Where agents write a findings entry for each finding about the code in their reports, one subdirectory per repo (`<dir>/<owner>/<repo>/`), and where `findings-review` and a tracking issue's closeout read them. Same rule as `retrospective_dir` |
 
 Set one and the session-start hook prints a short note saying so; the skills read
