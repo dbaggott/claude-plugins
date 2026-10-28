@@ -20,19 +20,28 @@ differently:
 
 - **A criterion met by a run** (an eval, a live exercise) is met by a recorded
   run, linked from the PR or the issue and carrying its output. Don't re-run it.
-  Fetch the run commit, the head and the base branch, and list what changed
-  since the run in two places: the PR's own changes with
-  `git diff --name-only <run commit> <head>`, and the base branch's with
-  `git diff --name-only $(git merge-base <run commit> origin/<base-branch>) origin/<base-branch>`.
-  Both are tree comparisons, which a rebase since the run does not inflate, and
-  their union is what changed since the run. The run stands while nothing under
-  the paths the criterion names as invalidating it changed. Where the criterion
-  also names the behavior the run proves, a file changed under the paths leaves
-  the run standing when the author's record shows its change does not alter
-  that behavior and the file's diff over its list's range bears that out; a
-  file the record says nothing about, or one whose effect on the behavior you
-  cannot rule out, voids it. Where the criterion names paths alone, any change under them voids it. Where it names no
-  paths, judge from that union whether anything the run exercises changed. Say
+  Fetch the run commit, the head and the base branch, and compare the run's
+  tree with the tree that will land:
+
+  ```bash
+  git diff --name-only <run commit> \
+    $(git merge-tree --write-tree origin/<base-branch> <head>)
+  ```
+
+  That one list carries the PR's own commits and whatever the base branch
+  gained, however the branch was rebased or merged since the run. Recompute it
+  at every grading, since the base branch can move with no commit on the PR. A
+  head that conflicts with the base branch (`merge-tree` exits 1) has no tree to
+  compare yet: grade the run once the conflict is resolved. A run commit that
+  can no longer be fetched is a stale record. The run stands while nothing
+  under the paths the criterion names as invalidating it differs. Where the
+  criterion also names the behavior the run proves, a file listed under the
+  paths leaves the run standing when the author's record shows its change does
+  not alter that behavior and the file's diff between the two trees bears that
+  out; a file the record says nothing about, or one whose effect on the
+  behavior you cannot rule out, voids it. Where the criterion names paths
+  alone, any change under them voids it. Where it names no paths, judge from
+  the list whether anything the run exercises changed. Say
   which changes you judged and on what basis. No recorded run, or a stale one,
   is a blocking finding naming the run, unless the run is one that waits, as
   below.
@@ -50,9 +59,10 @@ differently:
 
   If nothing else blocks, approve, and say in the verdict that the approval is
   conditional on the run. When the run's record lands, re-verdict on it by the
-  rule for a criterion met by a run above. With no commit since the head you
-  approved, the record is the whole re-review; commits since it get the usual
-  delta review as well.
+  rule for a criterion met by a run above, recomputing its comparison then.
+  With no commit since the head you approved, the record and that comparison
+  are the whole re-review; commits since it get the usual delta review as
+  well.
 
 A `## Operator check before review` section is the resolver's stop for the
 operator's own look, and a `## Operator steps` section lists what only the
