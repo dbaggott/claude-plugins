@@ -45,12 +45,14 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
 3. **Collect the merged PRs.** Run `pr-sources.sh` once per child, taking
    `<owner>/<repo>` and the number from the child's own `url`, and once on the
    parent. Take the union, reading the per-source fields as `issue-mode.md` describes.
-   Check each URL with `gh pr view <url> --json state,closingIssuesReferences`.
-   The union is the `MERGED` ones. An open PR on a closed child is not part of
-   it, so name that PR in the review.
-4. **Find the closeout PR**: the open PR whose `closingIssuesReferences`
-   include the parent. It is the only PR you review in this mode. Until one is
-   out of draft, wait with step 2's call on the parent alone, re-running
+   The union is the lines reading `state=MERGED`; read a `state=unknown` one
+   with `gh pr view <url> --json state` before leaving it out. An open PR on a
+   closed child is not part of it, so name that PR in the review.
+4. **Find the closeout PR**: the line of the parent's run reading
+   `relevance=closes state=OPEN`, or `relevance=closes state=unknown` when
+   `gh pr view <url> --json state` reads it `OPEN`; leave an unread one out
+   of `--exclude` below. It is the only PR you review in this mode.
+   Until one is out of draft, wait with step 2's call on the parent alone, re-running
    `pr-sources.sh` on the parent at each return and passing the URL of every
    other PR it finds in `--exclude`, and hold a draft back as `issue-mode.md`
    says.

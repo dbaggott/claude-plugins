@@ -25,12 +25,14 @@ gh pr view <url> --json state,isDraft,body,closingIssuesReferences
 ```
 
 Read the per-source fields before treating `count=0` as none, as
-`issue-workflow`'s `references/claiming.md` describes. An open PR whose
-`closingIssuesReferences` include the parent is a predecessor's closeout PR.
-Continue it rather than opening a second, at the first of steps 4 to 6 its
-description does not carry; one out of draft resumes at step 6, with a reviewer
-dispatched as step 6 does if none is reviewing it. Run step 2 too while its
-description has no step-5 table.
+`issue-workflow`'s `references/claiming.md` describes. A line reading
+`relevance=closes state=OPEN` is a predecessor's closeout PR, and the second
+command reads it. Run that command on each `state=unknown` line too, which the
+script could not read: it is one when it is open and its
+`closingIssuesReferences` include the parent. Continue it rather than opening
+a second, at the first of steps 4 to 6 its description does not carry; one out
+of draft resumes at step 6, with a reviewer dispatched as step 6 does if none is
+reviewing it. Run step 2 too while its description has no step-5 table.
 
 ## 2. Gather the findings into the log
 

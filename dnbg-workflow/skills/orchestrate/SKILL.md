@@ -115,9 +115,12 @@ one state a restart cannot recover.
      and claim as for `UNCLAIMED`, which re-marks it under your id. On no,
      stop.
    - `ERROR` — the claim could not be read. Say so and stop.
-3. **Open PRs.** `pr-sources.sh <owner>/<repo> <n>`, then
-   `gh pr view <url> --json state,isDraft,headRefOid,headRefName` on each. It
-   lists every PR that mentions the issue, in any repo of the owner, so go by
+3. **Open PRs.** `pr-sources.sh <owner>/<repo> <n>`. It lists every PR that
+   mentions the issue, in any repo of the owner, each with its `state=`; skip
+   the `MERGED` and `CLOSED` ones, and count `unknown`, which it could not
+   read, as open. Read
+   `gh pr view <url> --json state,isDraft,headRefOid,headRefName` on the rest,
+   dropping an `unknown` one that now reads merged or closed, and go by
    `relevance=`:
    - `closes` or `sibling` — an open one is a predecessor's work, which the
      author you dispatch continues rather than restarts;

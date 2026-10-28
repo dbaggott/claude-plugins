@@ -21,8 +21,8 @@ setup() {
   export FAIL_TIMELINE="$BATS_TEST_TMPDIR/fail_timeline"
   export FAIL_SEARCH="$BATS_TEST_TMPDIR/fail_search"
   export CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
-  # One file per PR, named by `pr_key`; a PR with none reads as an untagged PR
-  # that closes nothing.
+  # One file per PR, named by `pr_key`; a PR with none reads as an open,
+  # untagged PR that closes nothing.
   export PRS="$BATS_TEST_TMPDIR/prs"; mkdir -p "$PRS"
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -35,7 +35,7 @@ case "$1 $2" in
     f="$PRS/$(printf '%s' "$3" | tr -c 'A-Za-z0-9' _)"
     [ -f "$f.fail" ] && exit 1
     if [ -f "$f" ]; then cat "$f"
-    else echo '{"title":"t","headRefName":"b","closingIssuesReferences":[]}'; fi ;;
+    else echo '{"title":"t","headRefName":"b","closingIssuesReferences":[],"state":"OPEN"}'; fi ;;
   "search prs")
     [ -f "$FAIL_SEARCH" ] && exit 1
     cat "$SEARCH" ;;
@@ -54,14 +54,17 @@ EOF
 
 urls_of()  { grep -v '^result=' <<<"$1" | cut -d' ' -f1 || true; }
 relevance_of() {  # <output> <url>
-  grep -F "$2 " <<<"$1" | sed -n 's/.* relevance=//p'
+  grep -F "$2 " <<<"$1" | sed -n 's/.* relevance=\([^ ]*\).*/\1/p'
+}
+state_of() {  # <output> <url>
+  grep -F "$2 " <<<"$1" | sed -n 's/.* state=//p'
 }
 pr_key() { printf '%s' "$1" | tr -c 'A-Za-z0-9' _; }
-pr_reads() {  # <url> <title> <head> [closes-issue-url]
+pr_reads() {  # <url> <title> <head> [closes-issue-url] [state]
   local closes="[]"
   [ -n "${4:-}" ] && closes="[{\"url\":\"$4\"}]"
-  printf '{"title":"%s","headRefName":"%s","closingIssuesReferences":%s}' \
-    "$2" "$3" "$closes" > "$PRS/$(pr_key "$1")"
+  printf '{"title":"%s","headRefName":"%s","closingIssuesReferences":%s,"state":"%s"}' \
+    "$2" "$3" "$closes" "${5:-OPEN}" > "$PRS/$(pr_key "$1")"
 }
 result_of() { grep '^result=' <<<"$1"; }
 
@@ -276,4 +279,31 @@ xref() {  # <url> [more...]
   run "$SOURCES" o/r 5
   [ "$status" -eq 0 ]
   [ "$(relevance_of "$output" https://y/pull/6)" = unknown ]
+}
+
+# Each PR's own state, so a caller filters on it instead of reading every hit:
+# the timeline and the search return PRs merged or closed long ago.
+@test "each source's PR carries its own state" {
+  echo '[{"url":"https://x/pull/1"}]' > "$CLOSING"
+  pr_reads https://x/pull/1 "Fix it" fix-it https://github.com/o/r/issues/5 MERGED
+  xref https://x/pull/2
+  pr_reads https://x/pull/2 "Old try" old-try "" CLOSED
+  echo '[{"url":"https://y/pull/3"}]' > "$SEARCH"
+  run "$SOURCES" o/r 5
+  [ "$(state_of "$output" https://x/pull/1)" = MERGED ]
+  [ "$(state_of "$output" https://x/pull/2)" = CLOSED ]
+  [ "$(state_of "$output" https://y/pull/3)" = OPEN ]
+  [ "$(grep -c ' relevance=[a-z]* state=[A-Za-z]*$' <<<"$output")" = 3 ]
+}
+
+# An unread PR has no state to report. `unknown`, not a guess: read as closed, it
+# would be dropped by a caller looking for open work.
+@test "a PR that cannot be read has state unknown, listed by the closing source or not" {
+  echo '[{"url":"https://x/pull/1"}]' > "$CLOSING"
+  : > "$PRS/$(pr_key https://x/pull/1).fail"
+  xref https://y/pull/6
+  : > "$PRS/$(pr_key https://y/pull/6).fail"
+  run "$SOURCES" o/r 5
+  [ "$(state_of "$output" https://x/pull/1)" = unknown ]
+  [ "$(state_of "$output" https://y/pull/6)" = unknown ]
 }

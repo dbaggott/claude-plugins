@@ -120,8 +120,7 @@ closing_pr() {
       ("closing:" + $i): {out: ({closedByPullRequestsReferences: [{url: $u}]} | tojson), exit: 0},
       ("timeline:" + $i): {out: "[[]]", exit: 0},
       ("search:" + $i): {out: ([{url: $u}] | tojson), exit: 0},
-      ("prview:" + $u): {out: ({title: "t", headRefName: "b", closingIssuesReferences: []} | tojson), exit: 0},
-      ("prstate:" + $u): {out: $s, exit: 0}}' "$FIXTURE" > "$FIXTURE.new" && mv "$FIXTURE.new" "$FIXTURE"
+      ("prview:" + $u): {out: ({title: "t", headRefName: "b", closingIssuesReferences: [], state: $s} | tojson), exit: 0}}' "$FIXTURE" > "$FIXTURE.new" && mv "$FIXTURE.new" "$FIXTURE"
 }
 
 @test "every child closed with the closing PR open is the closeout PR to merge, though the orchestrator's claim stands" {
@@ -225,4 +224,15 @@ closing_pr() {
     [[ "$output" =~ ^result=ERROR\ reason=bad-args\  ]] || { echo "args: $args -> $output"; false; }
   done
   [ ! -s "$UNRECORDED" ]
+}
+
+# A closing PR the sources could not read may be the open one that puts the
+# issue in progress, so the stage is not answered without it.
+@test "a closing PR whose state could not be read is a query failure, not ready" {
+  use plain-ready
+  closing_pr 407 "https://github.com/$R/pull/500" OPEN
+  jq --arg u "https://github.com/$R/pull/500" '.calls["prview:" + $u].exit = 1' \
+    "$FIXTURE" > "$FIXTURE.new" && mv "$FIXTURE.new" "$FIXTURE"
+  run "$STAGE" $R 407 $SLUG
+  [[ "$output" == "result=ERROR reason=issue-query "* ]]
 }

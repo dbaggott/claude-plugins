@@ -130,9 +130,10 @@ the catch-all**:
 - **`CLOSED`** — run step 1's discovery once more; an open PR it finds keeps
   the assignment going, and a printed re-arm line still covers the other
   issues. A merge of a PR you reviewed is reported once, at its own watch's
-  `CLOSED`, which can arrive after this one, so check each PR you reviewed with
-  `gh pr view <url> --json state,closingIssuesReferences` and report the close
-  here only when none of them caused it: the work was dropped or resolved
+  `CLOSED`, which can arrive after this one, so find each PR you reviewed in
+  that discovery's lines, reading one that is missing or `state=unknown` with
+  `gh pr view <url> --json state,closingIssuesReferences`, and report the close
+  here only when none of them merged closing the issue: the work was dropped or resolved
   without a PR. Discovery finding no open PR is the end in step 4.
 - **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
   re-arm**, and do **not** report that nothing has landed: you do not know that.

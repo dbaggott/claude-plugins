@@ -7,7 +7,7 @@
 #   pr-sources.sh <owner/repo> <issue>
 #
 # Prints the deduped union, one PR per line, then a result line, then exits 0:
-#   <url> relevance=<closes|sibling|mention|unknown>
+#   <url> relevance=<closes|sibling|mention|unknown> state=<OPEN|MERGED|CLOSED|unknown>
 #   ...
 #   result=OK count=<n> closing=<s> search=<s> timeline=<s>
 #
@@ -21,6 +21,11 @@
 #   mention  — neither; it only cites the issue;
 #   unknown  — the PR could not be read, and the closing source did not list it.
 # A PR both closing and tagged reads `closes`.
+#
+# `state` is the PR's own, so a caller filters on it rather than reading each hit
+# again: every source returns PRs long since merged or closed. `unknown` means the
+# PR could not be read, whatever its relevance; treat it as possibly open, since
+# reading it as closed would drop a PR nobody looked at.
 #
 #   result=ERROR reason=bad-args      # nothing was queried
 #   result=ERROR reason=all-sources   # every source failed; the URL list is empty
@@ -142,24 +147,26 @@ urls=$(printf '%s\n%s\n%s\n' "$closing_urls" "$xref_urls" "$search_urls" \
 
 # One read per PR, rather than trusting the closing source alone: that source can
 # fail while the rest answer, and the PR's own closing references still say
-# whether it closes the issue. Each read yields `<url>\t<closes>\t<head>\t<tagged>`,
-# or `<url>\tunread` when the PR could not be read.
+# whether it closes the issue. Each read yields
+# `<url>\t<closes>\t<head>\t<tagged>\t<state>`, or `<url>\tunread` when the PR
+# could not be read.
 ISSUE_URL="https://github.com/$REPO/issues/$ISSUE"
 read_pr() {  # <pr-url>
   local j listed=false
   printf '%s\n' "$closing_urls" | grep -qxF "$1" && listed=true
-  if j=$(gh pr view "$1" --json title,headRefName,closingIssuesReferences 2>/dev/null) \
+  if j=$(gh pr view "$1" --json title,headRefName,closingIssuesReferences,state 2>/dev/null) \
      && echo "$j" | jq -r --arg url "$1" --arg issue "$ISSUE_URL" --argjson listed "$listed" '
           (.headRefName // "") as $h
           | [ $url,
               ($listed or any((.closingIssuesReferences // [])[];
                   (.url // "" | ascii_downcase) == ($issue | ascii_downcase))),
               $h,
-              ($h != "" and ((.title // "") | startswith("[" + $h + "]"))) ]
+              ($h != "" and ((.title // "") | startswith("[" + $h + "]"))),
+              (.state // "unknown") ]
           | map(tostring) | join("\t")' 2>/dev/null; then
     return
   fi
-  if $listed; then printf '%s\ttrue\t\tfalse\n' "$1"; else printf '%s\tunread\n' "$1"; fi
+  if $listed; then printf '%s\ttrue\t\tfalse\tunknown\n' "$1"; else printf '%s\tunread\n' "$1"; fi
 }
 
 # A tag pairs a PR with the issue's closing PR, so a tagged PR whose branch no
@@ -168,6 +175,7 @@ read_pr() {  # <pr-url>
 if [ -n "$urls" ]; then
   while IFS= read -r u; do read_pr "$u"; done <<<"$urls" | awk -F'\t' '
     { url[NR] = $1; closes[NR] = $2; head[NR] = $3; tagged[NR] = $4
+      state[NR] = ($2 == "unread" || $5 == "") ? "unknown" : $5
       if ($2 == "true" && $3 != "") closer[$3] = 1 }
     END {
       for (b in closer) any_closer = 1
@@ -176,7 +184,7 @@ if [ -n "$urls" ]; then
         else if (closes[i] == "true")  r = "closes"
         else if (tagged[i] == "true" && (!any_closer || head[i] in closer)) r = "sibling"
         else                           r = "mention"
-        print url[i] " relevance=" r
+        print url[i] " relevance=" r " state=" state[i]
       }
     }'
 fi

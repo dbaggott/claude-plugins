@@ -156,21 +156,19 @@ esac
 
 # Sets PRS to the open PRs that close the issue. Every source has to answer: a PR
 # one of them missed may be the one that matters. A `relevance=unknown` PR is not
-# one, since the closing source answered without listing it. Not run in a
-# subshell, so that `fail` ends the script.
+# one, since the closing source answered without listing it, but a closing PR
+# whose state could not be read may be open. Not run in a subshell, so that
+# `fail` ends the script.
 closing_prs() {
-  local out line url state urls=""
+  local out line urls
   out=$("$HERE/pr-sources.sh" "$REPO" "$N")
   line=$(tail -1 <<<"$out")
   case "$line" in
     "result=OK "*"closing=ok search=ok timeline=ok") ;;
     *) fail issue-query ;;
   esac
-  while read -r url; do
-    [ -n "$url" ] || continue
-    state=$(gh pr view "$url" --json state --jq .state 2>/dev/null) || fail issue-query
-    [ "$state" != OPEN ] || urls="${urls:+$urls,}$url"
-  done < <(sed -n 's/^\(https:[^ ]*\) relevance=closes$/\1/p' <<<"$out")
+  ! grep -q ' relevance=closes state=unknown$' <<<"$out" || fail issue-query
+  urls=$(sed -n 's/^\(https:[^ ]*\) relevance=closes state=OPEN$/\1/p' <<<"$out" | paste -sd, -)
   PRS="${urls:-none}"
 }
 
