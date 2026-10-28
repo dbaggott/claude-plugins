@@ -19,6 +19,16 @@ missing test, a defect seen next to the work. An observation about the run
 itself, such as a timing or what you checked and found handled, gets none.
 Write the entry as you write the report, and name its path beside the item.
 
+A finding the author declined because the operator told it to gets an entry
+from no role. The operator has already made the decision an entry would put in
+front of them, so each report names it under Observations, with where the
+operator said so, and no path. "The operator" means their own instruction, in
+the prompt they wrote, a chat answer or a comment, not an answer a dispatcher
+derived from the issue body. The reviewer knows such a decline only by the
+author's reply saying so
+(`<skill-dir>/../git-workflow/references/review-findings.md`); a decline whose
+reply does not say so is any other decline.
+
 Process friction, such as a skill that did not fit or a script that got in the
 way, is not a finding. It goes in a retrospective, when the run asks for one.
 
@@ -27,21 +37,17 @@ Who writes an entry:
 - **An item you already wrote an entry for**, in an earlier report on the same
   PR, is not written again. Name the existing path.
 - **The reviewer** writes one for every finding it raised that stands
-  unaddressed at its handoff, or at its close-out on a PR it gave no handoff,
-  except one the author declined in a reply saying the operator told it to.
+  unaddressed at its handoff, or at its close-out on a PR it gave no handoff.
 - **The author** writes one at its merge handoff for every finding it declined,
   as `<skill-dir>/../git-workflow/references/merge.md`'s "The report that goes
-  with the command" has it, except one it declined because the operator told it
-  to.
+  with the command" has it.
 - **The orchestrator** writes only the items no agent wrote an entry for. An
   item the reviewer lists without a path is usually one the author's handoff
   lists with one: use that path.
 
-An operator-ordered decline gets an entry from neither side: the operator has
-already made the decision an entry would put in front of them, and the report
-names it under Observations instead. Any other finding the author declined and
-the reviewer still holds gets an entry from each: that is the expected pair,
-which the sweep merges as one item, as it does any other duplicate.
+Any other finding the author declined and the reviewer still holds therefore
+gets an entry from each: that is the expected pair, which the sweep merges as
+one item, as it does any other duplicate.
 
 ## Where it goes
 

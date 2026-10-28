@@ -62,17 +62,15 @@ more change, where the same item read after the merge costs a second PR.
   knowing, and a finding you declined because the operator told you to, naming
   where they said so.
 - **Actionable**: findings deferred with "Merge as-is", a follow-up the reviewer
-  raised that you didn't take, setup or config the merged change will need, an
-  out-of-scope defect you left alone.
+  raised that you didn't take on your own judgement, setup or config the merged
+  change will need, an out-of-scope defect you left alone.
 
 Write each item's findings entry now, at this handoff, per
 `<skill-dir>/../findings-review/references/entry.md`, and name its path on the
-item's line, so the operator reads the entries before deciding to merge. The
-operator-ordered decline gets none, since the operator has already decided it.
-Process friction that did not stop the task, such as a skill step that did not
-fit, goes under none of these headings, Actionable included, and is not offered
-for filing here: it waits for your close-out, per `report.md`'s "At a
-close-out".
+item's line. The operator-ordered decline gets none. Process friction that did
+not stop the task, such as a skill step that did not fit, goes under none of
+these headings, Actionable included, and is not offered for filing here: it
+waits for your close-out, per `report.md`'s "At a close-out".
 
 This report is the handoff the post-merge report in `references/post-merge.md`
 is a delta against.

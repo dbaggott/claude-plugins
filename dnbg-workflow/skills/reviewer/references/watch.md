@@ -158,7 +158,8 @@ the handoff whenever there is one, per
 item's line. The operator-ordered decline gets none. Process friction that did
 not stop the review stays out of the handoff, Actionable included, and is not
 offered for filing there: it waits for your close-out, per `report.md`'s "At a
-close-out".
+close-out", which in the issue-scoped mode is the assignment's end, not a PR's
+`CLOSED`.
 
 Reviewing one PR, that `CLOSED` is your close-out: write the retrospective per
 `<skill-dir>/../process-review/references/retrospective.md`, as the report's
