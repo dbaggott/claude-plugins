@@ -47,7 +47,8 @@ for, and otherwise on the event that ended it:
 - When you send the PR to review, end your turn with its URL.
 - When the review is clean, re-arm your merge watch and end your turn with your
   merge handoff.
-- If the PR closes unmerged, end your turn saying so.
+- If the PR closes unmerged, end your turn saying so, with the report
+  `git-workflow` gives at that close.
 - When it merges, finish the post-merge cleanup and end your turn with the
   report `git-workflow` gives after it, which carries what changed since your
   handoff. In the merge's issue sweep, an open issue that is a sub-issue of your

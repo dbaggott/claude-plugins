@@ -29,8 +29,10 @@ So the assignment is a loop, not a pass:
    coming; that is not completion. That end is your close-out: write the
    retrospective per
    `<skill-dir>/../process-review/references/retrospective.md`, with the issue
-   as its `issue:`, and end your final report with its path, as
-   `references/watch.md`'s "Report the review" says of a single PR.
+   as its `issue:`, and end your final report with its path. That report is the
+   last PR's, from `references/watch.md`'s "Report the review", when the end
+   comes in the same turn; otherwise one per
+   `<skill-dir>/../findings-review/references/report.md` on the assignment.
 
 `gh search prs --owner <owner> head:<branch>` doesn't rescue a one-shot pass
 either — it is equally discovery-time, and it only finds siblings sharing a
@@ -160,8 +162,8 @@ Two fields ride any of those results, and both mean an issue has left the set:
   same wake as activity on the others. Handle the activity *and* report the
   closure — treating the line as activity alone leaves you re-discovering PRs for
   a closed issue. When it was the last watched issue, no re-arm line is printed:
-  there is nothing left to watch, so stop, closing out as step 4 says once a
-  discovery pass finds no open PR.
+  there is nothing left to watch, so stop the issue wait. Any open PR keeps its
+  own watch, and step 4's end comes when a discovery pass finds none open.
 - **`missing=<n,…>`** names numbers that resolve to no issue — a typo, a
   transfer, or a PR number. Say so rather than assuming those issues are quiet.
 
