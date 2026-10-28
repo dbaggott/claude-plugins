@@ -1162,19 +1162,27 @@ tree_agents() {  # -> each agent definition's path
 # enters the spawn branch by its heading, skipping the "Who runs the spec
 # review?" picker.
 @test "filing offers the spec review and enters the spawn branch by heading" {
-  local refs="$ROOT/dnbg-workflow/skills/issue-workflow/references" o f bad=0
+  local refs="$ROOT/dnbg-workflow/skills/issue-workflow/references" o bad=0
   grep -qF '### Spawn the reviewer' "$refs/spec-review-rounds.md" || {
     echo "spec-review-rounds.md lost the 'Spawn the reviewer' heading"; bad=1; }
-  for f in "$refs/filing.md" \
-           "$ROOT/dnbg-workflow/skills/findings-review/SKILL.md" \
-           "$ROOT/dnbg-workflow/skills/process-review/SKILL.md" \
-           "$ROOT/dnbg-workflow/skills/orchestrate/references/closeout.md"; do
-    grep -qF '"Spawn the reviewer"' "$f" || {
-      echo "${f#"$ROOT"/} no longer enters the spawn branch by its heading"; bad=1; }
-  done
+  joined "$refs/filing.md" | grep -qF '"Spawn the reviewer"' || {
+    echo "filing.md no longer enters the spawn branch by its heading"; bad=1; }
   for o in 'Spec-review it now (Recommended)' 'Not now'; do
     grep -qF "**\"$o\"**" "$refs/filing.md" || {
       echo "filing.md lost the offer option '$o'"; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
+# The batch offer is written once, in filing.md, and each flow that files a
+# batch cites it rather than carrying its own copy, which drifts.
+@test "every batch-filing flow offers the spec review through filing.md's batch form" {
+  local section='Offer the spec review for a batch' f bad=0
+  grep -qF "### $section" "$ROOT/dnbg-workflow/skills/issue-workflow/references/filing.md" || {
+    echo "filing.md lost the '$section' heading"; bad=1; }
+  for f in findings-review/SKILL.md process-review/SKILL.md orchestrate/references/closeout.md; do
+    joined "$ROOT/dnbg-workflow/skills/$f" | grep -qF "\"$section\"" || {
+      echo "$f no longer cites '$section'"; bad=1; }
   done
   [ "$bad" -eq 0 ]
 }
