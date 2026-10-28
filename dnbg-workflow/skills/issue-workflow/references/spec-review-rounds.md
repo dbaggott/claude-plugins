@@ -23,6 +23,10 @@ review?"
    prompt, and can talk to it there. This session watches for its rounds and
    answers them."
 
+Without `AskUserQuestion`, ask per `references/delegated.md`.
+
+### Spawn the reviewer
+
 On **"Spawn the reviewer"**, dispatch `issue-reviewer` as
 `dnbg-workflow:reviewer-orchestrated`, in the background, with the prompt
 `Review <URL> as a spec.` and nothing else: the reviewer judges the body alone,
@@ -32,6 +36,8 @@ A report that is not a round — a `Delegated question:` it posted, or a failure
 to start, such as no `reviewer-setup` — goes to the operator, and an answer goes
 back to the reviewer with `SendMessage`. When it ends, give the operator the
 retrospective path its final report names.
+
+### My own session
 
 On **"My own session"**, in one turn, in this order:
 
@@ -43,22 +49,23 @@ On **"My own session"**, in one turn, in this order:
    `review <URL> as a spec`. Leave this session open: it answers the reviewer's
    findings, and it is already watching for the first round, so there is
    nothing to tell it."
-3. Arm the watch below over the same issues, with that `updated_at` as
-   `--since` under the first-arm rule.
+3. Arm the watch in `references/spec-review-wait.md` over the same issues,
+   with that `updated_at` as `--since` under the first-arm rule.
 
-Without `AskUserQuestion`, ask per `references/delegated.md`.
+### Reaching the review without a hand-over
 
 A session that reaches the review without having handed it over — asked to
 answer it cold, or sent here from a pickup — notes the `updated_at` of step 1,
 then reads the comments, and goes by the first of these that fits:
 
 - **Every issue's latest verdict is `READY`**: go to "Where it ends".
-- **No verdict has been posted**: hand the issue over from the top of this
-  section.
+- **No verdict has been posted**: hand the issue over from the top of
+  "Handing the issue to its reviewer".
 - **Otherwise**, answer the latest round per "Answering" if it is unanswered,
-  then ask whether a reviewer is still running. If one is, wait for it: per
-  "Waiting for the next round" after a response, as in step 3 without one. If
-  not, a spawned reviewer having gone with its session, hand over from the top.
+  then ask whether a reviewer is still running. If one is, wait for it per
+  `references/spec-review-wait.md`: from the response after one, as in step 3
+  without one. If not, a spawned reviewer having gone with its session, hand
+  over from the top.
 
 ## What a round looks like
 
@@ -97,6 +104,10 @@ what you claimed, and report a fix missing that is not. Both go up as the author
 A finding answered with neither is undispositioned, and a round of those is what
 halts the review.
 
+Under the "My own session" hand-over, wait for the next round per
+`references/spec-review-wait.md` once the response is posted; a spawned
+reviewer's report ends on its own wait, so there is nothing to arm.
+
 Once a tracking issue's children are filed, a response that applies a
 decision-log row edits each child the row reaches to match first, then the
 parent, whose edit changes the entries and sets the row's state to `applied`.
@@ -109,60 +120,11 @@ a fresh comment.
 **A fix that edits another issue already at `READY` reopens that issue's round**,
 as when a finding on one child is fixed in a sibling. Make the edit and post its
 note, with the two commands above on the sibling's number, before the response on the issue that carried the finding, so the response
-stays your latest post, and add that issue to the watch below. The note names the
+stays your latest post, and add that issue to the watch. The note names the
 finding, by its ID and the URL of the comment carrying it, then the section that
 changed, and ends `No blocking findings were open here.`
 
 > Edited "Acceptance criteria" for `281-B2` (<comment URL>). No blocking findings were open here.
-
-## Waiting for the next round
-
-Spawn the wait as a **background** task with `timeout: 7200000`, and every
-re-arm of it the same way, so idle polling never enters the conversation.
-Without the timeout a headless session stops the watch after 10 minutes, and it
-returns no result line. Its `--since` follows the first-arm rule in
-`watch-issue.sh`'s header,
-taking the response's own timestamp from GitHub
-(`gh api repos/<owner>/<repo>/issues/comments/<id> --jq .created_at`, the id
-from the URL `gh issue comment` printed):
-
-```bash
-"<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <n> [n...] \
-  --role=author --since=<your response comment's created_at>
-```
-
-With no `--slug`, `--role=author` asks the role resolver for the login to ignore:
-the author App's, or yours when the author has no App. So the watch ignores the
-author's own comments and wakes on the reviewer's, and on yours too when the
-author has an App. Arm it
-*after* posting the response. The first-arm rule's time is the comment's own,
-not your clock's, because a body edit carries no login to filter: a `since`
-before your last edit by GitHub's clock wakes the watch on your own round.
-
-Dispatch on the result:
-
-- **`ACTIVITY`** with `kinds=comment` — the next round landed. Read it.
-- **`CLOSED`** — the issue closed rather than converging. Stop.
-- **`IDLE`** — the deadline elapsed. Re-arm; after a second empty window, tell the
-  operator nothing has landed rather than waiting silently. An `IDLE` carrying
-  `window_left=` is a run cut short at the watch's wall-clock ceiling, not an
-  empty window: re-arm and don't count it.
-- **`ERROR`** — the watch could not see the issue, whatever the reason. **Do not
-  re-arm**, and do not report that the reviewer has not answered: you do not know
-  that. `reason=issue-query` points at auth or the issue numbers;
-  `issue-query-shape` means the payload stopped parsing, so auth will look fine;
-  `bad-args` and `unsupported-forge` mean it never started, and `role` that the
-  resolver refused the author's login, with why on stderr.
-
-**Re-arm from the `── re-arm ──` line the watch prints, never from the clock.** It
-carries `since` set to that run's own `now`; activity is counted against `since`,
-so anything landing between one run returning and the next starting is filtered
-out for good rather than deferred.
-
-**A dead watch is not a quiet review.** The watch lives in this session, so a
-background task returning no result line at all — killed, session ended, reloaded
-— is blindness rather than silence, and looks identical to a round nobody has
-posted. Re-read the issues' comments before concluding the reviewer has gone quiet.
 
 ## Where it ends
 

@@ -105,3 +105,12 @@ batch again; a kept one does, with its `swept` date telling the next sweep it wa
 already seen.
 
 Close with one line per entry: its path and the disposition recorded.
+
+When any issue was filed, ask once for the batch, with the two options of
+`issue-workflow`'s `references/filing.md`, "Offer the spec review", in place of
+its per-issue question. The prompt is `Review <URL>, <URL> as a set.`, one per
+repo the batch was filed in, naming that repo's issues. On "Spec-review it now
+(Recommended)", dispatch `issue-reviewer` as
+`dnbg-workflow:reviewer-orchestrated` with each prompt, in the background, and
+answer the rounds per `issue-workflow`'s `references/spec-review-rounds.md`,
+"Spawn the reviewer". On "Not now", end with the prompts to paste.

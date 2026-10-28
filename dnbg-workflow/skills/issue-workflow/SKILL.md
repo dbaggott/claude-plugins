@@ -37,14 +37,16 @@ with almost no overlap, so each lives in its own file. Read the one you are on:
 
 - **Creating or updating an issue** → `references/creating.md`. Self-documenting
   bodies, verified anchors, and whether it is a project;
-  labels are `references/labeling.md`. Keeping a body current as work ships is
+  labels are `references/labeling.md`; the filing command and the spec review
+  offered after it are `references/filing.md`. Keeping a body current as work ships is
   "Maintaining issues" below, since it fires on every path.
 - **Decomposing an accepted tracking issue into children** →
   `references/decomposing.md`. Grouping requirements, the `Covers` and
   `Depends on` lines, and setting sub-issue and blocked-by relationships.
 - **Answering a review of the issue body itself** → `references/spec-review-rounds.md`.
   Responding per finding ID, the edit-then-comment ordering the reviewer reads
-  your state from, and waiting on the next round. The reviewer's side is the
+  your state from, and waiting on the next round
+  (`references/spec-review-wait.md`). The reviewer's side is the
   `issue-reviewer` skill.
 - **Picking up an issue to resolve it** → `references/claiming.md` first:
   checking it is not already claimed, asking once when it belongs to a
