@@ -3,16 +3,17 @@
 #
 #   fetch-issue-set.sh <owner/repo> <parent> [--json-out=<file>]
 #
-# Prints the object, then exactly one result line, then exits 0. With
-# `--json-out`, the object goes to <file> instead and stdout is the result line
-# alone. Every <file> named is emptied before anything else can fail, so on
-# ERROR it never holds an earlier run's set. Its directory is created; a <file>
-# that still cannot be written is `bad-args`.
+# Prints the object, then exactly one result line, then exits 0:
 #   {"parent":{"url":…,"number":…,"title":…,"body":…,"state":…,"created":…,
 #              "body_edited":…,"labels":["<name>",…]},
 #    "children":[{…the same fields…,"blocked_by":["<issue url>",…]}]}
 #   result=OK now=<iso> children=<count>
 #   result=ERROR reason=bad-args|unsupported-forge|not-found|issue-query|issue-query-shape|set-overflow now=<iso>
+#
+# With `--json-out`, the object goes to <file> instead and stdout is the result
+# line alone. Every <file> named is emptied before anything else can fail, so on
+# ERROR it never holds an earlier run's set. Its directory is created; a <file>
+# that still cannot be written is `bad-args`.
 #
 # `body_edited` is null for a body never edited since filing. `blocked_by` holds
 # URLs rather than numbers because a sub-issue may live in another repo of the
