@@ -112,7 +112,9 @@ An entry `findings-review` already decided (its `disposition` is no longer
 `open`) keeps that decision: put it in the table as it stands, and ask nothing
 about it. Propose one for each other entry the way `findings-review`'s steps 2
 to 4 do: re-check the
-entry against the default branch, merge entries that describe one problem, and
+entry against the default branch, merge entries that describe one problem
+(an author's and a reviewer's entry for one finding is the expected pair, and
+makes one row), and
 draft each follow-up's exact text, with **Deferred** where that skill would
 propose **keep**. Draft them all first, as a table, then show the operator the
 table and the exact text of every follow-up before filing any. Without
@@ -179,10 +181,11 @@ back to the loop. It reaches this file again at `open=0`, where step 1 finds
 the PR and you bring its doc up to date before sending it back to review.
 
 When the review is clean, give the operator the merge handoff per
-`git-workflow`'s `references/merge.md`, and re-arm the watch for the merge
+`git-workflow`'s `references/merge.md`, with the reviewer's handoffs beneath it
+as `SKILL.md`'s "Relay the merge handoff" places them, and re-arm the watch for the merge
 from its `── re-arm ──` line per its `references/merge-wait.md`. Never merge. The merge closes the parent. Run
 `git-workflow`'s post-merge cleanup (`references/post-merge.md`), then go to
-`references/multi-issue.md`'s "Stop", once the reviewer's final report is in,
+`references/multi-issue.md`'s "Stop", once the reviewer's close-out is in,
 and write your own retrospective there, once for the whole run, with the parent
 as its issue (`references/findings-fold.md`, "Your own").
 If the PR closes unmerged, ask the operator whether to open a new one or stop.

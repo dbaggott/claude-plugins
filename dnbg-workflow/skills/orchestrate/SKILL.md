@@ -251,8 +251,13 @@ it ends with:
   it the same way. Its merge watch has stopped, so read the PR again when the
   operator says it merged and at each later report, and once it shows merged,
   continue the author to its post-merge cleanup and final report;
-- the author's final report, or the reviewer's end — go to "Stop" once both
-  are in;
+- the reviewer's handoff, a report whose first line is
+  `**Reviewer handoff: APPROVED at <sha>**` and whose Summary names the PR —
+  hold it for "Relay the merge handoff"; it is not the reviewer's end, and its
+  PR watch is armed;
+- the author's final report, or the reviewer's close-out on a PR, a report
+  whose first line begins `**Reviewer close-out:` — go to "Stop" once all are
+  in;
 - the author's report that its PR closed unmerged — ask the operator whether
   to dispatch a new author or stop;
 - a wait on its own background work — an armed watch, or a background review
@@ -327,10 +332,13 @@ self-review, and the bot still reviews afterward.
 
 The author ends a turn with its handoff once the review is clean. Read
 `pr-verdict.sh <owner>/<repo> <pr>`. At `verdict=APPROVED at_head=1
-reviewed_after_head=1`, forward the handoff as it stands: the merge command
-exactly as the author composed it, on its own line in a fenced block, and the
-author's report beneath, adding only the verdict and its `verdict_sha`. Any
-other reading, continue the author with it.
+reviewed_after_head=1`, forward the handoff: the verdict and its
+`verdict_sha`, the merge command exactly as the author composed it, on its own
+line in a fenced block, the author's report beneath, and beneath that each
+reviewer handoff on that PR, oldest first, or a line saying none at the
+`verdict_sha` has arrived. Change nothing in any report. Forward a reviewer
+handoff that arrives after the relay when it comes. Any other reading, continue
+the author with it.
 
 Never recompose the command and never hold it for checks: `git-workflow`'s
 `references/merge.md` chose the form for the state the author read, including
@@ -350,7 +358,8 @@ the same URL, which resumes from GitHub and re-claims under "On start".
 ## Stop
 
 Stop once the author's final report, which follows the merge and its
-post-merge cleanup, and the reviewer's end are both in. If the issue is still
+post-merge cleanup, and the reviewer's close-out on each PR that report names,
+the report opening `**Reviewer close-out:`, are all in. If the issue is still
 open then, say so in the report. In each sibling the author's final report
 names, mark shipped the items it lists, with the PR's URL, as `issue-workflow`'s
 "Maintaining issues" does, which comments them instead on a sibling someone
@@ -369,8 +378,8 @@ report the cycle per `<skill-dir>/../findings-review/references/report.md`:
   and name any role that left none; yours goes in the report's Retrospective
   section.
 - **Actionable** — what the operator may want to do, including any item in the
-  author's handoff, the author's final report, or the reviewer's report that
-  needs them.
+  author's handoff, the author's final report, or the reviewer's handoffs and
+  close-outs that needs them.
 
 Give each finding under Observations or Actionable its findings entry path,
 writing the entry per `<skill-dir>/../findings-review/references/entry.md` for

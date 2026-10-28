@@ -3,7 +3,7 @@
 Part of the `findings-review` skill. Every agent that writes a report with an
 **Actionable** or **Observations** section reads this when it writes that
 report: the author at its merge handoff and its post-merge report, the reviewer
-at its report, the orchestrator at Stop. An entry keeps one finding after the
+at its handoff and its close-out, the orchestrator at Stop. An entry keeps one finding after the
 session ends, so `findings-review`, or a tracking issue's closeout, can decide
 it later against a fresh tree. Writing one is not filing an issue: filing stays
 the operator's call.
@@ -22,19 +22,22 @@ Write the entry as you write the report, and name its path beside the item.
 Process friction, such as a skill that did not fit or a script that got in the
 way, is not a finding. It goes in a retrospective, when the run asks for one.
 
-One item has one writer:
+Who writes an entry:
 
 - **An item you already wrote an entry for**, in an earlier report on the same
   PR, is not written again. Name the existing path.
-- **The reviewer** skips a finding the author didn't take when the author
-  follows `git-workflow`, as an orchestrated run's author always does, since the
-  author's handoff writes it. On any other PR, such as a teammate's, the reviewer
-  writes it too.
+- **The reviewer** writes one for every finding it raised that stands
+  unaddressed at its handoff, or at its close-out on a PR it gave no handoff.
+- **The author** writes one for every finding it declined, as
+  `<skill-dir>/../git-workflow/references/merge.md`'s "The report that goes
+  with the command" has it.
 - **The orchestrator** writes only the items no agent wrote an entry for. An
   item the reviewer lists without a path is usually one the author's handoff
   lists with one: use that path.
 
-A duplicate that gets through anyway is merged by the sweep.
+A finding the author declined and the reviewer still holds therefore gets an
+entry from each: that is the expected pair, which the sweep merges as one item,
+as it does any other duplicate.
 
 ## Where it goes
 

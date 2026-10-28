@@ -671,6 +671,11 @@ PR to resume (it re-assesses current state and picks the watch back up).
    round trips and still misses the threads, which is what a reviewer reads as
    outstanding work.
 
+**A turn that posts an `APPROVE` ends with your handoff.** Post, arm the watch
+as above (a re-arm runs its printed `── re-arm ──` line), then end the turn
+with the handoff report `references/watch.md`'s "Report the review" describes.
+The watch runs on: the review ends at `CLOSED`, not here.
+
 ## Responding to comments and replies
 
 When the watcher surfaces `ACTIVITY`, the round is one call away and the round is

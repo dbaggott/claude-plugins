@@ -2,8 +2,8 @@
 
 Part of the `findings-review` skill. Every role reads this when it writes its
 report, the one carrying Summary, Observations and Actionable: the author at its
-merge handoff and once its PR merges or closes, the PR reviewer at its review's
-end, both sides of a spec review where it ends, the orchestrator at Stop. The
+merge handoff and once its PR merges or closes, the PR reviewer at its handoff
+when it approves and at its close-out, both sides of a spec review where it ends, the orchestrator at Stop. The
 site that sends you here says what each heading holds for your role; the rules
 are here.
 
