@@ -40,4 +40,4 @@ per `<skill-dir>/../findings-review/references/report.md`, a delta against the
 handoff report `references/merge.md` gave, with Summary opening with the PR's
 full URL and the cleanup, or the close. Close out per
 `<skill-dir>/../process-review/references/retrospective.md`, "When a
-retrospective is written".
+retrospective is written", with `role: author`.
