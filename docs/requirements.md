@@ -16,7 +16,7 @@ up an App for any agent role:
 
 | Tool | Needed for | Without it |
 | --- | --- | --- |
-| `jq` | Both enforcement hooks parse their stdin payload with it | **Enforcement is off.** Ships with macOS 15+; install it on Linux and on older macOS |
+| `jq` | Both enforcement hooks parse their stdin payload with it; the role-fallback notice reads role configuration with it | **Enforcement is off**, and the role-fallback notice prints nothing. Ships with macOS 15+; install it on Linux and on older macOS |
 | `git` | `check-worktree.sh` resolves the edited path to a repo | **`check-worktree` never fires**; `check-issue-create` still gates a `--repo`-qualified command |
 | `gh` | Every workflow skill, for all PR/issue/review operations | The skills cannot run |
 | `python3` | `reviewer-setup`'s `bootstrap.py` (stdlib only) | Cannot create a role's App |
@@ -36,6 +36,6 @@ warning.
 
 **Platform: macOS and Linux.** Both are exercised. The hooks are `#!/usr/bin/env
 bash` scripts invoking only `awk`, `cat`, `dirname`, `git`, `grep`, `head`,
-`jq`, `printf`, `sed` and `tr` — all local text or path processing. They are expected
-to work under Git Bash on Windows, but that has never been tested and is not
-claimed.
+`jq`, `printf`, `sed` and `tr` — all local text or path processing. They are
+expected to work under Git Bash on Windows, but that has never been tested and
+is not claimed.

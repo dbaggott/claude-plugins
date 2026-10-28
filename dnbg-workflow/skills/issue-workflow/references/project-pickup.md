@@ -2,8 +2,8 @@
 
 Part of the `issue-workflow` skill. Read this at pickup, after reading the
 claim and before making one: `references/claiming.md` sends you here when you
-resolve an issue, and `orchestrate`'s "On start, read everything from GitHub" when you orchestrate one. Skip
-it when `claim-issue.sh` read `OWN`: an orchestrator claimed the issue for its
+resolve an issue, and `orchestrate`'s "On start, read everything from GitHub"
+when you orchestrate one. Skip it when `claim-issue.sh` read `OWN`: an orchestrator claimed the issue for its
 author, and working it on its own is that author's dispatch.
 
 ```bash

@@ -55,8 +55,8 @@
 # discover. `git-workflow`'s "Multi-repo changes" requires that mention for this
 # reason.
 #
-# Runs under your own auth: a role token in the environment is unset below
-# rather than used. Reads of an issue are the operator's and only writes run as
+# Runs under your own auth: `GH_TOKEN`, where `as-role.sh` puts a role token,
+# is unset below rather than used. Reads of an issue are the operator's and only writes run as
 # a role, per `reviewer`'s `references/issue-mode.md`.
 set -euo pipefail
 unset GH_TOKEN

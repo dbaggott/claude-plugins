@@ -374,7 +374,8 @@ Installing `dnbg-workflow` means **it runs shell scripts on your machine** —
 that is what a Claude Code hook is. Five of them fire automatically once the
 marketplace is trusted: two inject the always-on rules (at session start, and
 again per subagent, because session-start output does not reach subagents), one
-names at session start any agent role that would post as your own account, and
+names at session start any agent role that would post as your own account or
+shares another role's App, and
 two are the gates that block edits outside a worktree and unguarded
 `gh issue create` calls.
 
@@ -386,7 +387,8 @@ GitHub API.
 They make **no network calls**, write no files, and hold no credentials, and
 **nothing here updates itself** — what you install is what runs until you update
 it deliberately, so reading
-[`dnbg-workflow/hooks/`](dnbg-workflow/hooks/) once is a review that stays valid.
+[`dnbg-workflow/hooks/`](dnbg-workflow/hooks/), with the two `scripts/` files
+the role notice runs, once is a review that stays valid.
 
 [`SECURITY.md`](SECURITY.md) is the full account: what each hook sees, the one
 place a transcript is read and why, what each role App's key can do, and why

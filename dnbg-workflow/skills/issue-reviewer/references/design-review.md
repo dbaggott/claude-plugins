@@ -94,9 +94,10 @@ posting. This adds checks to each pass, and changes what the round comment says.
   parent when the code comes only from a child outside those: the covering child
   cannot meet the requirement at its own merge. When the children are filed and
   the same missing edge is also an unrealized dependency on the covering child
-  (`SKILL.md`, "The judgment pass", its "Unrealized dependency" check), report it once, here, and have that child's
-  round cite this finding's ID: the row changes first, and the child's edge and
-  `Depends on` line follow from it.
+  (`SKILL.md`, "The judgment pass", the "Unrealized dependency" check under
+  "Across the set"), report it once, here, and have that child's round cite
+  this finding's ID: the row changes first, and the child's edge and `Depends
+  on` line follow from it.
 - **The right role makes each write.** When a requirement moves a write, such
   as a comment, a label or a push, to a different role, find the place in the
   code where that write happens and the role that runs it there. The child
