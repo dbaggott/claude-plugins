@@ -303,7 +303,8 @@ an unquoted `$VAR` is not word-split, so a loop over it sees one item.
 
    The file list is the part worth re-running every round — cheap, and base
    movement is invisible to the delta compare in `references/re-review.md`. Take
-   hunks from the delta, not from a re-derived full diff.
+   hunks from the round's diff section, the delta or the interdiff, not from a
+   re-derived full diff.
 
    **When the PR changes, gates, or removes an existing feature, sweep the
    feature's identifier families across the head SHA before reading the diff.**

@@ -28,6 +28,11 @@ setup() {
   # so a test that writes none is a tree lookup that cannot see.
   export TREES="$BATS_TEST_TMPDIR/trees"; mkdir -p "$TREES"
   export CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
+  # The PR's base ref, and each head's three-dot compare against it, served from
+  # COMPARES/<sha> with the caller's --jq applied, as gh applies it. A head with
+  # no file there is a compare that fails, and an empty BASE_REF a failed lookup.
+  export BASE_REF="$BATS_TEST_TMPDIR/base_ref"; : > "$BASE_REF"
+  export COMPARES="$BATS_TEST_TMPDIR/compares"; mkdir -p "$COMPARES"
 
   # Dispatch by argument shape. `graphql` is matched before the inline-comments
   # pattern because pr-threads.sh's query names `pullRequest`, and ordering the
@@ -44,6 +49,11 @@ case "$*" in
                                jq -c '. + {state:"OPEN", isDraft:false, headRefOid:"bbb"}' \
                                  "$REVIEWS_JSON" 2>/dev/null || cat "$REVIEWS_JSON" ;;
   *graphql*)                   [ -f "$FAIL_THREADS" ] && exit 1; cat "$THREADS_JSON" ;;
+  *"--json baseRefName"*)      [ -s "$BASE_REF" ] || exit 1; cat "$BASE_REF" ;;
+  *"compare/$(cat "$BASE_REF")..."*)
+                               [ -s "$BASE_REF" ] || exit 1
+                               h="${2##*...}"; f="$COMPARES/$h"; [ -f "$f" ] || exit 1
+                               jq -r "$4" "$f" ;;
   *git/commits/*)              f="$TREES/${2##*/}"; [ -f "$f" ] || exit 1; cat "$f" ;;
   "pr diff"*|*compare*)        [ -f "$FAIL_DIFF" ]    && exit 1; cat "$DIFF_TXT" ;;
   *pulls/*comments*)           [ -f "$FAIL_INLINE" ]  && exit 1; cat "$INLINE_JSON" ;;
@@ -61,6 +71,12 @@ EOF
     > "$INLINE_JSON"
   threads '[{"id":"PRRT_1","isResolved":false,"path":"a.sh","line":7,"comments":{"nodes":[{"author":{"login":"human"},"body":"still open"}]}}]'
   printf -- '--- a/a.sh\n+++ b/a.sh\n@@ -1 +1 @@\n-old\n+new\n' > "$DIFF_TXT"
+}
+
+# One head's compare against the base ref: its merge base, and the files the PR
+# changes on top of it.
+compare() {  # <head-sha> <merge-base-sha> <files-json>
+  printf '{"merge_base_commit":{"sha":"%s"},"files":%s}' "$2" "$3" > "$COMPARES/$1"
 }
 
 threads() {  # <nodes-json>
@@ -181,6 +197,145 @@ section() {  # <name> <output>
   run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
   [ "$(field diff "$(result "$output")")" = delta ]
   [[ "$(section diff "$output")" == *"+new"* ]]
+}
+
+# A merge from base: the merge base moved from m1 to m2 under the PR. Its own
+# change to a.sh grew a line; b.sh is the same change, shifted down by a base
+# commit that also edited b.sh, so only its hunk header differs; base.sh is the
+# base's alone and appears in neither compare. The delta would carry base.sh as
+# the PR's, so seeing it nowhere is what proves the interdiff replaced it.
+merge_from_base() {
+  echo main > "$BASE_REF"
+  echo 0123456789abcdef0123456789abcdef01234567 > "$TREES/aaa"
+  echo 76543210fedcba9876543210fedcba9876543210 > "$TREES/bbb"
+  printf -- '--- a/base.sh\n+++ b/base.sh\n@@ -1 +1 @@\n-x\n+y\n' > "$DIFF_TXT"
+  compare aaa m1 '[{"filename":"a.sh","patch":"@@ -1 +1 @@\n-old\n+new"},
+                   {"filename":"b.sh","patch":"@@ -3,1 +3,1 @@ fn\n-p\n+q"}]'
+  compare bbb m2 '[{"filename":"a.sh","patch":"@@ -1 +1,2 @@\n-old\n+new\n+newer"},
+                   {"filename":"b.sh","patch":"@@ -9,1 +9,1 @@ fn\n-p\n+q"}]'
+}
+
+@test "a moved merge base reports the PR's own interdiff, not the delta" {
+  merge_from_base
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  local d; d=$(section diff "$output")
+  [[ "$d" == *"a/a.sh (last reviewed)"* ]]
+  [[ "$d" == *"++newer"* ]]
+  [[ "$d" != *b.sh* ]]
+  [[ "$d" != *base.sh* ]]
+  grep -q 'compare/main\.\.\.aaa' "$CALLS"
+  grep -q 'compare/main\.\.\.bbb' "$CALLS"
+  ! grep -q 'compare/aaa\.\.\.bbb' "$CALLS"
+}
+
+# The base moved and the PR's own work did not: nothing to re-read, and the
+# empty section is the answer rather than a failure.
+@test "a moved merge base under unchanged work is an empty interdiff" {
+  merge_from_base
+  compare bbb m2 '[{"filename":"a.sh","patch":"@@ -5 +5 @@\n-old\n+new"},
+                   {"filename":"b.sh","patch":"@@ -3,1 +3,1 @@ fn\n-p\n+q"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  [ -z "$(section diff "$output")" ]
+}
+
+# A file only one side changes is the PR adding or dropping it, which is news.
+@test "a file the PR newly touches is in the interdiff" {
+  merge_from_base
+  compare bbb m2 '[{"filename":"a.sh","patch":"@@ -1 +1 @@\n-old\n+new"},
+                   {"filename":"b.sh","patch":"@@ -9,1 +9,1 @@ fn\n-p\n+q"},
+                   {"filename":"c.sh","patch":"@@ -0,0 +1 @@\n+fresh"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  local d; d=$(section diff "$output")
+  [[ "$d" == *"b/c.sh (now)"* ]]
+  [[ "$d" != *a.sh* ]]
+}
+
+# A base commit next to the PR's hunk rewrites its context lines and the function
+# name echoed in its header; the lines the PR adds and removes are the same.
+@test "context lines a base commit rewrote do not make a file changed" {
+  merge_from_base
+  compare bbb m2 '[{"filename":"a.sh","patch":"@@ -1 +1,2 @@\n-old\n+new\n+newer"},
+                   {"filename":"b.sh","patch":"@@ -9,2 +9,2 @@ renamed_fn\n base edit\n-p\n+q"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  [[ "$(section diff "$output")" != *b.sh* ]]
+}
+
+# Lines a base commit inserted between two of the PR's nearby hunks split what
+# GitHub showed as one hunk into two; the PR's own lines are the same.
+@test "a hunk a base commit split in two does not make a file changed" {
+  merge_from_base
+  compare aaa m1 '[{"filename":"b.sh","patch":"@@ -3,4 +3,4 @@\n-p\n+q\n x\n-r\n+s"}]'
+  compare bbb m2 '[{"filename":"b.sh","patch":"@@ -3,2 +3,2 @@\n-p\n+q\n x\n@@ -20,2 +20,2 @@\n y\n-r\n+s"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  [ -z "$(section diff "$output")" ]
+}
+
+# The same hunk reached a different way: last reviewed as a rename, now as an
+# add. The patch text alone cannot tell them apart.
+@test "a file whose status changed is in the interdiff" {
+  merge_from_base
+  compare aaa m1 '[{"filename":"b.sh","status":"renamed","previous_filename":"old.sh","patch":"@@ -3 +3 @@\n-p\n+q"}]'
+  compare bbb m2 '[{"filename":"b.sh","status":"added","patch":"@@ -3 +3 @@\n-p\n+q"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  local d; d=$(section diff "$output")
+  [[ "$d" == *"-status: renamed from old.sh"* ]]
+  [[ "$d" == *"+status: added"* ]]
+}
+
+# The API omits `patch` for a binary file and drops it for a very large one, in a
+# response that otherwise succeeded. Diffing what is left would hide that file.
+@test "a file with no patch falls back to the delta" {
+  merge_from_base
+  compare bbb m2 '[{"filename":"a.sh","patch":"@@ -1 +1,2 @@\n-old\n+new\n+newer"},
+                   {"filename":"logo.png"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = delta ]
+  [[ "$(section diff "$output")" == *base.sh* ]]
+}
+
+@test "a file list at the API's 300-file cap falls back to the delta" {
+  merge_from_base
+  compare bbb m2 "$(jq -cn '[range(300) | {filename: "f\(.)", patch: "@@ -1 +1 @@\n-a\n+b"}]')"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = delta ]
+}
+
+@test "a failed compare falls back to the delta" {
+  merge_from_base
+  rm "$COMPARES/aaa"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = delta ]
+}
+
+@test "an unreadable base ref falls back to the delta" {
+  merge_from_base
+  : > "$BASE_REF"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = delta ]
+}
+
+# An ordinary push: the delta is already exactly the PR's new work.
+@test "an unmoved merge base keeps the delta" {
+  merge_from_base
+  compare bbb m1 '[{"filename":"a.sh","patch":"@@ -1 +1,2 @@\n-old\n+new\n+newer"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = delta ]
+}
+
+# A stacked PR's base is another branch; against the default branch both
+# compares would carry the parent PR's commits as this one's.
+@test "the compares run against the PR's own base ref" {
+  merge_from_base
+  echo feature/parent > "$BASE_REF"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  grep -q 'compare/feature/parent\.\.\.aaa' "$CALLS"
 }
 
 # Two lookups that both came back unparseable must not read as one tree.
