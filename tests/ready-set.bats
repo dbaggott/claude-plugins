@@ -161,6 +161,8 @@ round_of() {
     = "design false c1" ]
   [ "$(round_of null "$d"$'\r\n\r\nReviewed against `lastEditedAt`: null (never edited).')" = "design true c1" ]
   [ "$(round_of '"2026-10-28T00:14:15Z"' "$d"$'\n\nReviewed against `lastEditedAt`: null.')" = "design false c1" ]
+  [ "$(round_of '"2026-10-26T16:50:26Z"' $'**Set review (design mode), round 3: READY**\n\nReviewed against `lastEditedAt` 2026-10-26T16:50:26Z, together with the set.')" \
+    = "design true c1" ]
   [ "$(round_of null '**Spec review, round 1: READY**')" = "spec false c1" ]
   [ "$(round_of null '**Set review, round 3: CHANGES REQUESTED**')" = "set false c1" ]
 }

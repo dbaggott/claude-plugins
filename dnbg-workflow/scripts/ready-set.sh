@@ -34,9 +34,10 @@
 # latest round sits. A child with no verdict there is `no-ready-verdict`.
 #
 # `verdict_mode`, `verdict_current` and `verdict_url` describe the parent's
-# latest verdict, null without one: its mode from the first line (`(design
-# mode)`, or `Set review`), whether it was made against the body as it stands,
-# and its comment. Current means the value after the comment's first
+# latest verdict, null without one: its mode from the first line, `design`
+# for any round marked `(design mode)`, set or spec, else `set` for a `Set
+# review` and `spec` for the rest; whether it was made against the body as it
+# stands; and its comment. Current means the value after the comment's first
 # `lastEditedAt` is the body's `lastEditedAt`, `null` matching a body never
 # edited; a round naming none is not current. One query reads both, so an edit
 # between two reads cannot pair a new body with an old round.
@@ -157,8 +158,8 @@ OUT=$(printf '%s' "$ISSUE" | jq -c --arg slug "$SLUG" '
                          if $spec and $pv != "READY" then "design-not-ready" else empty end ] )
       ] as $open
     | { parent: { url, number, spec_review: $spec, verdict: $pv,
-                  verdict_mode: (if $pr == null then null elif $pr.head.k == "Set" then "set"
-                                 elif ($pr.head.m | test("design mode")) then "design" else "spec" end),
+                  verdict_mode: (if $pr == null then null elif ($pr.head.m | test("design mode")) then "design"
+                                 elif $pr.head.k == "Set" then "set" else "spec" end),
                   verdict_current: (if $pr == null then null
                                     else ($pr | watermark) as $w | $w != null and $w == $edited end),
                   verdict_url: ($pr.url? // null) },
