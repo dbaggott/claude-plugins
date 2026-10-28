@@ -20,7 +20,7 @@
 #   {"id":"PRRT_…","path":…,"line":…,"author":…,"body":…}
 #   result=OK head=<sha> verdict=<state> verdict_sha=<sha> at_head=0|1
 #     reviewed_after_head=0|1|unknown
-#     review_decision=<state> verdict_src=<s> diff=delta|full|none|fail
+#     review_decision=<state> verdict_src=<s> diff=delta|full|none|same-tree|fail
 #     activity=<n> reviews_src=<s> inline_src=<s> threads=<n> threads_src=<s>
 #
 #   result=ERROR reason=bad-args   # nothing was queried
@@ -45,6 +45,13 @@
 # by default, so on a PR past 100 inline comments page one is pure history and
 # nothing new ever appears. The bound traded for is 100 new inline comments in
 # one round.
+#
+# `diff=same-tree` is a HEAD that moved onto the very tree <since-sha> had, as
+# a rebase that only dropped a squash-merged parent's commits does. The compare
+# over that range carries the new base's changes as if they were the PR's, so
+# the section stays empty. The tree being the same does not make the PR's change
+# against its base the same: re-review.md carries the check for that. A tree
+# that cannot be read falls through to the delta.
 #
 # Runs under your own gh auth, like every read here — `GH_TOKEN` is unset, and
 # the children inherit that.
@@ -71,6 +78,15 @@ DIR=$(dirname "$0")
 field() {  # <key> <line>
   awk -v k="$1" '{ for (i = 1; i <= NF; i++) { n = index($i, "=")
       if (n && substr($i, 1, n - 1) == k) { print substr($i, n + 1); exit } } }' <<<"$2"
+}
+
+# The tree a commit points at, or a failure. The shape test keeps two answers
+# that both failed to parse (`null`, an error body) from comparing equal.
+tree_of() {  # <sha>
+  local t
+  t=$(gh api "repos/$REPO/git/commits/$1" --jq .tree.sha 2>/dev/null) || return 1
+  [[ "$t" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || return 1
+  printf '%s' "$t"
 }
 
 # 1. The standing verdict, and the HEAD the diff is taken against.
@@ -102,6 +118,8 @@ elif [ -z "$HEAD" ]; then
   diff_src="fail"   # the verdict call carries HEAD, and it failed
 elif [ "$SINCE_SHA" = "$HEAD" ]; then
   diff_src="none"
+elif SINCE_TREE=$(tree_of "$SINCE_SHA") && [ "$SINCE_TREE" = "$(tree_of "$HEAD")" ]; then
+  diff_src="same-tree"
 elif DIFF=$(gh api "repos/$REPO/compare/$SINCE_SHA...$HEAD" \
               -H "Accept: application/vnd.github.diff" 2>/dev/null); then
   diff_src="delta"
