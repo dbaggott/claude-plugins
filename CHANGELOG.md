@@ -10,6 +10,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.69 — 2026-10-28
+
+The retrospective format now lives with `process-review`, the skill that reads
+it, at `process-review/references/retrospective.md`; the orchestrator's own
+retrospective and the findings fold into a tracking issue moved to
+`orchestrate/references/findings-fold.md`. A spec reviewer's retrospective now
+carries the role `issue-reviewer`, apart from a PR reviewer's `reviewer`, and
+`process-review` still counts older files that used `reviewer` for both.
+
+
 ## dnbg-workflow 2026.10.68 — 2026-10-28
 
 `process-review` now saves each report under the retrospective root, in
