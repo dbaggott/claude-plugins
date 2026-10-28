@@ -1,0 +1,1 @@
+`process-review` now asks the spec-review question once for the issues it files in your own repos, and on "Spec-review it now" starts one set reviewer per repo, instead of asking once per filed issue and starting a reviewer for each. Gaps reported upstream still get no offer.
