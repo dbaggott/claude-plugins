@@ -1165,8 +1165,9 @@ tree_agents() {  # -> each agent definition's path
   local refs="$ROOT/dnbg-workflow/skills/issue-workflow/references" o bad=0
   grep -qF '### Spawn the reviewer' "$refs/spec-review-rounds.md" || {
     echo "spec-review-rounds.md lost the 'Spawn the reviewer' heading"; bad=1; }
-  joined "$refs/filing.md" | grep -qF '"Spawn the reviewer"' || {
-    echo "filing.md no longer enters the spawn branch by its heading"; bad=1; }
+  sed -n '/^## Offer the spec review$/,/^### /p' "$refs/filing.md" | tr '\n' ' ' | tr -s ' ' \
+    | grep -qF '"Spawn the reviewer"' || {
+    echo "filing.md's per-issue offer no longer enters the spawn branch by its heading"; bad=1; }
   for o in 'Spec-review it now (Recommended)' 'Not now'; do
     grep -qF "**\"$o\"**" "$refs/filing.md" || {
       echo "filing.md lost the offer option '$o'"; bad=1; }
