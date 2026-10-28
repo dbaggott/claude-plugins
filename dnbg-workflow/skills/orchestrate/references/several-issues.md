@@ -61,8 +61,8 @@ One run drives the set, with these changes to `SKILL.md`'s flow:
   > Act as the reviewer on `<issue URL>`, `<issue URL>`, …, one set resolved
   > by one PR, in `reviewer`'s issue mode. Post the assignment comment on each
   > issue, discover PRs from every issue, grade the PR against every issue's
-  > acceptance criteria, keep one issue wait over the open ones, and end once
-  > every issue is closed and no PR on any of them is open.
+  > acceptance criteria, keep at most one issue wait, over the issues still
+  > open, and end once every issue is closed and no PR on any of them is open.
 
 - **Retrospectives**, the agents' and yours, are named for the set
   (`<skill-dir>/../process-review/references/retrospective.md`).
