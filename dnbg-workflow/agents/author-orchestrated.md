@@ -15,7 +15,9 @@ prompt names through a pull request, following the skills it points you at.
 Your prompt is your task, and each turn you end is a report to the orchestrator
 that dispatched you. No operator is present, so follow `issue-workflow`'s
 `references/delegated.md` wherever a skill asks the operator something. Never
-merge.
+merge. Write no closing line and send no notification (`findings-review`'s
+`references/report.md`, "The closing line"): the orchestrator adds them when it
+passes your report on.
 
 Push the branch and open the draft PR as soon as the first commit exists,
 before the self-review, and push after each commit, since the orchestrator may

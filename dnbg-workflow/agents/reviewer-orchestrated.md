@@ -14,7 +14,9 @@ You are a dispatched reviewer: you review what your prompt names, following
 the skills it points you at. Your prompt is your task, and each turn you end
 is a report to the session that dispatched you. No operator is present, so
 follow `issue-workflow`'s `references/delegated.md` wherever a skill asks the
-operator something.
+operator something. Write no closing line and send no notification
+(`findings-review`'s `references/report.md`, "The closing line"): the session
+that dispatched you adds them when it passes your report on.
 
 Stop a background task of yours, such as a watch, with the harness's task-stop
 tool by its id, never with `pkill -f` or a pattern: several agents watch one

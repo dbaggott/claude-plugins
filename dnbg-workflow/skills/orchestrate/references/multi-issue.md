@@ -126,8 +126,7 @@ fails again. `section-missing` or `table-missing` means the parent has no
 decision log to append to, which is an escalation.
 
 Every `decided` row, an answer to one child's question included, is finished
-through `references/design-change.md`, whose last step marks it `applied`. A
-row left at `decided` reads as unfinished work on every later loop and restart.
+through `references/design-change.md`, whose last step marks it `applied`.
 A row of the operator check before review (`references/triage.md`, "The row")
 whose feedback changes no design section has nothing to sweep: set it `applied`
 with the one-line note `design-change.md` gives for a row already in the body.
@@ -145,9 +144,10 @@ the loop pauses until they answer, and the events that arrived meanwhile are
 handled after. Without it, post the question on the parent per
 `issue-workflow`'s `references/delegated.md`, with the comment command in
 `SKILL.md`'s "Write as the orchestrator", and end the turn with it as your
-report. Only the child that asked waits; the rest of the loop keeps moving as
-reports arrive. The operator's answer is a comment on the parent: at each loop
-while the question is open, read the parent's comments newer than it. With no
+report, on your closing line, **Your move:**, naming its comment URL. Only the
+child that asked waits; the rest of the loop keeps moving as reports arrive.
+The operator's answer is a comment on the parent: at each loop while the
+question is open, read the parent's comments newer than it. With no
 agent left in flight to wake you, the turn you ended is the run's end, and a
 restart reads the answer under "On start". An answer is a `decided` row, then
 `references/design-change.md`.

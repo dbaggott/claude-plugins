@@ -48,12 +48,13 @@ On **"My own session"**, in one turn, in this order:
    .updated_at`), for the issue or the parent and every child of a set, and keep
    the latest. No reviewer has acted yet, so it stands in for the first-arm
    rule's noted time, and it is not earlier than your own last body edit.
-2. Tell the operator, in these words: "Start the reviewer in a **new** session:
-   `review <URL> as a spec`. Leave this session open: it answers the reviewer's
-   findings, and it is already watching for the first round, so there is
-   nothing to tell it."
-3. Arm the watch in `references/spec-review-wait.md` over the same issues,
+2. Arm the watch in `references/spec-review-wait.md` over the same issues,
    with that `updated_at` as `--since` under the first-arm rule.
+3. Tell the operator, in these words, as the closing line in
+   `<skill-dir>/../findings-review/references/report.md`: "**Your move:** start
+   the reviewer in a **new** session: `review <URL> as a spec`. Leave this
+   session open: it answers the reviewer's findings, and it is already watching
+   for the first round, so there is nothing to tell it."
 
 ### Reaching the review without a hand-over
 
@@ -66,7 +67,7 @@ then reads the comments, and goes by the first of these that fits:
   "Handing the issue to its reviewer".
 - **Otherwise**, answer the latest round per "Answering" if it is unanswered,
   then ask whether a reviewer is still running. If one is, wait for it per
-  `references/spec-review-wait.md`: from the response after one, as in step 3
+  `references/spec-review-wait.md`: from the response after one, as in step 2
   without one. If not, a spawned reviewer having gone with its session, hand
   over from the top.
 

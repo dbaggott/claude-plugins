@@ -146,7 +146,10 @@ catch-all**:
   stamp, so the ordering check costs no extra call.
 - **`CLOSED`** — the issue was closed rather than answered. Say so and stop.
 - **`IDLE`** — the deadline elapsed. Re-arm; after a second empty window, tell the
-  operator nothing has landed rather than waiting silently. An `IDLE` carrying
+  operator nothing has landed rather than waiting silently, ending, unless you
+  are a dispatched agent, on the closing line in
+  `<skill-dir>/../findings-review/references/report.md`: **Your move:**
+  naming the response the watch waits on. An `IDLE` carrying
   `window_left=` is one run of a window too long for a single run, not an empty
   window: re-arm and don't count it.
 - **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not

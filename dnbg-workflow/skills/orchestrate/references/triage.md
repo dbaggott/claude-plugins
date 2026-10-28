@@ -90,8 +90,10 @@ log's final `result` line, and the PR's state from the forge:
   waits on the merge handoff: resume at once.
 - **The merge:** relay the handoff, and resume once the operator says the PR
   merged and the forge confirms it.
-- **An event not yet on the forge:** tell the operator what it waits on, and
-  resume when they say it has happened.
+- **An event not yet on the forge:** tell the operator what it waits on,
+  ending on the closing line in
+  `<skill-dir>/../findings-review/references/report.md`: **Your move:**
+  naming that event. Resume when they say it has happened.
 
 Resume with the same flags, a prompt naming the event and the subagents to
 reach, and the log appended to:

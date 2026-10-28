@@ -149,8 +149,11 @@ the catch-all**:
   repo is not on a forge this watch supports, and re-spawn.
 - **`IDLE`** — the deadline elapsed with nothing. Re-arm (carrying the exclusion
   list forward), and after the second empty window tell the operator nothing has
-  landed rather than waiting silently. Both sources ran, so this genuinely means no
-  PR references the issue — **don't reach for "the issue number is probably wrong"
+  landed rather than waiting silently, ending, unless you are a dispatched
+  agent, on the closing line in
+  `<skill-dir>/../findings-review/references/report.md`: **Your move:**
+  saying whether a PR is coming or the assignment should end. Both sources ran,
+  so this genuinely means no PR references the issue — **don't reach for "the issue number is probably wrong"
   as the explanation**. An `IDLE` carrying `window_left=` is one run of a window
   too long for a single run, not an empty window: re-arm and don't count it.
 

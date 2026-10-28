@@ -260,7 +260,8 @@ own Summary.
 - the author's merge handoff — relay it, under "Relay the merge handoff";
   its merge watch is armed;
 - the author's reminder that the PR is still open and needs merging — relay
-  it the same way. Its merge watch has stopped, so read the PR again when the
+  it the same way, ending on the same closing line but saying nothing watches
+  for the merge. Its merge watch has stopped, so read the PR again when the
   operator says it merged and at each later report, and once it shows merged,
   continue the author to its post-merge cleanup and final report;
 - the reviewer's handoff, a report whose first line is
@@ -354,9 +355,13 @@ reviewed_after_head=1`, forward the handoff: the verdict and its
 `verdict_sha`, the merge command exactly as the author composed it, on its own
 line in a fenced block, the author's report beneath, and beneath that each
 reviewer handoff on that PR, oldest first, or a line saying none at the
-`verdict_sha` has arrived. Change nothing in any report. Forward a reviewer
-handoff that arrives after the relay when it comes. Any other reading, continue
-the author with it. So does a PR description that still records a run as
+`verdict_sha` has arrived. Change nothing in any report. End the relay on
+your closing line, per `<skill-dir>/../findings-review/references/report.md`,
+"The closing line", after the last report passed on: **Your move:** merge,
+with the merge command repeated in its fenced block, while the author watches
+for the merge. The line is yours, not part of any report. Forward a reviewer
+handoff that arrives after the relay when it comes, ending on the same line.
+Any other reading, continue the author with it. So does a PR description that still records a run as
 `pending (deferred until after the first clean round)`: that approval is
 conditional, so continue the author to make the run or ask you for it, and
 relay the handoff once the reviewer has re-verdicted on its record.
@@ -374,7 +379,10 @@ in flight has a PR open or is waiting on the operator, so a fresh author can
 continue the pushed work. Then check every decision is on the issue,
 and in the parent under a tracking issue, stop your subagents, and
 tell the operator that you are restarting and why: they start a fresh session on
-the same URL, which resumes from GitHub and re-claims under "On start".
+the same URL, which resumes from GitHub and re-claims under "On start". End on
+your closing line, **Your move:**, with that session's prompt,
+`orchestrate <issue URL>`, in a fenced block, and notify, per
+`<skill-dir>/../findings-review/references/report.md`, "The closing line".
 
 ## Stop
 
@@ -430,6 +438,9 @@ says:
 
 Give each finding under Observations or Actionable its findings entry path,
 writing the entry per `<skill-dir>/../findings-review/references/entry.md` for
-any item no agent gave a path for.
+any item no agent gave a path for. End on your closing line, **Done:**, naming
+anything of yours still running and what ends it, or saying the session can be
+closed, and notify, per
+`<skill-dir>/../findings-review/references/report.md`, "The closing line".
 
 Never merge.
