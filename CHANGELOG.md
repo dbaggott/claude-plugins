@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.79 — 2026-10-28
+
+`pr-sources.sh` now prints each PR's state (`state=OPEN`, `MERGED`, `CLOSED`, or
+`unknown` when the PR could not be read) on its result line. The skills that find
+an issue's PRs filter on it instead of running `gh pr view` on every hit, so an
+issue with a long history of merged or unrelated PRs costs one call instead of
+one per PR.
+
+
 ## dnbg-workflow 2026.10.78 — 2026-10-28
 
 In a Claude Code sandboxed session, setting up pushes on a worktree you take
