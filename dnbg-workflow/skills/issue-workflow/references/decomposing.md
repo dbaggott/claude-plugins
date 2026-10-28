@@ -168,7 +168,8 @@ One body edit, after the last child is filed:
     `references/design-change.md` gives such a row, `Decision log: <date> <ID>
     set to applied, already in the body and every child`, naming a row whose ID
     is `—` by the opening words of its Entry, one comment carrying a line for
-    each, as the author:
+    each, as the author, from a file in your draft directory
+    (`git-workflow`'s "Draft files"):
 
     ```bash
     "<skill-dir>/../../scripts/as-role.sh" author <owner/repo> -- \
