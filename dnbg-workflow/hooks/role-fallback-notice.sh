@@ -6,7 +6,10 @@
 # cannot answer: the resolver itself reports that at the first role call.
 set -u
 
-LINE=$("$(dirname "$0")/../scripts/as-role.sh" --fallbacks 2>/dev/null) || exit 0
+# The answer is stdout's one line; a refusal's detail follows it on stderr.
+OUT=$("$(dirname "$0")/../scripts/as-role.sh" --fallbacks 2>&1) || exit 0
+LINE="${OUT%%$'\n'*}"
+DETAIL="${OUT#"$LINE"}"; DETAIL="${DETAIL#$'\n'}"
 case "$LINE" in
   "result=OK roles=none"|"") ;;
   result=OK\ roles=*)
@@ -27,6 +30,15 @@ EOM
 
 Every role call fails with `shared-identity`, naming the pair, until each role
 has its own App. The `reviewer-setup` skill creates one.
+EOM
+    ;;
+  "result=ERROR reason=bad-config")
+    cat <<EOM
+
+## dnbg-workflow: a role's config directory is refused
+
+${DETAIL}
+Every call for that role fails with \`bad-config\` until the variable changes.
 EOM
     ;;
 esac

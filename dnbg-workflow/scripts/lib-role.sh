@@ -37,10 +37,27 @@ role_env() {  # <role> <field> — the value of DNBG_<ROLE>_<field>, or empty
   printf '%s' "${!var:-}"
 }
 
+# DNBG_<ROLE>_CONFIG_DIR, else $XDG_CONFIG_HOME/dnbg/<role>, else
+# ~/.config/dnbg/<role>. A leading `~` or `~/` in the variable is $HOME; any
+# other `~` form (`~alice/x`) fails, printing nothing, and the caller reports
+# role_config_dir_refusal. bootstrap.py's default_config_dir applies the same
+# rule, so the two never read different directories.
 role_config_dir() {  # <role>
   local dir; dir=$(role_env "$1" CONFIG_DIR)
-  [ -n "$dir" ] || dir="${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/$1"
-  printf '%s\n' "${dir/#\~/$HOME}"   # a leading ~, as bootstrap.py's expanduser() reads it
+  if [ -z "$dir" ]; then
+    printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/dnbg/$1"; return
+  fi
+  case "$dir" in
+    \~|\~/*) dir="$HOME${dir#\~}" ;;
+    \~*) return 1 ;;
+  esac
+  printf '%s\n' "$dir"
+}
+
+role_config_dir_refusal() {  # <role>
+  local var; var="$(role_env_prefix "$1")CONFIG_DIR"
+  printf "the %s role's %s is '%s': a ~user path is not supported; use an absolute path, or one starting with ~/.\n" \
+    "$1" "$var" "$(role_env "$1" CONFIG_DIR)"
 }
 
 # operator or refuse; absent is refuse. Anything else is a defect in the role's
