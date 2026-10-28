@@ -25,11 +25,12 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    and the open children in one call, so a comment or body edit on the parent
    also reaches you. Spawn it in the background with `timeout: 7200000`, as
    `issue-mode-wait.md`'s wait is. Its `--since` follows the first-arm rule in
-   `watch-issue.sh`'s header: the `now=` of step 1's first snapshot.
+   `watch-issue.sh`'s header: on the first arm, the `since` `issue-mode.md`'s
+   assignment step fixed.
 
    ```bash
    "<skill-dir>/../../scripts/watch-issue.sh" <owner>/<repo> <parent> <open child…> \
-     --role=reviewer --since=<step 1's snapshot now=> --slug=<slug> \
+     --role=reviewer --since=<as above> --slug=<slug> \
      [--exclude=<url,url,...>]
    ```
 
