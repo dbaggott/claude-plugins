@@ -47,10 +47,10 @@ differently:
   - a re-run the PR or its orchestrator has recorded as in progress.
 
   If nothing else blocks, approve, and say in the verdict that the approval is
-  conditional on the run. When the run's record lands, re-verdict on the record
-  alone, by the rule for a criterion met by a run above. Where nothing under
-  the paths changed between the head you approved and the run's commit, the
-  record needs no other review.
+  conditional on the run. When the run's record lands, re-verdict on it by the
+  rule for a criterion met by a run above. With no commit since the head you
+  approved, the record is the whole re-review; commits since it get the usual
+  delta review as well.
 
 A `## Operator check before review` section is the resolver's stop for the
 operator's own look, and a `## Operator steps` section lists what only the

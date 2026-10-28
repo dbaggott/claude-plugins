@@ -27,11 +27,11 @@ merely mentioning it:
   until after the first clean round (`issue-workflow`'s
   `references/resolving.md`) starts, and its ask goes out, once the reviewer's
   conditional approval is in rather than before send-to-review. The run uses
-  the branch's skill text: read the changed files from the author's worktree in place of the
-  installed copies, and the author's record says it ran that way. A branch
-  that changes a script, a hook, or a skill a dispatched subagent loads needs
-  a fresh session loading the branch instead, which you launch yourself, per
-  "Run a branch-loaded session" below.
+  the branch's skill text: read the changed files from the author's worktree
+  in place of the installed copies, and the author's record says it ran that
+  way. A branch that changes a script, a hook, or a skill a dispatched
+  subagent loads needs a fresh session loading the branch instead, which you
+  launch yourself, per "Run a branch-loaded session" below.
 
 Everything else escalates, and these always do: a change to an external
 contract or to user-visible behavior, a change of scope, a choice between
