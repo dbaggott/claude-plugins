@@ -91,19 +91,20 @@ install() {  # <role> [<worktree>]
     fail bare-repo "$common/config sets core.bare=true or core.worktree, which extensions.worktreeConfig would apply to every worktree; move it to the main worktree's config.worktree first"
   fi
   origin=$(git -C "$wt" remote get-url origin 2>/dev/null) || fail no-origin "'$wt' has no origin remote"
-  if ! { git -C "$wt" config extensions.worktreeConfig true \
-      && { git -C "$wt" config --worktree --unset-all credential.helper || [ $? = 5 ]; } \
+  git -C "$wt" config extensions.worktreeConfig true >/dev/null 2>&1 \
+    || fail git-config "could not write $common/config, the repository's shared config, to set extensions.worktreeConfig. A sandbox is a likely cause: Claude Code's refuses a sandboxed write to .git/config even inside the working directory, and no allowWrite entry lifts that. Run this call outside the sandbox."
+  if ! { { git -C "$wt" config --worktree --unset-all credential.helper || [ $? = 5 ]; } \
       && git -C "$wt" config --worktree credential.helper '' \
       && git -C "$wt" config --worktree --add credential.helper "!\"$SELF\" $role" \
       && git -C "$wt" config --worktree credential.useHttpPath true; } >/dev/null 2>&1; then
-    fail git-config "could not write $wt's worktree config"
+    fail git-config "could not write $gitdir/config.worktree, $wt's own config. A sandbox that confines writes to the working tree is a likely cause. Run this call outside the sandbox."
   fi
   push=$(https_of "$origin")
   # A shared pushurl already says where pushes go, and one set here would only
   # be added beside it.
   if [ -n "$push" ] && ! git config --file "$common/config" --get remote.origin.pushurl >/dev/null 2>&1; then
     git -C "$wt" config --worktree remote.origin.pushurl "$push" >/dev/null 2>&1 \
-      || fail git-config "could not set $wt's push URL"
+      || fail git-config "could not write $gitdir/config.worktree, $wt's own config, to set its push URL. A sandbox that confines writes to the working tree is a likely cause. Run this call outside the sandbox."
   else
     push=""
   fi

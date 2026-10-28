@@ -204,6 +204,27 @@ fill() {  # <url-path> — git's own request, from inside the worktree
   git -C "$BATS_TEST_TMPDIR/bwt" status >/dev/null
 }
 
+# Claude Code's sandbox refuses .git/config wherever the session runs, while
+# the worktree's own config under .git/worktrees/ stays writable.
+@test "an unwritable shared config is reported by its path, with the sandbox as a likely cause" {
+  origin https://github.com/acme/r.git
+  chmod a-w "$MAIN/.git"
+  run --separate-stderr "$HELPER" --install author "$WT"
+  chmod u+w "$MAIN/.git"
+  [ "$output" = "result=ERROR reason=git-config" ]
+  [[ "$stderr" == *"could not write $(cd "$MAIN/.git" && pwd -P)/config,"* ]]
+  [[ "$stderr" == *"sandbox"* ]]
+}
+
+@test "an unwritable worktree config is reported by its path" {
+  origin https://github.com/acme/r.git
+  chmod a-w "$MAIN/.git/worktrees/wt"
+  run --separate-stderr "$HELPER" --install author "$WT"
+  chmod u+w "$MAIN/.git/worktrees/wt"
+  [ "$output" = "result=ERROR reason=git-config" ]
+  [[ "$stderr" == *"could not write $(cd "$MAIN/.git/worktrees/wt" && pwd -P)/config.worktree,"* ]]
+}
+
 @test "a Git LFS request is answered for the repository it belongs to" {
   origin https://github.com/acme/r.git
   "$HELPER" --install author "$WT"
