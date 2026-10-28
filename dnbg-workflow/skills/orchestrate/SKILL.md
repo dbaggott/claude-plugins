@@ -26,8 +26,8 @@ in `references/multi-issue.md`, which applies design changes per
 author, per `references/closeout.md`: the one artifact that is yours. Every
 agent in a run, you included, ends its part with a retrospective, per
 `<skill-dir>/../process-review/references/retrospective.md`; read it before
-dispatching. A retrospective
-carries only process. A finding about the code goes in a findings entry, per
+dispatching. A retrospective carries only process. A finding about the code
+goes in a findings entry, per
 `<skill-dir>/../findings-review/references/entry.md`, and that includes each
 systemic finding `references/multi-issue.md` raises, written when its row is,
 with the parent as its `source`.

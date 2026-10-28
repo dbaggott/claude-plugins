@@ -2,10 +2,12 @@
 
 Part of the `orchestrate` skill, read once a run's agents have sent their final
 reports: at Stop, and under a tracking issue at each child's end
-(`references/multi-issue.md`). The retrospective's format, and the agents' side
-of it, are in `process-review`'s `references/retrospective.md`, at
-`<skill-dir>/../process-review/references/retrospective.md`. `<skill-dir>` is
-the `orchestrate` skill's **Base directory**.
+(`references/multi-issue.md`). The retrospective's format is in
+`process-review`'s `references/retrospective.md`, at
+`<skill-dir>/../process-review/references/retrospective.md`, and so is
+collecting the agents' retrospectives: its "Asking the agents for one" says what
+to do when a final report arrives without one. `<skill-dir>` is the
+`orchestrate` skill's **Base directory**.
 
 ## Your own
 

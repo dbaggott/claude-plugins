@@ -19,7 +19,7 @@ agent sent here by path, the directory holding this file's `references/`.
 ## Where a retrospective goes
 
 In `~/.claude/dnbg-retrospectives/<owner>/<repo>/`, where `<owner>/<repo>` is
-the repo the orchestrated issue lives in. Expand `~` to your home directory and
+the repo the issue lives in. Expand `~` to your home directory and
 create the directory if it is missing.
 
 **`~/.claude/dnbg-retrospectives` is the default, not a constant.** If a
