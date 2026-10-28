@@ -15,7 +15,8 @@
 # An issue is claimed when it has an assignee or any `assigned:*` label. The
 # claim is then the latest line, across its comments, that opens with
 # `Claimed by`, and its id is what that line carries in parentheses, unless a
-# `Released by` line comes after it, which leaves no claim. OWN needs
+# later `Released by` line carries that same id, which leaves no claim; a
+# release with any other id, or none, is ignored. OWN needs
 # that id to equal this session's (`${CLAUDE_CODE_SESSION_ID:0:8}`); every other
 # claimed state is FOREIGN, and `claim=none` there means the claim carries no id
 # a session could have written: marks applied by hand, a claim predating ids, or
@@ -184,14 +185,16 @@ OUT=$(printf '%s' "$RAW" | jq -r '
   | if $i == null then error("no issue") else . end
   | (($i.assignees.nodes | length) > 0
      or ($i.labels.nodes | any(.name | startswith("assigned:")))) as $claimed
-  | [ $i.comments.nodes[] as $c
+  | reduce ($i.comments.nodes[] as $c
       | $c.body | split("\n")[] | sub("\r$"; "")
       | select(test("^(claimed|released) by"; "i"))
-      | if test("^released by"; "i") then { at: "", id: "" } else
-          { at: $c.createdAt,
-            id: ((capture("\\((?<id>[^)]*)\\)").id // "") | if . == "id unavailable" then "" else . end) }
-        end ]
-  | last as $latest
+      | { release: test("^released by"; "i"), at: $c.createdAt,
+          id: ((capture("\\((?<id>[^)]*)\\)").id // "") | if . == "id unavailable" then "" else . end) })
+    as $l (null;
+      if $l.release | not then $l
+      elif . != null and $l.id != "" and $l.id == .id then null
+      else . end)
+  | . as $latest
   | [ (if $claimed then 1 else 0 end), ($latest.id // ""), ($latest.at // ""),
       ($i.assignees.nodes | map(.login) | join(",")),
       ($i.labels.nodes | map(.name | select(startswith("assigned:"))) | join(",")) ]

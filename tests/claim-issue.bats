@@ -261,6 +261,22 @@ EOF
   [[ "$output" == "result=ERROR reason=not-own now="* ]]
 }
 
+# Only an exact id match moves the read toward proceeding, so a release line
+# that is not the latest claim's own (a sibling's, a quoted one, one with no id)
+# leaves that claim standing.
+@test "a release voids only the claim carrying its id" {
+  issue '["operator"]' '["assigned:agent-session"]' "[
+    $(comment 'Claimed by an agent session (0badc0de).' 2026-01-02T00:00:00Z),
+    $(comment 'Released by an agent session (c7f40c25).' 2026-01-03T00:00:00Z)]"
+  run "$CLAIM" o/r 7
+  [ "$output" = "result=FOREIGN claim=0badc0de at=2026-01-02T00:00:00Z assignees=operator labels=assigned:agent-session" ]
+  issue '["operator"]' '["assigned:agent-session"]' "[
+    $(comment 'Claimed by an agent session (0badc0de).' 2026-01-02T00:00:00Z),
+    $(comment 'Released by an agent session (id unavailable).' 2026-01-03T00:00:00Z)]"
+  run "$CLAIM" o/r 7
+  [ "$output" = "result=FOREIGN claim=0badc0de at=2026-01-02T00:00:00Z assignees=operator labels=assigned:agent-session" ]
+}
+
 @test "--release takes no other mode's flags" {
   run "$CLAIM" o/r 7 --release --claim
   [[ "$output" == *"reason=bad-args"* ]]
