@@ -190,7 +190,8 @@ When the review is clean, give the operator the merge handoff per
 as `SKILL.md`'s "Relay the merge handoff" places them, and re-arm the watch for the merge
 from its `── re-arm ──` line per its `references/merge-wait.md`. Never merge. The merge closes the parent. Run
 `git-workflow`'s post-merge cleanup (`references/post-merge.md`), then go to
-`references/multi-issue.md`'s "Stop", once the reviewer's close-out is in,
+`references/multi-issue.md`'s "Stop", once the reviewer's end, the report
+opening `**Reviewer close-out: assignment ended**`, is in,
 and write your own retrospective there, once for the whole run, with the parent
 as its issue (`references/findings-fold.md`, "Your own").
 If the PR closes unmerged, ask the operator whether to open a new one or stop.
