@@ -1,0 +1,1 @@
+The reviewer now re-verdicts when an author answers its last blocking finding without a new commit, such as a fix made only in the PR description or a rebuttal the reviewer accepts. Before, it resolved the thread and left its CHANGES REQUESTED standing on a head it no longer objected to, and the PR could not merge.
