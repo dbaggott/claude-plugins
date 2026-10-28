@@ -39,9 +39,10 @@ entries, don't act on the list: filing and fixing are the operator's call.
 
 ## The closing line
 
-Unless you are a dispatched agent, end every turn that leaves the next move to
-the operator, report or not, on a closing line, printed last, after Actionable
-and any Retrospective. It takes one of two leads:
+Unless you are a dispatched agent, end every turn that ends on the operator,
+whether it leaves them a move or ends the work, report or not, on a closing
+line, printed last, after Actionable and any Retrospective. It takes one of two
+leads:
 
 - **`**Your move:**`** followed by the action and what this session does
   meanwhile, such as "watching for the merge", with the action's URL or, in a
