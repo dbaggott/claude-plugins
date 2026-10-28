@@ -7,7 +7,8 @@ carries the host check and "Writing as the author".
 ## File it
 
 File it as the author (`SKILL.md`, "Writing as the author"), with the body
-drafted in your draft directory (`git-workflow`'s "Draft files"), and `<skill-dir>` this skill's Base directory:
+drafted in your draft directory (`git-workflow`'s "Draft files"), and
+`<skill-dir>` this skill's Base directory:
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \

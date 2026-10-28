@@ -58,7 +58,8 @@ the operator to run themselves.
 Every GitHub write you make, whether a comment, a body edit, a label or a claim,
 goes through the role resolver as `orchestrator`. It posts under the
 orchestrator's App, or under the operator's login when that App is not set up.
-A comment, from a body file in your draft directory (`git-workflow`'s "Draft files"):
+A comment, from a body file in your draft directory (`git-workflow`'s "Draft
+files"):
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
@@ -173,7 +174,7 @@ its role: the author as `dnbg-workflow:author-orchestrated`, the reviewer as
 A background subagent that ends its turn with a watch still running is woken
 when that watch returns, so each keeps its own watch across its turns.
 Give each its own draft directory and end its prompt with the line naming it,
-per `git-workflow`'s "Draft files", for every dispatch below, a re-dispatch included.
+per `git-workflow`'s "Draft files", for every dispatch below.
 
 **Operator steps first.** Before dispatching an author, ask the operator about
 the issue's `## Operator steps` (`issue-workflow`'s `references/creating.md`)

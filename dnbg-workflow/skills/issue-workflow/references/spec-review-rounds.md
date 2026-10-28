@@ -86,7 +86,8 @@ already replaced — say so rather than answering findings that may no longer ap
 **Edit the body first, then comment.** The comment is the receipt for edits
 already made. Reversing it makes the reviewer read a body that does not yet carry
 what you claimed, and report a fix missing that is not. Both go up as the author
-(`SKILL.md`, "Writing as the author"), each drafted in your draft directory (`git-workflow`'s "Draft files"):
+(`SKILL.md`, "Writing as the author"), each drafted in your draft directory
+(`git-workflow`'s "Draft files"):
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \

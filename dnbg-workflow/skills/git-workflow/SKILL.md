@@ -244,9 +244,7 @@ dispatcher's, and the newest file there may be a sibling's.
 **When you dispatch an agent** with the Agent tool, create its directory first,
 `mktemp -d <scratchpad>/<role>-<n>.XXXXXX`, where `<role>` is `author` or
 `reviewer` and `<n>` the number of the issue or PR it works on (the first, for a
-set), and end its prompt with the line `Your draft directory: <path>`. Every
-dispatch prompt a `dnbg-workflow` skill quotes takes that line, and a fresh
-agent replacing one that died gets a directory of its own.
+set), and end its prompt with the line `Your draft directory: <path>`.
 
 ## Multi-repo changes
 

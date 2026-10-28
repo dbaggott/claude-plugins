@@ -63,9 +63,9 @@ the bullets the log does not already carry. The bullets come from two places:
 description — its title without any `[<slug>] Tracking issue: ` prefix — as a
 lowercase-dashed slug. If the repo already keeps designs somewhere else
 under `docs/`, use that location instead. Open the PR as a draft per
-`git-workflow`, self-review included, drafting its description in your draft directory
-per that skill's "Draft files". The description opens with
-`Closes <parent URL>`, so the merge closes the parent.
+`git-workflow`, self-review included, drafting its description in your draft
+directory per that skill's "Draft files". The description opens with `Closes
+<parent URL>`, so the merge closes the parent.
 
 The doc is the parent body as built, not as planned:
 
