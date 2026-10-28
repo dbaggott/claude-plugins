@@ -10,6 +10,14 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.87 — 2026-10-28
+
+Corrected `issue-reviewer`'s description of who writes issues. It said issues
+are filed and edited under your own GitHub account; they go up as the author
+bot when one is set up, as `issue-workflow` already did. A documentation fix
+only: nothing posts differently.
+
+
 ## dnbg-workflow 2026.10.86 — 2026-10-28
 
 Fixed `orchestrate` stopping while its reviewer was still running. It stopped
