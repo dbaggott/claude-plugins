@@ -262,9 +262,13 @@ own Summary.
   `**Reviewer handoff: APPROVED at <sha>**` and whose Summary names the PR —
   hold it for "Relay the merge handoff"; it is not the reviewer's end, and its
   PR watch is armed;
-- the author's final report, or the reviewer's close-out on a PR, a report
-  whose first line begins `**Reviewer close-out:` — go to "Stop" once all are
-  in;
+- the reviewer's close-out on a PR, a report whose first line is
+  `**Reviewer close-out: merged**` or `**Reviewer close-out: closed
+  unmerged**` and whose Summary names the PR — it is not the reviewer's end,
+  since an issue-mode reviewer keeps discovering; go to "Stop" if the author's
+  final report is in, and otherwise hold it for then;
+- the author's final report, or the reviewer's end, a report whose first line
+  is `**Reviewer close-out: assignment ended**` — go to "Stop";
 - the author's report that its PR closed unmerged — ask the operator whether
   to dispatch a new author or stop;
 - a wait on its own background work — an armed watch, or a background review
@@ -368,15 +372,37 @@ the same URL, which resumes from GitHub and re-claims under "On start".
 ## Stop
 
 Stop once the author's final report, which follows the merge and its
-post-merge cleanup, and the reviewer's close-out on each PR that report names,
-the report opening `**Reviewer close-out:`, are all in. If the issue is still
-open then, say so in the report. In each sibling the author's final report
+post-merge cleanup, and the reviewer's end, the report opening `**Reviewer
+close-out: assignment ended**`, are both in. You always dispatch the reviewer in
+issue mode, whose assignment ends only when no PR on the issue is open and the
+issue is closed, so a per-PR close-out is never its end: stopping on one leaves
+the reviewer running with its retrospective unwritten.
+
+An issue can stay open after its last merge, as when a PR only references it or
+a closing keyword did not fire, and the reviewer then never reaches its end. So
+once the author's final report and the reviewer's close-out on each PR that
+report names are in, read the issue's state (`gh issue view <n> --json state`).
+Still open, ask the operator with `AskUserQuestion`, "`<issue URL>` is still
+open after its last PR merged. Close it?":
+
+1. **"Close it (Recommended)"** — close it (`gh issue close <n> --repo
+   <owner>/<repo>`, under "Write as the orchestrator"). The reviewer's issue
+   wait wakes on the close and reaches its end, and Stop continues on that
+   report.
+2. **"Leave it open"** — stop the reviewer's task by its id and continue
+   without its end, saying in the report that the issue is still open and the
+   reviewer's retrospective was not written.
+
+Without `AskUserQuestion`, take "Leave it open" rather than posting the
+question, and say in the report that you took it.
+
+In each sibling the author's final report
 names, mark shipped the items it lists, with the PR's URL, as `issue-workflow`'s
 "Maintaining issues" does, which comments them instead on a sibling someone
 else has claimed. The edit or the comment is yours, so it runs under "Write as
 the orchestrator". Under a tracking issue, `references/multi-issue.md` says how.
-Collect both agents' retrospectives, asking an agent whose final report names
-none as "Asking the agents for one" in
+Collect both agents' retrospectives, the reviewer's only when it reached its
+end, asking an agent whose final report names none as "Asking the agents for one" in
 `<skill-dir>/../process-review/references/retrospective.md` says, write your
 own, and, once the entries the report below needs are written, fold the run's
 findings entries into the parent, all per `references/findings-fold.md`. Then
