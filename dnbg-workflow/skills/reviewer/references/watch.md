@@ -176,7 +176,8 @@ retrospective is written".
 
 In the issue-scoped mode both reports fire **per PR**, and the close-out says
 nothing about the assignment being over: re-discovery decides that, and the
-retrospective prompt waits for the assignment's end (`references/issue-mode-wait.md`,
-step 4). Report the PR that just closed; don't write the section as a wrap-up.
+retrospective prompt waits for the assignment's end
+(`references/issue-mode-wait.md`, step 4). Report the PR that just closed;
+don't write the section as a wrap-up.
 The assignment's end is a report of its own, opening
 `**Reviewer close-out: assignment ended**`, which that step gives.

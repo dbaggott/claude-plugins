@@ -288,8 +288,9 @@ with what the state shows is still owed.
 
 **An agent died on an error** when its task ends `failed` on an API or usage
 limit error rather than with a report. Resume it with `SendMessage`, telling it
-to carry on from where it stopped, since its context survives: after a usage limit, once the reset time the error names has passed;
-after any other API error, after a few minutes. Wait on a background `sleep`
+to carry on from where it stopped, since its context survives: after a usage
+limit, once the reset time the error names has passed; after any other API
+error, after a few minutes. Wait on a background `sleep`
 with `timeout: 7200000`, and when it returns before the reset time, sleep
 again rather than resume. If it fails the same way again, ask the
 operator. Dispatch a fresh agent in its role only when `SendMessage` cannot
@@ -413,9 +414,10 @@ the orchestrator". Under a tracking issue, `references/multi-issue.md` says how.
 Collect both agents' close-outs per
 `<skill-dir>/../process-review/references/retrospective.md`'s "When a
 retrospective is written" and "Asking the agents for one", give your own the
-same way, and, once the entries the report below needs are written, fold the run's
-findings entries into the parent, all per `references/findings-fold.md`. Then
-report the cycle per `<skill-dir>/../findings-review/references/report.md`:
+same way, and, once the entries the report below needs are written, fold the
+run's findings entries into the parent, all per
+`references/findings-fold.md`. Then report the cycle per
+`<skill-dir>/../findings-review/references/report.md`:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the
