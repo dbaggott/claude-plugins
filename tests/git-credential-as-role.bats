@@ -216,6 +216,16 @@ fill() {  # <url-path> — git's own request, from inside the worktree
   [[ "$stderr" == *"sandbox"* ]]
 }
 
+@test "with the extension already set, an unwritable shared config does not stop the install" {
+  origin https://github.com/acme/r.git
+  git -C "$MAIN" config extensions.worktreeConfig true
+  chmod a-w "$MAIN/.git"
+  run "$HELPER" --install author "$WT"
+  chmod u+w "$MAIN/.git"
+  [ "$output" = "result=OK worktree=$WT pushurl=origin" ]
+  [ "$(git -C "$WT" config --worktree credential.useHttpPath)" = true ]
+}
+
 @test "an unwritable worktree config is reported by its path" {
   origin https://github.com/acme/r.git
   chmod a-w "$MAIN/.git/worktrees/wt"

@@ -49,6 +49,8 @@ per plugin.
    ```
 
    Run it on every worktree you work in, one you take over or continue included. It reads `result=OK`; on `result=ERROR`, stop and say what it named.
+
+   In a sandboxed Claude Code session, the first install in a repository fails with `reason=git-config`. It sets `extensions.worktreeConfig` in the main checkout's `.git/config`, which the sandbox never lets a command write, and no `sandbox.filesystem.allowWrite` entry changes that. Run that one call outside the sandbox. Later installs find the setting already there and write only under the main checkout's `.git/worktrees/<name>/`, which a sandboxed session started from the checkout, the worktree or a directory above them can write. Pushes and `gh` calls need network access to `github.com` and `api.github.com`. The sandbox refuses both unless they are allowed, in `sandbox.network.allowedDomains` or at its prompt.
 5. Make changes in the worktree.
 6. Commit.
 7. **Self-review the branch, and address what it finds** — before pushing. When the issue declares an operator check before review, that check comes first and moves the push and the draft PR ahead of this step: see "Operator check before review" below.

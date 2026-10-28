@@ -26,7 +26,8 @@
 # Points <worktree> (default: the current directory) at this helper, in that
 # worktree's own config, so the main checkout keeps the operator's credential:
 #   extensions.worktreeConfig=true        in the repository's shared config,
-#                                         which is what allows the rest
+#                                         which is what allows the rest; left
+#                                         unwritten when already true
 #   credential.helper= then this helper   the empty entry clears every helper
 #                                         read before it, `credential.<url>.helper`
 #                                         ones included (gitcredentials(7))
@@ -91,7 +92,11 @@ install() {  # <role> [<worktree>]
     fail bare-repo "$common/config sets core.bare=true or core.worktree, which extensions.worktreeConfig would apply to every worktree; move it to the main worktree's config.worktree first"
   fi
   origin=$(git -C "$wt" remote get-url origin 2>/dev/null) || fail no-origin "'$wt' has no origin remote"
-  git -C "$wt" config extensions.worktreeConfig true >/dev/null 2>&1 \
+  # Written only when unset: a sandboxed session cannot write .git/config, so
+  # skipping a write that changes nothing lets every install after a
+  # repository's first one run sandboxed.
+  [ "$(git config --file "$common/config" --type=bool --get extensions.worktreeConfig 2>/dev/null)" = true ] \
+    || git -C "$wt" config extensions.worktreeConfig true >/dev/null 2>&1 \
     || fail git-config "could not write $common/config, the repository's shared config, to set extensions.worktreeConfig. A sandbox is a likely cause: Claude Code's refuses a sandboxed write to .git/config even inside the working directory, and no allowWrite entry lifts that. Run this call outside the sandbox."
   if ! { { git -C "$wt" config --worktree --unset-all credential.helper || [ $? = 5 ]; } \
       && git -C "$wt" config --worktree credential.helper '' \
