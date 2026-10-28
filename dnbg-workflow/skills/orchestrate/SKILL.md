@@ -373,10 +373,8 @@ the same URL, which resumes from GitHub and re-claims under "On start".
 
 Stop once the author's final report, which follows the merge and its
 post-merge cleanup, and the reviewer's end, the report opening `**Reviewer
-close-out: assignment ended**`, are both in. You always dispatch the reviewer in
-issue mode, whose assignment ends only when no PR on the issue is open and the
-issue is closed, so a per-PR close-out is never its end: stopping on one leaves
-the reviewer running with its retrospective unwritten.
+close-out: assignment ended**`, are both in. The reviewer reaches its end only
+once no PR on the issue is open and the issue is closed.
 
 An issue can stay open after its last merge, as when a PR only references it or
 a closing keyword did not fire, and the reviewer then never reaches its end. So
@@ -402,7 +400,8 @@ names, mark shipped the items it lists, with the PR's URL, as `issue-workflow`'s
 else has claimed. The edit or the comment is yours, so it runs under "Write as
 the orchestrator". Under a tracking issue, `references/multi-issue.md` says how.
 Collect both agents' retrospectives, the reviewer's only when it reached its
-end, asking an agent whose final report names none as "Asking the agents for one" in
+end, asking an agent whose final report names none as "Asking the agents for
+one" in
 `<skill-dir>/../process-review/references/retrospective.md` says, write your
 own, and, once the entries the report below needs are written, fold the run's
 findings entries into the parent, all per `references/findings-fold.md`. Then

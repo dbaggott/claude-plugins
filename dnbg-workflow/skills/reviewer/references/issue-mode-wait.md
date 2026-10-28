@@ -33,10 +33,9 @@ So the assignment is a loop, not a pass:
    one per `<skill-dir>/../findings-review/references/report.md` on the
    assignment, its Summary naming the issue and each PR you reviewed with how
    it ended, and its first line is exactly
-   `**Reviewer close-out: assignment ended**`: a dispatcher waits for that line,
-   not for a PR's close-out, to know you are done. When the end comes in the
-   same turn as the last PR's close-out, both reports go in that turn, laid out
-   per `references/watch.md`'s "Report the review", with this one last.
+   `**Reviewer close-out: assignment ended**`. When the end comes in the same
+   turn as the last PR's close-out, both reports go in that turn, laid out per
+   `references/watch.md`'s "Report the review", with this one last.
 
 `gh search prs --owner <owner> head:<branch>` doesn't rescue a one-shot pass
 either — it is equally discovery-time, and it only finds siblings sharing a
