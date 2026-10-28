@@ -189,8 +189,8 @@ EOF
 [ -n "$RETROSPECTIVES_ON" ] && cat <<EOF
 - **Retrospectives are on**, not the off that \`process-review\`'s
   \`references/retrospective.md\` spells out. Every close-out writes its
-  retrospective file per that reference, and the report says nothing about
-  process friction beyond the file's path.
+  retrospective file, and handles friction in the report, as that reference's
+  on state says.
 EOF
 
 exit 0
