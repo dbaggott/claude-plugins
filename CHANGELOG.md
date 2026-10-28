@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.82 — 2026-10-28
+
+A reviewer on an issue now takes its first issue wait's `since` from the assignment step itself: the posted "acting as reviewer" comment's own time, or, when it skipped the post because the comment already exists or the post failed, a snapshot taken after that. Before, `since` came from a snapshot that had to run after the post, and a reviewer posting under the operator's login, because no reviewer App was set up, could wake on its own comment when it ran its first reads in a different order.
+
+
 ## dnbg-workflow 2026.10.81 — 2026-10-28
 
 An acceptance criterion met by a recorded run, such as an eval, no longer has
