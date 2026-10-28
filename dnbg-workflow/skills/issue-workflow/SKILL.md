@@ -64,8 +64,8 @@ Everything below applies to both.
 
 Every issue write this skill has you make goes up as the **author role**:
 filing an issue, editing its body or labels, commenting, claiming, minting a
-label. Each runs through the role resolver, with any body drafted in a file
-from `mktemp`:
+label. Each runs through the role resolver, with any body drafted in your
+draft directory (`git-workflow`'s "Draft files"):
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \

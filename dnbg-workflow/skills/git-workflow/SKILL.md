@@ -66,14 +66,14 @@ per plugin.
    - **A rename the issue specifies in full**, in any file, as long as each hunk only swaps the old name for the new one or rewraps the line it lands on. Its standards pass checks that the new name was not already taken, and greps the tree for the old one, which may stay only in released history such as CHANGELOG.md.
 
    Size alone never qualifies. Say the defect pass was skipped, and why, when you announce the PR and in the PR description, which names the files for generated, data or prose hunks and the issue for a rename.
-8. Push, and **open the PR as a draft**, its description drafted in a file from `mktemp` per "Writing the PR description":
+8. Push, and **open the PR as a draft**, its description drafted at `<file>`, which is `<draft directory>/pr-body.md` ("Draft files"):
 
    ```bash
    git -C <worktree-path> push -u origin <branch-name>
    "<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
      gh pr create --draft --repo <owner>/<repo> --head <branch-name> --title "<title>" --body-file <file>
    ```
-9. After each commit, push, and update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description. The new description goes in a file from `mktemp` too: `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh pr edit <number> --repo <owner>/<repo> --body-file <file>`.
+9. After each commit, push, and update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description. The new description goes in your draft directory too, per "Draft files": `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh pr edit <number> --repo <owner>/<repo> --body-file <file>`.
 10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker. Without `AskUserQuestion`, follow `<skill-dir>/../issue-workflow/references/delegated.md`.
 11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`"<skill-dir>/../../scripts/as-role.sh" author <repo> -- gh pr ready <number> --repo <repo>`) and start watching for the first review — see `references/review-rounds.md`, which carries the watch, and `references/watch-results.md` for what each of its results means. A review that comes in goes to `references/review-received.md`, findings to `references/review-findings.md`, and a clean verdict to `references/merge.md` for the handoff.
 12. Never merge. Only a human merges PRs.
@@ -201,13 +201,8 @@ The description reflects the **as-built** state, rewritten after each commit —
 - **Claim only the scope you checked.** The over-claim usually starts one step earlier, as an unexamined assumption written up as fact: that a change generalizes, that it fixes the root cause (not just the symptom you reproduced), that the correlation you saw is the cause, that nothing else is affected. Verify the assumption, or state the scope you actually verified ("fixes the observed case; other inputs unchecked"; "removes the symptom — root cause not confirmed"). An assumption is not a result.
 - **Surface gaps, not just wins.** Known limitations, unverified branches, and deferred follow-ups belong in the body — these are as-built facts about the result, not the development narrative ruled out above; omitting them reads as "all handled," and the next reader inherits the surprise.
 
-**Draft the description in a file from `mktemp`, never at a name you chose**:
-`mktemp <scratchpad>/body.XXXXXX` when the harness names a scratchpad directory,
-plain `mktemp` otherwise, and pass that path to `--body-file`. A dispatched
-subagent shares its dispatcher's scratchpad, so a name you chose is one another
-agent may choose too, and the next `--body-file` publishes its text over yours.
-The same goes for every issue body, comment or review you draft in a file
-before posting it.
+Draft the description as `pr-body.md` in your draft directory, per "Draft
+files" below.
 
 When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
 
@@ -224,6 +219,36 @@ When unsure whether a claim is earned, weaken it or cut it — a description a r
 ```
 
 It renders invisibly. Re-state it on every rewrite, carrying the rewriting session's version rather than the original. With no note, leave the stamp off — do not take the version from the manifest or from memory, since nothing downstream can tell a guessed version from a read one.
+
+## Draft files
+
+Every PR description, issue body, comment and review you draft in a file before
+posting it goes in **your draft directory**, under a fixed name for its purpose:
+`pr-body.md`, `issue-body.md`, `comment.md`, `review.md`, numbered when two of
+one purpose are drafted at once, such as a review's inline comments
+(`inline-1.md`, `inline-2.md`). Only you write the directory, so a fixed name
+cannot collide with another agent's draft, and you find a draft again by its
+name. Never find one by listing the scratchpad: a dispatched agent shares its
+dispatcher's, and the newest file there may be a sibling's.
+
+- **Which directory.** The one your prompt names on its `Your draft directory:
+  <path>` line. When nothing names one, as in a session nobody dispatched,
+  create it at your first draft with `mktemp -d <scratchpad>/drafts.XXXXXX`
+  (plain `mktemp -d` when the harness names no scratchpad directory), and state
+  its path in your next message, so it stays in your context across Bash calls.
+  If you lose the path, create another the same way rather than look for it.
+- **Before writing a draft**, run `mkdir -p <draft directory>`: the harness's
+  scratchpad can vanish mid-session.
+- **Posting one**: check it is non-empty first (`test -s <file>`), stopping
+  rather than posting an empty body, and delete it once it is posted (`rm
+  <file>`). A fixed name is reused next round, so a draft you failed to rewrite
+  would otherwise post last round's text. To change a posted body, read it back
+  from GitHub.
+
+**When you dispatch an agent** with the Agent tool, create its directory first,
+`mktemp -d <scratchpad>/<role>-<n>.XXXXXX`, where `<role>` is `author` or
+`reviewer` and `<n>` the number of the issue or PR it works on (the first, for a
+set), and end its prompt with the line `Your draft directory: <path>`.
 
 ## Multi-repo changes
 

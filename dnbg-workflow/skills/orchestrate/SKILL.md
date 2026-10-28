@@ -58,14 +58,15 @@ the operator to run themselves.
 Every GitHub write you make, whether a comment, a body edit, a label or a claim,
 goes through the role resolver as `orchestrator`. It posts under the
 orchestrator's App, or under the operator's login when that App is not set up.
-A comment, from a body file made with `mktemp`:
+A comment, from a body file in your draft directory (`git-workflow`'s "Draft
+files"):
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
   gh issue comment <n> --repo <owner>/<repo> --body-file <file>
 ```
 
-A body edit, from a body file made with `mktemp` too:
+A body edit, from a body file in your draft directory too:
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
@@ -172,9 +173,8 @@ its role: the author as `dnbg-workflow:author-orchestrated`, the reviewer as
 `dnbg-workflow:reviewer-orchestrated`.
 A background subagent that ends its turn with a watch still running is woken
 when that watch returns, so each keeps its own watch across its turns.
-Each also shares your scratchpad directory, so a draft file at a chosen name
-there is one you and it can both write; every draft file comes from `mktemp`,
-per `git-workflow`'s "Writing the PR description".
+Give each its own draft directory and end its prompt with the line naming it,
+per `git-workflow`'s "Draft files", for every dispatch below.
 
 **Operator steps first.** Before dispatching an author, ask the operator about
 the issue's `## Operator steps` (`issue-workflow`'s `references/creating.md`)
@@ -215,6 +215,7 @@ promote it into the body as its `## Operator check before review` section.
 > there: `<commits>`. It was answering `<review URL>`. It created `<scratch
 > issues and labels>`, which are yours to clean up.] [Promote these decided
 > rows into the issue body, linking each: `<row URLs>`.]
+> Your draft directory: `<path>`
 
 The bracketed phrase replaces "when you're done" whenever the check is declared
 (step 5); of the two bracketed lines after it, the first goes in for a check
@@ -232,6 +233,7 @@ send-to-review, or at once when step 3 found the PR already out of draft. Skip
 it when the operator said they will review the PR themselves.
 
 > Act as the reviewer on `<issue URL>`, in `reviewer`'s issue mode.
+> Your draft directory: `<path>`
 
 ## Wait on subagent reports
 

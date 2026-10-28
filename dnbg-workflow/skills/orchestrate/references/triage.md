@@ -160,7 +160,7 @@ Decision log: D4 — applied
 ```
 
 Post it under the orchestrator role (`SKILL.md`, "Write as the orchestrator"),
-from a body file made with `mktemp`:
+from a body file in your draft directory:
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \

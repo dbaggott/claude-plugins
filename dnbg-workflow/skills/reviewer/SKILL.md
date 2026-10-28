@@ -508,12 +508,13 @@ The call re-reads the head first and stops if it moved; a push in the moment
 between that read and the POST still leaves the review pinned to `<head-sha>`,
 and the watch's next tick sees the newer HEAD.
 
-Write the review body, and each inline comment's body, to its own file from
-`mktemp` (in the scratchpad, when the harness names one) with your file-writing
-tool, and hand each to `jq --rawfile`. Nothing then passes through the shell's
-quoting, so an apostrophe or a newline in a finding cannot break the command —
-which an inline `--arg "<body>"` does. The payload is built before the POST, so
-a file jq cannot read stops the call rather than posting an empty request:
+Write the review body, and each inline comment's body, to its own file in your
+draft directory (`<skill-dir>/../git-workflow/SKILL.md`, "Draft files") with
+your file-writing tool, and hand each to `jq --rawfile`. Nothing then passes
+through the shell's quoting, so an apostrophe or a newline in a finding cannot
+break the command — which an inline `--arg "<body>"` does. The payload is built
+before the POST, so a file jq cannot read stops the call rather than posting an
+empty request:
 
 ```bash
 HEAD_NOW="$(gh pr view <n> --repo <repo> --json headRefOid --jq .headRefOid)" || exit 1

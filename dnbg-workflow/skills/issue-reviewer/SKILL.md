@@ -244,8 +244,8 @@ detectable afterwards.** The gate in `references/rounds.md` narrows that window;
 nothing closes it, because re-validating is never atomic with posting.
 
 Rounds post under the bot identity, each post behind the resolver, which puts
-the bot's token in place for that one command. `<path>` is a file from `mktemp`,
-never a name you chose.
+the bot's token in place for that one command. `<path>` is a file in your
+draft directory (`<skill-dir>/../git-workflow/SKILL.md`, "Draft files").
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" reviewer <repo> -- \

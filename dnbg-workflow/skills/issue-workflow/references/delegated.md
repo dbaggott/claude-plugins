@@ -29,7 +29,7 @@ Only a question nothing answered stops you.
    PR when there is no issue. The issue is where the dispatcher watches, so a
    question about a PR still goes on its issue when there is one. A reviewer
    posts on what it was asked to review. Post it as your role, with the body
-   drafted in a file from `mktemp`:
+   drafted in your draft directory (`git-workflow`'s "Draft files"):
 
    ```bash
    "<skill-dir>/../../scripts/as-role.sh" <role> <owner>/<repo> -- \
