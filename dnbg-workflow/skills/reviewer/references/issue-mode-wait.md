@@ -59,9 +59,8 @@ returns no result line. Its `--since` follows the first-arm rule in
 `watch-issue.sh`'s header, and is taken before the discovery pass leading to
 the arm, so a PR opened while you looked still wakes it. On the first pass it is
 the `since` `issue-mode.md`'s assignment step fixed, from the path that step
-took. On a later
-pass it is the `since` the returning PR watch was armed with, since its
-`CLOSED` carries no `now=`. `<slug>` is the bot's login, the `login=` of
+took. On a later pass it is the `since` the returning PR watch was armed with,
+since its `CLOSED` carries no `now=`. `<slug>` is the bot's login, the `login=` of
 `SKILL.md`'s login answer (`as-role.sh --login reviewer <owner>/<repo>`).
 
 ```bash

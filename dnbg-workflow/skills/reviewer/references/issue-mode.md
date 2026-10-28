@@ -76,16 +76,17 @@ gh issue view <n> --repo <repo> --json comments --jq \
 **This step also fixes the first issue wait's `since`**
 (`references/issue-mode-wait.md`), from whichever path it took:
 
-- **Posted:** the `created_at` the post printed, so the wait counts only what
-  follows your own comment.
+- **Posted:** the `created_at` the post printed. It stands in for the
+  first-arm rule's stamp noted before the action: your own comment falls at
+  `since` and drops out, under the bot's login or the operator's.
 - **Skipped, because the check printed more than 0:** the `now=` of a
   `fetch-issue-set.sh` call made after the check. The inherited comment's own
   time would wake the wait on everything since the original assignment.
 - **The post failed:** the `now=` of a `fetch-issue-set.sh` call made after
   the failure.
 
-The snapshot below is that call when it ran after the check or the failure;
-otherwise run it again.
+On those two paths, the snapshot below is that call when it ran after the check
+or the failure; when it ran before them, run it once more.
 
 **Then snapshot its sub-issues**, since an issue that has them is reviewed
 differently:
