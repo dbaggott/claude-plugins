@@ -10,8 +10,8 @@ Each return is also a line to the operator: what came back, what you did, the PR
 URL. Not a re-summary of the review — that is already on the PR, and the reports
 are owed at an approval and at `CLOSED`, per "Report the review" below. A turn
 that ends with one of those reports opens with its first line, and the return's
-line goes into its Summary: the dispatcher recognises each report by its first
-line.
+line goes into the Summary of the report on that PR: the dispatcher recognises
+each report by its first line.
 
 `COMMITS`, `ACTIVITY` and `READY` carry a `── next ──` line — the `pr-round.sh`
 call, arguments filled in, returning the diff, the bodies, the threads and the
@@ -141,12 +141,6 @@ moments on each PR:
   handoff" says, or the full report where you have none, as when the PR closed
   without an approval.
 
-One turn can owe several reports, as when the issue-scoped mode approves one PR
-on the wake that another merged. Give each report its own first line, starting
-at the beginning of a line, and the complete report under it before the next
-begins, the turn opening with the first. This holds for every report line this
-skill defines, not only the two above.
-
 Under the headings:
 
 - **Summary**: the PR, the verdicts you posted and the SHAs they sat on, how
@@ -157,6 +151,15 @@ Under the headings:
 - **Actionable**: any other finding you raised that stands unaddressed, a
   thread you resolved on the author's reasoning that you still think deserves a
   follow-up, a coverage gap the diff carries.
+
+One turn can owe several reports, as when the issue-scoped mode approves one PR
+on the wake that another merged. Give each report its own first line at the
+start of a line, with the complete report under it, its Summary naming its PR,
+before the next begins; the turn opens with the first, and a report carrying the
+assignment's end and its retrospective path comes last. The layout holds for
+any report this skill gives a first line. Start a line with one of those first
+lines only to open a report: one quoted at the start of a line reads as a report
+of its own.
 
 Write each item's findings entry in the report that first lists it, which is
 the handoff whenever there is one, per

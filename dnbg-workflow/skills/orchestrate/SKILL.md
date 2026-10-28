@@ -234,10 +234,11 @@ it when the operator said they will review the PR themselves.
 
 Never poll in the conversation, and arm no issue watch. Each event reaches you
 as a subagent ending its turn, and that turn's report is the event. Act on what
-it ends with. A reviewer's turn can carry several reports one after another,
-each opening with its own recognised first line: scan the whole report for
-those lines at the start of a line, not only its first, and handle each report
-found, matched to its PR by that report's own Summary.
+it ends with, and on every report found in it. A reviewer's turn can carry
+several reports one after another, each opening with its own recognised first
+line: scan the whole turn for those lines at the start of a line, not only its
+first line, and handle each report found, matched to its PR by that report's
+own Summary.
 
 - a question — triage it, under "Answer or escalate"; the author's stop at
   its operator check before review is one, posted as a `Delegated question:`
