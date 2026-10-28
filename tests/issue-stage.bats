@@ -175,6 +175,13 @@ closing_pr() {
   [[ "$output" == *" stage=design-review "*"acceptance_row=no"* ]]
 }
 
+@test "an applied acceptance row is still acceptance" {
+  use tracking-accepted
+  edit "stage:$R#223" '.data.repository.issue.body |= sub("\\| decided \\|$"; "| applied |")'
+  run "$STAGE" $R 223 $SLUG
+  [ "$output" = "result=OK kind=tracking stage=accepted next=decompose evidence=children=0 acceptance_row=yes" ]
+}
+
 @test "a plain issue with a claim is in progress" {
   use plain-ready
   edit "claim:$R#407" '.data.repository.issue.labels.nodes += [{name: "assigned:agent-session"}]'

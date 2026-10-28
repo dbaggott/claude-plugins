@@ -152,23 +152,30 @@ One body edit, after the last child is filed:
 - Every `decided` row set to `applied`, with none left at `decided`. You own
   every child and none is in flight yet, so applying a row now is part of this
   pass:
-  - **A row the children were written from** matches the body and every child
-    by construction, and is set to `applied` as it stands.
-  - **A row decided after step 2 began** that reaches a child: edit that
-    child's body to match it first, linking the row from the section it
-    changes, as `orchestrate`'s `references/triage.md`, "Promote decided rows
-    into the body", does, then set it to `applied`.
-  - **A row that reaches no child**, a decision about the parent alone: once
-    the body carries it, set it to `applied`. Post the line `orchestrate`'s
-    `references/design-change.md` gives such a row, `Decision log: <date> <ID>
-    set to applied, already in the body and every child`, on the parent as the
-    author, one comment carrying a line for every such row.
-  - **The acceptance row** (`Design accepted: …`) is one of those parent-only
-    rows. Setting it to `applied` keeps the design accepted, since acceptance
-    is detected by that Entry at any state but `proposed`.
+  - **A row decided before step 2 began**, the acceptance row (`Design
+    accepted: …`) among them: the body already carries it and the children
+    were written from it, so set it to `applied` as it stands. The design stays
+    accepted, since acceptance is detected by that Entry at any state but
+    `proposed`.
+  - **A row decided after step 2 began**: apply it to the body as the opening
+    of this file applies one before step 1. Where it reaches a child, edit that
+    child's body to match, linking the row from the section it changes as
+    `orchestrate`'s `references/triage.md`, "Promote decided rows into the
+    body", does; where it changes the split, the filed table, the child's
+    `Covers` and `Depends on`, and its relationships (step 4's call) change
+    with it. Then set it to `applied`. For such a row that reaches no child, a
+    decision about the parent alone, post the line `orchestrate`'s
+    `references/design-change.md` gives a row already in the body and every
+    child, `Decision log: <date> <ID> set to applied, already in the body and
+    every child`, one comment carrying a line for each, as the author:
+
+    ```bash
+    "<skill-dir>/../../scripts/as-role.sh" author <owner/repo> -- \
+      gh issue comment <parent> --repo <owner/repo> --body-file <file>
+    ```
 - One decision-log row recording the filing, its Entry opening `Children
   filed`, state `applied`, written last, so it is the newest row and every row
-  above it is final or `proposed`.
+  above it is `applied` or `proposed`.
 
 ## 6. Send the set to review
 
