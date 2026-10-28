@@ -40,12 +40,12 @@ entries, don't act on the list: filing and fixing are the operator's call.
 ## The closing line
 
 Unless you are a dispatched agent, end every turn that leaves the next move to
-the operator, report or not, on one closing line, printed last, after
-Actionable and any Retrospective. It takes one of two leads:
+the operator, report or not, on a closing line, printed last, after Actionable
+and any Retrospective. It takes one of two leads:
 
-- **`**Your move:**`** followed by the action, repeating its command in a fenced
-  block or its URL even when either appears above, and what this session does
-  meanwhile, such as "watching for the merge".
+- **`**Your move:**`** followed by the action and what this session does
+  meanwhile, such as "watching for the merge", with the action's URL or, in a
+  fenced block beneath the line, its command, even when either appears above.
 - **`**Done:**`** followed by "nothing is running; this session can be closed",
   or by each watcher, subagent or background task still running and what ends
   it.
@@ -61,8 +61,8 @@ the terminal and already sees the turn; it is not an error. A Done notifies only
 at `orchestrate`'s Stop, which ends a run long enough that the operator has
 likely left.
 
-A dispatched agent, one whose definition says each turn is a report to the
-session that dispatched it, writes no closing line and sends no notification.
+A dispatched agent, any subagent whose turns end in a report to the session
+that dispatched it, writes no closing line and sends no notification.
 The session that passes its report on adds them.
 
 ## A report after a handoff
