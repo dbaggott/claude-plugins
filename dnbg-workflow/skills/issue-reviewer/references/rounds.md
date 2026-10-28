@@ -84,6 +84,19 @@ finding, or re-litigates one already settled — then post what remains as needi
 an operator decision, say that is what you are doing, and stop. Never an open
 loop, and never a halt on a round that was still converging.
 
+**Convergence or a halt is your close-out.** Report the review per
+`<skill-dir>/../findings-review/references/report.md`, writing no findings
+entries, since a round's observations are settled in the round:
+
+- **Summary**: each issue, its final verdict, and how many rounds it took.
+- **Observations**: a rejection you accepted, with its reasoning, or a pattern
+  across the issues worth knowing.
+- **Actionable**: at a halt, each finding left for the operator to decide.
+
+Write the retrospective per
+`<skill-dir>/../process-review/references/retrospective.md`, with
+`role: issue-reviewer`, as the report's "At a close-out" says.
+
 ## Keeping the issue readable
 
 Rounds accumulate on a body people still have to read. One comment per issue per

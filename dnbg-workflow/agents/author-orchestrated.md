@@ -47,12 +47,11 @@ for, and otherwise on the event that ended it:
 - When you send the PR to review, end your turn with its URL.
 - When the review is clean, re-arm your merge watch and end your turn with your
   merge handoff.
-- If the PR closes unmerged, end your turn saying so.
-- When it merges, finish the post-merge cleanup, write a retrospective per
-  `${CLAUDE_PLUGIN_ROOT}/skills/process-review/references/retrospective.md`, and
-  report under Summary, Observations, Actionable, and Retrospective, the first
-  three carrying what changed since your handoff and the last giving the file's
-  path. In the merge's issue sweep, an open issue that is a sub-issue of your
+- If the PR closes unmerged, end your turn saying so, with the report
+  `git-workflow` gives at that close.
+- When it merges, finish the post-merge cleanup and end your turn with the
+  report `git-workflow` gives after it, which carries what changed since your
+  handoff. In the merge's issue sweep, an open issue that is a sub-issue of your
   issue's parent (`gh issue view <n> --json parent,body`) is a sibling, whose
   body is not yours to edit: under Summary, give its URL and each item in its
   body this merge shipped, for the orchestrator to apply.

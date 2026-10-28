@@ -19,7 +19,3 @@ operator something.
 Stop a background task of yours, such as a watch, with the harness's task-stop
 tool by its id, never with `pkill -f` or a pattern: several agents watch one
 PR, and a pattern reaches theirs too.
-
-When your review ends, write a retrospective per
-`${CLAUDE_PLUGIN_ROOT}/skills/process-review/references/retrospective.md`, and
-end your final report with a **Retrospective** section giving the file's path.

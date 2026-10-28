@@ -50,16 +50,19 @@ gh pr merge 48 --repo <owner>/examples --squash --delete-branch
 
 ## The report that goes with the command
 
-Below the command, report the cycle under exactly these three headings, in this order. The operator reads it before deciding to merge, so an item here can still send the PR back for one more change, where the same item read after the merge costs a second PR. **Print all three every time; an empty one says so in a few words** — an omitted section reads as "nothing there" and "never considered" alike.
+Below the command, report the cycle per
+`<skill-dir>/../findings-review/references/report.md`. The operator reads it
+before deciding to merge, so an item here can still send the PR back for one
+more change, where the same item read after the merge costs a second PR.
 
-**Actionable is the narrow section, and doubt resolves toward Observations** — the one the operator is invited to skim. An item earns Actionable only by naming a concrete next step and where. One you already judged as not worth raising during the cycle does not earn it here: passing it on hands over the work without the judgement that would let the operator size it. A clean cycle routinely leaves the section empty.
+- **Summary**: the PR, what it ships as-built, and how the cycle went (rounds,
+  verdicts, anything the review changed about the work).
+- **Observations**: something surprising in the code you touched, an
+  assumption the change now rests on, a check that passed for a reason worth
+  knowing.
+- **Actionable**: findings deferred with "Merge as-is", a follow-up the reviewer
+  raised that you didn't take, setup or config the merged change will need, an
+  out-of-scope defect you left alone.
 
-- **Summary** — what happened. The PR by full URL, what it ships as-built, and how the cycle went (rounds, verdicts, anything the review changed about the work). Self-contained: the operator may have been away since sending it to review.
-- **Observations** — informational, and nothing for them to do. Something surprising in the code you touched, an assumption the change now rests on, a check that passed for a reason worth knowing.
-- **Actionable** — findings deferred with "Merge as-is", a follow-up the reviewer raised that you didn't take, setup or config the merged change will need, an out-of-scope defect you left alone. One line each, naming the concrete next step and where. Out of scope is what qualifies a deferral, not merely having decided against it.
-
-A finding raised in a PR comment, by the reviewer or anyone else, that you neither acted on nor listed above goes under Observations or Actionable. Write each finding as a findings entry per `<skill-dir>/../findings-review/references/entry.md`, which says which items get one, and name the entry's path on the item's line.
-
-Beyond writing those entries, don't act on that list — filing and fixing are the operator's call, and `issue-workflow` covers the filing once they make it.
-
-This report is the baseline the post-merge report in `references/post-merge.md` is a delta against.
+This report is the handoff the post-merge report in `references/post-merge.md`
+is a delta against.

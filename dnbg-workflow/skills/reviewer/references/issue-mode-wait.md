@@ -26,7 +26,13 @@ So the assignment is a loop, not a pass:
    `ACTIVITY`.
 4. **End only when a fresh discovery pass finds no open PR *and* the issue is
    closed.** An open issue with everything merged means more work may still be
-   coming; that is not completion.
+   coming; that is not completion. That end is your close-out: write the
+   retrospective per
+   `<skill-dir>/../process-review/references/retrospective.md`, with the issue
+   as its `issue:`, and end your final report with its path. That report is the
+   last PR's, from `references/watch.md`'s "Report the review", when the end
+   comes in the same turn; otherwise one per
+   `<skill-dir>/../findings-review/references/report.md` on the assignment.
 
 `gh search prs --owner <owner> head:<branch>` doesn't rescue a one-shot pass
 either — it is equally discovery-time, and it only finds siblings sharing a
@@ -127,7 +133,7 @@ the catch-all**:
   `CLOSED`, which can arrive after this one, so check each PR you reviewed with
   `gh pr view <url> --json state,closingIssuesReferences` and report the close
   here only when none of them caused it: the work was dropped or resolved
-  without a PR.
+  without a PR. Discovery finding no open PR is the end in step 4.
 - **`ERROR reason=issue-query`** — the watch could not see the issue. **Do not
   re-arm**, and do **not** report that nothing has landed: you do not know that.
   Expired auth, or every issue number resolving to nothing, produces exactly this.
@@ -156,7 +162,8 @@ Two fields ride any of those results, and both mean an issue has left the set:
   same wake as activity on the others. Handle the activity *and* report the
   closure — treating the line as activity alone leaves you re-discovering PRs for
   a closed issue. When it was the last watched issue, no re-arm line is printed:
-  there is nothing left to watch, so stop.
+  there is nothing left to watch, so stop the issue wait. Any open PR keeps its
+  own watch, and step 4's end comes when a discovery pass finds none open.
 - **`missing=<n,…>`** names numbers that resolve to no issue — a typo, a
   transfer, or a PR number. Say so rather than assuming those issues are quiet.
 
