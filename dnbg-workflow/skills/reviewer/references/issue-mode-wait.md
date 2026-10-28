@@ -58,11 +58,9 @@ Without the timeout a headless session stops the watch after 10 minutes, and it
 returns no result line. Its `--since` follows the first-arm rule in
 `watch-issue.sh`'s header, and is taken before the discovery pass leading to
 the arm, so a PR opened while you looked still wakes it. On the first pass it is
-the `now=` of `issue-mode.md`'s `fetch-issue-set.sh` snapshot, which that file
-takes after posting the "acting as reviewer" comment, so the wait counts only
-what follows that comment: don't stamp `since` before posting it. On a later
-pass it is the `since` the returning PR watch was armed with, since its
-`CLOSED` carries no `now=`. `<slug>` is the bot's login, the `login=` of
+the `since` `issue-mode.md`'s assignment step fixed, from the path that step
+took. On a later pass it is the `since` the returning PR watch was armed with,
+since its `CLOSED` carries no `now=`. `<slug>` is the bot's login, the `login=` of
 `SKILL.md`'s login answer (`as-role.sh --login reviewer <owner>/<repo>`).
 
 ```bash
