@@ -359,6 +359,8 @@ nap() {
 
 while :; do
   OUT=$("$HERE/fetch-pr-state.sh" "$REPO" "$PR" 2>/dev/null) || OUT=""
+  # The tick's one clock read, after the fetch so every deadline below is fresh.
+  poll_tick; tick_at=$(poll_now)
   LINE=$(printf '%s\n' "$OUT" | tail -1)
   J=$(printf '%s\n' "$OUT" | sed '$d')
   [ -n "$J" ] && last_json="$J"
@@ -380,7 +382,7 @@ while :; do
   if [ "$ok" = 0 ]; then
     poll_reset
     if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
-       && [ "$(date +%s)" -ge "$settle_cap" ] && have_burst; then
+       && [ "$tick_at" -ge "$settle_cap" ] && have_burst; then
       report_burst
     fi
     { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out && report_idle
@@ -548,12 +550,12 @@ while :; do
 
   if [ "$changed" = 1 ]; then
     poll_reset
-    [ "$settle_until" = 0 ] && settle_cap=$(( $(date +%s) + SETTLE_MAX ))
-    settle_until=$(( $(date +%s) + SETTLE ))
+    [ "$settle_until" = 0 ] && settle_cap=$(( $tick_at + SETTLE_MAX ))
+    settle_until=$(( $tick_at + SETTLE ))
   fi
 
   if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
-     && { [ "$(date +%s)" -ge "$settle_until" ] || [ "$(date +%s)" -ge "$settle_cap" ]; }; then
+     && { [ "$tick_at" -ge "$settle_until" ] || [ "$tick_at" -ge "$settle_cap" ]; }; then
     if have_burst; then
       report_burst
     else

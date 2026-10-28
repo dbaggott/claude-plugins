@@ -15,6 +15,14 @@
 # about to act. `poll_nap` detects a suspend as overshoot on its own sleep and
 # banks it in `_poll_suspended`, which every elapsed calculation subtracts.
 #
+# The clock is read once and then answered from: `poll_init`, `poll_tick` and
+# `poll_nap`'s own reads around each sleep set `_poll_now`, and every derived
+# question (`poll_awake`, `poll_quiet`, `poll_wall`, `poll_timed_out`,
+# `poll_split_left`, `poll_broken`, `poll_now`) answers as of that read and
+# forks nothing. A caller that lets time pass outside a nap calls `poll_tick`
+# before asking; both watches do, right after each tick's fetch returns, so a
+# tick costs one read where it once cost one per question.
+#
 # ## The curve
 #
 # A watch is most valuable early. A PR merges, a review lands, or a PR shows up
@@ -356,7 +364,7 @@ poll_interval_at() {
   echo "${_poll_i[$((n - 1))]}"
 }
 
-_poll_start=0; _poll_suspended=0; _poll_baseline=0; _poll_beat=0
+_poll_start=0; _poll_suspended=0; _poll_baseline=0; _poll_beat=0; _poll_now=0
 
 # Call once, after the knobs are set and before the loop.
 #
@@ -365,13 +373,19 @@ _poll_start=0; _poll_suspended=0; _poll_baseline=0; _poll_beat=0
 # and restarting at the floor every ceiling would keep a six-hour wait from ever
 # reaching the cap.
 poll_init() {
-  _poll_start=$(date +%s); _poll_suspended=0; _poll_beat=0
+  _poll_now=$(date +%s); _poll_start=$_poll_now; _poll_suspended=0; _poll_beat=0
   _poll_baseline=$(( WINDOW_LEFT < WINDOW ? WINDOW_LEFT - WINDOW : 0 ))
   poll_trace_init
 }
 
+# Reads the clock for every question asked until the next read — see the header.
+poll_tick() { _poll_now=$(date +%s); }
+
+# Epoch seconds as of the last read, for a caller's own deadlines.
+poll_now() { echo "$_poll_now"; }
+
 # Awake seconds since poll_init.
-poll_awake() { echo $(( $(date +%s) - _poll_start - _poll_suspended )); }
+poll_awake() { echo $(( _poll_now - _poll_start - _poll_suspended )); }
 
 # Awake seconds since the last poll_reset — the curve's input.
 poll_quiet() { echo $(( $(poll_awake) - _poll_baseline )); }
@@ -387,7 +401,7 @@ poll_reset() { _poll_baseline=$(poll_awake); }
 poll_interval() { poll_interval_at "$(poll_quiet)"; }
 
 # Wall-clock seconds since poll_init — the ceiling's input, not the window's.
-poll_wall() { echo $(( $(date +%s) - _poll_start )); }
+poll_wall() { echo $(( _poll_now - _poll_start )); }
 
 poll_timed_out() {
   [ "$(poll_awake)" -ge "$WINDOW_LEFT" ] || [ "$(poll_wall)" -ge "$WINDOW_CEILING" ]
@@ -454,20 +468,20 @@ poll_nap() {
   # caller that backgrounds a job and reads `$!` after a nap would get the sleep.
   # The pid is kept in `_poll_napper` rather than left in `$!` so the signal
   # handler can reap it, and so that this is stated rather than discovered.
-  _poll_heartbeat
+  #
+  # `before` is read first and the beat checked and the piece sized from it, so
+  # the time a tick spent polling counts toward the next beat.
   left=$iv
   while [ "$left" -gt 0 ]; do
+    before=$(date +%s); _poll_now=$before
+    _poll_heartbeat
     piece=$(( HEARTBEAT - ($(poll_awake) - _poll_beat) ))
-    # The clock can pass a boundary between the beat check and this read; a
-    # piece below 1 would make `sleep` fail and `left` grow.
-    [ "$piece" -ge 1 ] || piece=1
     [ "$piece" -le "$left" ] || piece=$left
-    before=$(date +%s)
     sleep "$piece" &
     _poll_napper=$!
     wait "$_poll_napper" 2>/dev/null || true
     _poll_napper=""
-    after=$(date +%s)
+    after=$(date +%s); _poll_now=$after
     over=$(( after - before - piece ))
     if [ "$over" -gt "$POLL_SUSPEND_SLACK" ]; then
       _poll_suspended=$(( _poll_suspended + over ))

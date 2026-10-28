@@ -301,6 +301,7 @@ nap_child() {
     poll_broken 9 0  && echo A_YES || echo A_NO      # too few ticks
     poll_broken 10 0 && echo B_YES || echo B_NO      # enough ticks, no time
     sleep 200
+    poll_tick
     poll_broken 10 0 && echo C_YES || echo C_NO      # both
     poll_broken 9 0  && echo D_YES || echo D_NO      # time, too few ticks"
   [ "$status" -eq 0 ]
