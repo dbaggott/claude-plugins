@@ -79,7 +79,8 @@ response comments as the orchestrator (`SKILL.md`, "Write as the
 orchestrator"), except its wait: each round reaches you as
 the `issue-reviewer`'s report, which ends on its own wait for your answer, so
 read that report as a round to answer rather than as a wait; and except its
-marking of the row `applied`, which is step 6 here. A finding that asks for a design change is
+marking of the row `applied`, which is step 6 here; and except its close-out,
+since yours is the orchestrator's at Stop. A finding that asks for a design change is
 an escalation. A re-reviewed child is not dispatched until its latest verdict
 reads `READY`.
 

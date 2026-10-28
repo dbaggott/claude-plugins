@@ -146,7 +146,7 @@ entries, since a round's observations are settled in the round: Summary names
 each issue and its final verdict, and Actionable, at a halt, what is left for
 the operator. Close out per
 `<skill-dir>/../process-review/references/retrospective.md`, "When a
-retrospective is written", with `role: author` and the issue's URL, or the
+retrospective is written", with `role: spec-author` and the issue's URL, or the
 parent's for a set, as `issue:`.
 
 Then, once the review has converged, end on the next stage, by the first of
