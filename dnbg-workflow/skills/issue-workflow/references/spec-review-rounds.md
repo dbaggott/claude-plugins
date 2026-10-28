@@ -59,13 +59,13 @@ answer it cold, or sent here from a pickup — notes the `updated_at` of step 1,
 then reads the comments, and goes by the first of these that fits:
 
 - **Every issue's latest verdict is `READY`**: go to "Where it ends".
-- **No verdict has been posted**: hand the issue over from the top of this
-  section.
+- **No verdict has been posted**: hand the issue over from the top of
+  "Handing the issue to its reviewer".
 - **Otherwise**, answer the latest round per "Answering" if it is unanswered,
   then ask whether a reviewer is still running. If one is, wait for it per
   `references/spec-review-wait.md`: from the response after one, as in step 3
-  without one. If
-  not, a spawned reviewer having gone with its session, hand over from the top.
+  without one. If not, a spawned reviewer having gone with its session, hand
+  over from the top.
 
 ## What a round looks like
 
