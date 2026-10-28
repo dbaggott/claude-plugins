@@ -190,9 +190,16 @@ section() {  # <name> <output>
   [ "$(field diff "$(result "$output")")" = delta ]
 }
 
-@test "a tree lookup that fails falls through to the delta" {
+@test "a since-sha tree lookup that fails falls through to the delta" {
   echo 0123456789abcdef0123456789abcdef01234567 > "$TREES/bbb"
   run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = delta ]
+}
+
+@test "a HEAD tree lookup that fails falls through to the delta" {
+  echo 0123456789abcdef0123456789abcdef01234567 > "$TREES/aaa"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$status" -eq 0 ]
   [ "$(field diff "$(result "$output")")" = delta ]
 }
 

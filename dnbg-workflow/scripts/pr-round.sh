@@ -48,9 +48,10 @@
 #
 # `diff=same-tree` is a HEAD that moved onto the very tree <since-sha> had, as
 # a rebase that only dropped a squash-merged parent's commits does. The compare
-# over that range carries the new base's changes as if they were the PR's, up
-# to every file in the repo, so the section stays empty: no content changed. A tree that cannot be read falls through to the
-# delta, so a failed lookup costs the shortcut and nothing else.
+# over that range carries the new base's changes as if they were the PR's, so
+# the section stays empty. The tree being the same does not make the PR's change
+# against its base the same: re-review.md carries the check for that. A tree
+# that cannot be read falls through to the delta.
 #
 # Runs under your own gh auth, like every read here — `GH_TOKEN` is unset, and
 # the children inherit that.
