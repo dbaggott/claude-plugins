@@ -45,9 +45,10 @@ Who writes an entry:
   item the reviewer lists without a path is usually one the author's handoff
   lists with one: use that path.
 
-Any other finding the author declined and the reviewer still holds therefore
-gets an entry from each: that is the expected pair, which the sweep merges as
-one item, as it does any other duplicate.
+Apart from the operator-ordered decline above, which gets none, a finding the
+author declined and the reviewer still holds therefore gets an entry from each:
+that is the expected pair, which the sweep merges as one item, as it does any
+other duplicate.
 
 ## Where it goes
 
