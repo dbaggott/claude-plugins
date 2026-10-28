@@ -356,14 +356,18 @@ names, mark shipped the items it lists, with the PR's URL, as `issue-workflow`'s
 "Maintaining issues" does, which comments them instead on a sibling someone
 else has claimed. The edit or the comment is yours, so it runs under "Write as
 the orchestrator". Under a tracking issue, `references/multi-issue.md` says how.
-Collect both agents' retrospectives, write your own, and, once the entries the
-report below needs are written, fold the run's findings entries into the
-parent, all per `references/findings-fold.md`. Then report the cycle under three headings:
+Collect both agents' retrospectives, asking an agent whose final report names
+none as "Asking the agents for one" in
+`<skill-dir>/../process-review/references/retrospective.md` says, write your
+own, and, once the entries the report below needs are written, fold the run's
+findings entries into the parent, all per `references/findings-fold.md`. Then
+report the cycle per `<skill-dir>/../findings-review/references/report.md`:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the
-  operator, and anything that recurred. Give each retrospective's path, and name
-  any role that left none.
+  operator, and anything that recurred. Give each agent's retrospective path,
+  and name any role that left none; yours goes in the report's Retrospective
+  section.
 - **Actionable** — what the operator may want to do, including any item in the
   author's handoff, the author's final report, or the reviewer's report that
   needs them.

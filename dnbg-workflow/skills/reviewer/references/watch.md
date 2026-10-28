@@ -23,7 +23,7 @@ verdict together. **Run it first; it is what their handling below reads from.**
   Review it now, as a first review; re-arm from the reported `new_head`,
   **without** `--was-draft`.
 - **`CLOSED`** — the PR merged or closed. Stop watching, then finish under
-  "Report the review, in three sections" below. **Read
+  "Report the review" below. **Read
   `references/worktree.md` only if this *review* made a checkout or a scratch
   directory, or ran `fetch-tree.sh`** — a checkout an earlier session made and
   this one resumed included. A review that read only through `gh` calls and
@@ -120,41 +120,24 @@ discovery pass finding no open PR *and* the issue closed; see "Discovery is
 continuous" in `references/issue-mode-wait.md`. Treating one PR's `CLOSED` as the end is exactly how the
 sibling PR that opens tomorrow goes unreviewed.
 
-## Report the review, in three sections
+## Report the review
 
-At `CLOSED`, report the review to the operator under exactly these three
-headings, in this order. **Print all three every time; an empty one says so in a
-few words** — an omitted section reads as "nothing there" and "never considered"
-alike.
+At `CLOSED`, report the review per
+`<skill-dir>/../findings-review/references/report.md`:
 
-**Actionable is the narrow section, and doubt resolves toward Observations** —
-the one the operator is invited to skim. An item earns Actionable only by naming
-a concrete next step and where. One you already judged as not worth raising
-during the cycle does not earn it here: passing it on hands over the work
-without the judgement that would let the operator size it. A clean cycle
-routinely leaves the section empty.
-
-- **Summary** — what happened. The PR by full URL, how it ended (merged, or
-  closed unmerged), the verdicts you posted and the SHAs they sat on, and how
-  many rounds it took. Self-contained: the operator may have sent this PR to you
-  hours ago and read nothing since.
-- **Observations** — informational, and nothing for them to do. A pattern worth
-  knowing, a risk you checked and found handled, an area the change leaves
-  untouched but adjacent.
-- **Actionable** — a non-blocking finding the author didn't take, a thread you
+- **Summary**: the PR, how it ended (merged, or closed unmerged), the verdicts
+  you posted and the SHAs they sat on, and how many rounds it took.
+- **Observations**: a pattern worth knowing, a risk you checked and found
+  handled, an area the change leaves untouched but adjacent.
+- **Actionable**: a non-blocking finding the author didn't take, a thread you
   resolved on the author's reasoning that you still think deserves a follow-up,
-  a coverage gap the merged diff carries. One line each, naming the concrete
-  next step and where.
+  a coverage gap the merged diff carries.
 
-A finding you raised in a comment that the author did not act on goes under
-Observations or Actionable. Write each finding as a findings entry per
-`<skill-dir>/../findings-review/references/entry.md`, which says which items
-get one and which the author writes instead, and name the entry's path on the
-item's line.
-
-Beyond writing those entries, don't act on that list — you are the reviewer, and
-filing or fixing is somebody else's side of the flow.
+Reviewing one PR, that `CLOSED` is your close-out: write the retrospective per
+`<skill-dir>/../process-review/references/retrospective.md`, as the report's
+"At a close-out" says.
 
 In the issue-scoped mode this report fires **per PR**, as each one closes, and
-says nothing about the assignment being over — re-discovery decides that. Report
-the PR that just closed; don't write the section as a wrap-up.
+says nothing about the assignment being over: re-discovery decides that, and the
+retrospective waits for the assignment's end (`references/issue-mode-wait.md`,
+step 4). Report the PR that just closed; don't write the section as a wrap-up.

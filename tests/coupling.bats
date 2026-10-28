@@ -876,16 +876,35 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
     echo "<skill-dir>/$rel does not resolve to a manifest with a version"; false; }
 }
 
-# Each report with an Actionable section writes its findings as entries,
-# and one reference owns the format and the one-writer rule. A site that stops
-# citing it either drops the entries or grows its own copy of the rule.
-@test "every Actionable report site cites the findings entry format" {
-  local entry="findings-review/references/entry.md" f
-  [ -f "$ROOT/dnbg-workflow/skills/$entry" ] || { echo "$entry is missing"; false; }
-  for f in git-workflow/references/merge.md reviewer/references/watch.md orchestrate/SKILL.md; do
-    grep -q "<skill-dir>/\.\./$entry" "$ROOT/dnbg-workflow/skills/$f" || {
-      echo "$f no longer cites <skill-dir>/../$entry"; false; }
+# The three-heading report is defined once, and every site that produces it
+# cites that definition, which in turn cites the findings entry format. A site
+# that stops citing it grows its own copy, and the copies drift.
+@test "every report site cites the shared report, and it the findings entry format" {
+  local report="findings-review/references/report.md" f
+  grep -q '<skill-dir>/\.\./findings-review/references/entry\.md' \
+    "$ROOT/dnbg-workflow/skills/$report" || { echo "$report no longer cites entry.md"; false; }
+  for f in git-workflow/references/merge.md git-workflow/references/post-merge.md \
+           reviewer/references/watch.md orchestrate/SKILL.md \
+           issue-reviewer/references/rounds.md issue-workflow/references/spec-review-rounds.md; do
+    grep -q "<skill-dir>/\.\./$report" "$ROOT/dnbg-workflow/skills/$f" || {
+      echo "$f no longer cites <skill-dir>/../$report"; false; }
   done
+}
+
+# A retrospective is written at the end of a role's work, by the role's own
+# skill, so a standalone session writes one as a dispatched agent does. An
+# agent definition that asks for one makes it depend on the dispatch again.
+@test "each role's close-out cites the retrospective format, and no agent definition asks for one" {
+  local retro="process-review/references/retrospective.md" f
+  for f in git-workflow/references/post-merge.md reviewer/references/watch.md \
+           reviewer/references/issue-mode-wait.md orchestrate/SKILL.md \
+           issue-reviewer/references/rounds.md issue-workflow/references/spec-review-rounds.md; do
+    grep -q "<skill-dir>/\.\./$retro" "$ROOT/dnbg-workflow/skills/$f" || {
+      echo "$f no longer cites <skill-dir>/../$retro"; false; }
+  done
+  if grep -n retrospective "$ROOT"/dnbg-workflow/agents/*.md; then
+    echo "an agent definition asks for a retrospective"; false
+  fi
 }
 
 tree_agents() {  # -> each agent definition's path
