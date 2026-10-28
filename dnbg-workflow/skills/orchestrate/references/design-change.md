@@ -37,10 +37,11 @@ each changed entry. Skip what already reads as the decision.
   --json-out=<draft directory>/issue-set.json
 ```
 
-The set goes to that file, for `jq` to read. A child is reached when its `Covers` line or its body text cites an ID the
-decision changed. Match whole IDs, so `R1` does not match `R12`. A
-`result=ERROR` means the set was not read: stop and say so, since a sweep over
-part of the set leaves the rest silently stale.
+The set goes to that file, for `jq` to read. A child is reached when its
+`Covers` line or its body text cites an ID the decision changed. Match whole
+IDs, so `R1` does not match `R12`. A `result=ERROR` means the set was not read:
+stop and say so, since a sweep over part of the set leaves the rest silently
+stale.
 
 A closed child it reaches is shipped work that the decision may undo. Do not
 edit it. Escalate whether it needs follow-up work.

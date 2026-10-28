@@ -195,16 +195,30 @@ EOF2
   run "$FETCH" o/r 1 --json-out="$out"
   [[ "$output" == "result=ERROR reason=set-overflow now="* ]]
   [ -f "$out" ] && [ ! -s "$out" ]
-  echo '{"parent":{"number":99},"children":[]}' > "$out"
-  run "$FETCH" o/r --json-out="$out"
-  [[ "$output" == "result=ERROR reason=bad-args now="* ]]
-  [ ! -s "$out" ]
+  local args
+  for args in "o/r --json-out=$out" "o/r 1 --bogus --json-out=$out" \
+              "o/r 1 --json-out=$out --json-out=$BATS_TEST_TMPDIR/other.json"; do
+    echo '{"parent":{"number":99},"children":[]}' > "$out"
+    # shellcheck disable=SC2086  # word splitting is the point
+    run "$FETCH" $args
+    [[ "$output" == "result=ERROR reason=bad-args now="* ]] || { echo "accepted: '$args'"; false; }
+    [ ! -s "$out" ] || { echo "left a stale set: '$args'"; false; }
+  done
+}
+
+@test "--json-out creates the file's directory" {
+  answer 0
+  run "$FETCH" o/r 1 --json-out="$BATS_TEST_TMPDIR/new/dir/set.json"
+  [[ "$output" == result=OK*children=0 ]]
+  [ "$(jq -c .children "$BATS_TEST_TMPDIR/new/dir/set.json")" = '[]' ]
 }
 
 @test "an unwritable or malformed --json-out is bad-args, before any query" {
   local args
-  for args in "o/r 1 --json-out=$BATS_TEST_TMPDIR/no/such/dir/x" "o/r 1 --json-out=" \
-              "o/r 1 --json-out" "o/r 1 --other=x" "o/r 1 --json-out=a --json-out=b"; do
+  : > "$BATS_TEST_TMPDIR/file"
+  for args in "o/r 1 --json-out=$BATS_TEST_TMPDIR/file/x" "o/r 1 --json-out=" \
+              "o/r 1 --json-out" "o/r 1 --other=x" \
+              "o/r 1 --json-out=$BATS_TEST_TMPDIR/a --json-out=$BATS_TEST_TMPDIR/b"; do
     # shellcheck disable=SC2086  # word splitting is the point
     run "$FETCH" $args
     [[ "$output" == "result=ERROR reason=bad-args now="* ]] || { echo "accepted: '$args'"; false; }

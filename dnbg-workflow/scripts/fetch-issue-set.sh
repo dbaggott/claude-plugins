@@ -5,8 +5,9 @@
 #
 # Prints the object, then exactly one result line, then exits 0. With
 # `--json-out`, the object goes to <file> instead and stdout is the result line
-# alone; on ERROR <file> is left empty, so it never holds an earlier run's set.
-# An unwritable <file> is `bad-args`.
+# alone. Every <file> named is emptied before anything else can fail, so on
+# ERROR it never holds an earlier run's set. Its directory is created; a <file>
+# that still cannot be written is `bad-args`.
 #   {"parent":{"url":…,"number":…,"title":…,"body":…,"state":…,"created":…,
 #              "body_edited":…,"labels":["<name>",…]},
 #    "children":[{…the same fields…,"blocked_by":["<issue url>",…]}]}
@@ -32,23 +33,23 @@
 set -euo pipefail
 
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
-JSON_OUT=
-fail() {
-  [ -z "$JSON_OUT" ] || : 2>/dev/null > "$JSON_OUT" || true
-  echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0
-}
+fail() { echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0; }
 
-ARGS=()
+ARGS=(); OUTS=(); BAD=
 for a in "$@"; do
   case "$a" in
-    --json-out=?*) [ -z "$JSON_OUT" ] || fail bad-args; JSON_OUT="${a#--json-out=}" ;;
-    --*) fail bad-args ;;
+    --json-out=?*) OUTS+=("${a#--json-out=}") ;;
+    --*) BAD=1 ;;
     *) ARGS+=("$a") ;;
   esac
 done
-# Emptied before any query, so no ERROR below can leave an earlier set in place.
-[ -z "$JSON_OUT" ] || : 2>/dev/null > "$JSON_OUT" || { JSON_OUT=; fail bad-args; }
-[ "${#ARGS[@]}" -eq 2 ] || fail bad-args
+# Emptying every named file first is what keeps an earlier set out of it on any
+# ERROR below; it also proves the file writable before the query.
+for o in ${OUTS[@]+"${OUTS[@]}"}; do
+  { mkdir -p "$(dirname "$o")" && : > "$o"; } 2>/dev/null || BAD=1
+done
+[ -z "$BAD" ] && [ "${#OUTS[@]}" -le 1 ] && [ "${#ARGS[@]}" -eq 2 ] || fail bad-args
+JSON_OUT="${OUTS[0]:-}"
 REPO="${ARGS[0]}"; N="${ARGS[1]}"
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 case "$N" in ''|*[!0-9]*) fail bad-args ;; esac
@@ -114,7 +115,7 @@ OUT=$(printf '%s' "$ISSUE" | jq -c '
   2>/dev/null) || fail issue-query-shape
 
 if [ -n "$JSON_OUT" ]; then
-  printf '%s\n' "$OUT" 2>/dev/null > "$JSON_OUT" || fail bad-args
+  printf '%s\n' "$OUT" 2>/dev/null > "$JSON_OUT" || { : > "$JSON_OUT"; fail bad-args; } 2>/dev/null
 else
   echo "$OUT"
 fi
