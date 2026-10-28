@@ -204,8 +204,8 @@ fill() {  # <url-path> — git's own request, from inside the worktree
   git -C "$BATS_TEST_TMPDIR/bwt" status >/dev/null
 }
 
-# Claude Code's sandbox refuses .git/config wherever the session runs, while
-# the worktree's own config under .git/worktrees/ stays writable.
+# Claude Code's sandbox refuses .git/config even inside the working directory,
+# while the worktree's own config under .git/worktrees/ can stay writable.
 @test "an unwritable shared config is reported by its path, with the sandbox as a likely cause" {
   origin https://github.com/acme/r.git
   chmod a-w "$MAIN/.git"
