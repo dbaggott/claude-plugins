@@ -373,12 +373,13 @@ the same URL, which resumes from GitHub and re-claims under "On start".
 
 Stop once the author's final report, which follows the merge and its
 post-merge cleanup, and the reviewer's end, the report opening `**Reviewer
-close-out: assignment ended**`, are both in. The reviewer reaches its end only
-once no PR on the issue is open and the issue is closed.
+close-out: assignment ended**`, are both in. The reviewer reaches its end once
+no PR on the issue is open and the issue is closed, or when you tell it the
+issue stays open.
 
 An issue can stay open after its last merge, as when a PR only references it or
-a closing keyword did not fire, and the reviewer then never reaches its end. So
-once the author's final report and the reviewer's close-out on each PR that
+a closing keyword did not fire, and the reviewer then waits on it. So once
+the author's final report and the reviewer's close-out on each PR that
 report names are in, read the issue's state (`gh issue view <n> --repo
 <owner>/<repo> --json state`). Still open, ask the operator with
 `AskUserQuestion`, "`<issue URL>` is still open after its last PR merged. Close
@@ -388,23 +389,21 @@ it?":
    <owner>/<repo>`, under "Write as the orchestrator"). The reviewer's issue
    wait wakes on the close and reaches its end, and Stop continues on that
    report.
-2. **"Leave it open"** — stop the reviewer's task by its id and continue
-   without its end, saying in the report that the issue is still open and the
-   reviewer's retrospective was not written.
+2. **"Leave it open"** — tell the reviewer with `SendMessage` that the issue
+   stays open, so it ends its assignment. Stop continues on its end report as
+   for a closed issue, and your report says the issue is still open.
 
 Without `AskUserQuestion`, an answer your prompt gives settles it, as under
 "Run it as the main session"; otherwise take "Leave it open" rather than
 posting the question. Say in the report which you took. Under a tracking issue
-each child gets this question, and "Leave it open" takes the child out of
-flight (`references/multi-issue.md`).
+each child gets this question.
 
 In each sibling the author's final report names, mark shipped the items it
 lists, with the PR's URL, as `issue-workflow`'s "Maintaining issues" does,
 which comments them instead on a sibling someone else has claimed. The edit or the comment is yours, so it runs under "Write as
 the orchestrator". Under a tracking issue, `references/multi-issue.md` says how.
-Collect both agents' retrospectives, the reviewer's only when it reached its
-end, asking an agent whose final report names none as "Asking the agents for
-one" in
+Collect both agents' retrospectives, asking an agent whose final report names
+none as "Asking the agents for one" in
 `<skill-dir>/../process-review/references/retrospective.md` says, write your
 own, and, once the entries the report below needs are written, fold the run's
 findings entries into the parent, all per `references/findings-fold.md`. Then

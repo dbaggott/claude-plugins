@@ -26,7 +26,9 @@ So the assignment is a loop, not a pass:
    `ACTIVITY`.
 4. **End only when a fresh discovery pass finds no open PR *and* the issue is
    closed.** An open issue with everything merged means more work may still be
-   coming; that is not completion. That end is your close-out: write the
+   coming; that is not completion. A dispatcher's message that the issue stays
+   open also ends it: stop your issue wait by its task id first. That end is
+   your close-out: write the
    retrospective per
    `<skill-dir>/../process-review/references/retrospective.md`, with the issue
    as its `issue:`, and end your final report with its path. That report is

@@ -8,5 +8,6 @@ reviewed with nobody listening.
 The reviewer now ends its issue-mode assignment with its own report, opening
 `**Reviewer close-out: assignment ended**`, and the orchestrator stops on that.
 When the issue is still open after its last PR merged, the orchestrator asks
-whether to close it; leaving it open stops the reviewer without its
-retrospective, and a session without `AskUserQuestion` leaves it open.
+whether to close it; leaving it open tells the reviewer to end its assignment
+anyway, and a session without `AskUserQuestion` leaves it open unless its
+prompt says otherwise.
