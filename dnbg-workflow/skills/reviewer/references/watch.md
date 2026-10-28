@@ -10,8 +10,8 @@ Each return is also a line to the operator: what came back, what you did, the PR
 URL. Not a re-summary of the review — that is already on the PR, and the reports
 are owed at an approval and at `CLOSED`, per "Report the review" below. A turn
 that ends with one of those reports opens with its first line, and the return's
-line goes into its Summary: the dispatcher recognises the report by the turn's
-first line.
+line goes into its Summary: the dispatcher recognises each report by its first
+line.
 
 `COMMITS`, `ACTIVITY` and `READY` carry a `── next ──` line — the `pr-round.sh`
 call, arguments filled in, returning the diff, the bodies, the threads and the
@@ -140,6 +140,12 @@ moments on each PR:
   then a delta against your last handoff, as the report's "A report after a
   handoff" says, or the full report where you have none, as when the PR closed
   without an approval.
+
+One turn can owe several reports, as when the issue-scoped mode approves one PR
+on the wake that another merged. Give each report its own first line, starting
+at the beginning of a line, and the complete report under it before the next
+begins, the turn opening with the first. This holds for every report line this
+skill defines, not only the two above.
 
 Under the headings:
 
