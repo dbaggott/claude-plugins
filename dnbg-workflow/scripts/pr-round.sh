@@ -20,7 +20,7 @@
 #   {"id":"PRRT_…","path":…,"line":…,"author":…,"body":…}
 #   result=OK head=<sha> verdict=<state> verdict_sha=<sha> at_head=0|1
 #     reviewed_after_head=0|1|unknown
-#     review_decision=<state> verdict_src=<s> diff=delta|full|none|same-tree|fail
+#     review_decision=<state> verdict_src=<s> diff=delta|interdiff|full|none|same-tree|fail
 #     activity=<n> reviews_src=<s> inline_src=<s> threads=<n> threads_src=<s>
 #
 #   result=ERROR reason=bad-args   # nothing was queried
@@ -52,6 +52,19 @@
 # the section stays empty. The tree being the same does not make the PR's change
 # against its base the same: re-review.md carries the check for that. A tree
 # that cannot be read falls through to the delta.
+#
+# `diff=interdiff` is a HEAD whose merge base with the PR's base ref moved since
+# <since-sha>, as a merge from base or a rebase does, over a tree that changed.
+# The delta would carry every base commit in between as if it were the PR's, so
+# the section holds instead the PR's own change as last reviewed diffed against
+# its own change now: each from a three-dot compare against the base ref, whose
+# merge base with either head is that head's own base because the ref only moves
+# forward. Patches are compared with their hunk line numbers stripped, since a
+# base commit in the same file shifts the PR's hunks without changing them. A
+# file whose own change is the same in both is left out, so an empty section
+# here means the base moved under unchanged work. Anything the compares cannot
+# answer in full — a failed call, a file with no `patch` (binary, or too large),
+# a list at the API's 300-file cap — falls back to the delta.
 #
 # Runs under your own gh auth, like every read here — `GH_TOKEN` is unset, and
 # the children inherit that.
@@ -89,6 +102,47 @@ tree_of() {  # <sha>
   printf '%s' "$t"
 }
 
+# The PR's own change at <sha>, as the merge base and each file's patch. The jq
+# fails on a payload with no file list, which the caller reads as no answer.
+own_change() {  # <base-ref> <sha>
+  gh api "repos/$REPO/compare/$1...$2" \
+    --jq '{mb: .merge_base_commit.sha, files: [.files[] | {filename, patch}]}' 2>/dev/null
+}
+
+# Sets DIFF to the PR's own change last reviewed against its own change now, and
+# fails, leaving DIFF alone, wherever that answer would be partial or the merge
+# base did not move (an ordinary push, which the delta already shows exactly).
+interdiff() {
+  local base pair f chunk rc out=""
+  base=$(gh pr view "$PR" --repo "$REPO" --json baseRefName --jq .baseRefName 2>/dev/null) \
+    && [ -n "$base" ] || return 1
+  pair=$(own_change "$base" "$SINCE_SHA") || return 1
+  pair+=$'\n'
+  pair+=$(own_change "$base" "$HEAD") || return 1
+  pair=$(jq -cs '
+    def whole: (.mb | type) == "string" and (.files | length) < 300
+               and all(.files[]; (.patch | type) == "string");
+    def norm: split("\n")
+              | map(sub("^@@ -[0-9]+(,[0-9]+)? \\+[0-9]+(,[0-9]+)? @@"; "@@ @@"))
+              | join("\n");
+    def byname: map({key: .filename, value: (.patch | norm)}) | from_entries;
+    select(length == 2 and all(.[]; whole) and .[0].mb != .[1].mb)
+    | [(.[0].files | byname), (.[1].files | byname)]' <<<"$pair" 2>/dev/null) \
+    && [ -n "$pair" ] || return 1
+  # diff exits 1 on a difference, which every file listed here has; 0 or 2 means
+  # the comparison went wrong, and a partial interdiff is not an answer.
+  while IFS= read -r f; do
+    rc=0
+    chunk=$(diff -u --label "a/$f (last reviewed)" --label "b/$f (now)" \
+              <(jq -r --arg f "$f" '.[0][$f] // empty' <<<"$pair") \
+              <(jq -r --arg f "$f" '.[1][$f] // empty' <<<"$pair")) || rc=$?
+    [ "$rc" -eq 1 ] || return 1
+    out+="$chunk"$'\n'
+  done < <(jq -r '.[0] as $o | .[1] as $n
+                  | ($o + $n | keys[]) | select($o[.] != $n[.])' <<<"$pair")
+  DIFF=${out%$'\n'}
+}
+
 # 1. The standing verdict, and the HEAD the diff is taken against.
 # `reviewed_after_head` defaults to `unknown` rather than `0` for the same reason
 # pr-verdict.sh never lets it collapse to `1`: a verdict source that failed knows
@@ -120,6 +174,8 @@ elif [ "$SINCE_SHA" = "$HEAD" ]; then
   diff_src="none"
 elif SINCE_TREE=$(tree_of "$SINCE_SHA") && [ "$SINCE_TREE" = "$(tree_of "$HEAD")" ]; then
   diff_src="same-tree"
+elif interdiff; then
+  diff_src="interdiff"
 elif DIFF=$(gh api "repos/$REPO/compare/$SINCE_SHA...$HEAD" \
               -H "Accept: application/vnd.github.diff" 2>/dev/null); then
   diff_src="delta"

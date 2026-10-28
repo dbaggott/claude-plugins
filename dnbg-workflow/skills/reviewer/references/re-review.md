@@ -24,8 +24,9 @@ result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head`
 and a `_src` status per source. Pass `""` for the SHA on a first review; that
 asks for the full diff.
 
-The diff is the **delta** wherever a prior SHA exists — exactly the changes your
-last verdict didn't cover, rather than the whole PR again. `diff=none` means HEAD
+The diff is the **delta** (`diff=delta`) wherever a prior SHA exists and the
+base has not moved under it: exactly the changes your last verdict didn't cover,
+rather than the whole PR again. `diff=none` means HEAD
 hasn't moved since you handled it, which is the normal answer on an `ACTIVITY`
 wake, including the answered-last-blocker trigger, and costs no request at all.
 It is not a failed fetch.
@@ -41,6 +42,20 @@ file you already reviewed, so a file list does not catch it. With that clean,
 re-verdict under the rules below, naming both SHAs ("Re-approving at `1a2b3c4`:
 same tree as `9f8e7d6`"). Under `--request-changes` the findings are no more
 addressed than before, which is the no-op-substance case below.
+
+`diff=interdiff` means HEAD's merge base with the PR's base ref moved since you
+handled it, as a merge from base or a rebase moves it, and the tree changed. The
+delta would carry every base commit in between as the PR's, so the section holds
+the PR's own change instead: for each file whose change against its base differs
+from the one you last reviewed, a diff of the two patches, labeled `(last
+reviewed)` and `(now)`. Each line's first character is the interdiff's and the
+second the patch's, so `++` is a line the PR now adds that it did not before, and
+`-+` one it no longer adds. Hunk headers read `@@ @@` because their line numbers
+are stripped: a base commit in the same file shifts them without changing the
+work. A file absent from the section has the same change you reviewed. An empty
+section is the base moving under unchanged work, which is the no-op-substance
+case below. Review the files it lists, conflict resolutions included, as the
+delta.
 
 An empty section means "nothing there" only where its `_src` reads `ok`; `fail`
 or `shape` means that source went blind, which is not a quiet round.
