@@ -36,12 +36,13 @@ neither runs any shell, which is why the first of them describes itself as "No
 hooks, no forge."
 
 Installing `dnbg-workflow` means **it runs shell on your machine without asking
-each time** — that is what a Claude Code hook is. Four hooks fire automatically
+each time** — that is what a Claude Code hook is. Five hooks fire automatically
 once the marketplace is trusted:
 
 | Hook | Fires | What it does |
 | --- | --- | --- |
 | `inject-rules.sh` | session start | Prints `always-on-rules.md` to stdout, which Claude Code puts in the session's context. |
+| `role-fallback-notice.sh` | session start | Runs `as-role.sh --fallbacks`, which reads each role's config directory for presence alone, and names any role that would post as your own account because it has no App. |
 | `inject-rules-subagent.sh` | subagent start | The same text, into each subagent's context. |
 | `check-worktree.sh` | before every `Edit`/`Write`/`NotebookEdit` | Reads the target path and the repo's `origin`; **blocks** edits to tracked files in the main checkout of a covered repo. |
 | `check-issue-create.sh` | before every `Bash` | Reads the command string; **blocks** `gh issue create` against a covered repo unless the `issue-workflow` skill is loaded. |
@@ -64,7 +65,7 @@ is not parsed further, and nothing from it is kept, written, or sent.
 
 **The hooks make no network calls, write no files, and hold no credentials.**
 Every binary they invoke is local text-processing or `git` — `jq`, `grep`,
-`sed` and `tr` among them — and none of it reaches the network. Nothing in this
+`sed`, `tr` and `awk` among them — and none of it reaches the network. Nothing in this
 project updates itself — what you installed is what runs until you update
 deliberately, so reviewing
 [`dnbg-workflow/hooks/`](dnbg-workflow/hooks/) once is a review that stays

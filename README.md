@@ -277,7 +277,7 @@ you wrote.
 | `git-workflow` | `dnbg-workflow` | GitHub only | Worktree → draft PR → review → merge → cleanup, end to end |
 | `issue-workflow` | `dnbg-workflow` | GitHub only | Writing issues that survive a cold handoff; claiming and resolving one |
 | `issue-reviewer` | `dnbg-workflow` | GitHub only | Reviewing an issue body as a spec, in rounds, before anyone picks it up |
-| `orchestrate` | `dnbg-workflow` | GitHub only | Driving one issue, or every child of a tracking issue, to merged PRs with author and reviewer subagents |
+| `orchestrate` | `dnbg-workflow` | GitHub only | Driving one issue, every child of a tracking issue, or several issues with no parent, to merged PRs with author and reviewer subagents |
 | `project-status` | `dnbg-workflow` | GitHub only | Which stage of the project flow an issue is at, and the prompt to paste next |
 | `process-review` | `dnbg-workflow` | GitHub only | Finding patterns across agents' retrospectives and drafting upstream issues |
 | `findings-review` | `dnbg-workflow` | GitHub only | Sweeping the findings entries agents keep for what they found about the code, and filing, dropping or keeping each with you |
@@ -334,7 +334,7 @@ instead — they are independent, and none requires another:
 
 | Plugin | What you get |
 | --- | --- |
-| `dnbg-workflow@dnbg` | The GitHub workflow, its two enforcement hooks, and the reviewer bot. GitHub, except `velocity-tradeoff` |
+| `dnbg-workflow@dnbg` | The GitHub workflow, its two enforcement hooks, and a GitHub App per agent role. GitHub, except `velocity-tradeoff` |
 | `dnbg-practices@dnbg` | Coding practices. No hooks, no forge, works anywhere |
 | `dnbg-work-summary@dnbg` | PR recaps. No hooks. GitHub |
 
@@ -371,9 +371,10 @@ in [forge support](docs/forge-support.md).
 ## What it runs on your machine
 
 Installing `dnbg-workflow` means **it runs shell scripts on your machine** —
-that is what a Claude Code hook is. Four of them fire automatically once the
+that is what a Claude Code hook is. Five of them fire automatically once the
 marketplace is trusted: two inject the always-on rules (at session start, and
-again per subagent, because session-start output does not reach subagents), and
+again per subagent, because session-start output does not reach subagents), one
+names at session start any agent role that would post as your own account, and
 two are the gates that block edits outside a worktree and unguarded
 `gh issue create` calls.
 
@@ -388,7 +389,7 @@ it deliberately, so reading
 [`dnbg-workflow/hooks/`](dnbg-workflow/hooks/) once is a review that stays valid.
 
 [`SECURITY.md`](SECURITY.md) is the full account: what each hook sees, the one
-place a transcript is read and why, what the reviewer bot's key can do, and why
+place a transcript is read and why, what each role App's key can do, and why
 the gates are workflow guardrails rather than a security boundary.
 
 ## Who maintains it

@@ -176,8 +176,8 @@ EOF
 
 [ "$RETROSPECTIVE_DIR" != "$DEFAULT_RETROSPECTIVE_DIR" ] && cat <<EOF
 - **Retrospectives live under \`$RETROSPECTIVE_DIR/\`**, not the
-  \`$DEFAULT_RETROSPECTIVE_DIR/\` that \`orchestrate\` and \`process-review\` spell
-  out. Write and read them in \`$RETROSPECTIVE_DIR/<owner>/<repo>/\`.
+  \`$DEFAULT_RETROSPECTIVE_DIR/\` that \`process-review\` spells out. Write
+  and read them in \`$RETROSPECTIVE_DIR/<owner>/<repo>/\`.
 EOF
 
 [ "$FINDINGS_DIR" != "$DEFAULT_FINDINGS_DIR" ] && cat <<EOF

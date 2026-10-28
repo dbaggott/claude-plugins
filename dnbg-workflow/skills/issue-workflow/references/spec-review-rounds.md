@@ -10,8 +10,8 @@ reviews and are answered through `git-workflow`'s `references/review-rounds.md`.
 
 ## Handing the issue to its reviewer
 
-The session that wrote the body for review — filed the tracking issue, or
-decomposed one into a set — is its author for the review and answers every
+The session that wrote the body for review — filed the issue or the tracking
+issue, or decomposed one into a set — is its author for the review and answers every
 round. `<URL>` below is the issue's, or for a set the parent's, since the
 reviewer takes in its children. Ask with `AskUserQuestion`: "Who runs the spec
 review?"

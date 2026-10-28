@@ -240,6 +240,7 @@ layout, so a setup made before roles existed keeps working.
 | Role | Posts | App permissions | Without an App |
 | --- | --- | --- | --- |
 | `reviewer` | PR reviews, inline comments, issue-body verdicts | `pull_requests`, `issues`, `contents` write; `checks`, `actions`, `statuses`, `metadata` read | refuses |
+| `author` | issues it files, claims, body edits, comments and labels; PRs, their descriptions and thread replies; pushes from a worktree | `contents`, `pull_requests`, `issues`, `workflows` write; `checks`, `actions`, `statuses`, `metadata` read | posts as you |
 | `orchestrator` | `orchestrate`'s claims, decision-log rows, questions and tracking-issue body edits | `issues` write; `metadata` read | posts as you |
 
 [`SECURITY.md`](../SECURITY.md#role-apps-private-keys) says what a leaked key of

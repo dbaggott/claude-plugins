@@ -1,0 +1,1 @@
+Several skill cross-references that pointed at the wrong file or section now land where they say, and the dispatch-time decision-log row reads `none, asked at dispatch` everywhere. The configuration note shown when `retrospective_dir` is overridden now names only `process-review` as the skill that spells out the default.
