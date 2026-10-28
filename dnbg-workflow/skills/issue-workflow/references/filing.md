@@ -36,9 +36,8 @@ each round per its "Answering". On "Not now", end with the prompt
 The offer is not made for a child filed under `references/decomposing.md`,
 whose set goes to review at its step 6; for a tracking issue, which "Is this one
 issue or a project?" in `references/creating.md` already hands over; for an
-issue filed by a flow that offers the batch form below, which would otherwise
-ask once per issue and again for the batch; or for a gap reported upstream,
-below.
+issue filed by `findings-review`, `process-review` or `orchestrate`'s close-out,
+which offer the batch form below instead; or for a gap reported upstream, below.
 
 Without `AskUserQuestion`, take "Not now": end with the prompt and say in the
 report that the review was not run. This is the default, not a question to post
@@ -46,16 +45,21 @@ per `references/delegated.md`.
 
 ### Offer the spec review for a batch
 
-A flow that files several issues in one pass asks once for all of them, in place
-of the question above. Its input is the list of issue URLs the flow decided to
-offer. The prompt is `Review <URL>, <URL> as a set.`, one per repo the issues
-were filed in, naming that repo's issues. Ask with the same two options.
+A flow that files issues in one pass, one or more, asks once for all it decided
+to offer, in place of the question above. The prompt is
+`Review <URL>, <URL> as a set.`, one per repo the issues were filed in, naming
+that repo's issues. Ask "Spec-review these issues now?" with the same two
+options, the "Not now" description naming these prompts in place of
+`review <URL> as a spec`.
 
-On "Spec-review it now", dispatch per `references/spec-review-rounds.md`, "Spawn
-the reviewer", once per prompt, with that prompt in place of its
-`Review <URL> as a spec.`, and answer each round per its "Answering". On "Not
-now", or without `AskUserQuestion`, end with the prompts to paste, in the report
-when you have one, and say there that the review was not run.
+On "Spec-review it now", go straight to `references/spec-review-rounds.md`,
+"Spawn the reviewer", without its "Who runs the spec review?" picker, and
+dispatch once per prompt, with that prompt in place of its
+`Review <URL> as a spec.`; answer each round per its "Answering". On "Not now",
+give the prompts to paste in the flow's report and go on with the flow.
+
+Without `AskUserQuestion`, take "Not now" and say in the report that the review
+was not run, as for a single issue.
 
 ## Reporting a gap upstream
 

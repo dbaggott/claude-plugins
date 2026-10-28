@@ -1177,9 +1177,13 @@ tree_agents() {  # -> each agent definition's path
 # The batch offer is written once, in filing.md, and each flow that files a
 # batch cites it rather than carrying its own copy, which drifts.
 @test "every batch-filing flow offers the spec review through filing.md's batch form" {
-  local section='Offer the spec review for a batch' f bad=0
-  grep -qF "### $section" "$ROOT/dnbg-workflow/skills/issue-workflow/references/filing.md" || {
+  local section='Offer the spec review for a batch' f filing bad=0
+  filing="$ROOT/dnbg-workflow/skills/issue-workflow/references/filing.md"
+  grep -qF "### $section" "$filing" || {
     echo "filing.md lost the '$section' heading"; bad=1; }
+  sed -n "/^### $section\$/,/^## /p" "$filing" | tr '\n' ' ' | tr -s ' ' \
+    | grep -qF '"Spawn the reviewer"' || {
+    echo "filing.md's '$section' no longer enters the spawn branch by its heading"; bad=1; }
   for f in findings-review/SKILL.md process-review/SKILL.md orchestrate/references/closeout.md; do
     joined "$ROOT/dnbg-workflow/skills/$f" | grep -qF "\"$section\"" || {
       echo "$f no longer cites '$section'"; bad=1; }
