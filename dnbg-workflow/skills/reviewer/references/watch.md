@@ -8,7 +8,10 @@ everything from the first return to the final report is here.
 
 Each return is also a line to the operator: what came back, what you did, the PR
 URL. Not a re-summary of the review — that is already on the PR, and the reports
-are owed at an approval and at `CLOSED`, per "Report the review" below.
+are owed at an approval and at `CLOSED`, per "Report the review" below. A turn
+that ends with one of those reports opens with its first line, and the return's
+line goes into its Summary: the dispatcher recognises the report by the turn's
+first line.
 
 `COMMITS`, `ACTIVITY` and `READY` carry a `── next ──` line — the `pr-round.sh`
 call, arguments filled in, returning the diff, the bodies, the threads and the
