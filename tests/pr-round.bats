@@ -24,6 +24,9 @@ setup() {
   export INLINE_JSON="$BATS_TEST_TMPDIR/inline.json"
   export THREADS_JSON="$BATS_TEST_TMPDIR/threads.json"
   export DIFF_TXT="$BATS_TEST_TMPDIR/diff.txt"
+  # A commit's tree is served from TREES/<sha> when present, and fails otherwise,
+  # so a test that writes none is a tree lookup that cannot see.
+  export TREES="$BATS_TEST_TMPDIR/trees"; mkdir -p "$TREES"
   export CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
 
   # Dispatch by argument shape. `graphql` is matched before the inline-comments
@@ -41,6 +44,7 @@ case "$*" in
                                jq -c '. + {state:"OPEN", isDraft:false, headRefOid:"bbb"}' \
                                  "$REVIEWS_JSON" 2>/dev/null || cat "$REVIEWS_JSON" ;;
   *graphql*)                   [ -f "$FAIL_THREADS" ] && exit 1; cat "$THREADS_JSON" ;;
+  *git/commits/*)              f="$TREES/${2##*/}"; [ -f "$f" ] || exit 1; cat "$f" ;;
   "pr diff"*|*compare*)        [ -f "$FAIL_DIFF" ]    && exit 1; cat "$DIFF_TXT" ;;
   *pulls/*comments*)           [ -f "$FAIL_INLINE" ]  && exit 1; cat "$INLINE_JSON" ;;
   *) exit 1 ;;
@@ -158,6 +162,38 @@ section() {  # <name> <output>
   [ "$(field diff "$(result "$output")")" = delta ]
   grep -q 'compare/aaa\.\.\.bbb' "$CALLS"
   ! grep -q '^pr diff' "$CALLS"
+}
+
+# A rebase that only moved the base: HEAD is a new commit over the tree already
+# reviewed, and the compare across it would carry the base's changes as the PR's.
+@test "a since-sha with HEAD's tree reports same-tree and no diff" {
+  T=0123456789abcdef0123456789abcdef01234567
+  echo "$T" > "$TREES/aaa"; echo "$T" > "$TREES/bbb"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = same-tree ]
+  [ -z "$(section diff "$output")" ]
+  ! grep -q compare "$CALLS"
+}
+
+@test "a since-sha with a different tree still gets the delta" {
+  echo 0123456789abcdef0123456789abcdef01234567 > "$TREES/aaa"
+  echo 76543210fedcba9876543210fedcba9876543210 > "$TREES/bbb"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = delta ]
+  [[ "$(section diff "$output")" == *"+new"* ]]
+}
+
+# Two lookups that both came back unparseable must not read as one tree.
+@test "tree lookups that return no sha fall through to the delta" {
+  echo null > "$TREES/aaa"; echo null > "$TREES/bbb"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = delta ]
+}
+
+@test "a tree lookup that fails falls through to the delta" {
+  echo 0123456789abcdef0123456789abcdef01234567 > "$TREES/bbb"
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = delta ]
 }
 
 # The verdict is pr-verdict.sh's answer, not a second implementation of it. The

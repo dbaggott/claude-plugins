@@ -30,6 +30,13 @@ hasn't moved since you handled it, which is the normal answer on an `ACTIVITY`
 wake, including the answered-last-blocker trigger, and costs no request at all.
 It is not a failed fetch.
 
+`diff=same-tree` means HEAD moved onto exactly the tree your last verdict saw: a
+rebase that only moved the base, such as dropping a squash-merged parent's
+commits. There is no content to review, so the delta is reviewed by that line;
+re-verdict under the rules below and name both SHAs in the body ("Re-approving
+at `1a2b3c4`: same tree as `9f8e7d6`"). Under `--request-changes` the findings
+are no more addressed than before, which is the no-op-substance case below.
+
 An empty section means "nothing there" only where its `_src` reads `ok`; `fail`
 or `shape` means that source went blind, which is not a quiet round.
 
