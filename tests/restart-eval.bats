@@ -35,7 +35,6 @@ case "\$1 \$2" in
     echo "Creating issue in o/r"; echo "$U/\$n" ;;
   "issue edit")
     [ -z "\$body" ] || cp "\$body" "\$BODIES/edited-\${3##*/}" ;;
-  "pr view") echo "\${PR_STATE:-OPEN}" ;;
 esac
 exit 0
 EOF
@@ -237,7 +236,7 @@ EOF
 @test "clean_up closes open PRs with their branches, then every filed issue" {
   SCRIPTS="$BATS_TEST_TMPDIR/scripts"; mkdir -p "$SCRIPTS"
   # shellcheck disable=SC2016  # literal backticks and a script's own variables
-  printf '#!/bin/sh\n[ "$2" = 3 ] && echo https://github.com/o/r/pull/9\necho "result=OK count=1"\n' \
+  printf '#!/bin/sh\n[ "$2" = 3 ] && echo "https://github.com/o/r/pull/9 relevance=closes state=OPEN"\necho "result=OK count=1"\n' \
     > "$SCRIPTS/pr-sources.sh"
   chmod +x "$SCRIPTS/pr-sources.sh"
   echo "$U/1" > "$DIR/parent"; echo "$U/2" > "$DIR/a"; echo "$U/3" > "$DIR/b"
@@ -248,10 +247,11 @@ EOF
 
 @test "clean_up leaves a merged or closed PR alone and skips issues never filed" {
   SCRIPTS="$BATS_TEST_TMPDIR/scripts"; mkdir -p "$SCRIPTS"
-  printf '#!/bin/sh\necho https://github.com/o/r/pull/9\necho "result=OK count=1"\n' > "$SCRIPTS/pr-sources.sh"
+  printf '#!/bin/sh\necho "https://github.com/o/r/pull/9 relevance=closes state=MERGED"\necho "result=OK count=1"\n' \
+    > "$SCRIPTS/pr-sources.sh"
   chmod +x "$SCRIPTS/pr-sources.sh"
   echo "$U/1" > "$DIR/parent"
-  PR_STATE=MERGED clean_up "$DIR"
+  clean_up "$DIR"
   run ! grep -q '^pr close' "$LOG"
   [ "$(grep -c '^issue close' "$LOG")" -eq 1 ]
 }

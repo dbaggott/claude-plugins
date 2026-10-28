@@ -29,7 +29,6 @@ issue_stage_call_key() {  # <gh argument...>
     "search prs "*)
       a=$(grep -oE 'https://github.com/[^ ]+/issues/[0-9]+' <<<"$all")
       a="${a#https://github.com/}"; echo "search:${a%%/issues/*}#${a##*/}" ;;
-    "pr view "*"--json state "*)           echo "prstate:$3" ;;
     "pr view "*)                           echo "prview:$3" ;;
     *)                                     echo "unknown:$all" ;;
   esac

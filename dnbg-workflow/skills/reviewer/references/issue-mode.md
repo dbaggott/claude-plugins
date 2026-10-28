@@ -95,8 +95,11 @@ by exactly one of the first two:
 "<skill-dir>/../../scripts/pr-sources.sh" <owner>/<repo> <n>
 ```
 
-It prints the deduped union as one `<url> relevance=…` line per PR, then
-`result=OK count=<n> closing=… search=… timeline=…`.
+It prints the deduped union as one `<url> relevance=… state=…` line per PR, then
+`result=OK count=<n> closing=… search=… timeline=…`. `state=` is the PR's own
+(`OPEN`, `MERGED` or `CLOSED`), so filter on it rather than reading each PR
+again; `unknown` means the script could not read the PR, so count it as
+possibly open.
 
 ⚠️ **Read the per-source fields before reporting an empty set.** The union
 answers with whatever survived, so one dead source still yields a real — but
@@ -120,7 +123,7 @@ queries but not the judgement:
   PR, don't narrow the query.
 
 **Don't review a discovered PR that is still a draft.** Check `isDraft` on
-each and hold the drafts back. Draft status is the author's signal that the work
+each open one and hold the drafts back. Draft status is the author's signal that the work
 is not yet endorsed for review — `git-workflow` covers why it opens PRs that way.
 A verdict on a draft spends the attention that signal is asking you to withhold,
 and a `--request-changes` leaves threads the author has to resolve on work still
@@ -149,8 +152,7 @@ discover. `git-workflow`'s "Multi-repo changes" requires that mention for this
 reason; if you find a set that looks incomplete, check whether a sibling simply
 failed to link, and say so rather than assuming the set is whole.
 
-The URLs carry no PR state — check each with `gh pr view <url> --json state` —
-but they *are* full URLs rather than numbers, which is what makes the multi-repo
+The URLs are full URLs rather than numbers, which is what makes the multi-repo
 case work at all: a number collides across repos and a URL does not. Once you
 have one member of a set, `gh search prs --owner <owner> head:<branch>` returns
 the rest, since `git-workflow` pairs siblings by branch name. **Review the whole
