@@ -327,7 +327,9 @@ def run(args: argparse.Namespace) -> int:
         print("--org is required for an org-owned App", file=sys.stderr)
         return 2
 
-    config_dirs = {role: default_config_dir(role) for role in roles}
+    # Every role's, not only the chosen ones': as-role.sh refuses all calls
+    # while any role's directory is refused.
+    config_dirs = {role: default_config_dir(role) for role in defined_roles()}
     login = gh_login()
     created: list[dict] = []
     status = 0

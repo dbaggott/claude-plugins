@@ -82,7 +82,15 @@ bootstrap() {
 @test "a ~user config dir is refused before any App is created" {
   export DNBG_AUTHOR_CONFIG_DIR='~alice/author'
   bootstrap --roles reviewer,author
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"DNBG_AUTHOR_CONFIG_DIR is '~alice/author'"* ]]
+  [ ! -s "$MANIFESTS" ]
+}
+
+@test "another role's ~user config dir is refused too, since every role call would be" {
+  export DNBG_AUTHOR_CONFIG_DIR='~alice/author'
+  bootstrap --roles reviewer
+  [ "$status" -eq 1 ]
   [[ "$output" == *"DNBG_AUTHOR_CONFIG_DIR is '~alice/author'"* ]]
   [ ! -s "$MANIFESTS" ]
 }
