@@ -417,12 +417,13 @@ retrospective is written" and "Asking the agents for one", give your own the
 same way, and, once the entries the report below needs are written, fold the
 run's findings entries into the parent, all per
 `references/findings-fold.md`. Then report the cycle per
-`<skill-dir>/../findings-review/references/report.md`:
+`<skill-dir>/../findings-review/references/report.md`, carrying each agent's
+close-out into it as `retrospective.md`'s "When a retrospective is written"
+says:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the
-  operator, and anything that recurred. Carry each agent's close-out here, as
-  `retrospective.md`'s "When a retrospective is written" says.
+  operator, and anything that recurred.
 - **Actionable** — what the operator may want to do, including any item in the
   author's handoff, the author's final report, or the reviewer's handoffs and
   close-outs that needs them.

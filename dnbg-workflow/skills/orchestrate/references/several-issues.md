@@ -33,8 +33,9 @@ which comes once for the session. A tracking issue among them runs
 - **At most three in flight**, or the cap the operator set, as under a tracking
   issue. An issue is in flight from its dispatch until its "Stop".
 
-Report once every run has stopped, under "Stop"'s three headings, with each
-issue's PR, escalations and agents' close-outs under its URL.
+Report once every run has stopped, as "Stop" does, with each issue's PR and
+escalations under its URL, and the agents' close-outs carried in as "Stop"
+says.
 
 ## A set resolved by one PR
 
