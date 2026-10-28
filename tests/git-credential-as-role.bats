@@ -204,6 +204,38 @@ fill() {  # <url-path> — git's own request, from inside the worktree
   git -C "$BATS_TEST_TMPDIR/bwt" status >/dev/null
 }
 
+# Claude Code's sandbox refuses .git/config even inside the working directory,
+# while the worktree's own config under .git/worktrees/ can stay writable.
+@test "an unwritable shared config is reported by its path, with the sandbox as a likely cause" {
+  origin https://github.com/acme/r.git
+  chmod a-w "$MAIN/.git"
+  run --separate-stderr "$HELPER" --install author "$WT"
+  chmod u+w "$MAIN/.git"
+  [ "$output" = "result=ERROR reason=git-config" ]
+  [[ "$stderr" == *"could not write $(cd "$MAIN/.git" && pwd -P)/config,"* ]]
+  [[ "$stderr" == *"could not lock config file"* ]]
+  [[ "$stderr" == *"sandbox"* ]]
+}
+
+@test "with the extension already set, an unwritable shared config does not stop the install" {
+  origin https://github.com/acme/r.git
+  git -C "$MAIN" config extensions.worktreeConfig true
+  chmod a-w "$MAIN/.git"
+  run "$HELPER" --install author "$WT"
+  chmod u+w "$MAIN/.git"
+  [ "$output" = "result=OK worktree=$WT pushurl=origin" ]
+  [ "$(git -C "$WT" config --worktree credential.useHttpPath)" = true ]
+}
+
+@test "an unwritable worktree config is reported by its path" {
+  origin https://github.com/acme/r.git
+  chmod a-w "$MAIN/.git/worktrees/wt"
+  run --separate-stderr "$HELPER" --install author "$WT"
+  chmod u+w "$MAIN/.git/worktrees/wt"
+  [ "$output" = "result=ERROR reason=git-config" ]
+  [[ "$stderr" == *"could not write $(cd "$MAIN/.git/worktrees/wt" && pwd -P)/config.worktree,"* ]]
+}
+
 @test "a Git LFS request is answered for the repository it belongs to" {
   origin https://github.com/acme/r.git
   "$HELPER" --install author "$WT"

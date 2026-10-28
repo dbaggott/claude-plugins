@@ -26,7 +26,8 @@
 # Points <worktree> (default: the current directory) at this helper, in that
 # worktree's own config, so the main checkout keeps the operator's credential:
 #   extensions.worktreeConfig=true        in the repository's shared config,
-#                                         which is what allows the rest
+#                                         which is what allows the rest; left
+#                                         unwritten when already true
 #   credential.helper= then this helper   the empty entry clears every helper
 #                                         read before it, `credential.<url>.helper`
 #                                         ones included (gitcredentials(7))
@@ -60,6 +61,13 @@ FORGE="${FORGE:-github}"
 
 fail() { echo "result=ERROR reason=$1"; [ -z "${2:-}" ] || printf '%s\n' "$2" >&2; exit 0; }
 
+# A config write --install could not make: the file, git's own reason, and the
+# likely cause, since a sandboxed session hits this on its first install.
+config_fail() {  # <path> <what it is> <git's stderr>
+  fail git-config "could not write $1, $2: $(printf '%s' "${3:-no reason given}" | tr '\n' ' ')
+A sandbox is a likely cause: Claude Code's sandbox refuses every write to a .git/config, and any write outside the directories it allows. If so, run this call outside the sandbox."
+}
+
 # An SSH remote's HTTPS twin: git@host:owner/name(.git) or ssh://[user@]host[:port]/owner/name.
 https_of() {  # <url> -> url, or nothing when it is not SSH
   local u="$1" rest host path
@@ -74,7 +82,7 @@ https_of() {  # <url> -> url, or nothing when it is not SSH
 }
 
 install() {  # <role> [<worktree>]
-  local role="$1" wt="${2:-$PWD}" gitdir common origin push
+  local role="$1" wt="${2:-$PWD}" gitdir common origin push err
   [ -n "$role" ] || fail bad-args
   role_valid "$role" || fail unknown-role "'$role' is not a role: no $ROLES_DIR/$role/permissions.json"
   [ "$FORGE" = github ] || fail unsupported-forge
@@ -91,19 +99,25 @@ install() {  # <role> [<worktree>]
     fail bare-repo "$common/config sets core.bare=true or core.worktree, which extensions.worktreeConfig would apply to every worktree; move it to the main worktree's config.worktree first"
   fi
   origin=$(git -C "$wt" remote get-url origin 2>/dev/null) || fail no-origin "'$wt' has no origin remote"
-  if ! { git -C "$wt" config extensions.worktreeConfig true \
-      && { git -C "$wt" config --worktree --unset-all credential.helper || [ $? = 5 ]; } \
+  # Written only when not already true: a sandboxed session cannot write
+  # .git/config, so skipping a write that changes nothing lets every install
+  # after a repository's first one run sandboxed.
+  if [ "$(git config --file "$common/config" --includes --type=bool --get extensions.worktreeConfig 2>/dev/null)" != true ]; then
+    err=$(git -C "$wt" config extensions.worktreeConfig true 2>&1 >/dev/null) \
+      || config_fail "$common/config" "the repository's shared config, for extensions.worktreeConfig" "$err"
+  fi
+  if ! err=$({ { git -C "$wt" config --worktree --unset-all credential.helper || [ $? = 5 ]; } \
       && git -C "$wt" config --worktree credential.helper '' \
       && git -C "$wt" config --worktree --add credential.helper "!\"$SELF\" $role" \
-      && git -C "$wt" config --worktree credential.useHttpPath true; } >/dev/null 2>&1; then
-    fail git-config "could not write $wt's worktree config"
+      && git -C "$wt" config --worktree credential.useHttpPath true; } 2>&1 >/dev/null); then
+    config_fail "$gitdir/config.worktree" "$wt's own config" "$err"
   fi
   push=$(https_of "$origin")
   # A shared pushurl already says where pushes go, and one set here would only
   # be added beside it.
   if [ -n "$push" ] && ! git config --file "$common/config" --get remote.origin.pushurl >/dev/null 2>&1; then
-    git -C "$wt" config --worktree remote.origin.pushurl "$push" >/dev/null 2>&1 \
-      || fail git-config "could not set $wt's push URL"
+    err=$(git -C "$wt" config --worktree remote.origin.pushurl "$push" 2>&1 >/dev/null) \
+      || config_fail "$gitdir/config.worktree" "$wt's own config, for its push URL" "$err"
   else
     push=""
   fi
