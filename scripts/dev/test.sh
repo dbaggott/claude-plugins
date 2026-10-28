@@ -26,13 +26,16 @@ npx --yes bats@1.13.0 ${jobs[@]+"${jobs[@]}"} "$@" >"$tap" 2>&1
 status=$?
 
 # A failure's diagnostics are the `#` lines between its `not ok` and the next
-# test line.
+# test line. A line that is not TAP at all is an error from bats or npx, such
+# as a target that does not exist, and is printed too.
 awk '
   /^1\.\./                { print; next }
   /^not ok /              { infail = 1; print; next }
+  /^ok .* # skip/         { infail = 0; print; next }
   /^ok /                  { infail = 0; next }
   /^# bats warning/       { print; next }
-  infail && /^#/          { print }
+  /^#/                    { if (infail) print; next }
+  { print }
 ' "$tap"
 echo "tap=$tap"
 echo "status=$status"

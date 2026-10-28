@@ -114,7 +114,7 @@ docs/media/check-render.sh                  # README demos; a hook reword stales
 `parallel` is installed. It writes the full TAP output to a temporary file and
 prints only the plan line, each failure with its diagnostics, any bats warning,
 `tap=<path>` naming that file, and `status=<n>` last, then exits with bats'
-status. Give it a test file to run less than `tests/`. The full suite takes
+status. Pass it test files to run only those. The full suite takes
 minutes, so from an agent's Bash tool run it as a background task rather than
 in the foreground. Read the result from its last line and read failures from the
 file, and don't pipe it into `tail` or a `not ok` filter, which reports the
