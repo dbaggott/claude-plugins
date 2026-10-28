@@ -39,9 +39,16 @@ setup() {
   PRIVTMP="$BATS_TEST_TMPDIR/tmp"; mkdir -p "$PRIVTMP"
 
   # Stubbed GitHub. Matches on the URL rather than argument position, because the
-  # token call adds `-X POST` ahead of it.
+  # token call adds `-X POST` ahead of it. Logs its argv, one argument per line,
+  # and the contents of every `@file` it is handed, as curl would read them.
+  export CURL_ARGV="$BATS_TEST_TMPDIR/curl.argv" CURL_FILES="$BATS_TEST_TMPDIR/curl.files"
+  : > "$CURL_ARGV"; : > "$CURL_FILES"
   cat > "$STUB/curl" <<'EOF'
 #!/usr/bin/env bash
+for a in "$@"; do
+  printf '%s\n' "$a" >> "$CURL_ARGV"
+  case "$a" in @*) cat "${a#@}" >> "$CURL_FILES" ;; esac
+done
 for a in "$@"; do
   case "$a" in
     # `permissions` because the real endpoint always returns it, and the script
@@ -218,6 +225,18 @@ EOF
   [ -z "$(ls -A "$PRIVTMP")" ]
 }
 
+@test "the App JWT reaches curl off its command line" {
+  # Any user can read a running process's argv, and the JWT mints a token on
+  # every installation of the App.
+  write_config '{"app_id":"42","private_key_command":"cat '"$KEYFILE"'"}'
+  mint
+  [ "$status" -eq 0 ]
+  # `|| false` because bash's errexit ignores a negated command.
+  ! grep -q -e Authorization -e Bearer "$CURL_ARGV" || false
+  # Still sent, or the assertion above would pass on a dropped header.
+  grep -Eq '^Authorization: Bearer [^.]+\.[^.]+\.[^.]+$' "$CURL_FILES"
+}
+
 # --- directory hardening -----------------------------------------------------
 
 @test "a world-writable config dir is refused, naming the problem" {
@@ -292,11 +311,13 @@ EOF
   # The elif has already committed to this route, so falling through to the
   # not-set-up message would name the PEM as something that was tried when it
   # never was. A locked vault or a wrong item name lands here.
-  write_config '{"app_id":"42","private_key_command":"true"}'
+  write_config '{"app_id":"42","private_key_command":"true --token=SECRET"}'
   mint
   [ "$status" -ne 0 ]
   [[ "$output" == *"produced no output"* ]]
   [[ "$output" != *"private-key.pem"* ]]
+  # The command may carry a vault token, and this stderr reaches the transcript.
+  [[ "$output" != *"SECRET"* ]]
 }
 
 @test "no key from any source reports what was tried" {
@@ -315,10 +336,11 @@ EOF
 }
 
 @test "a failing key command is reported as such, not as a missing key" {
-  write_config '{"app_id":"42","private_key_command":"exit 3"}'
+  write_config '{"app_id":"42","private_key_command":"exit 3 # --token=SECRET"}'
   mint
   [ "$status" -ne 0 ]
-  [[ "$output" == *"key command failed"* ]]
+  [[ "$output" == *"key command (private_key_command in $CONFDIR/config.json) failed"* ]]
+  [[ "$output" != *"SECRET"* ]]
 }
 
 # --- the granted set, checked at every mint --------------------------------

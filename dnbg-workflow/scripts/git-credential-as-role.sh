@@ -36,7 +36,10 @@
 #                                         would never ask a credential helper
 # One result line, then exit 0:
 #   result=OK worktree=<path> pushurl=<url|origin>
-#   result=ERROR reason=bad-args|unknown-role|unsupported-forge|not-a-worktree|main-worktree|bare-repo|no-origin|git-config|push-not-https
+#   result=ERROR reason=bad-args|unknown-role|unsafe-helper-path|unsupported-forge|not-a-worktree|main-worktree|bare-repo|no-origin|git-config|push-not-https
+# `unsafe-helper-path` means this script's own path holds a character the shell
+# git runs the helper through would read specially: `"`, `$`, a backtick, a
+# backslash or a newline.
 # `push-not-https` means a push from the worktree would still skip the helper:
 # a pushurl in the shared config, which a worktree's own cannot replace, or an
 # `insteadOf`/`pushInsteadOf` rule turning the HTTPS URL back into SSH. The
@@ -85,6 +88,13 @@ install() {  # <role> [<worktree>]
   local role="$1" wt="${2:-$PWD}" gitdir common origin push err
   [ -n "$role" ] || fail bad-args
   role_valid "$role" || fail unknown-role "'$role' is not a role: no $ROLES_DIR/$role/permissions.json"
+  # The helper entry is `!"<path>" <role>`, which git hands to a shell: the first
+  # four are what a double-quoted string still expands or ends on, and a newline
+  # would break the entry. Refused rather than escaped, since a real install path
+  # does not carry them.
+  case "$SELF" in
+    *[\"\$\`\\]*|*$'\n'*) fail unsafe-helper-path "the helper's path, $(printf '%q' "$SELF"), contains \", \$, \`, \\ or a newline, which the shell git runs it through would read; install the plugin under a path without them" ;;
+  esac
   [ "$FORGE" = github ] || fail unsupported-forge
   gitdir=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null) || fail not-a-worktree "'$wt' is not inside a git worktree"
   common=$(cd "$wt" && cd "$(git rev-parse --git-common-dir)" && pwd -P)

@@ -82,6 +82,21 @@ fill() {  # <url-path> — git's own request, from inside the worktree
   [ "${lines[0]}" = "result=ERROR reason=not-a-worktree" ]
 }
 
+@test "install refuses a helper path the shell would read, writing nothing" {
+  # The helper entry is `!"<path>" <role>`, evaluated by a shell.
+  origin https://github.com/acme/r.git
+  local c dir
+  for c in '"' '$' '`' '\' $'\n'; do
+    dir="$BATS_TEST_TMPDIR/plug${c}in"
+    rm -rf "$dir"; cp -R "$TREE" "$dir"
+    run "$dir/scripts/git-credential-as-role.sh" --install author "$WT"
+    [ "${lines[0]}" = "result=ERROR reason=unsafe-helper-path" ]
+    # The reason prints the path quoted, so even a newline in it stays one line.
+    [ "${#lines[@]}" -eq 2 ]
+    ! git -C "$WT" config --worktree --get-all credential.helper || false
+  done
+}
+
 @test "an SSH origin gets an HTTPS push URL in the worktree, in both tiers, and fetches stay on SSH" {
   origin git@github.com:acme/r.git
   run "$HELPER" --install author "$WT"

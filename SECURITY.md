@@ -229,7 +229,8 @@ rather than an oversight.
 
 The key never leaves your machine: `mint-token.sh` signs a ~9-minute JWT
 locally and exchanges it for a short-lived installation token, and only that
-token is ever sent.
+token is ever sent. The JWT reaches `curl` through a pipe rather than on its
+command line, which other users on the machine can read.
 
 ### If the key is exposed
 
