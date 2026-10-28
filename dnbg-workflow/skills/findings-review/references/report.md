@@ -37,6 +37,34 @@ Unless the site says it writes none, write each finding as a findings entry per
 one, and name the entry's path on the item's line. Beyond writing those
 entries, don't act on the list: filing and fixing are the operator's call.
 
+## The closing line
+
+Unless you are a dispatched agent, end every turn that leaves the next move to
+the operator, report or not, on one closing line, printed last, after
+Actionable and any Retrospective. It takes one of two leads:
+
+- **`**Your move:**`** followed by the action, repeating its command in a fenced
+  block or its URL even when either appears above, and what this session does
+  meanwhile, such as "watching for the merge".
+- **`**Done:**`** followed by "nothing is running; this session can be closed",
+  or by each watcher, subagent or background task still running and what ends
+  it.
+
+A turn ending on an `AskUserQuestion` picker needs no closing line: the picker
+is the move, and it notifies on its own.
+
+On a Your move, also call the harness's notification tool where it has one, in
+Claude Code `PushNotification`, loading it first if it is deferred. Send one
+line under 200 characters with no markdown, leading with the action, such as
+`PR 570 approved — ready to merge`. A "not sent" result means the operator is at
+the terminal and already sees the turn; it is not an error. A Done notifies only
+at `orchestrate`'s Stop, which ends a run long enough that the operator has
+likely left.
+
+A dispatched agent, one whose definition says each turn is a report to the
+session that dispatched it, writes no closing line and sends no notification.
+The session that passes its report on adds them.
+
 ## A report after a handoff
 
 Where you already gave this report on the same PR, as the author does at its

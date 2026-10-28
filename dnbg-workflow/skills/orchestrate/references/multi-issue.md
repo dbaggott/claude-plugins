@@ -145,7 +145,8 @@ the loop pauses until they answer, and the events that arrived meanwhile are
 handled after. Without it, post the question on the parent per
 `issue-workflow`'s `references/delegated.md`, with the comment command in
 `SKILL.md`'s "Write as the orchestrator", and end the turn with it as your
-report. Only the child that asked waits; the rest of the loop keeps moving as
+report, on the closing line in `<skill-dir>/../findings-review/references/report.md`:
+**Your move:** naming the question's comment URL. Only the child that asked waits; the rest of the loop keeps moving as
 reports arrive. The operator's answer is a comment on the parent: at each loop
 while the question is open, read the parent's comments newer than it. With no
 agent left in flight to wake you, the turn you ended is the run's end, and a

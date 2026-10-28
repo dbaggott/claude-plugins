@@ -46,6 +46,16 @@ With the verdict confirmed and that body read, tell the operator the PR is ready
 > **Observations** — …
 >
 > **Actionable** — …
+>
+> **Your move:** merge <full URL>, with the command below or from the browser. I'm watching for the merge.
+>
+> ```
+> <merge command>
+> ```
+
+The handoff ends on that closing line, the command repeated, and its
+notification, per `<skill-dir>/../findings-review/references/report.md`, "The closing line", unless you are a dispatched
+agent, which ends on Actionable.
 
 **Spawn the watcher — that edited re-arm line — before you send that message** — the "I'm watching for the merge now" line is a claim about a watcher that's actually running, so it must not go out on its own. If for any reason you don't spawn one (e.g. the PR is already merged by the time you'd report), drop that sentence and say what's actually true instead.
 
