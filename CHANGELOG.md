@@ -10,6 +10,13 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.97 — 2026-10-28
+
+Retrospectives written when answering a spec review of an issue now carry the
+`spec-author` role, so `process-review` reports that friction apart from a PR
+author's. Files written before this change still read, counted under `author`.
+
+
 ## dnbg-workflow 2026.10.96 — 2026-10-28
 
 Several skill cross-references that pointed at the wrong file or section now land where they say, and the dispatch-time decision-log row reads `none, asked at dispatch` in both of `orchestrate`'s files. The configuration note shown when `retrospective_dir` is overridden now names only `process-review` as the skill that spells out the default.
