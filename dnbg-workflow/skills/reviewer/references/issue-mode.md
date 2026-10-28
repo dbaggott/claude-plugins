@@ -31,8 +31,9 @@ differently:
   That one list carries the PR's own commits and whatever the base branch
   gained, however the branch was rebased or merged since the run. Recompute it
   at every grading, since the base branch can move with no commit on the PR. A
-  head that conflicts with the base branch (`merge-tree` exits 1) has no tree to
-  compare yet: grade the run once the conflict is resolved. A run commit that
+  head that conflicts with the base branch has no tree to compare yet, and the
+  command fails with `fatal: ambiguous argument`: grade the run once the
+  conflict is resolved. A run commit that
   can no longer be fetched is a stale record. The run stands while nothing
   under the paths the criterion names as invalidating it differs. Where the
   criterion also names the behavior the run proves, a file listed under the
