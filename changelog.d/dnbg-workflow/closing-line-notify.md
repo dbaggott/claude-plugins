@@ -1,3 +1,0 @@
-A turn that leaves the next step to you now ends on it. The last line reads **Your move:**, repeating the merge command, URL or prompt it needs, or **Done:**, saying whether anything is still running and whether the session can be closed. A merge handoff repeats its merge command at the bottom, so it's the last thing on screen.
-
-When the next step is yours, the session also sends a notification through Claude Code's `PushNotification`, which reaches you when you're in another window. A finished `orchestrate` run notifies too. Dispatched subagents do neither, because the orchestrator adds the line and the notification when it passes their reports on.
