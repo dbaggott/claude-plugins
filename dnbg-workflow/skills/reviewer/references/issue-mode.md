@@ -20,17 +20,19 @@ differently:
 
 - **A criterion met by a run** (an eval, a live exercise) is met by a recorded
   run, linked from the PR or the issue and carrying its output. Don't re-run it.
-  Fetch both commits and list what changed since the run with
-  `git diff --name-only <run commit> <head>`, a tree comparison that a rebase
-  since the run does not inflate. The run stands while nothing under the paths
-  the criterion names as invalidating it changed. Where the criterion also names
-  the behavior the run proves, a file changed under the paths leaves the run
-  standing when the author's record shows its change does not alter that
-  behavior and the file's diff since the run bears that out; a file the record
-  says nothing about, or one whose effect on the behavior you cannot rule out,
-  voids it. Where the
-  criterion names paths alone, any change under them voids it. Where it names no
-  paths, judge from that list whether anything the run exercises changed. Say
+  Fetch the run commit, the head and the base branch, and list what changed
+  since the run in two places: the PR's own changes with
+  `git diff --name-only <run commit> <head>`, and the base branch's with
+  `git diff --name-only $(git merge-base <run commit> origin/<base-branch>) origin/<base-branch>`.
+  Both are tree comparisons, which a rebase since the run does not inflate, and
+  their union is what changed since the run. The run stands while nothing under
+  the paths the criterion names as invalidating it changed. Where the criterion
+  also names the behavior the run proves, a file changed under the paths leaves
+  the run standing when the author's record shows its change does not alter
+  that behavior and the file's diff over its list's range bears that out; a
+  file the record says nothing about, or one whose effect on the behavior you
+  cannot rule out, voids it. Where the criterion names paths alone, any change under them voids it. Where it names no
+  paths, judge from that union whether anything the run exercises changed. Say
   which changes you judged and on what basis. No recorded run, or a stale one,
   is a blocking finding naming the run, unless the run is one that waits, as
   below.
