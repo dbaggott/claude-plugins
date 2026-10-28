@@ -64,7 +64,9 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    criterion that needs a run is graded by `issue-mode.md`'s rule for a
    criterion met by a run;
    here the record is a section of the closeout PR's description, or a comment
-   or PR section linked from the parent or a child. Check the as-built
+   or PR section linked from the parent or a child. Its comparison is taken
+   against the closeout PR's merge tree, whichever branch the run was made on.
+   Check the as-built
    doc against the parent body by `closeout.md`'s step 3, and the findings-log
    table by its step 5, as you would any diff against its spec.
 6. **Review the closeout PR per `SKILL.md`**: mint a token, review, post, and
