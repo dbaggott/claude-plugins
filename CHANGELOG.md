@@ -10,6 +10,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.77 — 2026-10-28
+
+A `reviewer` re-review after a rebase that only moved the PR's base, such as
+dropping a squash-merged parent's commits, now recognises that the reviewed
+content is unchanged instead of showing the new base's changes as if they were
+the PR's. What is left before re-approving is a read of the PR's own diff against
+its new base for any change it would revert, rather than a hand comparison in a
+scratch clone.
+
+
 ## dnbg-workflow 2026.10.76 — 2026-10-28
 
 `process-review` now asks the spec-review question once for the issues it files in your own repos, and on "Spec-review it now" starts one set reviewer per repo, instead of asking once per filed issue and starting a reviewer for each. Gaps reported upstream still get no offer.
