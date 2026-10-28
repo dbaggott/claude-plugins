@@ -968,7 +968,7 @@ tree_agents() {  # -> each agent definition's path
 
   for f in "$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode-wait.md" \
            "$ROOT/dnbg-workflow/skills/issue-reviewer/references/rounds.md" \
-           "$ROOT/dnbg-workflow/skills/issue-workflow/references/spec-review-rounds.md"; do
+           "$ROOT/dnbg-workflow/skills/issue-workflow/references/spec-review-wait.md"; do
     for r in $reasons; do
       # Hyphen-aware boundary: without it `issue-query` matches inside
       # `issue-query-shape` and an undocumented reason reads as covered.
@@ -1060,6 +1060,27 @@ tree_agents() {  # -> each agent definition's path
   for f in creating decomposing project-pickup; do
     grep -qF "\"$section\"" "$refs/$f.md" || {
       echo "$f.md no longer hands over through '$section'"; bad=1; }
+  done
+  [ "$bad" -eq 0 ]
+}
+
+# A plain issue filed on its own, and each batch filed by findings-review or a
+# closeout, is offered its spec review with one question whose first option
+# enters the spawn branch by its heading, skipping the "Who runs the spec
+# review?" picker.
+@test "filing offers the spec review and enters the spawn branch by heading" {
+  local refs="$ROOT/dnbg-workflow/skills/issue-workflow/references" o f bad=0
+  grep -qF '### Spawn the reviewer' "$refs/spec-review-rounds.md" || {
+    echo "spec-review-rounds.md lost the 'Spawn the reviewer' heading"; bad=1; }
+  for f in "$refs/filing.md" \
+           "$ROOT/dnbg-workflow/skills/findings-review/SKILL.md" \
+           "$ROOT/dnbg-workflow/skills/orchestrate/references/closeout.md"; do
+    grep -qF '"Spawn the reviewer"' "$f" || {
+      echo "${f#"$ROOT"/} no longer enters the spawn branch by its heading"; bad=1; }
+  done
+  for o in 'Spec-review it now (Recommended)' 'Not now'; do
+    grep -qF "**\"$o\"**" "$refs/filing.md" || {
+      echo "filing.md lost the offer option '$o'"; bad=1; }
   done
   [ "$bad" -eq 0 ]
 }
@@ -1186,7 +1207,7 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
 
 @test "issue-workflow SKILL.md still points at each of its paths" {
   local skill="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" f
-  for f in creating claiming project-pickup resolving spec-review-rounds; do
+  for f in creating filing claiming project-pickup resolving spec-review-rounds spec-review-wait; do
     [ -f "$ROOT/dnbg-workflow/skills/issue-workflow/references/$f.md" ] || {
       echo "references/$f.md is missing"; false; }
     grep -q "references/$f\.md" "$skill" || {

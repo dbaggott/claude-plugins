@@ -93,6 +93,14 @@ File an approved issue with `issue-workflow`, in the entry's `repo`. These are t
 operator's own repos, so the always-on rule about filing upstream does not apply;
 the approval of the exact text above still does.
 
+Once every approved issue is filed, ask once for the batch, with the two options
+of `issue-workflow`'s `references/filing.md`, "Offer the spec review", in place
+of its per-issue question. On "Spec-review it now (Recommended)", dispatch
+`issue-reviewer` as `dnbg-workflow:reviewer-orchestrated`, in the background,
+with the prompt `Review <URL>, <URL> as a set.` naming every issue filed here,
+and answer its rounds per `issue-workflow`'s `references/spec-review-rounds.md`,
+"Spawn the reviewer". On "Not now", end with that prompt to paste.
+
 Then set the entry's frontmatter, on every entry in a merged group:
 
 - filed: `disposition: filed <issue URL>`

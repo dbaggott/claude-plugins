@@ -40,7 +40,7 @@ close the issue), and for a child `parent` and `parent_stage`.
 
 | `next` | Say |
 | --- | --- |
-| `review-spec` | `review <URL> as a spec`, in a session with the reviewer bot set up (`reviewer-setup`); its findings are answered by the session that wrote the body, or, if that session is gone, by another started with `answer the spec review on <URL>` |
+| `review-spec` | `review <URL> as a spec`, the "Not now" path of the spec-review picker the session that filed the issue was offered (`issue-workflow`'s `references/filing.md`); run it in a session with the reviewer bot set up (`reviewer-setup`); its findings are answered by the session that wrote the body, or, if that session is gone, by another started with `answer the spec review on <URL>` |
 | `accept` | the design review is `READY` and waits on your acceptance: `answer the spec review on <URL>`, which ends on the acceptance question |
 | `decompose` | `decompose <URL>` |
 | `orchestrate` | `orchestrate <URL>` |
