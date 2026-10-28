@@ -1,6 +1,6 @@
 ---
 name: process-review
-description: Read a batch of the retrospectives that `orchestrate` runs leave behind, report the process patterns in them with counts and quoted examples, and draft upstream issues for the operator to approve. Load when asked to review the retrospectives, find process patterns, or say what keeps slowing the agents down. It reads only the retrospective files, never a tracking issue. Skip for writing a retrospective, which is `orchestrate`'s `references/retrospective.md`, and for findings about the code, which are `findings-review`'s and a tracking issue's closeout's.
+description: Read a batch of the retrospectives that `orchestrate` runs leave behind, report the process patterns in them with counts and quoted examples, and draft upstream issues for the operator to approve. Load when asked to review the retrospectives, find process patterns, or say what keeps slowing the agents down. It reads only the retrospective files and its own past reports, never a tracking issue. Skip for writing a retrospective, which is `orchestrate`'s `references/retrospective.md`, and for findings about the code, which are `findings-review`'s and a tracking issue's closeout's.
 ---
 
 # Process review
@@ -32,14 +32,16 @@ that one. The batch is drawn from every `*.md` file under the root, recursively,
     full name, the frontmatter `date` or mtime. "At or after", so two files
     written in the watermark's second are not lost;
   - the files cited by that report's **Carried** singletons, so a singleton
-    that recurs in the delta becomes a pattern with both sources in hand;
+    that recurs in the delta becomes a pattern with both sources in hand. A
+    cited file that no longer exists goes under Unreadable as missing;
   - the files that report's Carried section lists as **Unreadable**, so a
     repaired file is counted once it reads;
   - any file whose basename has no such prefix: it goes under Unreadable with
     that reason, and so is carried and tried again next run.
 
-  A file in more than one of these is read once. The files of carried
-  **patterns** are not re-read; their sources and examples come from Carried.
+  A file in more than one of these is read once. Beyond these, the files of
+  carried **patterns** are not re-read; their sources and examples come from
+  Carried.
 - **`all`**, when `_reviews/` holds no `delta` or `all` report, or when the
   operator names `all`: every file under the root, with nothing carried in.
 - **A subset** the operator names: a repo's `<owner>/<repo>/` directory, a list
@@ -63,7 +65,8 @@ when worded differently.
 - **One problem under two headings is one pattern.** File it under the heading
   most of its sources use, and count each source once.
 - **In a `delta` run, start from the chained report's Carried patterns.**
-  Match each against the batch's items by its statement and its carried
+  Each keeps its carried statement, which is what its Filed line is matched by.
+  Match each against the batch's items by that statement and its carried
   examples, and recompute its count over the union of its carried sources and
   the new ones, keyed by `role` plus `issue`: an item from a source already
   listed, such as a re-read singleton file, does not raise it. A carried
@@ -115,9 +118,9 @@ plugin_version: <as retrospective.md's plugin_version step sources it>
 ```
 
 `<root>` is the root step 1 read from. Only a `delta` or `all` run writes
-`newest`. The body is the report above, then, for a `delta` or `all` run only:
+`newest`. The body is the report above, then:
 
-- **`## Carried`**, the state the next run reads. Every pattern and every
+- **`## Carried`**, in a `delta` or `all` run only: the state the next run reads. Every pattern and every
   singleton: its heading, its one-line statement, and its sources, one line per
   source giving `role`, `issue` and the file names it was found in. A pattern
   also keeps its two quoted examples; a singleton does not, since its files are
@@ -125,14 +128,15 @@ plugin_version: <as retrospective.md's plugin_version step sources it>
   findings alone.
 - **`## Filed`**, appended in step 4.
 
-`plugin_version`'s step is in `<skill-dir>/../orchestrate/references/retrospective.md`.
-
 ## 4. Draft upstream issues
 
-Draft only for a pattern that is new this run, gained a source this run, or has
-no decided line in the chained report's Filed section: none at all, or
-`not filed: no operator (delegated)`. A restated pattern with no new source and
-a decided line gets no draft.
+The **last report** is the newest `delta` or `all` report under `_reviews/`
+before this one, whatever kind this run is; in a `delta` run it is the chained
+report. Draft only for a pattern that has a source the last report's Carried
+does not list, or no decided line in its Filed section: none at all, or
+`not filed: no operator (delegated)`. With no last report, every pattern is
+drafted. A pattern that gets no draft copies its decided Filed line into this
+report's Filed section, so the decision survives the next run.
 
 For each such pattern caused by shipped tooling, meaning a skill, script, or hook of
 an installed plugin rather than the project's own code or the operator's setup,
@@ -141,9 +145,9 @@ the user":
 
 - **The destination** is the `repository` field of the owning plugin's
   `.claude-plugin/plugin.json`.
-- **Check for an existing issue first.** In a `delta` run, the chained
-  report's Filed line for the pattern names its issue when one was filed, and
-  the draft is a comment adding the new sources. Otherwise search with
+- **Check for an existing issue first.** The last report's Filed line for
+  the pattern names its issue when one was filed, and the draft is a comment
+  adding the new sources. Otherwise search with
   `gh issue list --repo <destination> --state all --search "<keywords>"`, which
   is also what finds an issue a subset run filed. When one covers the pattern,
   draft a comment adding the new evidence instead.
