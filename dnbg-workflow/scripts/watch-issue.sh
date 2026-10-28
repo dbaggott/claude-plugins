@@ -233,6 +233,8 @@ report_hit() {  # [closed-list] [issues-override|NONE]
 while :; do
   # shellcheck disable=SC2086  # NUMS is a deliberately split list of numbers
   OUT=$("$HERE/fetch-issue-state.sh" "$REPO" $NUMS 2>/dev/null) || OUT=""
+  # The tick's one clock read, after the fetch so every deadline below is fresh.
+  poll_tick; tick_at=$(poll_now)
   LINE=$(printf '%s\n' "$OUT" | tail -1)
   J=$(printf '%s\n' "$OUT" | sed '$d')
   [ -n "$J" ] && last_json="$J"
@@ -264,7 +266,7 @@ while :; do
 
   if [ "${LINE#result=OK}" = "$LINE" ]; then
     poll_reset
-    [ "$settle_until" != 0 ] && [ "$(date +%s)" -ge "$settle_cap" ] && report_hit
+    [ "$settle_until" != 0 ] && [ "$tick_at" -ge "$settle_cap" ] && report_hit
     [ "$settle_until" = 0 ] && poll_timed_out && report_idle
     poll_nap; continue
   fi
@@ -350,12 +352,12 @@ while :; do
 
   if [ "$changed" = 1 ]; then
     poll_reset
-    [ "$settle_until" = 0 ] && settle_cap=$(( $(date +%s) + SETTLE_MAX ))
-    settle_until=$(( $(date +%s) + SETTLE ))
+    [ "$settle_until" = 0 ] && settle_cap=$(( tick_at + SETTLE_MAX ))
+    settle_until=$(( tick_at + SETTLE ))
   fi
 
   if [ "$settle_until" != 0 ] \
-     && { [ "$(date +%s)" -ge "$settle_until" ] || [ "$(date +%s)" -ge "$settle_cap" ]; }; then
+     && { [ "$tick_at" -ge "$settle_until" ] || [ "$tick_at" -ge "$settle_cap" ]; }; then
     report_hit
   fi
 
