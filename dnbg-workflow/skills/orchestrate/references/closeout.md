@@ -112,7 +112,9 @@ An entry `findings-review` already decided (its `disposition` is no longer
 `open`) keeps that decision: put it in the table as it stands, and ask nothing
 about it. Propose one for each other entry the way `findings-review`'s steps 2
 to 4 do: re-check the
-entry against the default branch, merge entries that describe one problem, and
+entry against the default branch, merge entries that describe one problem
+(an author's and a reviewer's entry for one finding is the expected pair, and
+makes one row), and
 draft each follow-up's exact text, with **Deferred** where that skill would
 propose **keep**. Draft them all first, as a table, then show the operator the
 table and the exact text of every follow-up before filing any. Without

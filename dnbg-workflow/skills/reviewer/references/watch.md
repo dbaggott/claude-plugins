@@ -7,8 +7,8 @@ everything from the first return to the final report is here.
 ## Branch on `result=`
 
 Each return is also a line to the operator: what came back, what you did, the PR
-URL. Not a re-summary of the review — that is already on the PR, and the full
-report is owed once, at `CLOSED`, under the three headings below.
+URL. Not a re-summary of the review — that is already on the PR, and the reports
+are owed at an approval and at `CLOSED`, per "Report the review" below.
 
 `COMMITS`, `ACTIVITY` and `READY` carry a `── next ──` line — the `pr-round.sh`
 call, arguments filled in, returning the diff, the bodies, the threads and the
@@ -110,7 +110,8 @@ being merged has not been reviewed by anyone. That holds whether or not GitHub
 dismissed the approval; where it doesn't dismiss, the merge box still shows green
 over the unreviewed diff, which is the worse case. Stopping at "approved" leaves
 a PR that reads as reviewed and isn't. So the reviewer stays subscribed, idling and re-arming on a
-quiet-but-open PR, until the PR is actually finished. The operator can stop the
+quiet-but-open PR, until the PR is actually finished; the handoff an approval
+carries does not end the review. The operator can stop the
 watch early; quitting the session *pauses* it (re-invoke to resume), which is not
 the same as completion.
 
@@ -122,22 +123,36 @@ sibling PR that opens tomorrow goes unreviewed.
 
 ## Report the review
 
-At `CLOSED`, report the review per
-`<skill-dir>/../findings-review/references/report.md`:
+Report per `<skill-dir>/../findings-review/references/report.md`, at two
+moments on each PR:
 
-- **Summary**: the PR, how it ended (merged, or closed unmerged), the verdicts
-  you posted and the SHAs they sat on, and how many rounds it took.
+- **The handoff**, ending the turn that posts an `APPROVE` (`SKILL.md`, "Watch
+  the PR"), so the operator reads it before merging. Its first line is exactly
+  `**Reviewer handoff: APPROVED at <sha>**`, with the full 40-character head
+  SHA the approval sits on, then the full report. An `APPROVE` on a later head
+  carries a fresh handoff, the same first line with the new SHA, as a delta
+  against the previous one.
+- **The close-out**, at `CLOSED`. Its first line is exactly
+  `**Reviewer close-out: merged**` or `**Reviewer close-out: closed unmerged**`,
+  then a delta against your last handoff, as the report's "A report after a
+  handoff" says, or the full report where you have none, as when the PR closed
+  without an approval.
+
+Under the headings:
+
+- **Summary**: the PR, the verdicts you posted and the SHAs they sat on, how
+  many rounds it took, and, at the close-out, how it ended.
 - **Observations**: a pattern worth knowing, a risk you checked and found
   handled, an area the change leaves untouched but adjacent.
-- **Actionable**: a non-blocking finding the author didn't take, a thread you
-  resolved on the author's reasoning that you still think deserves a follow-up,
-  a coverage gap the merged diff carries.
+- **Actionable**: a finding you raised that stands unaddressed, a thread you
+  resolved on the author's reasoning that you still think deserves a
+  follow-up, a coverage gap the diff carries.
 
 Reviewing one PR, that `CLOSED` is your close-out: write the retrospective per
 `<skill-dir>/../process-review/references/retrospective.md`, as the report's
 "At a close-out" says.
 
-In the issue-scoped mode this report fires **per PR**, as each one closes, and
-says nothing about the assignment being over: re-discovery decides that, and the
+In the issue-scoped mode both reports fire **per PR**, and the close-out says
+nothing about the assignment being over: re-discovery decides that, and the
 retrospective waits for the assignment's end (`references/issue-mode-wait.md`,
 step 4). Report the PR that just closed; don't write the section as a wrap-up.

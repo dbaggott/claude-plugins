@@ -61,7 +61,9 @@ search. Present it with **not re-checked** and the reason, and propose **keep**.
 ## 3. Merge entries that describe one problem
 
 Two entries describe one problem when they name the same defect, finding or
-missing setup, even worded differently or written by different roles. Treat the
+missing setup, even worded differently or written by different roles. An
+author's and a reviewer's entry for one finding is the expected pair, since
+each writes its own. Treat the
 group as one item from here on, and record the decision on every entry in it.
 
 ## 4. Propose a disposition and present them
