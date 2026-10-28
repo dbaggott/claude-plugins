@@ -3,7 +3,7 @@
 #
 #   claim-issue.sh <owner/repo> <n> [--as=<role>]
 #   claim-issue.sh <owner/repo> <n> --claim [--as=<role>] [--label=<assigned:…>] [--stamp=<version>]
-#   claim-issue.sh <owner/repo> <n> --release [--as=<role>]
+#   claim-issue.sh <owner/repo> <n> --release [--as=<role>] [--label=<assigned:…>]
 #
 # Without `--claim`, the own-claim test from `issue-workflow`'s
 # `references/claiming.md`. Exactly one result line, then exit 0:
@@ -14,7 +14,8 @@
 #
 # An issue is claimed when it has an assignee or any `assigned:*` label. The
 # claim is then the latest line, across its comments, that opens with
-# `Claimed by`, and its id is what that line carries in parentheses. OWN needs
+# `Claimed by`, and its id is what that line carries in parentheses, unless a
+# `Released by` line comes after it, which leaves no claim. OWN needs
 # that id to equal this session's (`${CLAUDE_CODE_SESSION_ID:0:8}`); every other
 # claimed state is FOREIGN, and `claim=none` there means the claim carries no id
 # a session could have written: marks applied by hand, a claim predating ids, or
@@ -32,9 +33,10 @@
 #   result=ERROR reason=bad-args|unsupported-forge|claim-write|role now=<iso>
 #
 # With `--release`, the read above first: anything but OWN refuses with
-# `not-own` and writes nothing. Then it removes every `assigned:*` label and the
-# operator as assignee, and posts `Released by an agent session (<id>).`, after
-# which the read reports UNCLAIMED unless someone else is assigned too.
+# `not-own` and writes nothing. Then it removes the claim's label (`--label`, as
+# for `--claim`) and the operator as assignee, and posts `Released by an agent
+# session (<id>).` The read then reports UNCLAIMED, or FOREIGN claim=none while
+# another holder's marks remain.
 #   result=OK url=<comment-url>
 #   result=ERROR reason=bad-args|unsupported-forge|not-own|claim-write|role|<a read's reason> now=<iso>
 # `claim-write` there means a mark may still be in place.
@@ -65,18 +67,18 @@ shift 2
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 case "$N" in ''|*[!0-9]*) fail bad-args ;; esac
 
-CLAIM=0; RELEASE=0; LABEL="assigned:agent-session"; STAMP=""; AS=""; MARKED=0
+CLAIM=0; RELEASE=0; LABEL="assigned:agent-session"; STAMP=""; AS=""
 for a in "$@"; do
   case "$a" in
     --claim)   CLAIM=1 ;;
     --release) RELEASE=1 ;;
     --as=?*)   AS="${a#--as=}" ;;
-    --label=*) LABEL="${a#--label=}"; MARKED=1 ;;
-    --stamp=*) STAMP="${a#--stamp=}"; MARKED=1 ;;
+    --label=*) LABEL="${a#--label=}" ;;
+    --stamp=*) STAMP="${a#--stamp=}" ;;
     *) fail bad-args ;;
   esac
 done
-[ "$RELEASE" = 0 ] || { [ "$CLAIM" = 0 ] && [ "$MARKED" = 0 ]; } || fail bad-args
+[ "$RELEASE" = 0 ] || { [ "$CLAIM" = 0 ] && [ -z "$STAMP" ]; } || fail bad-args
 case "$LABEL" in assigned:) fail bad-args ;; assigned:*) ;; *) fail bad-args ;; esac
 case "$STAMP" in *[!0-9A-Za-z.+-]*) fail bad-args ;; esac
 
@@ -106,15 +108,11 @@ write_marks() {  # <repo> <n> <label> <assignee> <body>
   echo "url=$url"
 }
 
-# The release: every `assigned:*` label and the assignee off, then the comment.
-# The same output and exit as write_marks.
-release_marks() {  # <repo> <n> <assignee> <body> [<label>…]
-  local repo="$1" n="$2" who="$3" body="$4"; shift 4
-  local args=() l
-  for l in "$@"; do args+=(--remove-label "$l"); done
-  gh issue edit "$n" --repo "$repo" --remove-assignee "$who" ${args[@]+"${args[@]}"} \
-    >/dev/null 2>&1 || exit 3
-  local url; url=$(gh issue comment "$n" --repo "$repo" --body "$body" 2>/dev/null | tail -1) || exit 3
+# The release: the label and the assignee off, then the comment. The same
+# output and exit as write_marks.
+release_marks() {  # <repo> <n> <label> <assignee> <body>
+  gh issue edit "$2" --repo "$1" --remove-assignee "$4" --remove-label "$3" >/dev/null 2>&1 || exit 3
+  local url; url=$(gh issue comment "$2" --repo "$1" --body "$5" 2>/dev/null | tail -1) || exit 3
   echo "url=$url"
 }
 
@@ -188,9 +186,11 @@ OUT=$(printf '%s' "$RAW" | jq -r '
      or ($i.labels.nodes | any(.name | startswith("assigned:")))) as $claimed
   | [ $i.comments.nodes[] as $c
       | $c.body | split("\n")[] | sub("\r$"; "")
-      | select(test("^claimed by"; "i"))
-      | { at: $c.createdAt,
-          id: ((capture("\\((?<id>[^)]*)\\)").id // "") | if . == "id unavailable" then "" else . end) } ]
+      | select(test("^(claimed|released) by"; "i"))
+      | if test("^released by"; "i") then { at: "", id: "" } else
+          { at: $c.createdAt,
+            id: ((capture("\\((?<id>[^)]*)\\)").id // "") | if . == "id unavailable" then "" else . end) }
+        end ]
   | last as $latest
   | [ (if $claimed then 1 else 0 end), ($latest.id // ""), ($latest.at // ""),
       ($i.assignees.nodes | map(.login) | join(",")),
@@ -206,9 +206,7 @@ OWN=0
 if [ "$RELEASE" = 1 ]; then
   [ "$OWN" = 1 ] || fail not-own
   as_role
-  IFS=',' read -r -a HELD <<<"$LABELS"
-  run_marks release_marks "$REPO" "$N" "$ASSIGNEE" "Released by an agent session ($SID)." \
-    ${HELD[@]+"${HELD[@]}"}
+  run_marks release_marks "$REPO" "$N" "$LABEL" "$ASSIGNEE" "Released by an agent session ($SID)."
   echo "result=OK url=$URL$TAIL"
   exit 0
 fi

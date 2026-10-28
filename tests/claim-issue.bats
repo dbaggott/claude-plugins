@@ -184,12 +184,13 @@ EOF
 
 # --- --release ---------------------------------------------------------------
 
-@test "--release of an own claim removes its labels and the assignee, and says so" {
-  issue '["operator"]' '["assigned:agent-session","assigned:claude-code"]' \
+@test "--release of an own claim removes its label and the assignee, and says so" {
+  issue '["operator"]' '["assigned:agent-session","assigned:other-tool"]' \
     "[$(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z)]"
   run "$CLAIM" o/r 7 --release
   [ "$output" = "result=OK url=https://github.com/o/r/issues/7#issuecomment-1" ]
-  grep -q '^issue edit 7 --repo o/r --remove-assignee @me --remove-label assigned:agent-session --remove-label assigned:claude-code$' "$CALLS"
+  grep -q '^issue edit 7 --repo o/r --remove-assignee @me --remove-label assigned:agent-session$' "$CALLS"
+  ! grep -q 'assigned:other-tool' "$CALLS"
   grep -q '^issue comment 7 --repo o/r --body Released by an agent session (c7f40c25).$' "$CALLS"
 }
 
@@ -240,10 +241,28 @@ EOF
   [[ "$output" == "result=ERROR reason=claim-write "* ]]
 }
 
-@test "--release takes no claim flags" {
+@test "--release removes the configured label" {
+  issue '["operator"]' '["assigned:bot-x"]' \
+    "[$(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z)]"
+  run "$CLAIM" o/r 7 --release --label=assigned:bot-x
+  [[ "$output" == result=OK* ]]
+  grep -q -- '--remove-label assigned:bot-x$' "$CALLS"
+}
+
+# A release leaves no claim behind it even while another holder's marks remain,
+# so the released session's id is never read back as a live claim.
+@test "marks left after a release read as foreign with no id" {
+  issue '["alice"]' '["assigned:other-tool"]' "[
+    $(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z),
+    $(comment 'Released by an agent session (c7f40c25).' 2026-01-03T00:00:00Z)]"
+  run "$CLAIM" o/r 7
+  [ "$output" = "result=FOREIGN claim=none at=none assignees=alice labels=assigned:other-tool" ]
+  run "$CLAIM" o/r 7 --release
+  [[ "$output" == "result=ERROR reason=not-own now="* ]]
+}
+
+@test "--release takes no other mode's flags" {
   run "$CLAIM" o/r 7 --release --claim
-  [[ "$output" == *"reason=bad-args"* ]]
-  run "$CLAIM" o/r 7 --release --label=assigned:x
   [[ "$output" == *"reason=bad-args"* ]]
   run "$CLAIM" o/r 7 --release --stamp=2026.10.5
   [[ "$output" == *"reason=bad-args"* ]]
