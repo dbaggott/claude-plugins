@@ -26,10 +26,10 @@ in `references/multi-issue.md`, which applies design changes per
 author, per `references/closeout.md`: the one artifact that is yours. Several
 issues with no parent, each resolved by its own PR or all by one, are driven
 per `references/several-issues.md`. Every
-agent in a run, you included, ends its part with a retrospective, per
-`<skill-dir>/../process-review/references/retrospective.md`; read it before
-dispatching. A retrospective carries only process. A finding about the code
-goes in a findings entry, per
+agent in a run, you included, ends its part with a close-out, per
+`<skill-dir>/../process-review/references/retrospective.md`, "When a
+retrospective is written"; read that file before dispatching. A retrospective
+carries only process. A finding about the code goes in a findings entry, per
 `<skill-dir>/../findings-review/references/entry.md`, and that includes each
 systemic finding `references/multi-issue.md` raises, written when its row is,
 with the parent as its `source`.
@@ -288,9 +288,9 @@ with what the state shows is still owed.
 
 **An agent died on an error** when its task ends `failed` on an API or usage
 limit error rather than with a report. Resume it with `SendMessage`, telling it
-to carry on from where it stopped, since its context and its retrospective
-survive: after a usage limit, once the reset time the error names has passed;
-after any other API error, after a few minutes. Wait on a background `sleep`
+to carry on from where it stopped, since its context survives: after a usage
+limit, once the reset time the error names has passed; after any other API
+error, after a few minutes. Wait on a background `sleep`
 with `timeout: 7200000`, and when it returns before the reset time, sleep
 again rather than resume. If it fails the same way again, ask the
 operator. Dispatch a fresh agent in its role only when `SendMessage` cannot
@@ -298,7 +298,9 @@ reach it. For an author, fill the recipe's predecessor lines from the dead
 one's state: its worktree and unpushed commits (`git -C <worktree> log HEAD
 --not --remotes`), which `pr-sources.sh` cannot see, the review round it was
 answering, and any scratch issues or labels it created. A replaced agent leaves
-no retrospective, so name its role in the Stop report.
+no close-out: "Asking the agents for one" in
+`<skill-dir>/../process-review/references/retrospective.md` says what the Stop
+report does about it.
 
 Stop a background task of yours, such as a watch or a subagent, with the
 harness's task-stop tool by its id, never with `pkill -f` or a pattern:
@@ -409,18 +411,19 @@ In each sibling the author's final report names, mark shipped the items it
 lists, with the PR's URL, as `issue-workflow`'s "Maintaining issues" does,
 which comments them instead on a sibling someone else has claimed. The edit or the comment is yours, so it runs under "Write as
 the orchestrator". Under a tracking issue, `references/multi-issue.md` says how.
-Collect both agents' retrospectives, asking an agent whose final report names
-none as "Asking the agents for one" in
-`<skill-dir>/../process-review/references/retrospective.md` says, write your
-own, and, once the entries the report below needs are written, fold the run's
-findings entries into the parent, all per `references/findings-fold.md`. Then
-report the cycle per `<skill-dir>/../findings-review/references/report.md`:
+Collect both agents' close-outs per
+`<skill-dir>/../process-review/references/retrospective.md`'s "When a
+retrospective is written" and "Asking the agents for one", give your own the
+same way, and, once the entries the report below needs are written, fold the
+run's findings entries into the parent, all per
+`references/findings-fold.md`. Then report the cycle per
+`<skill-dir>/../findings-review/references/report.md`, carrying each agent's
+close-out into it as `retrospective.md`'s "When a retrospective is written"
+says:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the
-  operator, and anything that recurred. Give each agent's retrospective path,
-  and name any role that left none; yours goes in the report's Retrospective
-  section.
+  operator, and anything that recurred.
 - **Actionable** — what the operator may want to do, including any item in the
   author's handoff, the author's final report, or the reviewer's handoffs and
   close-outs that needs them.

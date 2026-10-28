@@ -81,7 +81,7 @@ verdict on a child. On a child closing, first collect that child's rows (below).
 A child is **in flight** while it is open and `claim-issue.sh` reads `OWN` on
 it, or closed, until its author's final report and its reviewer's
 `**Reviewer close-out: assignment ended**` are in. Then apply the sweep its
-author's final report carries (below), collect both agents' retrospectives, and
+author's final report carries (below), collect both agents' close-outs, and
 fold the run's findings into the parent (`references/findings-fold.md`). A
 child that closes without a merged PR: tell the operator.
 

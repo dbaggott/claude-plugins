@@ -173,10 +173,11 @@ already you.
 | `retrospectives` | off | Every close-out writes a retrospective file under `retrospective_dir` for `process-review` to count, and says nothing else about process friction |
 
 Every agent role ends its part of the work with a close-out: the author once its
-PR merges or closes, the reviewer when its review ends, the orchestrator at
-Stop. At each, it answers four questions about where the *process* hurt — what
-slowed it, what a skill got wrong, what it worked around, what it wished it
-could ask. This setting decides where those answers go.
+PR merges or closes, the reviewer when its review ends, both sides of a spec
+review (the issue's author and the issue reviewer) when it ends, the
+orchestrator at Stop. At each, it answers four questions about where the
+*process* hurt — what slowed it, what a skill got wrong, what it worked
+around, what it wished it could ask. This setting decides where those answers go.
 
 **On**, each close-out writes them to a file under `retrospective_dir`, and the
 report only names the file. `process-review` reads a batch of those files later

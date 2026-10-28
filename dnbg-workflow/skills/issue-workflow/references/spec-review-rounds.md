@@ -35,10 +35,10 @@ session's view of it. Each round reaches you as its report, which ends
 on its own wait for your answer, so answer it per "Answering" and arm no watch.
 A report that is not a round — a `Delegated question:` it posted, or a failure
 to start, such as no `reviewer-setup` — goes to the operator, and an answer goes
-back to the reviewer with `SendMessage`. When it ends, give the operator the
-retrospective path its final report names, asking for one first if it names
-none, as "Asking the agents for one" in
-`<skill-dir>/../process-review/references/retrospective.md` says.
+back to the reviewer with `SendMessage`. When it ends, collect its close-out
+for your own close-out's report, per
+`<skill-dir>/../process-review/references/retrospective.md`'s "When a
+retrospective is written" and "Asking the agents for one".
 
 ### My own session
 
@@ -144,10 +144,10 @@ That end is your close-out, on the author's side. Report the review per
 `<skill-dir>/../findings-review/references/report.md`, writing no findings
 entries, since a round's observations are settled in the round: Summary names
 each issue and its final verdict, and Actionable, at a halt, what is left for
-the operator. Write the retrospective per
-`<skill-dir>/../process-review/references/retrospective.md`, with `role:
-author` and the issue's URL, or the parent's for a set, as `issue:`, as the
-report's "At a close-out" says.
+the operator. Close out per
+`<skill-dir>/../process-review/references/retrospective.md`, "When a
+retrospective is written", with `role: author` and the issue's URL, or the
+parent's for a set, as `issue:`.
 
 Then, once the review has converged, end on the next stage, by the first of
 these that fits. Each exit says that GitHub now holds everything the next stage

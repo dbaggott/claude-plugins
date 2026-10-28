@@ -143,7 +143,8 @@ convention the children diverged on, a defect found next to the work. Each one
 links the findings entry it was drawn from (`findings-review`'s
 `references/entry.md`). At the closeout each gets a follow-up issue, a drop, or
 a deferral to `findings-review`. Where the **process** hurt is not a finding: it
-stays in the retrospectives, for `process-review`.
+goes in each agent's close-out (`process-review`'s
+`references/retrospective.md`).
 
 ## Acceptance
 

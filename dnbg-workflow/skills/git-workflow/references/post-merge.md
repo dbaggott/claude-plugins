@@ -38,6 +38,6 @@ Once `state=MERGED` is confirmed (or the merge watch in `references/merge-wait.m
 The merge or the close without one ends your part of the work: close out. Report
 per `<skill-dir>/../findings-review/references/report.md`, a delta against the
 handoff report `references/merge.md` gave, with Summary opening with the PR's
-full URL and the cleanup, or the close. Write the retrospective per
-`<skill-dir>/../process-review/references/retrospective.md`, as that report's
-"At a close-out" says.
+full URL and the cleanup, or the close. Close out per
+`<skill-dir>/../process-review/references/retrospective.md`, "When a
+retrospective is written".

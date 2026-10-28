@@ -21,7 +21,7 @@ Both cases share these:
 
 Each issue is its own run of `SKILL.md`'s flow, from this one session: its own
 claim, its own decision-log rows on its own issue, its own author and reviewer,
-its own retrospectives, yours included, and its own "Stop", less the report,
+its own close-outs, yours included, and its own "Stop", less the report,
 which comes once for the session. A tracking issue among them runs
 `references/multi-issue.md`'s loop as its run.
 
@@ -33,8 +33,9 @@ which comes once for the session. A tracking issue among them runs
 - **At most three in flight**, or the cap the operator set, as under a tracking
   issue. An issue is in flight from its dispatch until its "Stop".
 
-Report once every run has stopped, under "Stop"'s three headings, with each
-issue's PR, escalations and retrospective paths under its URL.
+Report once every run has stopped, as "Stop" does, with each issue's PR and
+escalations under its URL, and the agents' close-outs carried in as "Stop"
+says.
 
 ## A set resolved by one PR
 
@@ -64,8 +65,9 @@ One run drives the set, with these changes to `SKILL.md`'s flow:
   > acceptance criteria, keep at most one issue wait, over the issues still
   > open, and end once every issue is closed and no PR on any of them is open.
 
-- **Retrospectives**, the agents' and yours, are named for the set
-  (`<skill-dir>/../process-review/references/retrospective.md`).
+- **Close-outs**, the agents' and yours, take the set as their issue
+  (`<skill-dir>/../process-review/references/retrospective.md`, "Where a
+  retrospective goes").
 - **Rows go on the issue each decision affects**, triaged against that issue's
   body; a decision affecting several gets its row on each.
 - **Stop** reports the one PR, with each issue's URL and its escalations under

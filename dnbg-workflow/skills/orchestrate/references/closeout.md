@@ -192,6 +192,6 @@ from its `── re-arm ──` line per its `references/merge-wait.md`. Never m
 `git-workflow`'s post-merge cleanup (`references/post-merge.md`), then go to
 `references/multi-issue.md`'s "Stop", once the reviewer's end, the report
 opening `**Reviewer close-out: assignment ended**`, is in,
-and write your own retrospective there, once for the whole run, with the parent
-as its issue (`references/findings-fold.md`, "Your own").
+and give your own close-out there, once for the whole run, with the parent as
+its issue (`references/findings-fold.md`, "Your own").
 If the PR closes unmerged, ask the operator whether to open a new one or stop.

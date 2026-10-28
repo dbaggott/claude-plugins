@@ -1,19 +1,19 @@
-# Orchestrate: your retrospective and the findings fold
+# Orchestrate: your close-out and the findings fold
 
 Part of the `orchestrate` skill, read once a run's agents have sent their final
 reports: at Stop, and under a tracking issue at each child's end
-(`references/multi-issue.md`). The retrospective's format is in
+(`references/multi-issue.md`). The close-out's rules are in
 `process-review`'s `references/retrospective.md`, at
 `<skill-dir>/../process-review/references/retrospective.md`, and so is
-collecting the agents' retrospectives: its "Asking the agents for one" says what
-to do when a final report arrives without one. `<skill-dir>` is the
-`orchestrate` skill's **Base directory**.
+collecting the agents' close-outs: its "When a retrospective is written" and
+"Asking the agents for one". `<skill-dir>` is the `orchestrate` skill's **Base
+directory**.
 
 ## Your own
 
-At Stop, once the agents' retrospectives are in, write one with
-`role: orchestrator` that answers that file's prompt about your own run: the
-triage, the escalations, and the dispatches.
+At Stop, once the agents' close-outs are in, give your own close-out per that
+file's "When a retrospective is written", with `role: orchestrator`, answering
+its prompt about your own run: the triage, the escalations, and the dispatches.
 
 ## Fold the project's findings into the parent
 

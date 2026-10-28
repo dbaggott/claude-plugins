@@ -156,7 +156,7 @@ One turn can owe several reports, as when the issue-scoped mode approves one PR
 on the wake that another merged. Give each report its own first line at the
 start of a line, with the complete report under it, its Summary naming its PR,
 before the next begins; the turn opens with the first, and a report carrying the
-assignment's end and its retrospective path comes last. The layout holds for
+assignment's end comes last. The layout holds for
 any report this skill gives a first line. Start a line with one of those first
 lines only to open a report: one quoted at the start of a line reads as a report
 of its own.
@@ -170,13 +170,14 @@ offered for filing there: it waits for your close-out, per `report.md`'s "At a
 close-out", which in the issue-scoped mode is the assignment's end, not a PR's
 `CLOSED`.
 
-Reviewing one PR, that `CLOSED` is your close-out: write the retrospective per
-`<skill-dir>/../process-review/references/retrospective.md`, as the report's
-"At a close-out" says.
+Reviewing one PR, that `CLOSED` is your close-out: close out per
+`<skill-dir>/../process-review/references/retrospective.md`, "When a
+retrospective is written".
 
 In the issue-scoped mode both reports fire **per PR**, and the close-out says
 nothing about the assignment being over: re-discovery decides that, and the
-retrospective waits for the assignment's end (`references/issue-mode-wait.md`,
-step 4). Report the PR that just closed; don't write the section as a wrap-up.
+retrospective prompt waits for the assignment's end
+(`references/issue-mode-wait.md`, step 4). Report the PR that just closed;
+don't write the section as a wrap-up.
 The assignment's end is a report of its own, opening
 `**Reviewer close-out: assignment ended**`, which that step gives.

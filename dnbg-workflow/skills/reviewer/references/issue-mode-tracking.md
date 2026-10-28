@@ -102,7 +102,7 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    whatever the PR's diff. Report at each verdict, and keep watching after
    it: both watches run in the background, so a turn you end with them armed
    is woken when one returns. The assignment ends when the parent closes,
-   with the close-out `references/issue-mode-wait.md` step 4 gives: the
-   retrospective with the parent as its `issue:`, and the
+   with the close-out `references/issue-mode-wait.md` step 4 gives, with
+   the parent as its `issue:`, and the
    `**Reviewer close-out: assignment ended**` report, last in the turn after
    the closeout PR's own close-out.
