@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.93 — 2026-10-28
+
+Fixed a set review that could never converge after a decomposition. Decomposing
+a tracking issue could leave a late decision unapplied above the record of the
+filed children, which the design review then flagged as a finding. Decomposing
+now applies every pending decision, the design's acceptance included, before it
+records the filing.
+
+
 ## dnbg-workflow 2026.10.92 — 2026-10-28
 
 Decomposing a tracking issue now claims it first, so two sessions given the
