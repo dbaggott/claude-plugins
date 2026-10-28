@@ -253,6 +253,30 @@ merge_from_base() {
   [[ "$d" != *a.sh* ]]
 }
 
+# A base commit next to the PR's hunk rewrites its context lines and the function
+# name echoed in its header; the lines the PR adds and removes are the same.
+@test "context lines a base commit rewrote do not make a file changed" {
+  merge_from_base
+  compare bbb m2 '[{"filename":"a.sh","patch":"@@ -1 +1,2 @@\n-old\n+new\n+newer"},
+                   {"filename":"b.sh","patch":"@@ -9,2 +9,2 @@ renamed_fn\n base edit\n-p\n+q"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  [[ "$(section diff "$output")" != *b.sh* ]]
+}
+
+# The same hunk reached a different way: last reviewed as a rename, now as an
+# add. The patch text alone cannot tell them apart.
+@test "a file whose status changed is in the interdiff" {
+  merge_from_base
+  compare aaa m1 '[{"filename":"b.sh","status":"renamed","previous_filename":"old.sh","patch":"@@ -3 +3 @@\n-p\n+q"}]'
+  compare bbb m2 '[{"filename":"b.sh","status":"added","patch":"@@ -3 +3 @@\n-p\n+q"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  local d; d=$(section diff "$output")
+  [[ "$d" == *"-status: renamed from old.sh"* ]]
+  [[ "$d" == *"+status: added"* ]]
+}
+
 # The API omits `patch` for a binary file and drops it for a very large one, in a
 # response that otherwise succeeded. Diffing what is left would hide that file.
 @test "a file with no patch falls back to the delta" {

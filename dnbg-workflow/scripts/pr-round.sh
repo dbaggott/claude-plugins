@@ -59,12 +59,11 @@
 # the section holds instead the PR's own change as last reviewed diffed against
 # its own change now: each from a three-dot compare against the base ref, whose
 # merge base with either head is that head's own base because the ref only moves
-# forward. Patches are compared with their hunk line numbers stripped, since a
-# base commit in the same file shifts the PR's hunks without changing them. A
-# file whose own change is the same in both is left out, so an empty section
-# here means the base moved under unchanged work. Anything the compares cannot
-# answer in full — a failed call, a file with no `patch` (binary, or too large),
-# a list at the API's 300-file cap — falls back to the delta.
+# forward. A file whose own change is the same in both is left out, by the test
+# interdiff() states, so an empty section here means the base moved under
+# unchanged work. Anything the compares cannot answer in full — a failed call, a
+# file with no `patch` (binary, or too large), a list at the API's 300-file cap —
+# falls back to the delta.
 #
 # Runs under your own gh auth, like every read here — `GH_TOKEN` is unset, and
 # the children inherit that.
@@ -106,40 +105,58 @@ tree_of() {  # <sha>
 # fails on a payload with no file list, which the caller reads as no answer.
 own_change() {  # <base-ref> <sha>
   gh api "repos/$REPO/compare/$1...$2" \
-    --jq '{mb: .merge_base_commit.sha, files: [.files[] | {filename, patch}]}' 2>/dev/null
+    --jq '{mb: .merge_base_commit.sha,
+           files: [.files[] | {filename, status, previous_filename, patch}]}' 2>/dev/null
 }
 
 # Sets DIFF to the PR's own change last reviewed against its own change now, and
 # fails, leaving DIFF alone, wherever that answer would be partial or the merge
 # base did not move (an ordinary push, which the delta already shows exactly).
+#
+# A file counts as changed when its status, rename source, or added and removed
+# lines differ. Context lines and hunk headers are left out of that test because
+# a base commit near the PR's hunks rewrites them without touching the work; they
+# stay in what is printed, line numbers stripped, so a hunk can still be placed.
 interdiff() {
-  local base pair f chunk rc out=""
+  local base pair f old new chunk rc out=""
   base=$(gh pr view "$PR" --repo "$REPO" --json baseRefName --jq .baseRefName 2>/dev/null) \
     && [ -n "$base" ] || return 1
   pair=$(own_change "$base" "$SINCE_SHA") || return 1
   pair+=$'\n'
   pair+=$(own_change "$base" "$HEAD") || return 1
-  pair=$(jq -cs '
+  # After an `ok` that says the answer is whole, one record per changed file:
+  # its name, then its printed form last reviewed and now, each NUL-terminated,
+  # since a patch can hold any other character. Absent on a side is empty.
+  # shellcheck disable=SC2016  # jq's own $variables
+  local records='
     def whole: (.mb | type) == "string" and (.files | length) < 300
                and all(.files[]; (.patch | type) == "string");
-    def norm: split("\n")
-              | map(sub("^@@ -[0-9]+(,[0-9]+)? \\+[0-9]+(,[0-9]+)? @@"; "@@ @@"))
-              | join("\n");
-    def byname: map({key: .filename, value: (.patch | norm)}) | from_entries;
+    def head: "status: \(.status)"
+              + if .previous_filename then " from \(.previous_filename)" else "" end;
+    def lines: .patch | split("\n");
+    def entry: {key: ([head] + [lines[] | select(test("^[-+@\\\\]")) | sub("^@@.*"; "@@")]),
+                shown: ([head] + [lines[]
+                  | sub("^@@ -[0-9]+(,[0-9]+)? \\+[0-9]+(,[0-9]+)? @@"; "@@ @@")]
+                  | join("\n"))};
+    def byname: map({key: .filename, value: entry}) | from_entries;
     select(length == 2 and all(.[]; whole) and .[0].mb != .[1].mb)
-    | [(.[0].files | byname), (.[1].files | byname)]' <<<"$pair" 2>/dev/null) \
-    && [ -n "$pair" ] || return 1
-  # diff exits 1 on a difference, which every file listed here has; 0 or 2 means
-  # the comparison went wrong, and a partial interdiff is not an answer.
-  while IFS= read -r f; do
-    rc=0
-    chunk=$(diff -u --label "a/$f (last reviewed)" --label "b/$f (now)" \
-              <(jq -r --arg f "$f" '.[0][$f] // empty' <<<"$pair") \
-              <(jq -r --arg f "$f" '.[1][$f] // empty' <<<"$pair")) || rc=$?
-    [ "$rc" -eq 1 ] || return 1
-    out+="$chunk"$'\n'
-  done < <(jq -r '.[0] as $o | .[1] as $n
-                  | ($o + $n | keys[]) | select($o[.] != $n[.])' <<<"$pair")
+    | (.[0].files | byname) as $o | (.[1].files | byname) as $n
+    | "ok\u0000",
+      (($o + $n | keys[]) | select($o[.].key != $n[.].key)
+       | "\(.)\u0000\($o[.].shown // "")\u0000\($n[.].shown // "")\u0000")'
+  # diff exits 1 on a difference, which every record has; 0 or 2 means the
+  # comparison went wrong, and a partial interdiff is not an answer.
+  {
+    IFS= read -r -d '' f && [ "$f" = ok ] || return 1
+    while IFS= read -r -d '' f && IFS= read -r -d '' old && IFS= read -r -d '' new; do
+      rc=0
+      chunk=$(diff -u --label "a/$f (last reviewed)" --label "b/$f (now)" \
+                <([ -z "$old" ] || printf '%s\n' "$old") \
+                <([ -z "$new" ] || printf '%s\n' "$new")) || rc=$?
+      [ "$rc" -eq 1 ] || return 1
+      out+="$chunk"$'\n'
+    done
+  } < <(jq -js "$records" <<<"$pair" 2>/dev/null)
   DIFF=${out%$'\n'}
 }
 

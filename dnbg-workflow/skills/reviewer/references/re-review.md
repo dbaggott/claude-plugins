@@ -46,13 +46,15 @@ addressed than before, which is the no-op-substance case below.
 `diff=interdiff` means HEAD's merge base with the PR's base ref moved since you
 handled it, as a merge from base or a rebase moves it, and the tree changed. The
 delta would carry every base commit in between as the PR's, so the section holds
-the PR's own change instead: for each file whose change against its base differs
-from the one you last reviewed, a diff of the two patches, labeled `(last
-reviewed)` and `(now)`. Each line's first character is the interdiff's and the
-second the patch's, so `++` is a line the PR now adds that it did not before, and
-`-+` one it no longer adds. Hunk headers read `@@ @@` because their line numbers
-are stripped: a base commit in the same file shifts them without changing the
-work. A file absent from the section has the same change you reviewed. An empty
+the PR's own change instead: for each file whose added or removed lines, status
+or rename source differ from what you last reviewed, a diff of the two patches,
+labeled `(last reviewed)` and `(now)`, each opening with a `status:` line. Each
+line's first character is the interdiff's and the second the patch's, so `++` is
+a line the PR now adds that it did not before, and `-+` one it no longer adds.
+Hunk headers read `@@ @@` with their line numbers stripped, and context lines are
+shown but not compared: a base commit near the PR's hunks rewrites both without
+changing the work. A file absent from the section has the same change you
+reviewed. An empty
 section is the base moving under unchanged work, which is the no-op-substance
 case below. Review the files it lists, conflict resolutions included, as the
 delta.
