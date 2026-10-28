@@ -21,7 +21,7 @@ Both cases share these:
 
 Each issue is its own run of `SKILL.md`'s flow, from this one session: its own
 claim, its own decision-log rows on its own issue, its own author and reviewer,
-its own retrospectives, yours included, and its own "Stop", less the report,
+its own close-outs, yours included, and its own "Stop", less the report,
 which comes once for the session. A tracking issue among them runs
 `references/multi-issue.md`'s loop as its run.
 
@@ -34,7 +34,7 @@ which comes once for the session. A tracking issue among them runs
   issue. An issue is in flight from its dispatch until its "Stop".
 
 Report once every run has stopped, under "Stop"'s three headings, with each
-issue's PR, escalations and retrospective paths under its URL.
+issue's PR, escalations and agents' close-outs under its URL.
 
 ## A set resolved by one PR
 

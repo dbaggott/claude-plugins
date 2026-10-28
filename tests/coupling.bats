@@ -914,20 +914,71 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   done
 }
 
+# Prose here is hard-wrapped, so a phrase can straddle a line break; matching
+# over the file joined onto one line finds it wherever the wrap falls.
+joined() {  # <file> -> the file on one line, runs of spaces squeezed
+  tr '\n' ' ' < "$1" | tr -s ' '
+}
+
+# Wording that only retrospectives' on state produces. Retrospectives are off by
+# default, so a site that names one of these unconditionally has an agent write a
+# file, or ask for a path, that the default forbids.
+ON_STATE_WORDING='retrospective section|retrospective path|write the retrospective'
+on_state_wording() {  # <file> -> each on-state phrase it carries
+  joined "$1" | grep -oiE "$ON_STATE_WORDING"
+}
+
 # A retrospective is written at the end of a role's work, by the role's own
 # skill, so a standalone session writes one as a dispatched agent does. An
 # agent definition that asks for one makes it depend on the dispatch again.
-@test "each role's close-out cites the retrospective format, and no agent definition asks for one" {
-  local retro="process-review/references/retrospective.md" f
+#
+# Whether that close-out writes a file is decided by the gate, "When a
+# retrospective is written", so each site cites the gate by name rather than
+# describing one state's result.
+@test "each role's close-out cites the retrospective gate, and no agent definition asks for one" {
+  local retro="process-review/references/retrospective.md" f text
   for f in git-workflow/references/post-merge.md reviewer/references/watch.md \
            reviewer/references/issue-mode-wait.md orchestrate/SKILL.md \
+           orchestrate/references/findings-fold.md \
            issue-reviewer/references/rounds.md issue-workflow/references/spec-review-rounds.md; do
-    grep -q "<skill-dir>/\.\./$retro" "$ROOT/dnbg-workflow/skills/$f" || {
+    text=$(joined "$ROOT/dnbg-workflow/skills/$f")
+    [[ $text == *"<skill-dir>/../$retro"* ]] || {
       echo "$f no longer cites <skill-dir>/../$retro"; false; }
+    [[ $text == *'"When a retrospective is written"'* ]] || {
+      echo "$f no longer cites \"When a retrospective is written\""; false; }
   done
   if grep -n retrospective "$ROOT"/dnbg-workflow/agents/*.md; then
     echo "an agent definition asks for a retrospective"; false
   fi
+}
+
+# retrospective.md is the gate and states both states; report.md is the shared
+# report definition and names both too.
+@test "no skill names a retrospective's path, section or writing outside the gate" {
+  local f rel bad=0 n=0
+  while IFS= read -r f; do
+    rel=${f#"$ROOT"/dnbg-workflow/skills/}
+    case "$rel" in
+      process-review/*|findings-review/references/report.md) continue ;;
+    esac
+    n=$((n + 1))
+    if on_state_wording "$f"; then
+      echo "  ^ in $rel: route it through retrospective.md's \"When a retrospective is written\""
+      bad=1
+    fi
+  done < <(find "$ROOT/dnbg-workflow/skills" -name '*.md')
+  [ "$n" -gt 0 ] || { echo "found no skill files to scan"; false; }
+  [ "$bad" -eq 0 ]
+}
+
+# Two of the fixture's three phrases straddle a line break, so a line-by-line
+# match finds one and fails this.
+@test "the on-state wording check finds a phrase wrapped across lines" {
+  printf '%s\n' "Name each agent's retrospective path; yours goes in the report's Retrospective" \
+    "  section, and write the" "  retrospective per the file." > "$BATS_TEST_TMPDIR/wrapped.md"
+  run on_state_wording "$BATS_TEST_TMPDIR/wrapped.md"
+  [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -eq 3 ] || { echo "found: $output"; false; }
 }
 
 tree_agents() {  # -> each agent definition's path

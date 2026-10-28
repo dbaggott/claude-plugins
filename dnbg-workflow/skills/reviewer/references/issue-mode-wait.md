@@ -28,10 +28,9 @@ So the assignment is a loop, not a pass:
    closed.** An open issue with everything merged means more work may still be
    coming; that is not completion. A dispatcher's message that the issue stays
    open also ends it: stop your issue wait by its task id first. That end is
-   your close-out: write the
-   retrospective per
-   `<skill-dir>/../process-review/references/retrospective.md`, with the issue
-   as its `issue:`, and end your final report with its path. That report is
+   your close-out: close out per
+   `<skill-dir>/../process-review/references/retrospective.md`, "When a
+   retrospective is written", with the issue as its `issue:`. Its report is
    one per `<skill-dir>/../findings-review/references/report.md` on the
    assignment, its Summary naming the issue and each PR you reviewed with how
    it ended, and its first line is exactly

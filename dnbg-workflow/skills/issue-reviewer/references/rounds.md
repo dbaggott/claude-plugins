@@ -93,9 +93,9 @@ entries, since a round's observations are settled in the round:
   across the issues worth knowing.
 - **Actionable**: at a halt, each finding left for the operator to decide.
 
-Write the retrospective per
-`<skill-dir>/../process-review/references/retrospective.md`, with
-`role: issue-reviewer`, as the report's "At a close-out" says.
+Close out per
+`<skill-dir>/../process-review/references/retrospective.md`, "When a
+retrospective is written", with `role: issue-reviewer`.
 
 ## Keeping the issue readable
 
