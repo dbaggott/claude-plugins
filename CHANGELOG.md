@@ -10,6 +10,22 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.99 — 2026-10-28
+
+Picking up a tracking issue that has no children and no acceptance row now asks
+the acceptance question when its latest design-mode review is still `READY`
+against the body as it stands, instead of starting another review. This covers
+an earlier "Not yet" answer and a session that ended before asking. A stale or
+non-design-mode `READY` still leads to a review.
+
+`project-status` agrees: `issue-stage.sh` now says `next=accept` only for a
+current design-mode `READY`, and adds a `round=current|stale|not-design`
+evidence key beside it, with `round_url` naming the round when it is current.
+`ready-set.sh`'s parent object gains `verdict_mode`, `verdict_current` and
+`verdict_url`, and `issue-reviewer` now states the form its round comments
+use for the `lastEditedAt` they were reviewed against.
+
+
 ## dnbg-workflow 2026.10.98 — 2026-10-28
 
 Fixed a role's config directory being read differently by `reviewer-setup` and
