@@ -12,6 +12,29 @@ row whose entry the body does not yet carry is applied to the body before
 step 1, under `tracking-issue.md`'s ID rules and linking the row from each
 changed entry, since step 5 marks it `applied`.
 
+## 0. Claim the parent
+
+Two sessions decomposing one parent at once would each file a set of children
+and overwrite each other's parent edits, so claim it before step 1, however
+you got here: a `decompose <URL>` prompt, or `references/project-pickup.md`'s
+"Decompose it now". Read the claim first:
+
+```bash
+"<skill-dir>/../../scripts/claim-issue.sh" <owner/repo> <parent> --as=author
+```
+
+- **`UNCLAIMED`**: claim it, with `claim-issue.sh <owner/repo> <parent>
+  --claim --as=author`, adding `--label` and `--stamp` as
+  `references/claiming.md`, "2. Claim it", says.
+- **`OWN`**: this session claimed it earlier. Proceed.
+- **`FOREIGN`**: stop. Say who holds it, from `claim=`, `assignees=`,
+  `labels=` and `at=`. Going past someone's claim is the operator's call
+  (without `AskUserQuestion`: `references/delegated.md`).
+- **`ERROR`**: the claim could not be read. Say so and stop.
+
+The claim is held through step 6, since the set review's rounds edit the parent
+too.
+
 ## 1. Group the requirements into children
 
 If the parent has a **Candidate decomposition**, start from it. Otherwise group
@@ -150,7 +173,19 @@ One body edit, after the last child is filed:
 
 Hand the parent and its children to a set review per
 `references/spec-review-rounds.md`, "Handing the issue to its reviewer", and
-answer its rounds there. Say what follows it:
-once every issue in the set reads `READY`, the next prompt is
-`orchestrate <parent URL>`, in a fresh session, since it reads everything from
-GitHub, and this session has nothing further to do.
+answer its rounds there. Once every issue in the set reads `READY`, release
+the parent's claim from step 0:
+
+```bash
+"<skill-dir>/../../scripts/claim-issue.sh" <owner/repo> <parent> --release --as=author
+```
+
+The next prompt, `orchestrate <parent URL>`, runs in a fresh session, which
+would read a held claim as someone else's. `result=OK` is released.
+`reason=not-own` means someone claimed the parent after you: say who, from a
+read of the claim. `reason=claim-write` means a mark may still be on it: check
+the parent and say what is left.
+
+Then say what follows: the next prompt is `orchestrate <parent URL>`, in a
+fresh session, since it reads everything from GitHub, and this session has
+nothing further to do.

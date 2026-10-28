@@ -35,8 +35,9 @@
 # (below).
 #
 # The parent's claim outlives its children, since orchestrate claims it at start
-# and nothing removes it, so closeout is read first and a claim on a parent with
-# no children yet says nothing about orchestration.
+# and nothing removes it, so closeout is read first. A decomposition claims the
+# parent too, and releases it when its set review ends, so a claim on a parent
+# with no children yet says nothing about orchestration.
 #
 # `evidence` carries what decided the stage: claim=own|foreign|none,
 # children=<n> open=<n>, verdict=READY|CHANGES-REQUESTED|none|unknown-verdict,

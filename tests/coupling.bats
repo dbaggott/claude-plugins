@@ -427,6 +427,7 @@ DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
 @test "the claim sites call claim-issue.sh rather than carrying the gh commands" {
   local f
   for f in "$ROOT/dnbg-workflow/skills/issue-workflow/references/claiming.md" \
+           "$ROOT/dnbg-workflow/skills/issue-workflow/references/decomposing.md" \
            "$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md"; do
     grep -q 'claim-issue\.sh' "$f" || {
       echo "$(basename "$f") no longer invokes claim-issue.sh"; false; }

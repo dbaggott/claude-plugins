@@ -182,6 +182,74 @@ EOF
   [ "$output" = "result=FOREIGN claim=none at=none assignees=alice labels=none" ]
 }
 
+# --- --release ---------------------------------------------------------------
+
+@test "--release of an own claim removes its labels and the assignee, and says so" {
+  issue '["operator"]' '["assigned:agent-session","assigned:claude-code"]' \
+    "[$(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z)]"
+  run "$CLAIM" o/r 7 --release
+  [ "$output" = "result=OK url=https://github.com/o/r/issues/7#issuecomment-1" ]
+  grep -q '^issue edit 7 --repo o/r --remove-assignee @me --remove-label assigned:agent-session --remove-label assigned:claude-code$' "$CALLS"
+  grep -q '^issue comment 7 --repo o/r --body Released by an agent session (c7f40c25).$' "$CALLS"
+}
+
+@test "--release of a foreign claim is refused and writes nothing" {
+  issue '["operator"]' '["assigned:agent-session"]' \
+    "[$(comment 'Claimed by an agent session (0badc0de).' 2026-01-02T00:00:00Z)]"
+  run "$CLAIM" o/r 7 --release
+  [[ "$output" == "result=ERROR reason=not-own now="* ]]
+  ! grep -q '^issue ' "$CALLS"
+}
+
+@test "--release of an unclaimed issue is refused" {
+  issue '[]' '[]'
+  run "$CLAIM" o/r 7 --release
+  [[ "$output" == "result=ERROR reason=not-own now="* ]]
+  ! grep -q '^issue ' "$CALLS"
+}
+
+@test "--release with no session id is refused, since no claim can be its own" {
+  unset CLAUDE_CODE_SESSION_ID
+  issue '["operator"]' '["assigned:agent-session"]' \
+    "[$(comment 'Claimed by an agent session (id unavailable).' 2026-01-02T00:00:00Z)]"
+  run "$CLAIM" o/r 7 --release
+  [[ "$output" == "result=ERROR reason=not-own now="* ]]
+}
+
+@test "after a release the issue reads unclaimed, and a later claim is read past it" {
+  local claimed released
+  claimed=$(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z)
+  released=$(comment 'Released by an agent session (c7f40c25).' 2026-01-03T00:00:00Z)
+  issue '[]' '[]' "[$claimed, $released]"
+  run "$CLAIM" o/r 7
+  [ "$output" = "result=UNCLAIMED claim=none at=none" ]
+  issue '["operator"]' '["assigned:agent-session"]' \
+    "[$claimed, $released, $(comment 'Claimed by an agent session (0badc0de).' 2026-01-04T00:00:00Z)]"
+  run "$CLAIM" o/r 7
+  [ "$output" = "result=FOREIGN claim=0badc0de at=2026-01-04T00:00:00Z assignees=operator labels=assigned:agent-session" ]
+}
+
+@test "a failed release write is an error" {
+  issue '["operator"]' '["assigned:agent-session"]' \
+    "[$(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z)]"
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in "api graphql") cat "$GQL" ;; "issue edit") exit 1 ;; esac
+EOF
+  run "$CLAIM" o/r 7 --release
+  [[ "$output" == "result=ERROR reason=claim-write "* ]]
+}
+
+@test "--release takes no claim flags" {
+  run "$CLAIM" o/r 7 --release --claim
+  [[ "$output" == *"reason=bad-args"* ]]
+  run "$CLAIM" o/r 7 --release --label=assigned:x
+  [[ "$output" == *"reason=bad-args"* ]]
+  run "$CLAIM" o/r 7 --release --stamp=2026.10.5
+  [[ "$output" == *"reason=bad-args"* ]]
+  [ ! -s "$CALLS" ]
+}
+
 # --- --as=<role> -------------------------------------------------------------
 #
 # A copy of the scripts beside fixture roles (role-tree.bash), so a role that
@@ -277,4 +345,16 @@ as_tree() {
   run --separate-stderr "$CLAIM" acme/r 7 --claim --as=orchestrator
   [[ "$output" == "result=ERROR reason=role now="* ]]
   ! grep -q '^gh label\|^gh issue' "$NET_LOG"
+}
+
+@test "--release --as removes the operator's login and posts under the role's App" {
+  as_tree
+  configure_role author 7 agent-author-t
+  export GQL="$BATS_TEST_TMPDIR/gql.json"
+  issue '["operator-login"]' '["assigned:agent-session"]' \
+    "[$(comment 'Claimed by an agent session (c7f40c25).' 2026-01-02T00:00:00Z)]"
+  run "$CLAIM" acme/r 7 --release --as=author
+  [ "$output" = "result=OK url=https://github.com/acme/r/issues/7#issuecomment-1 as=agent-author-t" ]
+  grep -q "^gh issue edit 7 --repo acme/r --remove-assignee operator-login --remove-label assigned:agent-session token=$STUB_TOKEN\$" "$NET_LOG"
+  grep -q "^gh issue comment 7 .* token=$STUB_TOKEN\$" "$NET_LOG"
 }
