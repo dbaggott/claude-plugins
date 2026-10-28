@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.83 — 2026-10-28
+
+A reviewer grading a criterion met by a recorded run now compares the run commit with the tree the PR will actually land (`git merge-tree` of the head onto the base branch), and recomputes that at every grading. Before, it diffed only the run commit against the PR's head, so a run voided by an unrelated merge to the default branch went unnoticed, including at a project's closeout. An author's per-file record of changes that leave the run standing now covers default-branch changes too, using the same comparison.
+
+
 ## dnbg-workflow 2026.10.82 — 2026-10-28
 
 A reviewer on an issue now takes its first issue wait's `since` from the assignment step itself: the posted "acting as reviewer" comment's own time, or, when it skipped the post because the comment already exists or the post failed, a snapshot taken after that. Before, `since` came from a snapshot that had to run after the post, and a reviewer posting under the operator's login, because no reviewer App was set up, could wake on its own comment when it ran its first reads in a different order.
