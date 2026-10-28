@@ -23,8 +23,9 @@ they are on. Either way, answer the prompt below for your run; the state decides
 where the answers go.
 
 - **On**: write the file, per the rest of this reference. The report names its
-  path in a **Retrospective** section and says nothing else about process
-  friction. The always-on rule's offer to file upstream ("When shipped tooling
+  path in a **Retrospective** section, with a dispatcher's also naming each path
+  its agents' reports gave, and says nothing else about process friction. The
+  always-on rule's offer to file upstream ("When shipped tooling
   doesn't fit, tell the user") is for friction that stopped the task from
   finishing; the rest waits in the file for `process-review`.
 - **Off**: write no file, and give the report no **Retrospective** section.

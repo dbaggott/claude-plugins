@@ -64,8 +64,9 @@ One run drives the set, with these changes to `SKILL.md`'s flow:
   > acceptance criteria, keep at most one issue wait, over the issues still
   > open, and end once every issue is closed and no PR on any of them is open.
 
-- **Retrospectives**, the agents' and yours, are named for the set
-  (`<skill-dir>/../process-review/references/retrospective.md`).
+- **Close-outs**, the agents' and yours, take the set as their issue
+  (`<skill-dir>/../process-review/references/retrospective.md`, "Where a
+  retrospective goes").
 - **Rows go on the issue each decision affects**, triaged against that issue's
   body; a decision affecting several gets its row on each.
 - **Stop** reports the one PR, with each issue's URL and its escalations under
