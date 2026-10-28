@@ -57,8 +57,11 @@ issue number and `<role>` is `author`, `reviewer` (a PR review, the `reviewer`
 skill), `issue-reviewer` (a spec round, the `issue-reviewer` skill) or
 `orchestrator`. The time keeps a second dispatch of the same role from
 overwriting the first. A reviewer of a set of issues takes their parent as its
-issue, here and in the file's `issue:`. Work under no issue takes its PR: `<n>`
-is the PR number and `issue:` the PR's URL.
+issue, here and in the file's `issue:`. A set with no parent resolved by one PR
+(`orchestrate`'s `references/several-issues.md`) takes its lowest issue number
+as `<n>`, and lists every issue's URL in `issue:`, lowest first, as a YAML list.
+Work under no issue takes its PR: `<n>` is the PR number and `issue:` the PR's
+URL.
 
 ## The prompt
 
