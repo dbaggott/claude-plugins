@@ -253,15 +253,16 @@ draft directory (`<skill-dir>/../git-workflow/SKILL.md`, "Draft files").
 ```
 
 ⚠️ **The printed login is the identity check, and it must be the bot's.** A
-comment landing under the operator's login is excluded by the author's own watch,
-which filters exactly that login — so the author never wakes, you wait for a
-response to a comment nobody was told about, and both sides report a healthy
-watch. On anything else, stop and tell the operator before posting the rest of
-the round.
+comment landing under the author role's login, the author App's or the
+operator's on fallback, is excluded by the author's own watch, which filters
+exactly that login — so the author never wakes, you wait for a response to a
+comment nobody was told about, and both sides report a healthy watch. On
+anything else, stop and tell the operator before posting the rest of the round.
 
-Creating and editing issues stays under the operator's credentials, per
-`issue-workflow`; only review rounds post as the bot, and only because they must
-wake that watch.
+Filing and editing issues, their labels, and the author's responses are the
+author role's writes, per `issue-workflow`'s "Writing as the author"; review
+rounds are yours, because the author's watch excludes the author's own login and
+wakes on yours.
 
 **The comment is the record.** Anything you would tell the operator about the
 artifact goes in the comment first; the chat summary points at it rather than
