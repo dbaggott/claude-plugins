@@ -25,7 +25,8 @@ in `references/multi-issue.md`, which applies design changes per
 `references/design-change.md`. Its parent is resolved by a closeout PR that you
 author, per `references/closeout.md`: the one artifact that is yours. Every
 agent in a run, you included, ends its part with a retrospective, per
-`references/retrospective.md`; read it before dispatching. A retrospective
+`<skill-dir>/../process-review/references/retrospective.md`; read it before
+dispatching. A retrospective
 carries only process. A finding about the code goes in a findings entry, per
 `<skill-dir>/../findings-review/references/entry.md`, and that includes each
 systemic finding `references/multi-issue.md` raises, written when its row is,
@@ -357,7 +358,7 @@ else has claimed. The edit or the comment is yours, so it runs under "Write as
 the orchestrator". Under a tracking issue, `references/multi-issue.md` says how.
 Collect both agents' retrospectives, write your own, and, once the entries the
 report below needs are written, fold the run's findings entries into the
-parent, all per `references/retrospective.md`. Then report the cycle under three headings:
+parent, all per `references/findings-fold.md`. Then report the cycle under three headings:
 
 - **Summary** — the PR, what shipped, and every escalation with its outcome.
 - **Observations** — what the log shows: questions answered without the

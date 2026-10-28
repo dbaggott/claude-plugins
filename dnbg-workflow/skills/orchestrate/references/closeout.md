@@ -35,7 +35,7 @@ description has no step-5 table.
 ## 2. Gather the findings into the log
 
 Bring every finding of the project into the parent's **Findings log**, each as
-one bullet in the form `references/retrospective.md`'s "Fold the project's
+one bullet in the form `references/findings-fold.md`'s "Fold the project's
 findings into the parent" gives, added with one
 `log-row.sh --bullet="Findings log" --as=orchestrator` call. The call adds only
 the bullets the log does not already carry. The bullets come from two places:
@@ -174,5 +174,5 @@ from its `── re-arm ──` line per its `references/merge-wait.md`. Never m
 `git-workflow`'s post-merge cleanup (`references/post-merge.md`), then go to
 `references/multi-issue.md`'s "Stop", once the reviewer's final report is in,
 and write your own retrospective there, once for the whole run, with the parent
-as its issue (`references/retrospective.md`, "Your own").
+as its issue (`references/findings-fold.md`, "Your own").
 If the PR closes unmerged, ask the operator whether to open a new one or stop.

@@ -834,7 +834,7 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
 }
 
 @test "every retrospective fixture carries the template's headings and frontmatter" {
-  local tmpl="$ROOT/dnbg-workflow/skills/orchestrate/references/retrospective.md"
+  local tmpl="$ROOT/dnbg-workflow/skills/process-review/references/retrospective.md"
   local want f n=0 bad=0
   want=$(awk '/^```markdown$/{inside=1; next} /^```$/{inside=0} inside' "$tmpl" | grep '^## ')
   [ "$(printf '%s\n' "$want" | wc -l)" -eq 4 ] || {
@@ -857,11 +857,11 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
 # manifest path retrospective.md gives relative to the skill's base directory. A
 # path that no longer resolves leaves every default install writing `none`.
 @test "the manifest path retrospective.md reads plugin_version from resolves" {
-  local tmpl="$ROOT/dnbg-workflow/skills/orchestrate/references/retrospective.md"
+  local tmpl="$ROOT/dnbg-workflow/skills/process-review/references/retrospective.md"
   local rel
   rel=$(grep -oE '"<skill-dir>/[^"]*plugin\.json"' "$tmpl" | tr -d '"' | sed 's|^<skill-dir>/||')
   [ -n "$rel" ] || { echo "retrospective.md names no manifest path"; false; }
-  jq -e '.version | length > 0' "$ROOT/dnbg-workflow/skills/orchestrate/$rel" >/dev/null || {
+  jq -e '.version | length > 0' "$ROOT/dnbg-workflow/skills/process-review/$rel" >/dev/null || {
     echo "<skill-dir>/$rel does not resolve to a manifest with a version"; false; }
 }
 
