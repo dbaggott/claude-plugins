@@ -10,6 +10,13 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.101 — 2026-10-28
+
+The PR and issue watches read the clock once per poll instead of once per
+question, cutting about a dozen `date` process starts from every tick of a
+long-running watch. Nothing a watch reports changes.
+
+
 ## dnbg-workflow 2026.10.100 — 2026-10-28
 
 A turn that leaves the next step to you now ends on it. The last line reads **Your move:**, repeating the merge command, URL or prompt it needs, or **Done:**, saying whether anything is still running and whether the session can be closed. A merge handoff repeats its merge command at the bottom, so it's the last thing on screen.
