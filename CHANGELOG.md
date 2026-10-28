@@ -10,6 +10,19 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.84 — 2026-10-28
+
+Fixed parallel agents in one session publishing each other's drafts. An agent
+that went looking for its earlier PR description in the shared scratchpad could
+find a sibling's draft and post it as its own.
+
+Every agent the plugin dispatches now gets its own draft directory, named in its
+prompt, and drafts its PR descriptions, issue bodies, comments and reviews there
+under fixed names. A session nobody dispatched creates one at its first draft.
+Before posting, an agent now recreates the directory if the scratchpad vanished
+and refuses to post an empty body.
+
+
 ## dnbg-workflow 2026.10.83 — 2026-10-28
 
 A reviewer grading a criterion met by a recorded run now compares the run commit with the tree the PR will actually land (`git merge-tree` of the head onto the base branch), and recomputes that at every grading. Before, it diffed only the run commit against the PR's head, so a run voided by an unrelated merge to the default branch went unnoticed, including at a project's closeout. An author's per-file record of changes that leave the run standing now covers default-branch changes too, using the same comparison.
