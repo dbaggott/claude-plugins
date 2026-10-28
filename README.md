@@ -56,31 +56,78 @@ when you merge it.
 **A whole project, end to end.** The same orchestrator runs a project of many
 issues, given a **tracking issue**: an issue whose body is the design, written
 so the issues implementing it can cite its requirements and decisions by ID.
+Getting there takes a few stages, each one a prompt you give a session, and each
+stage that hands over ends by printing the prompt for the next one.
 
-1. The design is reviewed as a spec, in rounds, until it converges. Then you
-   approve it.
-2. Decomposition files the child issues. Each one says which requirements it
-   covers and which siblings it depends on, and the dependencies become
-   GitHub's own blocked-by links.
-3. A set review checks the children against the design: every requirement
-   covered, every dependency recorded as a link, and no child contradicting the
-   section it cites.
-4. The orchestrator runs the children in dependency order, a few at a time,
-   each through the single-issue loop above. A decision that changes the design
-   is written back into it, and the children that cite what changed are updated.
-5. When the last child closes, the orchestrator opens the closeout PR, which
-   resolves the tracking issue the way any PR resolves its issue: it writes the
-   as-built design into the repo and settles the project's findings log with
-   you: each finding becomes a follow-up issue, a drop, or a deferral, and no
-   issue is filed whose text you haven't approved. Its review is
-   the whole-project review, grading the result against the design's own
-   end-to-end acceptance criteria, and its merge closes the tracking issue.
+1. **Design.** In the session where you worked the idea out, ask it to file the
+   result. If it looks like a project — more than one dependent PR, decisions
+   another issue would cite, a criterion no single PR can run — `issue-workflow`
+   asks whether to file it as a tracking issue; you can also say so up front:
 
-While it runs, you are needed at three points: approving the design, answering
-escalations, and merging. You don't read or approve the children; the set
-review's verdict on each one is that gate. The closeout's follow-up issues wait
-on your approval of their text. The project that built this flow ran under it,
-so its tracking issue,
+   > file this as a tracking issue
+
+   It leaves a tracking issue whose requirements and decisions carry stable IDs.
+
+2. **Design review.** The filing session asks who runs the spec review: a
+   reviewer subagent it spawns, or a session of your own, started with
+
+   > review `<URL>` as a spec
+
+   `issue-reviewer` reviews the design in rounds, and the filing session answers
+   each round as the body's author, until the verdict is `READY`.
+
+3. **Acceptance.** The author session then asks whether you accept the design.
+   Saying yes is your sign-off; `issue-workflow` records it as the acceptance row
+   in the design's decision log, and from then on the design changes only through
+   further rows.
+
+4. **Decomposition.** In a fresh session:
+
+   > decompose `<URL>`
+
+   `issue-workflow` files the child issues. Each one says which requirements it
+   covers and which siblings it depends on; the dependencies become GitHub's own
+   blocked-by links, and every child carries the project's `project:<slug>`
+   label.
+
+5. **Set review.** The decomposing session hands the parent and its children to
+   a set review, asking the same question as stage 2; in your own session the
+   prompt is the parent's:
+
+   > review `<parent URL>` as a spec
+
+   The parent brings its sub-issues with it. `issue-reviewer` checks the
+   children against the design: every requirement covered, every dependency
+   recorded as a link, and no child contradicting the section it cites. It ends
+   when every child reads `READY`.
+
+6. **Orchestration.** In a fresh session:
+
+   > orchestrate `<URL>`
+
+   `orchestrate` runs the children in dependency order, a few at a time, each
+   through the single-issue loop above. A decision that changes the design is
+   written back into it, and the children that cite what changed are updated.
+   When the last child closes, it opens the closeout PR, which resolves the
+   tracking issue the way any PR resolves its issue: it writes the as-built
+   design into the repo and settles the project's findings log with you: each
+   finding becomes a follow-up issue, a drop, or a deferral. Its review is the
+   whole-project review, grading the result against the design's own end-to-end
+   acceptance criteria. You merge it, and the tracking issue closes.
+
+Across the whole flow, you are needed at these points:
+
+- deciding that a discussion is a project, when the filing session asks;
+- signing off the design, at acceptance;
+- answering the orchestrator's escalations;
+- looking at the work before it is reviewed, on any issue that declares an
+  operator check before review (an issue whose change you see, such as a page or
+  a terminal screen, is offered one when it is filed);
+- merging each PR;
+- approving the text of every follow-up issue the closeout files.
+
+You don't read or approve the children; the set review's verdict on each one is
+that gate. The project that built this flow ran under it, so its tracking issue,
 https://github.com/dbaggott/claude-plugins/issues/223, is a worked example of a
 design, its children, and its decision log.
 
@@ -96,10 +143,23 @@ closing report carries only what changed since the handoff.
 
 ![Two terminal panes. The left session iterates on a change conversationally across three pushes to a draft PR; the right session asks whether to review the draft now or wait for it to be marked ready, recommends waiting, and waits. The operator sends it to review, the reviewer requests a test and then approves, and the left session hands over the merge command with the cycle reported under Summary, Observations, and Actionable headings. After the operator merges with a bang command it removes the worktree, deletes the branch, and reports that nothing is new since the handoff.](docs/media/demo-vibe-review.gif)
 
+**Every role closes out the same way**, whoever started it: you, or an
+orchestrator. Before the merge, the author's merge handoff and the reviewer's
+handoff at approval each carry a Summary / Observations / Actionable report, so
+anything that could still change the PR reaches you while you can act on it.
+After the merge, each role's close-out reports only what changed since its
+handoff, and, when retrospectives are on, leaves one behind.
+
 **Filing an issue**, which the gate makes non-optional — an issue written
 without the skill is a body the next session can't work from.
 
 ![A session's gh issue create being blocked by the check-issue-create hook, then loading the issue-workflow skill, verifying anchors against the tree, and filing an issue whose body carries the defect, a reproduction, a proposed fix, and acceptance criteria.](docs/media/demo-file-issue.gif)
+
+Filing a plain issue ends on one question: spec-review it now, with a reviewer
+subagent and the filing session answering its rounds, or not now. On "not now"
+the session prints the prompt to start the review later, in any session:
+
+> review `<URL>` as a spec
 
 **Summarizing work accomplished in a specified time period**, with the
 level of detail included shaped by the intended audience. As velocity
@@ -107,6 +167,31 @@ increased, it became challenging to summarize completed work -- there
 was simply too much of it! This makes it easy:
 
 ![A session gathering merged PRs and filed issues, reading their descriptions rather than their diffs, asking who the recap is for, and writing the same week up twice: once for teammates and once for leadership.](docs/media/demo-work-summary.gif)
+
+## GitHub is the state
+
+Every stage reads its inputs from GitHub and writes its outputs there: the
+issue's body, its comments and labels, its sub-issue and blocked-by links, and
+the PRs linked to it. Nothing a stage needs lives in the session that ran the
+previous one, so each stage can run in a fresh session, and the plugin
+recommends one at every stage change: the session that wrote a design is the
+most expensive one to keep alive. A session that dies mid-stage is replaced by
+a new one given that stage's prompt, which picks up from GitHub. To ask where an
+issue or project stands, and get the prompt for its next stage, ask
+`project-status`:
+
+> where is `<URL>`
+
+Two things are kept on your machine instead, by design, since neither is part
+of any one issue's work: retrospectives, where agents record what slowed the
+process, read across runs by `process-review`; and findings entries, where they
+record what they noticed about the code, which `findings-review` sweeps with you
+before any becomes an issue. Retrospectives are written only when the
+`retrospectives` setting is on, and it is off by default; with it off, a
+close-out tells you directly where a skill was wrong, missing, or had to be
+worked around.
+[`docs/configuration.md`](docs/configuration.md#retrospectives--where-process-friction-goes)
+covers the setting.
 
 ## Why it compounds
 
@@ -161,11 +246,9 @@ the citations are machine-readable, the set review *computes* coverage by
 diffing them against the design rather than judging it by eye. The orchestrator
 answers an author's question from the design's recorded rationale, and when the
 answer changes the design it writes the change back, so the next child reads the
-current design rather than the original one. And with
-[`retrospectives`](docs/configuration.md#retrospectives--where-process-friction-goes)
-on, every agent in a run leaves a retrospective, which `process-review` reads
-across runs to find the friction that recurs and draft the upstream issue that
-removes it.
+current design rather than the original one. And when retrospectives are on,
+every agent in a run leaves one, which `process-review` reads across runs to find
+the friction that recurs and draft the upstream issue that removes it.
 
 **Token cost falls out of the same design** rather than being optimised in
 afterwards. Skills load only when their description matches the task, and the
