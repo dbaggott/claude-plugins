@@ -2,9 +2,9 @@
 #
 # Runs the bats suite locally the way CI does, with a result an agent can read
 # without piping it anywhere. The full TAP output goes to a temporary file;
-# stdout carries the plan line, each failure with its diagnostics, any bats
-# warning, the file's path as `tap=<path>`, and bats' exit status as
-# `status=<n>`, last. The script exits with that status.
+# stdout carries the plan line, each failure with its diagnostics, each skipped
+# test, any bats warning or error, the file's path as `tap=<path>`, and bats'
+# exit status as `status=<n>`, last. The script exits with that status.
 #
 # Usage: scripts/dev/test.sh [bats target...]    (default: the repo's tests/)
 
