@@ -149,11 +149,26 @@ One body edit, after the last child is filed:
 - The coverage markings from step 1, and the end-to-end criteria from step 3.
 - Every mention of a candidate child elsewhere in the body ("child 7") becomes
   that child's URL.
+- Every `decided` row set to `applied`, with none left at `decided`. You own
+  every child and none is in flight yet, so applying a row now is part of this
+  pass:
+  - **A row the children were written from** matches the body and every child
+    by construction, and is set to `applied` as it stands.
+  - **A row decided after step 2 began** that reaches a child: edit that
+    child's body to match it first, linking the row from the section it
+    changes, as `orchestrate`'s `references/triage.md`, "Promote decided rows
+    into the body", does, then set it to `applied`.
+  - **A row that reaches no child**, a decision about the parent alone: once
+    the body carries it, set it to `applied`. Post the line `orchestrate`'s
+    `references/design-change.md` gives such a row, `Decision log: <date> <ID>
+    set to applied, already in the body and every child`, on the parent as the
+    author, one comment carrying a line for every such row.
+  - **The acceptance row** (`Design accepted: …`) is one of those parent-only
+    rows. Setting it to `applied` keeps the design accepted, since acceptance
+    is detected by that Entry at any state but `proposed`.
 - One decision-log row recording the filing, its Entry opening `Children
-  filed`, state `applied`; and every `decided` row the children were written
-  from set to `applied`, since the body and every child match it by
-  construction. A row decided after step 2 began stays `decided` unless each
-  child it reaches has been edited to match it.
+  filed`, state `applied`, written last, so it is the newest row and every row
+  above it is final or `proposed`.
 
 ## 6. Send the set to review
 
