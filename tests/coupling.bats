@@ -237,6 +237,25 @@ EOF
   }
 }
 
+# `retrospectives` is pinned the same way and for a sibling reason: on, every
+# close-out writes a file under the operator's home directory, which only whoever
+# maintains these prompts reads. Pre-ticked, the next update would start leaving
+# those files on every install that never asked for them.
+@test "retrospectives default to off on both sides" {
+  local manifest="$ROOT/dnbg-workflow/.claude-plugin/plugin.json"
+  # shellcheck source=../dnbg-workflow/hooks/lib.sh
+  . "$ROOT/dnbg-workflow/hooks/lib.sh"
+
+  [ "$(jq -r '.userConfig.retrospectives.default' "$manifest")" = "false" ] || {
+    echo "the manifest offers retrospectives pre-enabled"
+    false
+  }
+  ( unset CLAUDE_PLUGIN_OPTION_RETROSPECTIVES; ! retrospectives_enabled ) || {
+    echo "an unconfigured session writes retrospectives"
+    false
+  }
+}
+
 # The exclusion decision in reverse. "Configurable opinions with opinionated
 # defaults" draws its line at mechanical-vs-behavioral, and the behavioral side —
 # drafts always, the send-to-review picker and its fixed option order, the
@@ -253,10 +272,14 @@ EOF
 # above writes onto a PR title people read, and stays an opinion because it is
 # there to be read. "The operator might prefer otherwise" is not a ground either,
 # or every behavioral choice above qualifies.
+#
+# `retrospectives` earns its place on the same third ground: what it writes is a
+# file addressed to whoever maintains these prompts, which a user who is not that
+# person has no use for and should not be left carrying.
 @test "the plugin exposes exactly the intended configuration keys" {
   local keys
   keys=$(jq -r '.userConfig | keys_unsorted[]' "$ROOT/dnbg-workflow/.claude-plugin/plugin.json" | sort | tr '\n' ' ')
-  [ "$keys" = "claim_label findings_dir owners retrospective_dir version_stamp worktree_path " ] || {
+  [ "$keys" = "claim_label findings_dir owners retrospective_dir retrospectives version_stamp worktree_path " ] || {
     echo "userConfig keys are: $keys"
     echo "adding one means deciding it is mechanical, or that it governs what gets published — see docs/configuration.md"
     false

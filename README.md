@@ -161,9 +161,11 @@ the citations are machine-readable, the set review *computes* coverage by
 diffing them against the design rather than judging it by eye. The orchestrator
 answers an author's question from the design's recorded rationale, and when the
 answer changes the design it writes the change back, so the next child reads the
-current design rather than the original one. And every agent in a run leaves a
-retrospective, which `process-review` reads across runs to find the friction that
-recurs and draft the upstream issue that removes it.
+current design rather than the original one. And with
+[`retrospectives`](docs/configuration.md#retrospectives--where-process-friction-goes)
+on, every agent in a run leaves a retrospective, which `process-review` reads
+across runs to find the friction that recurs and draft the upstream issue that
+removes it.
 
 **Token cost falls out of the same design** rather than being optimised in
 afterwards. Skills load only when their description matches the task, and the

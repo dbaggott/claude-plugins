@@ -57,7 +57,10 @@ maintainer asks for these reports, and the destination is the
 `.claude-plugin/plugin.json`. Never file it under the user's
 identity without their consent, and only after they approve the
 exact text, written from the generic case — no user present means
-no filing. `issue-workflow` carries the rest. A hook that *blocks*
+no filing. In work that ends in a close-out, friction that did not
+stop the task waits for it, and goes where `process-review`'s
+`references/retrospective.md`, "When a retrospective is written",
+says. `issue-workflow` carries the rest. A hook that *blocks*
 you is working as intended — satisfy it, don't route around it.
 Never edit the installed copy under `~/.claude/plugins/`:
 unreviewed, invisible to everyone else, and gone at the next

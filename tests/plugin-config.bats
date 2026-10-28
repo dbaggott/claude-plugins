@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 #
-# The three mechanical knobs and the version-stamp gate, at the level where they
-# resolve: lib.sh.
+# The mechanical knobs and the two gates, version stamp and retrospectives, at the
+# level where they resolve: lib.sh.
 #
 # What makes these worth pinning is that the fallback is *ours*. The manifest's
 # `default` field looks like it supplies one and does not — an option nobody has
@@ -18,7 +18,7 @@ setup() {
   . "$LIB"
   unset CLAUDE_PLUGIN_OPTION_WORKTREE_PATH CLAUDE_PLUGIN_OPTION_CLAIM_LABEL \
     CLAUDE_PLUGIN_OPTION_RETROSPECTIVE_DIR CLAUDE_PLUGIN_OPTION_FINDINGS_DIR \
-    CLAUDE_PLUGIN_OPTION_VERSION_STAMP
+    CLAUDE_PLUGIN_OPTION_VERSION_STAMP CLAUDE_PLUGIN_OPTION_RETROSPECTIVES
 }
 
 # Each resolve runs in a subshell with the option set, so a configured value can
@@ -49,6 +49,11 @@ with_findings_dir() {  # <value>
 with_version_stamp() {  # <value>
   ( export CLAUDE_PLUGIN_OPTION_VERSION_STAMP="$1"
     if version_stamp_enabled; then echo on; else echo off; fi )
+}
+
+with_retrospectives() {  # <value>
+  ( export CLAUDE_PLUGIN_OPTION_RETROSPECTIVES="$1"
+    if retrospectives_enabled; then echo on; else echo off; fi )
 }
 
 # --- defaults ----------------------------------------------------------------
@@ -294,4 +299,27 @@ with_version_stamp() {  # <value>
   [ "$(with_version_stamp yes)" = off ]
   [ "$(with_version_stamp on)" = off ]
   [ "$(with_version_stamp 'true ')" = off ]
+}
+
+# --- retrospectives ----------------------------------------------------------
+#
+# The stamp's gate shape: on, every close-out writes a file under the operator's
+# home directory, so a value this cannot read leaves it off.
+
+@test "an unconfigured session writes no retrospectives" {
+  ! retrospectives_enabled
+}
+
+@test "the affirmative turns retrospectives on in any casing" {
+  [ "$(with_retrospectives true)" = on ]
+  [ "$(with_retrospectives TRUE)" = on ]
+  [ "$(with_retrospectives True)" = on ]
+}
+
+@test "every other retrospectives value is off" {
+  [ "$(with_retrospectives false)" = off ]
+  [ "$(with_retrospectives '')" = off ]
+  [ "$(with_retrospectives 1)" = off ]
+  [ "$(with_retrospectives on)" = off ]
+  [ "$(with_retrospectives yes)" = off ]
 }

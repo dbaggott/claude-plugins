@@ -146,8 +146,15 @@ FINDINGS_DIR=$(resolve_findings_dir)
 # operator who configures a knob to the value it already had gets no note. There
 # is nothing to override in that case, and a note claiming otherwise would be
 # noise the reader has to work out is a no-op.
+# `retrospectives` joins as a gate: its default is off, so only on is an
+# override, and a value the gate cannot read is off and says nothing, as an unread
+# `version_stamp` does.
+RETROSPECTIVES_ON=""
+retrospectives_enabled && RETROSPECTIVES_ON=1
+
 if [ "$WORKTREE_PATH" != "$DEFAULT_WORKTREE_PATH" ] || [ "$CLAIM_LABEL" != "$DEFAULT_CLAIM_LABEL" ] ||
-   [ "$RETROSPECTIVE_DIR" != "$DEFAULT_RETROSPECTIVE_DIR" ] || [ "$FINDINGS_DIR" != "$DEFAULT_FINDINGS_DIR" ]; then
+   [ "$RETROSPECTIVE_DIR" != "$DEFAULT_RETROSPECTIVE_DIR" ] || [ "$FINDINGS_DIR" != "$DEFAULT_FINDINGS_DIR" ] ||
+   [ -n "$RETROSPECTIVES_ON" ]; then
   printf '\n## dnbg-workflow: configuration overrides\n\n'
   printf 'These win over the skills. Where a skill spells out a default below and this note names something else, use what this note says.\n\n'
 fi
@@ -177,6 +184,13 @@ EOF
 - **Findings entries live under \`$FINDINGS_DIR/\`**, not the
   \`$DEFAULT_FINDINGS_DIR/\` that \`findings-review\` spells out. Write and read
   them in \`$FINDINGS_DIR/<owner>/<repo>/\`.
+EOF
+
+[ -n "$RETROSPECTIVES_ON" ] && cat <<EOF
+- **Retrospectives are on**, not the off that \`process-review\`'s
+  \`references/retrospective.md\` spells out. Every close-out writes its
+  retrospective file per that reference, and the report says nothing about
+  process friction beyond the file's path.
 EOF
 
 exit 0
