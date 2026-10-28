@@ -10,6 +10,19 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.70 — 2026-10-28
+
+Filing a plain issue now ends with an offer to spec-review it: "Spec-review it
+now" spawns the reviewer and the filing session answers its rounds; "Not now"
+gives the `review <URL> as a spec` prompt to paste later. `findings-review` and
+an `orchestrate` closeout ask once for the whole batch of issues they file and
+review them as a set.
+
+`issue-workflow`'s filing steps moved from `references/creating.md` to
+`references/filing.md`, and the spec-review wait mechanics to
+`references/spec-review-wait.md`.
+
+
 ## dnbg-workflow 2026.10.69 — 2026-10-28
 
 The retrospective format now lives with `process-review`, the skill that reads
