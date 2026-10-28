@@ -101,9 +101,7 @@ applied — you cannot set labels from a fork.
 
 ```bash
 shellcheck $(find . \( -name '*.sh' -o -name '*.bash' \) -not -path './.git/*')
-if parallel --version 2>/dev/null | grep -q 'GNU parallel'; then
-  npx --yes bats@1.13.0 -j 8 tests/
-else echo 'No GNU parallel: run npx --yes bats@1.13.0 tests/ instead'; fi
+scripts/dev/test.sh                         # the bats suite; see below
 jq empty .claude-plugin/marketplace.json
 jq -r '.plugins[].source' .claude-plugin/marketplace.json \
   | xargs -I{} find {} -name '*.json' | xargs -n1 jq empty
@@ -112,12 +110,16 @@ actionlint                                  # brew install actionlint
 docs/media/check-render.sh                  # README demos; a hook reword stales one
 ```
 
-The bats command is CI's, behind CI's guard: `-j` needs GNU `parallel`
-(moreutils ships an unrelated one), and without it bats runs no tests at all.
-Judge a run by bats' own exit status and its last line, never by piping it into
-a `not ok` filter: the pipe reports the filter's status, not bats', and a last
-line of `# bats warning: Executed 0 instead of expected N tests` means nothing
-ran.
+`scripts/dev/test.sh` runs CI's bats command, passing `-j` only when GNU
+`parallel` is installed. It writes the full TAP output to a temporary file and
+prints only the plan line, each failure with its diagnostics, any bats warning,
+`tap=<path>` naming that file, and `status=<n>` last, then exits with bats'
+status. Give it a test file to run less than `tests/`. The full suite takes
+minutes, so from an agent's Bash tool run it as a background task rather than
+in the foreground. Read the result from its last line and read failures from the
+file, and don't pipe it into `tail` or a `not ok` filter, which reports the
+filter's status instead of bats'. A `# bats warning: Executed 0 instead of
+expected N tests` line means nothing ran.
 
 Two of the commands above are narrower than the CI step they stand for, so a
 green run here is good evidence rather than a guarantee. The `jq` lines are only
