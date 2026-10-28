@@ -146,10 +146,19 @@ Under the headings:
 - **Summary**: the PR, the verdicts you posted and the SHAs they sat on, how
   many rounds it took, and, at the close-out, how it ended.
 - **Observations**: a pattern worth knowing, a risk you checked and found
-  handled, an area the change leaves untouched but adjacent.
-- **Actionable**: a finding you raised that stands unaddressed, a thread you
-  resolved on the author's reasoning that you still think deserves a
+  handled, an area the change leaves untouched but adjacent, and a finding the
+  author declined in a reply saying the operator told it to.
+- **Actionable**: any other finding you raised that stands unaddressed, a
+  thread you resolved on the author's reasoning that you still think deserves a
   follow-up, a coverage gap the diff carries.
+
+Write each item's findings entry in the report that first lists it, which is
+the handoff whenever there is one, per
+`<skill-dir>/../findings-review/references/entry.md`, and name its path on the
+item's line. The operator-ordered decline gets none. Process friction that did
+not stop the review stays out of the handoff, Actionable included, and is not
+offered for filing there: it waits for your close-out, per `report.md`'s "At a
+close-out".
 
 Reviewing one PR, that `CLOSED` is your close-out: write the retrospective per
 `<skill-dir>/../process-review/references/retrospective.md`, as the report's

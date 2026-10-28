@@ -27,17 +27,21 @@ Who writes an entry:
 - **An item you already wrote an entry for**, in an earlier report on the same
   PR, is not written again. Name the existing path.
 - **The reviewer** writes one for every finding it raised that stands
-  unaddressed at its handoff, or at its close-out on a PR it gave no handoff.
-- **The author** writes one for every finding it declined, as
-  `<skill-dir>/../git-workflow/references/merge.md`'s "The report that goes
-  with the command" has it.
+  unaddressed at its handoff, or at its close-out on a PR it gave no handoff,
+  except one the author declined in a reply saying the operator told it to.
+- **The author** writes one at its merge handoff for every finding it declined,
+  as `<skill-dir>/../git-workflow/references/merge.md`'s "The report that goes
+  with the command" has it, except one it declined because the operator told it
+  to.
 - **The orchestrator** writes only the items no agent wrote an entry for. An
   item the reviewer lists without a path is usually one the author's handoff
   lists with one: use that path.
 
-A finding the author declined and the reviewer still holds therefore gets an
-entry from each: that is the expected pair, which the sweep merges as one item,
-as it does any other duplicate.
+An operator-ordered decline gets an entry from neither side: the operator has
+already made the decision an entry would put in front of them, and the report
+names it under Observations instead. Any other finding the author declined and
+the reviewer still holds gets an entry from each: that is the expected pair,
+which the sweep merges as one item, as it does any other duplicate.
 
 ## Where it goes
 
