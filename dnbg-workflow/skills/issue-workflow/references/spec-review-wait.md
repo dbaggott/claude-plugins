@@ -1,9 +1,8 @@
 # Issue workflow: waiting for the next spec-review round
 
-Part of the `issue-workflow` skill. Read this when `references/spec-review-rounds.md`
-sends you to wait for a round: after handing the review to the operator's own
-session, or after answering a round under that hand-over. `<skill-dir>` is this
-skill's Base directory.
+Part of the `issue-workflow` skill. Read this whenever `references/spec-review-rounds.md`
+sends you to wait for a round, which is any wait not on a spawned reviewer's
+report. `<skill-dir>` is this skill's Base directory.
 
 Spawn the wait as a **background** task with `timeout: 7200000`, and every
 re-arm of it the same way, so idle polling never enters the conversation.
@@ -51,4 +50,3 @@ out for good rather than deferred.
 background task returning no result line at all — killed, session ended, reloaded
 — is blindness rather than silence, and looks identical to a round nobody has
 posted. Re-read the issues' comments before concluding the reviewer has gone quiet.
-

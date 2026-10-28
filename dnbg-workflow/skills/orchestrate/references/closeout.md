@@ -139,18 +139,19 @@ for by its title before it is filed. A follow-up that a review round turns into
 a drop is closed as not planned, citing the round:
 `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh issue close <n> --repo <owner>/<repo> --reason "not planned" --comment "<round URL>"`.
 
-Once every approved follow-up is filed, ask once for the batch, with the two
-options of `issue-workflow`'s `references/filing.md`, "Offer the spec review",
-in place of its per-issue question. On "Spec-review it now (Recommended)",
-dispatch `issue-reviewer` as `dnbg-workflow:reviewer-orchestrated`, in the
-background, with the prompt `Review <URL>, <URL> as a set.` naming every
-follow-up filed here, and answer its rounds per `issue-workflow`'s
-`references/spec-review-rounds.md`, "Spawn the reviewer". On "Not now", or
-without `AskUserQuestion`, give that prompt to paste in the report.
-
 Record each filed or dropped row in its entry, as `findings-review`'s step 5
 does, when the entry is on this machine; a row whose entry is not stays in the
 table alone.
+
+When any follow-up was filed, ask once for the batch, with the two options of
+`issue-workflow`'s `references/filing.md`, "Offer the spec review", in place of
+its per-issue question. The prompt is `Review <URL>, <URL> as a set.`, one per
+repo the follow-ups were filed in, naming that repo's issues. On "Spec-review it
+now (Recommended)", dispatch `issue-reviewer` as
+`dnbg-workflow:reviewer-orchestrated` with each prompt, in the background, and
+answer the rounds per `issue-workflow`'s `references/spec-review-rounds.md`,
+"Spawn the reviewer". On "Not now", or without `AskUserQuestion`, give the
+prompts to paste in the report.
 
 Every write in this file is the author's, as `git-workflow`'s "Acting as the
 author" describes, except the parent-body rows `log-row.sh` writes and the
