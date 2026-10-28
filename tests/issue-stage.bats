@@ -157,16 +157,19 @@ design_ready_against() {
   edit "set:$R#223" '.data.repository.issue |= ((.oldest.nodes, .newest.nodes) |= map(
                        if .body == "**Spec review (design mode), round 1: READY**"
                        then .body += "\n\nReviewed against `lastEditedAt` '"$1"', with the constraints re-run."
+                            | .url = "https://github.com/'"$R"'/issues/223#issuecomment-7"
                        else . end))'
 }
+# <json> -> the parent body's lastEditedAt, as the set query reads it
+edited_at() { edit "set:$R#223" ".data.repository.issue.lastEditedAt = $1"; }
 
 @test "a childless tracking issue without the row is in design review, or a draft before any verdict" {
   use tracking-accepted
-  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]
-                       | .data.repository.issue.lastEditedAt = "2026-10-14T01:02:03Z"'
+  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]'
+  edited_at '"2026-10-14T01:02:03Z"'
   design_ready_against '`2026-10-14T01:02:03Z`'
   run "$STAGE" $R 223 $SLUG
-  [ "$output" = "result=OK kind=tracking stage=design-review next=accept evidence=children=0 acceptance_row=no verdict=READY round=current" ]
+  [ "$output" = "result=OK kind=tracking stage=design-review next=accept evidence=children=0 acceptance_row=no verdict=READY round=current round_url=https://github.com/$R/issues/223#issuecomment-7" ]
 
   edit "set:$R#223" '.data.repository.issue.newest.nodes += [{author: {login: "agent-reviewer-dbaggott[bot]"},
                        body: "**Spec review (design mode), round 9: CHANGES REQUESTED**"}]
@@ -181,36 +184,44 @@ design_ready_against() {
 
 @test "a design-mode READY against an earlier body, or naming none, leads to a review" {
   use tracking-accepted
-  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]
-                       | .data.repository.issue.lastEditedAt = "2026-10-15T00:00:00Z"'
+  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]'
+  edited_at '"2026-10-15T00:00:00Z"'
   design_ready_against '`2026-10-14T01:02:03Z`'
   run "$STAGE" $R 223 $SLUG
   [ "$output" = "result=OK kind=tracking stage=design-review next=review-spec evidence=children=0 acceptance_row=no verdict=READY round=stale" ]
 
   use tracking-accepted
-  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]
-                       | .data.repository.issue.lastEditedAt = "2026-10-15T00:00:00Z"'
+  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]'
+  edited_at '"2026-10-15T00:00:00Z"'
   run "$STAGE" $R 223 $SLUG
   [ "$output" = "result=OK kind=tracking stage=design-review next=review-spec evidence=children=0 acceptance_row=no verdict=READY round=stale" ]
 }
 
 @test "a design-mode READY against a never-edited body is current while the body stays unedited" {
   use tracking-accepted
-  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]
-                       | .data.repository.issue.lastEditedAt = null'
+  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]'
+  edited_at null
   design_ready_against ': null (never edited)'
   run "$STAGE" $R 223 $SLUG
-  [ "$output" = "result=OK kind=tracking stage=design-review next=accept evidence=children=0 acceptance_row=no verdict=READY round=current" ]
+  [ "$output" = "result=OK kind=tracking stage=design-review next=accept evidence=children=0 acceptance_row=no verdict=READY round=current round_url=https://github.com/$R/issues/223#issuecomment-7" ]
 
-  edit "stage:$R#223" '.data.repository.issue.lastEditedAt = "2026-10-15T00:00:00Z"'
+  edited_at '"2026-10-15T00:00:00Z"'
+  run "$STAGE" $R 223 $SLUG
+  [ "$output" = "result=OK kind=tracking stage=design-review next=review-spec evidence=children=0 acceptance_row=no verdict=READY round=stale" ]
+}
+
+@test "a design-mode READY naming no watermark is stale even on a body never edited" {
+  use tracking-accepted
+  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]'
+  edited_at null
   run "$STAGE" $R 223 $SLUG
   [ "$output" = "result=OK kind=tracking stage=design-review next=review-spec evidence=children=0 acceptance_row=no verdict=READY round=stale" ]
 }
 
 @test "a READY that is not a design-mode round leads to a review" {
   use tracking-accepted
-  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]
-                       | .data.repository.issue.lastEditedAt = null'
+  edit "stage:$R#223" '.data.repository.issue.body |= split("\n")[0]'
+  edited_at null
   edit "set:$R#223" '.data.repository.issue.newest.nodes += [{author: {login: "agent-reviewer-dbaggott[bot]"},
                        body: "**Spec review, round 4: READY**\n\nReviewed against `lastEditedAt`: null."}]
                      | .data.repository.issue.newest.totalCount += 1'

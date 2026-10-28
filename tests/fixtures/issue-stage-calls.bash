@@ -17,7 +17,7 @@ issue_stage_call_key() {  # <gh argument...>
     esac
   done
   case "$all" in
-    "api graphql"*"state body lastEditedAt }"*) echo "stage:$owner/$repo#$n" ;;
+    "api graphql"*"state body }"*)        echo "stage:$owner/$repo#$n" ;;
     "api graphql"*"parent { url state }"*) echo "project:$owner/$repo#$n" ;;
     "api graphql"*"subIssues(first: 100)"*) echo "set:$owner/$repo#$n" ;;
     "api graphql"*"body createdAt"*)       echo "claim:$owner/$repo#$n" ;;

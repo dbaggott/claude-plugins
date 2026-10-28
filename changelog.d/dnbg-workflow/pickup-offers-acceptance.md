@@ -6,6 +6,7 @@ non-design-mode `READY` still leads to a review.
 
 `project-status` agrees: `issue-stage.sh` now says `next=accept` only for a
 current design-mode `READY`, and adds a `round=current|stale|not-design`
-evidence key beside it. `ready-set.sh`'s parent object gains `verdict_mode` and
-`verdict_against`, and `issue-reviewer` now states the form its round comments
+evidence key beside it, with `round_url` naming the round when it is current.
+`ready-set.sh`'s parent object gains `verdict_mode`, `verdict_current` and
+`verdict_url`, and `issue-reviewer` now states the form its round comments
 use for the `lastEditedAt` they were reviewed against.
