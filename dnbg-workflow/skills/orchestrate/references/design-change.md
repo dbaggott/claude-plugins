@@ -66,6 +66,7 @@ re-reviewed.
 
 > Review `<child URLs>` as a set against their parent `<parent URL>`. This is a
 > re-review after the design change in `<row link>`.
+> Your draft directory: `<path>`
 
 For an in-flight child, dispatch the re-review only once its author has
 reported the edit. A child whose latest verdict is newer than its step 3 edit has had its

@@ -245,7 +245,7 @@ nothing closes it, because re-validating is never atomic with posting.
 
 Rounds post under the bot identity, each post behind the resolver, which puts
 the bot's token in place for that one command. `<path>` is a file in your
-draft directory (`git-workflow`'s "Draft files").
+draft directory (`<skill-dir>/../git-workflow/SKILL.md`, "Draft files").
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" reviewer <repo> -- \

@@ -171,6 +171,7 @@ directory line (`git-workflow`'s "Draft files"):
 
 > Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
 > tracking issue, so grade the whole project on its closeout PR.
+> Your draft directory: `<path>`
 
 Its review arrives on the PR, so handle every round as an author does, per
 `git-workflow`'s `references/review-received.md` and

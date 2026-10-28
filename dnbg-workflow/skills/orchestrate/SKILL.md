@@ -215,6 +215,7 @@ promote it into the body as its `## Operator check before review` section.
 > there: `<commits>`. It was answering `<review URL>`. It created `<scratch
 > issues and labels>`, which are yours to clean up.] [Promote these decided
 > rows into the issue body, linking each: `<row URLs>`.]
+> Your draft directory: `<path>`
 
 The bracketed phrase replaces "when you're done" whenever the check is declared
 (step 5); of the two bracketed lines after it, the first goes in for a check
@@ -232,6 +233,7 @@ send-to-review, or at once when step 3 found the PR already out of draft. Skip
 it when the operator said they will review the PR themselves.
 
 > Act as the reviewer on `<issue URL>`, in `reviewer`'s issue mode.
+> Your draft directory: `<path>`
 
 ## Wait on subagent reports
 

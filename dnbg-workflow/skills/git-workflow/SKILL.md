@@ -66,7 +66,7 @@ per plugin.
    - **A rename the issue specifies in full**, in any file, as long as each hunk only swaps the old name for the new one or rewraps the line it lands on. Its standards pass checks that the new name was not already taken, and greps the tree for the old one, which may stay only in released history such as CHANGELOG.md.
 
    Size alone never qualifies. Say the defect pass was skipped, and why, when you announce the PR and in the PR description, which names the files for generated, data or prose hunks and the issue for a rename.
-8. Push, and **open the PR as a draft**, its description drafted as `<file>` in your draft directory per "Draft files":
+8. Push, and **open the PR as a draft**, its description drafted at `<file>`, which is `<draft directory>/pr-body.md` ("Draft files"):
 
    ```bash
    git -C <worktree-path> push -u origin <branch-name>
@@ -236,10 +236,14 @@ dispatcher's, and the newest file there may be a sibling's.
   create it at your first draft with `mktemp -d <scratchpad>/drafts.XXXXXX`
   (plain `mktemp -d` when the harness names no scratchpad directory), and state
   its path in your next message, so it stays in your context across Bash calls.
+  If you lose the path, create another the same way rather than look for it.
 - **Before writing a draft**, run `mkdir -p <draft directory>`: the harness's
   scratchpad can vanish mid-session.
-- **Before posting one**, check it is non-empty (`test -s <file>`), and stop
-  if it is not rather than post an empty body.
+- **Posting one**: check it is non-empty first (`test -s <file>`), stopping
+  rather than posting an empty body, and delete it once it is posted (`rm
+  <file>`). A fixed name is reused next round, so a draft you failed to rewrite
+  would otherwise post last round's text. To change a posted body, read it back
+  from GitHub.
 
 **When you dispatch an agent** with the Agent tool, create its directory first,
 `mktemp -d <scratchpad>/<role>-<n>.XXXXXX`, where `<role>` is `author` or
