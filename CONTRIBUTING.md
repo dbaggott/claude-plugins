@@ -110,16 +110,24 @@ actionlint                                  # brew install actionlint
 docs/media/check-render.sh                  # README demos; a hook reword stales one
 ```
 
-`scripts/dev/test.sh` runs CI's bats command, passing `-j` only when GNU
-`parallel` is installed. It writes the full TAP output to a temporary file and
-prints the plan line, each failure with its diagnostics, each skipped test, any
-bats warning or error, `tap=<path>` naming that file, and `status=<n>` last,
-then exits with bats' status. Pass it test files to run only those. The full
-suite takes minutes, so from an agent's Bash tool run it as a background task
-rather than in the foreground. Read the result from its last line, and don't
-pipe it into `tail` or a `not ok` filter, which reports the filter's status
-instead of bats'. A `# bats warning: Executed 0 instead of expected N tests`
-line means nothing ran.
+`scripts/dev/test.sh` runs CI's bats command with a junit report added, passing
+`-j` only when GNU `parallel` is installed. It writes the full TAP output to a
+temporary file and prints the plan line, each failure with its diagnostics, each
+skipped test, any bats warning or error, the ten slowest tests with their files,
+the summed test time and the run's wall time, `report=<path>` naming the report
+with every test's time, `tap=<path>` naming the TAP file, and `status=<n>` last,
+then exits with bats' status. Pass it test files to run only those. The full suite
+takes minutes, so from an agent's Bash tool run it as a background task rather
+than in the foreground. Read the result from its last line, and don't pipe it
+into `tail` or a `not ok` filter, which reports the filter's status instead of
+bats'. A `# bats warning: Executed 0 instead of expected N tests` line means
+nothing ran.
+
+The timing is there for the change that adds a test, not only for a slow day:
+a test that lands near the top of that list is the suite's cost growing, and the
+PR adding it is where that is cheapest to notice. A watch test is a loop of
+synthetic ticks against stubs, and most of its time is the processes each tick
+starts, so fewer ticks, or a stub that does less per call, is usually the fix.
 
 Two of the commands above are narrower than the CI step they stand for, so a
 green run here is good evidence rather than a guarantee. The `jq` lines are only

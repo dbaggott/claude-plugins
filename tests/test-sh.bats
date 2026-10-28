@@ -40,7 +40,7 @@ load_failing_run() {
   load_failing_run
   tap_line=$(printf '%s\n' "${lines[@]}" | grep '^tap=')
   tap=${tap_line#tap=}
-  grep -qx 'ok 1 fixture: passes' "$tap"
+  grep -qE '^ok 1 fixture: passes( #.*)?$' "$tap"
   grep -q '^not ok 2 fixture: fails' "$tap"
 }
 
@@ -49,18 +49,23 @@ load_failing_run() {
   [ "$status" -eq 0 ]
   [ "${lines[${#lines[@]}-1]}" = "status=0" ]
   [[ "$output" != *"not ok"* ]]
+  [[ "$output" == *"slowest tests:"* ]]
+  [[ "$output" == *"ms  passing.bats  fixture: passes"* ]]
+  [[ "$output" == *"tests_time="*"s wall="*"s"* ]]
 }
 
 @test "test.sh: a skipped test is shown, since status=0 alone would hide it" {
   run "$SCRIPT" "$FIXTURES/skipping.bats"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok 1 fixture: skipped # skip fixture reason"* ]]
+  [[ "$output" == *"ms  skipping.bats  fixture: skipped"* ]]
 }
 
 @test "test.sh: an error from bats itself reaches stdout, not only the file" {
   run "$SCRIPT" "$FIXTURES/does-not-exist.bats"
   [ "$status" -ne 0 ]
   [[ "$output" == *"does-not-exist.bats"*"does not exist"* ]]
+  [[ "$output" != *"slowest tests:"* ]]
   [ "${lines[${#lines[@]}-1]}" = "status=$status" ]
 }
 
