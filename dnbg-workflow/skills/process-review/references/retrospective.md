@@ -57,9 +57,8 @@ issue number and `<role>` is `author`, `reviewer` (a PR review, the `reviewer`
 skill), `issue-reviewer` (a spec round, the `issue-reviewer` skill) or
 `orchestrator`. The time keeps a second dispatch of the same role from
 overwriting the first. A reviewer of a set of issues takes their parent as its
-issue, here and in the file's `issue:`. A file for several issues with no
-parent (`orchestrate`'s `references/several-issues.md`), which is every agent's
-on a set resolved by one PR and the orchestrator's in either case, is named for
+issue, here and in the file's `issue:`. A set with no parent resolved by one
+PR (`orchestrate`'s `references/several-issues.md`) names every agent's file for
 the set: `issue:` is a YAML list of every issue's URL, ordered by repo and then
 number, and the first gives `<owner>/<repo>` and `<n>`. Work under no issue
 takes its PR: `<n>` is the PR number and `issue:` the PR's URL.

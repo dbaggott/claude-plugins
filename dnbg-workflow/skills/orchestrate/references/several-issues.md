@@ -16,15 +16,13 @@ Both cases share these:
   waits until every author in flight has a PR open or is waiting on the
   operator, and tells the operator to start the fresh session on every issue
   URL still open, naming the case.
-- **Your own retrospective is one for the session**, named for the set
-  (`<skill-dir>/../process-review/references/retrospective.md`).
 
 ## Independent issues
 
 Each issue is its own run of `SKILL.md`'s flow, from this one session: its own
 claim, its own decision-log rows on its own issue, its own author and reviewer,
-and its own "Stop", less your retrospective and the report, which come once
-for the session. A tracking issue among them runs
+its own retrospectives, yours included, and its own "Stop", less the report,
+which comes once for the session. A tracking issue among them runs
 `references/multi-issue.md`'s loop as its run.
 
 - **Order by overlapping files.** Before dispatching an issue's author, compare
@@ -66,6 +64,8 @@ One run drives the set, with these changes to `SKILL.md`'s flow:
   > acceptance criteria, keep one issue wait over the open ones, and end once
   > every issue is closed and no PR on any of them is open.
 
+- **Retrospectives**, the agents' and yours, are named for the set
+  (`<skill-dir>/../process-review/references/retrospective.md`).
 - **Rows go on the issue each decision affects**, triaged against that issue's
   body; a decision affecting several gets its row on each.
 - **Stop** reports the one PR, with each issue's URL and its escalations under
