@@ -374,10 +374,9 @@ Installing `dnbg-workflow` means **it runs shell scripts on your machine** —
 that is what a Claude Code hook is. Five of them fire automatically once the
 marketplace is trusted: two inject the always-on rules (at session start, and
 again per subagent, because session-start output does not reach subagents), one
-names at session start any agent role that would post as your own account or
-shares another role's App, and
-two are the gates that block edits outside a worktree and unguarded
-`gh issue create` calls.
+at session start names any agent role that would post as your own account and
+warns when two roles share one App, and two are the gates that block edits
+outside a worktree and unguarded `gh issue create` calls.
 
 ![A session being blocked from editing a tracked file in the main checkout, running the git worktree add the block message prints, retrying the edit successfully, then reading the reviewer bot's verdicts on a real pull request](docs/media/demo-gate.gif)
 

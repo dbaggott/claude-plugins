@@ -42,7 +42,7 @@ once the marketplace is trusted:
 | Hook | Fires | What it does |
 | --- | --- | --- |
 | `inject-rules.sh` | session start | Prints `always-on-rules.md` to stdout, which Claude Code puts in the session's context. |
-| `role-fallback-notice.sh` | session start | Runs `as-role.sh --fallbacks`, which reads each role's local configuration (its `config.json` and whether its `DNBG_<ROLE>_*` variables are set) without using a credential, and names any role that would post as your own account because it has no App, or any two roles sharing one App. |
+| `role-fallback-notice.sh` | session start | Runs `as-role.sh --fallbacks`, which reads each role's local configuration (its `config.json` and whether its `DNBG_<ROLE>_*` variables are set) without using a credential, names any role that would post as your own account because it has no App, and warns when two roles share one App. |
 | `inject-rules-subagent.sh` | subagent start | The same text, into each subagent's context. |
 | `check-worktree.sh` | before every `Edit`/`Write`/`NotebookEdit` | Reads the target path and the repo's `origin`; **blocks** edits to tracked files in the main checkout of a covered repo. |
 | `check-issue-create.sh` | before every `Bash` | Reads the command string; **blocks** `gh issue create` against a covered repo unless the `issue-workflow` skill is loaded. |
