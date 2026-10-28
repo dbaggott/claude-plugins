@@ -10,6 +10,20 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.73 — 2026-10-28
+
+The PR reviewer now reports twice: a handoff when it approves, so its findings
+reach you before you merge, and a close-out when the PR merges or closes, a
+delta against that handoff. Each opens with a fixed first line, and an
+orchestrated run relays the reviewer's handoff beneath the author's and waits
+for the reviewer's close-out before it stops.
+
+The reviewer now writes a findings entry for every finding it raised that is
+still unaddressed at its approval, alongside the author's entry for one it
+declined; `findings-review` and a tracking issue's closeout merge that pair as
+one item.
+
+
 ## dnbg-workflow 2026.10.72 — 2026-10-28
 
 A new `retrospectives` setting, off by default, decides where the process
