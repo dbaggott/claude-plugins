@@ -93,7 +93,7 @@ install() {  # <role> [<worktree>]
   # would break the entry. Refused rather than escaped, since a real install path
   # does not carry them.
   case "$SELF" in
-    *[\"\$\`\\]*|*$'\n'*) fail unsafe-helper-path "the helper's path, $SELF, contains \", \$, \`, \\ or a newline, which the shell git runs it through would read; install the plugin under a path without them" ;;
+    *[\"\$\`\\]*|*$'\n'*) fail unsafe-helper-path "the helper's path, $(printf '%q' "$SELF"), contains \", \$, \`, \\ or a newline, which the shell git runs it through would read; install the plugin under a path without them" ;;
   esac
   [ "$FORGE" = github ] || fail unsupported-forge
   gitdir=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null) || fail not-a-worktree "'$wt' is not inside a git worktree"

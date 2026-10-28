@@ -42,6 +42,7 @@ setup() {
   # token call adds `-X POST` ahead of it. Logs its argv, one argument per line,
   # and the contents of every `@file` it is handed, as curl would read them.
   export CURL_ARGV="$BATS_TEST_TMPDIR/curl.argv" CURL_FILES="$BATS_TEST_TMPDIR/curl.files"
+  : > "$CURL_ARGV"; : > "$CURL_FILES"
   cat > "$STUB/curl" <<'EOF'
 #!/usr/bin/env bash
 for a in "$@"; do
@@ -230,7 +231,8 @@ EOF
   write_config '{"app_id":"42","private_key_command":"cat '"$KEYFILE"'"}'
   mint
   [ "$status" -eq 0 ]
-  ! grep -q -e Authorization -e Bearer "$CURL_ARGV"
+  # `|| false` because bash's errexit ignores a negated command.
+  ! grep -q -e Authorization -e Bearer "$CURL_ARGV" || false
   # Still sent, or the assertion above would pass on a dropped header.
   grep -Eq '^Authorization: Bearer [^.]+\.[^.]+\.[^.]+$' "$CURL_FILES"
 }
@@ -337,7 +339,7 @@ EOF
   write_config '{"app_id":"42","private_key_command":"exit 3 # --token=SECRET"}'
   mint
   [ "$status" -ne 0 ]
-  [[ "$output" == *"key command failed"* ]]
+  [[ "$output" == *"key command (private_key_command in $CONFDIR/config.json) failed"* ]]
   [[ "$output" != *"SECRET"* ]]
 }
 

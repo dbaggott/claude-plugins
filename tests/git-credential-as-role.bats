@@ -91,7 +91,9 @@ fill() {  # <url-path> — git's own request, from inside the worktree
     rm -rf "$dir"; cp -R "$TREE" "$dir"
     run "$dir/scripts/git-credential-as-role.sh" --install author "$WT"
     [ "${lines[0]}" = "result=ERROR reason=unsafe-helper-path" ]
-    ! git -C "$WT" config --worktree --get-all credential.helper
+    # The reason prints the path quoted, so even a newline in it stays one line.
+    [ "${#lines[@]}" -eq 2 ]
+    ! git -C "$WT" config --worktree --get-all credential.helper || false
   done
 }
 
