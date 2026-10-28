@@ -366,4 +366,5 @@ Three properties worth knowing:
 
 The key never leaves your machine in any case: the scripts sign a ~9-minute JWT
 locally and exchange it for a short-lived installation token, and only that token
-is sent anywhere.
+is sent anywhere. The JWT reaches `curl` through a pipe rather than on its command
+line, which other users on the machine can read.

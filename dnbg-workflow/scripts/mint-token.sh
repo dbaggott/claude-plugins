@@ -120,8 +120,10 @@ if [ -n "$ENV_KEY" ]; then
 elif [ -n "$KEY_COMMAND" ]; then
   # `sh -c` so the configured value can be an ordinary command line with flags
   # and pipes, which is what every manager's documented invocation looks like.
+  # Its failures never echo it: it may carry a vault token as an argument, and
+  # this stderr reaches the agent's transcript through as-role.sh.
   KEY=$(sh -c "$KEY_COMMAND") || {
-    echo "the configured private key command failed: $KEY_COMMAND" >&2
+    echo "the $ROLE App's configured private key command failed." >&2
     exit 1
   }
   # Reported here rather than left to the not-set-up message below. The `elif`
@@ -130,7 +132,7 @@ elif [ -n "$KEY_COMMAND" ]; then
   # thing entirely. A manager that exits 0 with no output (wrong item name, a
   # vault that needs unlocking) is the likely way to land here.
   [ -n "$KEY" ] || {
-    echo "the private key command produced no output: $KEY_COMMAND" >&2
+    echo "the $ROLE App's private key command produced no output." >&2
     echo "It exited 0 but printed nothing — check the item name, and that any" >&2
     echo "vault or keychain it reads is unlocked." >&2
     exit 1
@@ -198,9 +200,13 @@ fi || {
 }
 jwt="$unsigned.$signature"
 
+# The JWT reaches curl through a pipe, not its argv: other users can read a
+# running process's arguments (`ps`, `/proc/*/cmdline`), and the JWT can mint a
+# token on every installation of the App. curl reads `-H @file` as headers,
+# one per line; `/dev/fd/N` is the same pipe the in-memory key takes above.
 gh_app_api() {
   curl -fsS \
-    -H "Authorization: Bearer $jwt" \
+    -H @<(printf 'Authorization: Bearer %s\n' "$jwt") \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     "$@"
