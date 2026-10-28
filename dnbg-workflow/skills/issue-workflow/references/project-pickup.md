@@ -33,10 +33,23 @@ row, ask:
    this URL and continue there."
 2. **"Stop"**: "Nothing is claimed."
 
-Without it, say that the design needs a `READY` design review and the
-operator's acceptance first, and take up that review per
+Without it, read the issue's stage:
+
+```bash
+"<skill-dir>/../../scripts/issue-stage.sh" <owner>/<repo> <n>
+```
+
+At `next=accept`, the latest design-mode round reads `READY` against the body
+as it stands, and only the operator's acceptance is missing. Ask the acceptance
+question, from the design-mode bullet of `references/spec-review-rounds.md`,
+"Where it ends", with its two options, and on "Accept" write the row it gives.
+Then ask the picker above. Start no review.
+
+At any other `next=`, say that the design needs a `READY` design review and
+the operator's acceptance first, and take up that review per
 `references/spec-review-rounds.md`, "Handing the issue to its reviewer",
-claiming nothing.
+claiming nothing. On `result=ERROR`, say what failed and stop, claiming
+nothing.
 
 At `children` above 0, ask:
 

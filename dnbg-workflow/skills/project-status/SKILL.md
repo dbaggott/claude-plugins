@@ -33,8 +33,11 @@ Print three things, in this order.
 
 **The stage, in one sentence, with its evidence.** Translate the evidence keys:
 `claim` (own, foreign, none), `children` and `open` counts, `verdict` (the
-reviewer bot's latest spec verdict), `acceptance_row`, `prs` (open PRs that
-close the issue), and for a child `parent` and `parent_stage`.
+reviewer bot's latest spec verdict), `acceptance_row`, `round` (beside a
+`READY` design review: `current`, made in design mode against the body as it
+stands; `stale`, against an earlier body; `not-design`, not a design-mode
+round), `prs` (open PRs that close the issue), and for a child `parent` and
+`parent_stage`.
 
 **The prompt to paste next**, from `next`, with `<URL>` the issue's URL:
 

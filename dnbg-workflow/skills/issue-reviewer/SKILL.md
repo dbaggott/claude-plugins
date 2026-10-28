@@ -245,6 +245,12 @@ decide whether a child may be dispatched.
 detectable afterwards.** The gate in `references/rounds.md` narrows that window;
 nothing closes it, because re-validating is never atomic with posting.
 
+Write it as `` `lastEditedAt` `` followed by the value as read, in backticks or
+bare, `null` for a body never edited, and name no other `lastEditedAt` before
+it. `ready-set.sh` reads the first one to tell whether a design-mode `READY`
+still covers the body, and reads a round naming none as made against an earlier
+body.
+
 Rounds post under the bot identity, each post behind the resolver, which puts
 the bot's token in place for that one command. `<path>` is a file in your
 draft directory (`<skill-dir>/../git-workflow/SKILL.md`, "Draft files").

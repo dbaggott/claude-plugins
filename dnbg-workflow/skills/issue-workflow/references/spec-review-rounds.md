@@ -176,7 +176,9 @@ other issue is plain.
   On "Accept", write the row `references/tracking-issue.md`'s "Acceptance"
   gives, as a body edit with the first command in "Answering", with the round comment's URL and `operator sign-off in session`, then:
   "Accepted. In a fresh session: `decompose <URL>`." On "Not yet", write
-  nothing, and ask what the operator still wants to change. Without
+  nothing, and ask what the operator still wants to change; picking the issue
+  up later with `resolve <URL>` asks this again while the body stands
+  (`references/project-pickup.md`). Without
   `AskUserQuestion`, post the question as a `Delegated question:` per
   `references/delegated.md` and stop; the row an accepting answer writes names
   the URL of the comment carrying it as where the sign-off was given.

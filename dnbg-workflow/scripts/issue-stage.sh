@@ -23,13 +23,15 @@
 #             accepted       no children; a decision-log row whose Entry opens
 #                            `Design accepted:` and whose State is not proposed
 #             design-review  no children, no such row; a spec verdict exists.
-#                            READY means it waits on the operator's acceptance
+#                            A design-mode READY made against the body as it
+#                            stands waits on the operator's acceptance; any
+#                            other verdict waits on a review
 #             design-draft   none of the above
 #   plain     in-progress    a claim, or an open PR that closes the issue
 #             ready          a READY spec verdict, or none
 #             spec-review    a verdict that is not READY
 #
-# Prompt ids: review-spec, accept (a READY design review without the row),
+# Prompt ids: review-spec, accept (a current design-mode READY without the row),
 # decompose, orchestrate, resolve, merge-closeout (closeout with an open closing
 # PR on the parent; without one it is orchestrate), none (closed), unknown
 # (below).
@@ -41,7 +43,11 @@
 #
 # `evidence` carries what decided the stage: claim=own|foreign|none,
 # children=<n> open=<n>, verdict=READY|CHANGES-REQUESTED|none|unknown-verdict,
-# acceptance_row=yes|no, prs=<url,...|none>, parent=<url> parent_stage=<stage>.
+# acceptance_row=yes|no, prs=<url,...|none>, parent=<url> parent_stage=<stage>,
+# and beside a childless tracking issue's READY, round=current|stale|not-design:
+# whether that round was a design-mode one made against the body's current
+# `lastEditedAt` (ready-set.sh's verdict_against), a null one matching a body
+# never edited.
 #
 # The verdicts are the reviewer bot's, so `--slug` names it; absent, it is the
 # resolver's login answer for the reviewer (`as-role.sh --login`). With neither, a
@@ -102,7 +108,7 @@ passthrough() {  # <result line>
 
 # shellcheck disable=SC2016  # GraphQL variables, bound by the flags below.
 Q='query($owner:String!, $repo:String!, $n:Int!) {
-  repository(owner: $owner, name: $repo) { issue(number: $n) { state body } }
+  repository(owner: $owner, name: $repo) { issue(number: $n) { state body lastEditedAt } }
 }'
 RAW=$(gh api graphql -f query="$Q" -f owner="$OWNER" -f repo="$NAME" -F n="$N" 2>/dev/null) || true
 # Stdout is parsed regardless of exit status: an unresolvable issue or repo
@@ -116,6 +122,8 @@ if [ -z "$ISSUE" ]; then
   fail issue-query
 fi
 STATE=$(printf '%s' "$ISSUE" | jq -r '.state | strings') || fail issue-query-shape
+EDITED=$(printf '%s' "$ISSUE" | jq -r '.lastEditedAt // "never" | strings') || fail issue-query-shape
+[ -n "$EDITED" ] || fail issue-query-shape
 ACCEPTED=$(printf '%s' "$ISSUE" | jq -r '
   [ (.body // "") | split("\n")[] | sub("\r$"; "") | select(startswith("|"))
     | split("|") | map(gsub("^\\s+|\\s+$"; ""))
@@ -180,12 +188,15 @@ SET=$("$HERE/ready-set.sh" "$REPO" "$N" "--slug=${SLUG:--}")
 SET_LINE=$(tail -1 <<<"$SET")
 case "$SET_LINE" in "result=OK "*) ;; *) passthrough "$SET_LINE" ;; esac
 SET_OBJ=$(head -1 <<<"$SET")
-read -r CHILDREN OPEN CHILD_CLAIMED VERDICT_HELD VERDICT < <(printf '%s' "$SET_OBJ" | jq -r '
+read -r CHILDREN OPEN CHILD_CLAIMED VERDICT_HELD VERDICT ROUND < <(printf '%s' "$SET_OBJ" | jq -r '
   [ ($SET_LINE | capture("children=(?<c>[0-9]+)").c),
     ($SET_LINE | capture("open=(?<o>[0-9]+)").o),
     (any(.waiting[]; .reasons | index("claimed")) | tostring),
     (any(.waiting[]; .reasons | (index("no-ready-verdict") or index("design-not-ready"))) | tostring),
-    (.parent.verdict // "none" | gsub(" "; "-")) ] | join(" ")' --arg SET_LINE "$SET_LINE") \
+    (.parent.verdict // "none" | gsub(" "; "-")),
+    (if .parent.verdict_mode != "design" then "not-design"
+     elif .parent.verdict_against == $edited then "current" else "stale" end) ]
+  | join(" ")' --arg SET_LINE "$SET_LINE" --arg edited "$EDITED") \
   || fail issue-query-shape
 [ -n "$SLUG" ] || VERDICT=unknown-verdict
 
@@ -207,7 +218,11 @@ if [ "$KIND" = tracking ]; then
   [ "$ACCEPTED" = no ] || say tracking accepted decompose "children=0 acceptance_row=yes"
   [ -n "$SLUG" ] || say tracking unknown unknown "children=0 acceptance_row=no verdict=unknown-verdict"
   [ "$VERDICT" != none ] || say tracking design-draft review-spec "children=0 acceptance_row=no verdict=none"
-  [ "$VERDICT" != READY ] || say tracking design-review accept "children=0 acceptance_row=no verdict=READY"
+  if [ "$VERDICT" = READY ]; then
+    E="children=0 acceptance_row=no verdict=READY round=$ROUND"
+    [ "$ROUND" != current ] || say tracking design-review accept "$E"
+    say tracking design-review review-spec "$E"
+  fi
   say tracking design-review review-spec "children=0 acceptance_row=no verdict=$VERDICT"
 fi
 

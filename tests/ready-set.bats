@@ -67,7 +67,7 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   [[ "$(line "$output")" =~ ^result=OK\ now=[0-9T:Z-]+\ children=2\ open=1\ ready=1$ ]]
   [ "$(object "$output" | jq -c '.ready')" = "[{\"url\":\"$U/2\",\"number\":2,\"title\":\"t2\"}]" ]
   [ "$(numbers "$output" waiting)" = '[]' ]
-  [ "$(object "$output" | jq -c .parent)" = "{\"url\":\"$U/1\",\"number\":1,\"spec_review\":false,\"verdict\":null}" ]
+  [ "$(object "$output" | jq -c .parent)" = "{\"url\":\"$U/1\",\"number\":1,\"spec_review\":false,\"verdict\":null,\"verdict_mode\":null,\"verdict_against\":null}" ]
 }
 
 @test "a closed blocker does not hold a child; an open one does, and is named" {
@@ -143,6 +143,25 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   [ "$(numbers "$output" ready)" = '[2]' ]
 }
 
+# <verdict body> -> the parent's verdict_mode and verdict_against for it
+round_of() {
+  PARENT_COMMENTS=$(jq -cn --arg l "${BOT}[bot]" --arg b "$1" '[{author: {login: $l}, body: $b}]')
+  answer "$(child 2)"
+  run "$READY" o/r 1 --slug=$BOT
+  object "$output" | jq -r '"\(.parent.verdict_mode) \(.parent.verdict_against)"'
+}
+
+@test "the parent's latest verdict names its mode and the body it was reviewed against" {
+  [ "$(round_of $'**Spec review (design mode), round 2: READY**\n\nReviewed against `lastEditedAt` `2026-10-28T00:14:15Z`, read as the delta from `2026-10-28T00:04:35Z`.')" \
+    = "design 2026-10-28T00:14:15Z" ]
+  [ "$(round_of $'**Spec review (design mode), round 1: READY**\n\nReviewed against `lastEditedAt`: 2026-10-23T16:55:30Z.')" \
+    = "design 2026-10-23T16:55:30Z" ]
+  [ "$(round_of $'**Spec review (design mode), round 1: READY**\r\n\r\nReviewed against `lastEditedAt`: null (never edited).')" \
+    = "design never" ]
+  [ "$(round_of $'**Spec review, round 1: READY**\n\nNo watermark here.')" = "spec null" ]
+  [ "$(round_of '**Set review, round 3: CHANGES REQUESTED**')" = "set null" ]
+}
+
 @test "verdicts only among the parent's oldest comments, with a gap after them, is set-overflow" {
   spec_reviewed
   PARENT_NEWEST='[]'; PARENT_TOTAL=201
@@ -188,7 +207,7 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   answer "$(blocked_by "$(child 2)" 3 OPEN)" "$(child 4)"
   run "$READY" o/r 1 --slug=$BOT
   [ "$(object "$output" | jq -c '[paths | map(strings) | .[]] | unique')" \
-    = '["assignees","blocked_by","claim_labels","number","parent","ready","reasons","spec_review","title","url","verdict","waiting"]' ]
+    = '["assignees","blocked_by","claim_labels","number","parent","ready","reasons","spec_review","title","url","verdict","verdict_against","verdict_mode","waiting"]' ]
 }
 
 @test "a parent with no sub-issues is an empty set, not an error" {
