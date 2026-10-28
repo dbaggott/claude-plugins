@@ -152,8 +152,8 @@ the catch-all**:
   landed rather than waiting silently, ending, unless you are a dispatched
   agent, on the closing line in
   `<skill-dir>/../findings-review/references/report.md`: **Your move:**
-  saying whether a PR is coming or the assignment should end. Both sources ran, so this genuinely means no
-  PR references the issue — **don't reach for "the issue number is probably wrong"
+  saying whether a PR is coming or the assignment should end. Both sources ran,
+  so this genuinely means no PR references the issue — **don't reach for "the issue number is probably wrong"
   as the explanation**. An `IDLE` carrying `window_left=` is one run of a window
   too long for a single run, not an empty window: re-arm and don't count it.
 

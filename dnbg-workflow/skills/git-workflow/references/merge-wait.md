@@ -67,8 +67,7 @@ still needs merging, with the URL, the merge command re-composed, and the handof
 unless you are a dispatched agent, on the closing line in
 `<skill-dir>/../findings-review/references/report.md`: **Your move:** merge,
 with the command repeated, and no watch running. Then stop; do not silently
-re-arm. An `IDLE` carrying a `merge=` field is the exception: it
-names a cause and has a remedy, so it is re-armed rather than stopped —
+re-arm. An `IDLE` carrying a `merge=` field is the exception: it names a cause and has a remedy, so it is re-armed rather than stopped —
 `merge=behind` wants an "Update branch" click, and `merge=unrecognised:<value>`
 means the schema moved and wants the enum capture re-run.
 
