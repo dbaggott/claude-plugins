@@ -123,7 +123,8 @@ queries but not the judgement:
   PR, don't narrow the query.
 
 **Don't review a discovered PR that is still a draft.** Check `isDraft` on
-each open one and hold the drafts back. Draft status is the author's signal that the work
+each open one, reading `state` with it on a `state=unknown` one, and hold the
+drafts back. Draft status is the author's signal that the work
 is not yet endorsed for review — `git-workflow` covers why it opens PRs that way.
 A verdict on a draft spends the attention that signal is asking you to withhold,
 and a `--request-changes` leaves threads the author has to resolve on work still

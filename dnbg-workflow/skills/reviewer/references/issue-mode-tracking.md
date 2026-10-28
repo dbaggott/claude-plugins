@@ -49,7 +49,9 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    with `gh pr view <url> --json state` before leaving it out. An open PR on a
    closed child is not part of it, so name that PR in the review.
 4. **Find the closeout PR**: the line of the parent's run reading
-   `relevance=closes state=OPEN`. It is the only PR you review in this mode.
+   `relevance=closes state=OPEN`, or `relevance=closes state=unknown` when
+   `gh pr view <url> --json state` reads it `OPEN`; leave an unread one out
+   of `--exclude` below. It is the only PR you review in this mode.
    Until one is out of draft, wait with step 2's call on the parent alone, re-running
    `pr-sources.sh` on the parent at each return and passing the URL of every
    other PR it finds in `--exclude`, and hold a draft back as `issue-mode.md`

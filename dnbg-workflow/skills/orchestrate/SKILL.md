@@ -119,8 +119,9 @@ one state a restart cannot recover.
    mentions the issue, in any repo of the owner, each with its `state=`; skip
    the `MERGED` and `CLOSED` ones, and count `unknown`, which it could not
    read, as open. Read
-   `gh pr view <url> --json isDraft,headRefOid,headRefName` on the rest, and go
-   by `relevance=`:
+   `gh pr view <url> --json state,isDraft,headRefOid,headRefName` on the rest,
+   dropping an `unknown` one that now reads merged or closed, and go by
+   `relevance=`:
    - `closes` or `sibling` — an open one is a predecessor's work, which the
      author you dispatch continues rather than restarts;
    - `mention`, or `unknown` when the PR could not be read — not shown to be
