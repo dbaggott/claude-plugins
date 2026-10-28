@@ -18,10 +18,9 @@
 # The clock is read once and then answered from: `poll_init`, `poll_tick` and
 # `poll_nap`'s own reads around each sleep set `_poll_now`, and every derived
 # question (`poll_awake`, `poll_quiet`, `poll_wall`, `poll_timed_out`,
-# `poll_split_left`, `poll_broken`, `poll_now`) answers as of that read and
-# forks nothing. A caller that lets time pass outside a nap calls `poll_tick`
-# before asking; both watches do, right after each tick's fetch returns, so a
-# tick costs one read where it once cost one per question.
+# `poll_split_left`, `poll_broken`, `poll_now`) answers as of that read without
+# running `date`. A caller that lets time pass outside a nap calls `poll_tick`
+# before asking; both watches do, right after each tick's fetch returns.
 #
 # ## The curve
 #
