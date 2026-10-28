@@ -2006,3 +2006,45 @@ project_tests_present() {  # <creating.md>
     [[ "$output" == *"'$p' is missing"* ]] || { echo "removing '$p' did not name it: $output"; false; }
   done
 }
+
+# The resolver's configuration refusals, each of which the reviewer is told how
+# to repair. The other `fail` reasons in as-role.sh are argument or
+# operator-tier errors, not states a reviewer repairs, so they are not listed.
+REVIEWER_REFUSALS=(not-configured credential shared-identity no-login)
+
+# Each refusal must be a list entry of its own in "Post as the bot", where its
+# remedy is, and a reason as-role.sh can still fail with.
+reviewer_refusals_handled() {  # <reviewer SKILL.md> <as-role.sh>
+  local section r missing=0
+  section=$(awk '/^## Post as the bot$/{inside=1; next} inside && /^## /{exit} inside' "$1")
+  [ -n "$section" ] || { echo "no '## Post as the bot' section in $1"; return 1; }
+  for r in "${REVIEWER_REFUSALS[@]}"; do
+    grep -qF -- "- **\`$r\`**" <<<"$section" \
+      || { echo "'Post as the bot' has no entry for refusal '$r'"; missing=1; }
+    grep -qE "\bfail $r\b" "$2" \
+      || { echo "as-role.sh no longer fails with '$r'"; missing=1; }
+  done
+  return "$missing"
+}
+
+@test "reviewer's Post as the bot handles each configuration refusal as-role.sh emits" {
+  run reviewer_refusals_handled "$ROOT/dnbg-workflow/skills/reviewer/SKILL.md" \
+    "$ROOT/dnbg-workflow/scripts/as-role.sh"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "a refusal missing from Post as the bot, or from as-role.sh, is caught" {
+  local r skill="$ROOT/dnbg-workflow/skills/reviewer/SKILL.md"
+  local script="$ROOT/dnbg-workflow/scripts/as-role.sh"
+  for r in "${REVIEWER_REFUSALS[@]}"; do
+    grep -vF -- "- **\`$r\`**" "$skill" > "$BATS_TEST_TMPDIR/SKILL.md"
+    run reviewer_refusals_handled "$BATS_TEST_TMPDIR/SKILL.md" "$script"
+    [ "$status" -ne 0 ] && [[ "$output" == *"no entry for refusal '$r'"* ]] \
+      || { echo "dropping the '$r' entry was not caught: $output"; false; }
+    perl -pe "s/\\bfail \Q$r\E\\b/fail renamed-$r/g" "$script" > "$BATS_TEST_TMPDIR/as-role.sh"
+    run reviewer_refusals_handled "$skill" "$BATS_TEST_TMPDIR/as-role.sh"
+    [ "$status" -ne 0 ] && [[ "$output" == *"no longer fails with '$r'"* ]] \
+      || { echo "dropping 'fail $r' was not caught: $output"; false; }
+  done
+}
