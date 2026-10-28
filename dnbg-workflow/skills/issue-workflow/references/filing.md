@@ -36,9 +36,9 @@ The offer is not made for a child filed under `references/decomposing.md`,
 whose set goes to review at its step 6; for a tracking issue, which "Is this one
 issue or a project?" in `references/creating.md` already hands over; for an
 issue filed by a flow that asks once for its whole batch (`findings-review`
-step 5, `orchestrate`'s `references/closeout.md` step 5), which would otherwise
-ask once per issue and again for the batch; or for a gap reported upstream,
-below.
+step 5, `orchestrate`'s `references/closeout.md` step 5, `process-review` step
+4), which would otherwise ask once per issue and again for the batch; or for a
+gap reported upstream, below.
 
 Without `AskUserQuestion`, take "Not now": end with the prompt and say in the
 report that the review was not run. This is the default, not a question to post
