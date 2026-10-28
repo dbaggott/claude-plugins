@@ -396,7 +396,9 @@ it?":
 Without `AskUserQuestion`, an answer your prompt gives settles it, as under
 "Run it as the main session"; otherwise take "Leave it open" rather than
 posting the question. Say in the report which you took. Under a tracking issue
-each child gets this question.
+each child gets this question, saying that a child left open holds back the
+parent's closeout, since the loop reaches it only once every child is closed
+(`references/multi-issue.md`).
 
 In each sibling the author's final report names, mark shipped the items it
 lists, with the PR's URL, as `issue-workflow`'s "Maintaining issues" does,
