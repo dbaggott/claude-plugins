@@ -213,6 +213,7 @@ fill() {  # <url-path> — git's own request, from inside the worktree
   chmod u+w "$MAIN/.git"
   [ "$output" = "result=ERROR reason=git-config" ]
   [[ "$stderr" == *"could not write $(cd "$MAIN/.git" && pwd -P)/config,"* ]]
+  [[ "$stderr" == *"could not lock config file"* ]]
   [[ "$stderr" == *"sandbox"* ]]
 }
 

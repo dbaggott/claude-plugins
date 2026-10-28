@@ -61,6 +61,13 @@ FORGE="${FORGE:-github}"
 
 fail() { echo "result=ERROR reason=$1"; [ -z "${2:-}" ] || printf '%s\n' "$2" >&2; exit 0; }
 
+# A config write --install could not make: the file, git's own reason, and the
+# likely cause, since a sandboxed session hits this on its first install.
+config_fail() {  # <path> <what it is> <git's stderr>
+  fail git-config "could not write $1, $2: $(printf '%s' "${3:-no reason given}" | tr '\n' ' ')
+A sandbox is a likely cause: Claude Code's sandbox refuses every write to a .git/config, and any write outside the directories it allows. If so, run this call outside the sandbox."
+}
+
 # An SSH remote's HTTPS twin: git@host:owner/name(.git) or ssh://[user@]host[:port]/owner/name.
 https_of() {  # <url> -> url, or nothing when it is not SSH
   local u="$1" rest host path
@@ -75,7 +82,7 @@ https_of() {  # <url> -> url, or nothing when it is not SSH
 }
 
 install() {  # <role> [<worktree>]
-  local role="$1" wt="${2:-$PWD}" gitdir common origin push
+  local role="$1" wt="${2:-$PWD}" gitdir common origin push err
   [ -n "$role" ] || fail bad-args
   role_valid "$role" || fail unknown-role "'$role' is not a role: no $ROLES_DIR/$role/permissions.json"
   [ "$FORGE" = github ] || fail unsupported-forge
@@ -95,21 +102,22 @@ install() {  # <role> [<worktree>]
   # Written only when not already true: a sandboxed session cannot write
   # .git/config, so skipping a write that changes nothing lets every install
   # after a repository's first one run sandboxed.
-  [ "$(git config --file "$common/config" --type=bool --get extensions.worktreeConfig 2>/dev/null)" = true ] \
-    || git -C "$wt" config extensions.worktreeConfig true >/dev/null 2>&1 \
-    || fail git-config "could not write $common/config, the repository's shared config, to set extensions.worktreeConfig. A sandbox is a likely cause: Claude Code's refuses a sandboxed write to .git/config even inside the working directory, and no allowWrite entry lifts that. Run this call outside the sandbox."
-  if ! { { git -C "$wt" config --worktree --unset-all credential.helper || [ $? = 5 ]; } \
+  if [ "$(git config --file "$common/config" --includes --type=bool --get extensions.worktreeConfig 2>/dev/null)" != true ]; then
+    err=$(git -C "$wt" config extensions.worktreeConfig true 2>&1 >/dev/null) \
+      || config_fail "$common/config" "the repository's shared config, for extensions.worktreeConfig" "$err"
+  fi
+  if ! err=$({ { git -C "$wt" config --worktree --unset-all credential.helper || [ $? = 5 ]; } \
       && git -C "$wt" config --worktree credential.helper '' \
       && git -C "$wt" config --worktree --add credential.helper "!\"$SELF\" $role" \
-      && git -C "$wt" config --worktree credential.useHttpPath true; } >/dev/null 2>&1; then
-    fail git-config "could not write $gitdir/config.worktree, $wt's own config. A sandbox that confines writes to the working tree is a likely cause. Run this call outside the sandbox."
+      && git -C "$wt" config --worktree credential.useHttpPath true; } 2>&1 >/dev/null); then
+    config_fail "$gitdir/config.worktree" "$wt's own config" "$err"
   fi
   push=$(https_of "$origin")
   # A shared pushurl already says where pushes go, and one set here would only
   # be added beside it.
   if [ -n "$push" ] && ! git config --file "$common/config" --get remote.origin.pushurl >/dev/null 2>&1; then
-    git -C "$wt" config --worktree remote.origin.pushurl "$push" >/dev/null 2>&1 \
-      || fail git-config "could not write $gitdir/config.worktree, $wt's own config, to set its push URL. A sandbox that confines writes to the working tree is a likely cause. Run this call outside the sandbox."
+    err=$(git -C "$wt" config --worktree remote.origin.pushurl "$push" 2>&1 >/dev/null) \
+      || config_fail "$gitdir/config.worktree" "$wt's own config, for its push URL" "$err"
   else
     push=""
   fi
