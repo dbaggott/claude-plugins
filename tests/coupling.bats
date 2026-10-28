@@ -1516,10 +1516,11 @@ MD
 }
 
 # An orchestrator's subagents share its scratchpad, so a body drafted at a name
-# the agent chose is one a sibling can overwrite before the next `--body-file`
-# publishes it. Every site that reads a drafted body file therefore names it as
-# a placeholder and says, in its own paragraph or the one leading into its
-# fenced block, that it comes from `mktemp`.
+# the agent chose there, or found again by listing it, can be a sibling's text
+# published as its own. Every site that reads a drafted body file therefore
+# names it as a placeholder and says, in its own paragraph or the one leading
+# into its fenced block, that it is in the agent's draft directory, which only
+# that agent writes (git-workflow's "Draft files").
 #
 # draft_file_violations <file>... prints `<file>:<line>: <why>` per violation.
 # A site is `--body-file`, gh's `-F <file>` short form, `--input`, `body=@` or
@@ -1537,8 +1538,8 @@ draft_file_violations() {  # <file>...
         if (arg == "-" || (tok ~ /-F $/) || arg ~ /=/) continue
         if (arg != "" && arg !~ /^<[^>]+>$/ && arg !~ /^"?\$/)
           printf "%s:%d: names a fixed draft file (%s)\n", file, n, arg
-        if (ctx !~ /mktemp/)
-          printf "%s:%d: does not say the body file comes from mktemp\n", file, n
+        if (ctx !~ /draft directory/)
+          printf "%s:%d: does not say the body file is in the draft directory\n", file, n
       }
     }
     function flush(    i) {
@@ -1562,20 +1563,20 @@ draft_file_violations() {  # <file>...
   ' "$@"
 }
 
-@test "every body-file site in the plugin's prose names a mktemp file" {
+@test "every body-file site in the plugin's prose names a draft-directory file" {
   run draft_file_violations $(find "$ROOT/dnbg-workflow" -name '*.md' | sort)
   echo "$output"
   [ -z "$output" ]
 }
 
 @test "a body-file site written with a fixed name is caught" {
-  printf '%s\n' 'Draft it in a file from `mktemp`, then run `gh pr edit 12 --body-file pr-body.md`.' \
+  printf '%s\n' 'Draft it in a file in your draft directory, then run `gh pr edit 12 --body-file pr-body.md`.' \
     > "$BATS_TEST_TMPDIR/site.md"
   run draft_file_violations "$BATS_TEST_TMPDIR/site.md"
   [[ "$output" == *"site.md:1: names a fixed draft file (pr-body.md)"* ]]
 }
 
-@test "a fenced body-file site that never says mktemp is caught" {
+@test "a fenced body-file site that never names the draft directory is caught" {
   cat > "$BATS_TEST_TMPDIR/site.md" <<'MD'
 Write the body back:
 
@@ -1584,12 +1585,12 @@ gh issue edit 3 --body-file <file>
 ```
 MD
   run draft_file_violations "$BATS_TEST_TMPDIR/site.md"
-  [[ "$output" == *"site.md:4: does not say the body file comes from mktemp"* ]]
+  [[ "$output" == *"site.md:4: does not say the body file is in the draft directory"* ]]
 }
 
-@test "a mktemp placeholder site and a stdin --input both pass" {
+@test "a draft-directory placeholder site and a stdin --input both pass" {
   cat > "$BATS_TEST_TMPDIR/site.md" <<'MD'
-Write the body to a file from `mktemp` first:
+Write the body to a file in your draft directory first:
 
 ```bash
 gh api repos/o/r/issues/1/comments -F body=@<path>
@@ -1606,10 +1607,41 @@ MD
 }
 
 @test "a --rawfile body named by a fixed file is caught" {
-  printf '%s\n' 'Write it in a file from `mktemp`, then `jq -n --rawfile body review.md`.' \
+  printf '%s\n' 'Write it in a file in your draft directory, then `jq -n --rawfile body review.md`.' \
     > "$BATS_TEST_TMPDIR/site.md"
   run draft_file_violations "$BATS_TEST_TMPDIR/site.md"
   [[ "$output" == *"site.md:1: names a fixed draft file (review.md)"* ]]
+}
+
+# A dispatched agent finds its draft directory only on its prompt's `Your draft
+# directory:` line, so every paragraph that dispatches one of the plugin's agents
+# says to give it that line.
+dispatch_violations() {  # <file>...
+  awk '
+    function flush() {
+      if (para ~ /dnbg-workflow:(author|reviewer)-orchestrated/ && para !~ /draft directory/)
+        printf "%s:%d: dispatches an agent without its draft directory line\n", file, start
+      para = ""; start = 0
+    }
+    FNR == 1 { flush(); file = FILENAME }
+    /^[[:space:]]*$/ { flush(); next }
+    { if (!start) start = FNR; para = para " " $0 }
+    END { flush() }
+  ' "$@"
+}
+
+@test "every dispatch of a dnbg-workflow agent names its draft directory" {
+  run dispatch_violations $(find "$ROOT/dnbg-workflow/skills" -name '*.md' | sort)
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "a dispatch paragraph with no draft directory line is caught" {
+  printf '%s\n' 'Dispatch it as `dnbg-workflow:reviewer-orchestrated`, in the background.' \
+    > "$BATS_TEST_TMPDIR/site.md"
+  run dispatch_violations "$BATS_TEST_TMPDIR/site.md"
+  [[ "$output" == *"site.md:1: dispatches an agent without its draft directory line"* ]]
 }
 
 # An inline `--arg body "<…>"` breaks the shell command on the first apostrophe
@@ -1637,7 +1669,7 @@ MD
 @test "a short-form -F file, a multi-word placeholder and the file it is in are read right" {
   printf '%s\n' 'Post it with `gh pr comment 4 -F review.md`.' > "$BATS_TEST_TMPDIR/a.md"
   cat > "$BATS_TEST_TMPDIR/b.md" <<'MD'
-Write the body in a file from `mktemp`, then run
+Write the body in a file in your draft directory, then run
 `gh issue edit 3 --body-file <draft path>` and `gh api x -F per_page=100`.
 MD
   run draft_file_violations "$BATS_TEST_TMPDIR/a.md" "$BATS_TEST_TMPDIR/b.md"
@@ -1647,7 +1679,7 @@ MD
 
 @test "a block straight after another block, or left unclosed, is still checked" {
   cat > "$BATS_TEST_TMPDIR/site.md" <<'MD'
-Write the body to a file from `mktemp` first:
+Write the body to a file in your draft directory first:
 
 ```bash
 gh api repos/o/r/issues/1/comments -F body=@<path>

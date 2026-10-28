@@ -508,8 +508,8 @@ The call re-reads the head first and stops if it moved; a push in the moment
 between that read and the POST still leaves the review pinned to `<head-sha>`,
 and the watch's next tick sees the newer HEAD.
 
-Write the review body, and each inline comment's body, to its own file from
-`mktemp` (in the scratchpad, when the harness names one) with your file-writing
+Write the review body, and each inline comment's body, to its own file in
+your draft directory (`git-workflow`'s "Draft files") with your file-writing
 tool, and hand each to `jq --rawfile`. Nothing then passes through the shell's
 quoting, so an apostrophe or a newline in a finding cannot break the command —
 which an inline `--arg "<body>"` does. The payload is built before the POST, so

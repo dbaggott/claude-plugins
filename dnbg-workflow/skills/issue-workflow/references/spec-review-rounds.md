@@ -29,8 +29,9 @@ Without `AskUserQuestion`, ask per `references/delegated.md`.
 
 On **"Spawn the reviewer"**, dispatch `issue-reviewer` as
 `dnbg-workflow:reviewer-orchestrated`, in the background, with the prompt
-`Review <URL> as a spec.` and nothing else: the reviewer judges the body alone,
-not this session's view of it. Each round reaches you as its report, which ends
+`Review <URL> as a spec.` and nothing else but its draft directory line
+(`git-workflow`'s "Draft files"): the reviewer judges the body alone, not this
+session's view of it. Each round reaches you as its report, which ends
 on its own wait for your answer, so answer it per "Answering" and arm no watch.
 A report that is not a round — a `Delegated question:` it posted, or a failure
 to start, such as no `reviewer-setup` — goes to the operator, and an answer goes
@@ -85,7 +86,7 @@ already replaced — say so rather than answering findings that may no longer ap
 **Edit the body first, then comment.** The comment is the receipt for edits
 already made. Reversing it makes the reviewer read a body that does not yet carry
 what you claimed, and report a fix missing that is not. Both go up as the author
-(`SKILL.md`, "Writing as the author"), each drafted in a file from `mktemp`:
+(`SKILL.md`, "Writing as the author"), each drafted in your draft directory (`git-workflow`'s "Draft files"):
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \

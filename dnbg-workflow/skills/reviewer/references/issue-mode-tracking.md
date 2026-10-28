@@ -81,7 +81,7 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
 
    Then post a new bot comment on the parent linking that review, one per
    round, so each verdict is reachable from the issue it closes. Write the
-   body to a file from `mktemp` first, the review's first line and then the
+   body to a file in your draft directory first, the review's first line and then the
    review's URL, and post it as the bot:
 
    ```bash

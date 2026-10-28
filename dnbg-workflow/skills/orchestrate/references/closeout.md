@@ -63,8 +63,8 @@ the bullets the log does not already carry. The bullets come from two places:
 description — its title without any `[<slug>] Tracking issue: ` prefix — as a
 lowercase-dashed slug. If the repo already keeps designs somewhere else
 under `docs/`, use that location instead. Open the PR as a draft per
-`git-workflow`, self-review included, drafting its description in a file from
-`mktemp` per that skill's "Writing the PR description". The description opens with
+`git-workflow`, self-review included, drafting its description in your draft directory
+per that skill's "Draft files". The description opens with
 `Closes <parent URL>`, so the merge closes the parent.
 
 The doc is the parent body as built, not as planned:
@@ -152,7 +152,8 @@ When any follow-up was filed, ask once for the batch, with the two options of
 its per-issue question. The prompt is `Review <URL>, <URL> as a set.`, one per
 repo the follow-ups were filed in, naming that repo's issues. On "Spec-review it
 now (Recommended)", dispatch `issue-reviewer` as
-`dnbg-workflow:reviewer-orchestrated` with each prompt, in the background, and
+`dnbg-workflow:reviewer-orchestrated` with each prompt and its draft directory
+line (`git-workflow`'s "Draft files"), in the background, and
 answer the rounds per `issue-workflow`'s `references/spec-review-rounds.md`,
 "Spawn the reviewer". On "Not now", or without `AskUserQuestion`, give the
 prompts to paste in the report.
@@ -165,7 +166,8 @@ disposition question posted on the parent, which are the orchestrator's.
 
 Send it to review per `git-workflow`'s "After opening a draft PR". When it is
 out of draft, dispatch `reviewer` on the parent as
-`dnbg-workflow:reviewer-orchestrated`, in the background:
+`dnbg-workflow:reviewer-orchestrated`, in the background, with its draft
+directory line (`git-workflow`'s "Draft files"):
 
 > Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
 > tracking issue, so grade the whole project on its closeout PR.

@@ -176,7 +176,8 @@ anywhere else is a gap reported upstream, and a comment on an existing issue is
 not a new one: neither is offered. The prompt is `Review <URL>, <URL> as a
 set.`, one per repo, naming that repo's issues. On "Spec-review it now
 (Recommended)", dispatch `issue-reviewer` as
-`dnbg-workflow:reviewer-orchestrated` with each prompt, in the background, and
+`dnbg-workflow:reviewer-orchestrated` with each prompt and its draft directory
+line (`git-workflow`'s "Draft files"), in the background, and
 answer the rounds per `issue-workflow`'s `references/spec-review-rounds.md`,
 "Spawn the reviewer". On "Not now", give the prompts to paste.
 

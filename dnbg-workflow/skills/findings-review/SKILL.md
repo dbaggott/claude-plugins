@@ -113,6 +113,7 @@ When any issue was filed, ask once for the batch, with the two options of
 its per-issue question. The prompt is `Review <URL>, <URL> as a set.`, one per
 repo the batch was filed in, naming that repo's issues. On "Spec-review it now
 (Recommended)", dispatch `issue-reviewer` as
-`dnbg-workflow:reviewer-orchestrated` with each prompt, in the background, and
+`dnbg-workflow:reviewer-orchestrated` with each prompt and its draft directory
+line (`git-workflow`'s "Draft files"), in the background, and
 answer the rounds per `issue-workflow`'s `references/spec-review-rounds.md`,
 "Spawn the reviewer". On "Not now", end with the prompts to paste.

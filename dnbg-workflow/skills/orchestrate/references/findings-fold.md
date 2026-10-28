@@ -43,7 +43,7 @@ where the parent has nowhere to put them, say so in the Stop report instead.
 
 **Otherwise**, post the same bullets, each `- ` followed by one `--text` value,
 as one comment on the parent whose first line is exactly
-`Findings log items from <issue URL>`, from a body file made with `mktemp`:
+`Findings log items from <issue URL>`, from a body file in your draft directory:
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \

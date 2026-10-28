@@ -9,7 +9,7 @@ entry the parent's body and every child it reaches already carry (step 2,
 whose set serves every row of the pass) is not swept: set its state to
 `applied` and post one line on the parent, `Decision log: <date> <ID> set to
 applied, already in the body and every child`, as the orchestrator, from a
-file made with `mktemp`:
+file in your draft directory:
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
@@ -60,8 +60,9 @@ the steps below.
 
 When the ready set's `parent.spec_review` is true, dispatch `issue-reviewer`, as
 `dnbg-workflow:reviewer-orchestrated`, on the children whose acceptance
-criteria changed, or whose body changed in a section their `Covers` line cites.
-The rest are not re-reviewed.
+criteria changed, or whose body changed in a section their `Covers` line cites,
+with its draft directory line (`git-workflow`'s "Draft files"). The rest are not
+re-reviewed.
 
 > Review `<child URLs>` as a set against their parent `<parent URL>`. This is a
 > re-review after the design change in `<row link>`.
