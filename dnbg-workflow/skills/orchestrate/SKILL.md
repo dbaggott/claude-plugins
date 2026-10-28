@@ -330,13 +330,13 @@ self-review, and the bot still reviews afterward.
 
 The author ends a turn with its handoff once the review is clean. Read
 `pr-verdict.sh <owner>/<repo> <pr>`. At `verdict=APPROVED at_head=1
-reviewed_after_head=1`, forward the handoff as it stands: the merge command
-exactly as the author composed it, on its own line in a fenced block, the
-author's report beneath, and beneath that the reviewer's latest handoff when
-its SHA is the `verdict_sha`, or a line saying it has not arrived, adding only
-the verdict and its `verdict_sha`. A reviewer handoff that arrives after the
-relay is forwarded when it comes. Any other reading, continue the author with
-it.
+reviewed_after_head=1`, forward the handoff as it stands, adding only the
+verdict and its `verdict_sha`: the merge command exactly as the author
+composed it, on its own line in a fenced block, the author's report beneath,
+and beneath that the reviewer's latest handoff when its SHA is the
+`verdict_sha`, or a line saying it has not arrived. Forward a reviewer handoff
+that arrives after the relay when it comes. Any other reading, continue the
+author with it.
 
 Never recompose the command and never hold it for checks: `git-workflow`'s
 `references/merge.md` chose the form for the state the author read, including

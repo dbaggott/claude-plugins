@@ -672,9 +672,9 @@ PR to resume (it re-assesses current state and picks the watch back up).
    outstanding work.
 
 **A turn that posts an `APPROVE` ends with your handoff.** Post, arm the watch
-as above (a re-arm runs its printed `── re-arm ──` line), then end the turn with the handoff report
-`references/watch.md`'s "Report the review" describes. The watch runs on: the
-review ends at `CLOSED`, not here.
+as above (a re-arm runs its printed `── re-arm ──` line), then end the turn
+with the handoff report `references/watch.md`'s "Report the review" describes.
+The watch runs on: the review ends at `CLOSED`, not here.
 
 ## Responding to comments and replies
 
