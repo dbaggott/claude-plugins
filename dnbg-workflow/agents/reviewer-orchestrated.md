@@ -1,6 +1,6 @@
 ---
 name: reviewer-orchestrated
-description: The reviewer an `orchestrate` run dispatches, on an issue's PRs or on issue bodies, until its review ends; also the spec reviewer `issue-workflow` spawns when handing an issue body to review, and that `findings-review` spawns on the issues it files. Dispatch it only from those three; for any other task, use a general-purpose agent.
+description: The reviewer an `orchestrate` run dispatches, on an issue's PRs or on issue bodies, until its review ends; also the spec reviewer `issue-workflow` spawns when handing an issue body to review, and that `findings-review` and `process-review` spawn on the issues they file. Dispatch it only from those four; for any other task, use a general-purpose agent.
 # A 1-hour prompt-cache TTL, where subagents default to 5 minutes: the reviewer
 # idles past 5 minutes between review rounds and on its watches, so each resume
 # would otherwise re-send the whole transcript uncached. A

@@ -1106,8 +1106,8 @@ tree_agents() {  # -> each agent definition's path
   [ "$bad" -eq 0 ]
 }
 
-# A plain issue filed on its own, and each batch filed by findings-review or a
-# closeout, is offered its spec review with one question whose first option
+# A plain issue filed on its own, and each batch filed by findings-review,
+# process-review or a closeout, is offered its spec review with one question whose first option
 # enters the spawn branch by its heading, skipping the "Who runs the spec
 # review?" picker.
 @test "filing offers the spec review and enters the spawn branch by heading" {
@@ -1116,6 +1116,7 @@ tree_agents() {  # -> each agent definition's path
     echo "spec-review-rounds.md lost the 'Spawn the reviewer' heading"; bad=1; }
   for f in "$refs/filing.md" \
            "$ROOT/dnbg-workflow/skills/findings-review/SKILL.md" \
+           "$ROOT/dnbg-workflow/skills/process-review/SKILL.md" \
            "$ROOT/dnbg-workflow/skills/orchestrate/references/closeout.md"; do
     grep -qF '"Spawn the reviewer"' "$f" || {
       echo "${f#"$ROOT"/} no longer enters the spawn branch by its heading"; bad=1; }
