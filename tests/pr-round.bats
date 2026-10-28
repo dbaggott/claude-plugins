@@ -264,6 +264,17 @@ merge_from_base() {
   [[ "$(section diff "$output")" != *b.sh* ]]
 }
 
+# Lines a base commit inserted between two of the PR's nearby hunks split what
+# GitHub showed as one hunk into two; the PR's own lines are the same.
+@test "a hunk a base commit split in two does not make a file changed" {
+  merge_from_base
+  compare aaa m1 '[{"filename":"b.sh","patch":"@@ -3,4 +3,4 @@\n-p\n+q\n x\n-r\n+s"}]'
+  compare bbb m2 '[{"filename":"b.sh","patch":"@@ -3,2 +3,2 @@\n-p\n+q\n x\n@@ -20,2 +20,2 @@\n y\n-r\n+s"}]'
+  run "$ROUND" o/r 1 aaa 2026-08-01T00:00:00Z me
+  [ "$(field diff "$(result "$output")")" = interdiff ]
+  [ -z "$(section diff "$output")" ]
+}
+
 # The same hunk reached a different way: last reviewed as a rename, now as an
 # add. The patch text alone cannot tell them apart.
 @test "a file whose status changed is in the interdiff" {

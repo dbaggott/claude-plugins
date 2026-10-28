@@ -134,7 +134,7 @@ interdiff() {
     def head: "status: \(.status)"
               + if .previous_filename then " from \(.previous_filename)" else "" end;
     def lines: .patch | split("\n");
-    def entry: {key: ([head] + [lines[] | select(test("^[-+@\\\\]")) | sub("^@@.*"; "@@")]),
+    def entry: {key: ([head] + [lines[] | select(test("^[-+\\\\]"))]),
                 shown: ([head] + [lines[]
                   | sub("^@@ -[0-9]+(,[0-9]+)? \\+[0-9]+(,[0-9]+)? @@"; "@@ @@")]
                   | join("\n"))};
