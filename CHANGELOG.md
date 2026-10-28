@@ -10,6 +10,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.94 — 2026-10-28
+
+The close-out sites across `git-workflow`, `reviewer`, `issue-reviewer`,
+`issue-workflow` and `orchestrate` now route through `process-review`'s
+"When a retrospective is written" instead of naming a retrospective file, its
+path or a Retrospective section. With retrospectives off (the default), an agent
+following its close-out line no longer writes a file the setting forbids, and a
+dispatcher no longer asks a subagent for a path that does not exist.
+
+
 ## dnbg-workflow 2026.10.93 — 2026-10-28
 
 Fixed a set review that could never converge after a decomposition. Decomposing
