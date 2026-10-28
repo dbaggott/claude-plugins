@@ -177,6 +177,41 @@ EOF2
   [ "$(grep -B1 -x 'n=7' "$ARGV" | head -1)" = -F ]
 }
 
+@test "with --json-out, stdout is the result line alone and the file holds the object" {
+  answer 1 "$(issue 2 OPEN null)"
+  local out="$BATS_TEST_TMPDIR/set.json"
+  run "$FETCH" o/r 1 --json-out="$out"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ^result=OK\ now=[0-9T:Z-]+\ children=1$ ]]
+  [ "$(jq -c '[.parent.number, .children[0].number]' "$out")" = '[1,2]' ]
+  run "$FETCH" --json-out="$out" o/r 1
+  [[ "$output" =~ ^result=OK\ now=[0-9T:Z-]+\ children=1$ ]]
+}
+
+@test "with --json-out, every ERROR leaves the file empty rather than holding a stale set" {
+  local out="$BATS_TEST_TMPDIR/set.json"
+  echo '{"parent":{"number":99},"children":[]}' > "$out"
+  answer 3 "$(issue 2 OPEN null)"
+  run "$FETCH" o/r 1 --json-out="$out"
+  [[ "$output" == "result=ERROR reason=set-overflow now="* ]]
+  [ -f "$out" ] && [ ! -s "$out" ]
+  echo '{"parent":{"number":99},"children":[]}' > "$out"
+  run "$FETCH" o/r --json-out="$out"
+  [[ "$output" == "result=ERROR reason=bad-args now="* ]]
+  [ ! -s "$out" ]
+}
+
+@test "an unwritable or malformed --json-out is bad-args, before any query" {
+  local args
+  for args in "o/r 1 --json-out=$BATS_TEST_TMPDIR/no/such/dir/x" "o/r 1 --json-out=" \
+              "o/r 1 --json-out" "o/r 1 --other=x" "o/r 1 --json-out=a --json-out=b"; do
+    # shellcheck disable=SC2086  # word splitting is the point
+    run "$FETCH" $args
+    [[ "$output" == "result=ERROR reason=bad-args now="* ]] || { echo "accepted: '$args'"; false; }
+  done
+  [ ! -s "$ARGV" ]
+}
+
 @test "bad arguments are refused before any query" {
   local args
   for args in "" "o/r" "o/r 1 2" "or 1" "o/r/x 1" "o/r abc" "/r 1" "o/ 1"; do

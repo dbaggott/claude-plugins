@@ -97,8 +97,9 @@ start are the same path. A predecessor's work reaches you through GitHub, and
 its worktree on this machine through its PR's branch; an unpushed branch is the
 one state a restart cannot recover.
 
-1. **Sub-issues.** `fetch-issue-set.sh <owner>/<repo> <n>`. A non-empty
-   `children` makes this a tracking issue: continue in
+1. **Sub-issues.** `fetch-issue-set.sh <owner>/<repo> <n>
+   --json-out=<draft directory>/issue-set.json`, which writes the set to that
+   file for `jq` to read. A non-empty `children` makes this a tracking issue: continue in
    `references/multi-issue.md`. `result=ERROR` means the set was not read; say
    so and stop.
 2. **The claim.** `claim-issue.sh <owner>/<repo> <n>`:

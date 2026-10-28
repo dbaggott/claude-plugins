@@ -66,16 +66,18 @@ Snapshot the set in one call, whatever its size. **A tracking issue brings its
 sub-issues with it** — asked to review one, the set is it and every child:
 
 ```bash
-"<skill-dir>/../../scripts/fetch-issue-set.sh" <owner>/<repo> <parent>
+"<skill-dir>/../../scripts/fetch-issue-set.sh" <owner>/<repo> <parent> \
+  --json-out=<draft directory>/issue-set.json
 ```
 
-It prints one object — `parent`, then `children`, each with `title`, `body`,
-`state`, `created`, `body_edited` and `labels`, and per child the `blocked_by`
-URLs — then
-`result=OK now=<iso> children=<count>`. `now` is your read time. On `ERROR`,
-`reason=not-found` is a parent number that resolves to no issue and
-`set-overflow` a set larger than one query returns; `issue-query`,
-`issue-query-shape`, `bad-args` and `unsupported-forge` mean nothing was read.
+It writes one object to that file, for `jq` to read: `parent`, then
+`children`, each with `title`, `body`, `state`, `created`, `body_edited` and
+`labels`, and per child the `blocked_by` URLs. It prints only
+`result=OK now=<iso> children=<count>`, where `now` is your read time. On
+`ERROR` the file is empty, and `reason=not-found` is a parent number that
+resolves to no issue and `set-overflow` a set larger than one query returns;
+`issue-query`, `issue-query-shape`, `bad-args` and `unsupported-forge` mean
+nothing was read.
 Report any of them rather than reviewing part of a set.
 
 Any other set, snapshot with one aliased query:

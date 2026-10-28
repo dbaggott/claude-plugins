@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # A tracking issue and every one of its sub-issues, as one forge-neutral object.
 #
-#   fetch-issue-set.sh <owner/repo> <parent>
+#   fetch-issue-set.sh <owner/repo> <parent> [--json-out=<file>]
 #
-# Prints the object, then exactly one result line, then exits 0:
+# Prints the object, then exactly one result line, then exits 0. With
+# `--json-out`, the object goes to <file> instead and stdout is the result line
+# alone; on ERROR <file> is left empty, so it never holds an earlier run's set.
+# An unwritable <file> is `bad-args`.
 #   {"parent":{"url":…,"number":…,"title":…,"body":…,"state":…,"created":…,
 #              "body_edited":…,"labels":["<name>",…]},
 #    "children":[{…the same fields…,"blocked_by":["<issue url>",…]}]}
@@ -29,10 +32,24 @@
 set -euo pipefail
 
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
-fail() { echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0; }
+JSON_OUT=
+fail() {
+  [ -z "$JSON_OUT" ] || : 2>/dev/null > "$JSON_OUT" || true
+  echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0
+}
 
-[ "$#" -eq 2 ] || fail bad-args
-REPO="$1"; N="$2"
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --json-out=?*) [ -z "$JSON_OUT" ] || fail bad-args; JSON_OUT="${a#--json-out=}" ;;
+    --*) fail bad-args ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+# Emptied before any query, so no ERROR below can leave an earlier set in place.
+[ -z "$JSON_OUT" ] || : 2>/dev/null > "$JSON_OUT" || { JSON_OUT=; fail bad-args; }
+[ "${#ARGS[@]}" -eq 2 ] || fail bad-args
+REPO="${ARGS[0]}"; N="${ARGS[1]}"
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 case "$N" in ''|*[!0-9]*) fail bad-args ;; esac
 
@@ -96,5 +113,9 @@ OUT=$(printf '%s' "$ISSUE" | jq -c '
     children: [ .subIssues.nodes[] | fields + {blocked_by: [.blockedBy.nodes[].url]} ] }' \
   2>/dev/null) || fail issue-query-shape
 
-echo "$OUT"
+if [ -n "$JSON_OUT" ]; then
+  printf '%s\n' "$OUT" 2>/dev/null > "$JSON_OUT" || fail bad-args
+else
+  echo "$OUT"
+fi
 echo "result=OK now=$NOW children=$(printf '%s' "$OUT" | jq '.children | length')"
