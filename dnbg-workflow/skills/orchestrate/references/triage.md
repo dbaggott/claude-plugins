@@ -181,7 +181,7 @@ ID, `Decision log: Operator check before review — <state>`, and a `decided`
 row's **Answer** opens in one of three fixed ways: the recipe, for a check the
 operator requested at dispatch time; `Changes needed:` followed by the
 feedback, for a round; and `Proceed.` for the proceed. A dispatch-time request
-answers no question: its **Question** line reads `none, requested at dispatch`
+answers no question: its **Question** line reads `none, asked at dispatch`
 and its **Basis** is `operator`, in session.
 
 ## Promote decided rows into the body

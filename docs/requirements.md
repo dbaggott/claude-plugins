@@ -11,15 +11,15 @@ that reads the experimental `cacheTtl` agent option, verified on v2.1.300. An
 older client runs them on the 5-minute cache, without any error.
 
 **Command-line tools.** Not all of them are needed for all of it — the first two
-are what the enforcement hooks run on, and the last three only matter if you use
-the reviewer bot:
+are what the enforcement hooks run on, and the last three only matter if you set
+up an App for any agent role:
 
 | Tool | Needed for | Without it |
 | --- | --- | --- |
-| `jq` | Both enforcement hooks parse their stdin payload with it | **Enforcement is off.** Ships with macOS 15+; install it on Linux and on older macOS |
+| `jq` | Both enforcement hooks parse their stdin payload with it; the role-fallback notice reads role configuration with it | **Enforcement is off**, and the role-fallback notice prints nothing. Ships with macOS 15+; install it on Linux and on older macOS |
 | `git` | `check-worktree.sh` resolves the edited path to a repo | **`check-worktree` never fires**; `check-issue-create` still gates a `--repo`-qualified command |
 | `gh` | Every workflow skill, for all PR/issue/review operations | The skills cannot run |
-| `python3` | `reviewer-setup`'s `bootstrap.py` (stdlib only) | Cannot create the reviewer App |
+| `python3` | `reviewer-setup`'s `bootstrap.py` (stdlib only) | Cannot create a role's App |
 | `openssl` | `mint-token.sh` signs the App JWT locally | Cannot mint a role token |
 | `curl` | `mint-token.sh` exchanges that JWT with GitHub | Cannot mint a role token |
 
@@ -35,7 +35,7 @@ those fail loudly at the point of use rather than needing a session-start
 warning.
 
 **Platform: macOS and Linux.** Both are exercised. The hooks are `#!/usr/bin/env
-bash` scripts invoking only `cat`, `dirname`, `git`, `grep`, `head`, `jq`,
-`printf`, `sed` and `tr` — all local text or path processing. They are expected
-to work under Git Bash on Windows, but that has never been tested and is not
-claimed.
+bash` scripts invoking only `awk`, `cat`, `dirname`, `git`, `grep`, `head`,
+`jq`, `printf`, `sed` and `tr` — all local text or path processing. They are
+expected to work under Git Bash on Windows, but that has never been tested and
+is not claimed.

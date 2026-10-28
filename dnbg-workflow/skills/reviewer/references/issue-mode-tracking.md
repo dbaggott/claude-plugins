@@ -34,7 +34,8 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
      [--exclude=<url,url,...>]
    ```
 
-   `<slug>` comes from the reviewer config, as in `issue-mode-wait.md`'s wait. Dispatch
+   `<slug>` is the bot's login, the `login=` of `as-role.sh --login reviewer
+   <owner>/<repo>`, as in `issue-mode-wait.md`'s wait. Dispatch
    `ERROR`, `IDLE` and `missing=` the same way, and re-arm from the
    `── re-arm ──` line, which carries `--exclude` forward. `CLOSED` and
    `closed=` split by issue here. When they name only children, that is
