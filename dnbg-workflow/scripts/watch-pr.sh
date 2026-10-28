@@ -550,8 +550,8 @@ while :; do
 
   if [ "$changed" = 1 ]; then
     poll_reset
-    [ "$settle_until" = 0 ] && settle_cap=$(( $tick_at + SETTLE_MAX ))
-    settle_until=$(( $tick_at + SETTLE ))
+    [ "$settle_until" = 0 ] && settle_cap=$(( tick_at + SETTLE_MAX ))
+    settle_until=$(( tick_at + SETTLE ))
   fi
 
   if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
