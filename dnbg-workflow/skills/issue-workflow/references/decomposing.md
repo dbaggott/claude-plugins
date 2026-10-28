@@ -151,23 +151,24 @@ One body edit, after the last child is filed:
   that child's URL.
 - Every `decided` row set to `applied`, with none left at `decided`. You own
   every child and none is in flight yet, so applying a row now is part of this
-  pass:
-  - **A row decided before step 2 began**, the acceptance row (`Design
-    accepted: …`) among them: the body already carries it and the children
-    were written from it, so set it to `applied` as it stands. The design stays
-    accepted, since acceptance is detected by that Entry at any state but
-    `proposed`.
-  - **A row decided after step 2 began**: apply it to the body as the opening
-    of this file applies one before step 1. Where it reaches a child, edit that
-    child's body to match, linking the row from the section it changes as
+  pass. A row decided after step 2 began is first applied to the body, as the
+  opening of this file applies one before step 1. Then, by what the row
+  reaches:
+  - **A row that reaches a child.** One the children were written from matches
+    them by construction. For one decided after step 2 began, edit each child
+    it reaches to match, linking the row from the section it changes as
     `orchestrate`'s `references/triage.md`, "Promote decided rows into the
     body", does; where it changes the split, the filed table, the child's
     `Covers` and `Depends on`, and its relationships (step 4's call) change
-    with it. Then set it to `applied`. For such a row that reaches no child, a
-    decision about the parent alone, post the line `orchestrate`'s
-    `references/design-change.md` gives a row already in the body and every
-    child, `Decision log: <date> <ID> set to applied, already in the body and
-    every child`, one comment carrying a line for each, as the author:
+    with it. Then set it to `applied`.
+  - **A row that reaches no child**, a decision about the parent alone, the
+    acceptance row (`Design accepted: …`) among them: set it to `applied`. The
+    design stays accepted, since acceptance is detected by that Entry at any
+    state but `proposed`. Post the line `orchestrate`'s
+    `references/design-change.md` gives such a row, `Decision log: <date> <ID>
+    set to applied, already in the body and every child`, naming a row whose ID
+    is `—` by the opening words of its Entry, one comment carrying a line for
+    each, as the author:
 
     ```bash
     "<skill-dir>/../../scripts/as-role.sh" author <owner/repo> -- \
