@@ -67,7 +67,7 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   [[ "$(line "$output")" =~ ^result=OK\ now=[0-9T:Z-]+\ children=2\ open=1\ ready=1$ ]]
   [ "$(object "$output" | jq -c '.ready')" = "[{\"url\":\"$U/2\",\"number\":2,\"title\":\"t2\"}]" ]
   [ "$(numbers "$output" waiting)" = '[]' ]
-  [ "$(object "$output" | jq -c .parent)" = "{\"url\":\"$U/1\",\"number\":1,\"spec_review\":false,\"verdict\":null}" ]
+  [ "$(object "$output" | jq -c .parent)" = "{\"url\":\"$U/1\",\"number\":1,\"spec_review\":false,\"verdict\":null,\"verdict_mode\":null,\"verdict_current\":null,\"verdict_url\":null}" ]
 }
 
 @test "a closed blocker does not hold a child; an open one does, and is named" {
@@ -143,6 +143,37 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   [ "$(numbers "$output" ready)" = '[2]' ]
 }
 
+# <body lastEditedAt as JSON> <verdict body> -> the parent's verdict_mode and
+# verdict_current for that round
+round_of() {
+  PARENT_COMMENTS=$(jq -cn --arg l "${BOT}[bot]" --arg b "$2" '[{author: {login: $l}, body: $b, url: "c1"}]')
+  answer "$(child 2)"
+  jq -c --argjson e "$1" '.data.repository.issue.lastEditedAt = $e' "$ANSWER" > "$ANSWER.new" && mv "$ANSWER.new" "$ANSWER"
+  run "$READY" o/r 1 --slug=$BOT
+  object "$output" | jq -r '"\(.parent.verdict_mode) \(.parent.verdict_current) \(.parent.verdict_url)"'
+}
+
+@test "the parent's latest verdict names its mode, its comment, and whether it covers the body" {
+  local d='**Spec review (design mode), round 2: READY**'
+  [ "$(round_of '"2026-10-28T00:14:15Z"' "$d"$'\n\nReviewed against `lastEditedAt` `2026-10-28T00:14:15Z`, read as the delta from `2026-10-28T00:04:35Z`.')" \
+    = "design true c1" ]
+  [ "$(round_of '"2026-10-28T00:14:15Z"' "$d"$'\n\nReviewed against `lastEditedAt`: 2026-10-23T16:55:30Z.')" \
+    = "design false c1" ]
+  [ "$(round_of null "$d"$'\r\n\r\nReviewed against `lastEditedAt`: null (never edited).')" = "design true c1" ]
+  [ "$(round_of '"2026-10-28T00:14:15Z"' "$d"$'\n\nReviewed against `lastEditedAt`: null.')" = "design false c1" ]
+  [ "$(round_of '"2026-10-26T16:50:26Z"' $'**Set review (design mode), round 3: READY**\n\nReviewed against `lastEditedAt` 2026-10-26T16:50:26Z, together with the set.')" \
+    = "design true c1" ]
+  [ "$(round_of null '**Spec review, round 1: READY**')" = "spec false c1" ]
+  [ "$(round_of null '**Set review, round 3: CHANGES REQUESTED**')" = "set false c1" ]
+}
+
+@test "only the value right after the first lastEditedAt counts as the round's watermark" {
+  local d='**Spec review (design mode), round 2: READY**'
+  [ "$(round_of '"2026-10-01T00:00:00Z"' "$d"$'\n\n`lastEditedAt` (re-read at the gate) 2026-10-02T00:00:00Z; the delta since `lastEditedAt` 2026-10-01T00:00:00Z.')" \
+    = "design false c1" ]
+  [ "$(round_of null "$d"$'\n\n`lastEditedAt`: nullable in the schema.')" = "design false c1" ]
+}
+
 @test "verdicts only among the parent's oldest comments, with a gap after them, is set-overflow" {
   spec_reviewed
   PARENT_NEWEST='[]'; PARENT_TOTAL=201
@@ -188,7 +219,7 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   answer "$(blocked_by "$(child 2)" 3 OPEN)" "$(child 4)"
   run "$READY" o/r 1 --slug=$BOT
   [ "$(object "$output" | jq -c '[paths | map(strings) | .[]] | unique')" \
-    = '["assignees","blocked_by","claim_labels","number","parent","ready","reasons","spec_review","title","url","verdict","waiting"]' ]
+    = '["assignees","blocked_by","claim_labels","number","parent","ready","reasons","spec_review","title","url","verdict","verdict_current","verdict_mode","verdict_url","waiting"]' ]
 }
 
 @test "a parent with no sub-issues is an empty set, not an error" {

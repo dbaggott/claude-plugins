@@ -6,7 +6,9 @@
 #
 # Prints the object, then exactly one result line, then exits 0:
 #   {"parent":{"url":…,"number":…,"spec_review":true|false,
-#              "verdict":"READY"|"CHANGES REQUESTED"|null},
+#              "verdict":"READY"|"CHANGES REQUESTED"|null,
+#              "verdict_mode":"design"|"spec"|"set"|null,
+#              "verdict_current":true|false|null,"verdict_url":…|null},
 #    "ready":[{"url":…,"number":…,"title":…}],
 #    "waiting":[{"url":…,"number":…,"title":…,
 #                "reasons":["blocked"|"claimed"|"no-ready-verdict"|"design-not-ready",…],
@@ -30,6 +32,15 @@
 # carries one. The parent's are read from its oldest and newest comments, since
 # the design review sits among the first; a child's from its newest, where the
 # latest round sits. A child with no verdict there is `no-ready-verdict`.
+#
+# `verdict_mode`, `verdict_current` and `verdict_url` describe the parent's
+# latest verdict, null without one: its mode from the first line, `design`
+# for any round marked `(design mode)`, set or spec, else `set` for a `Set
+# review` and `spec` for the rest; whether it was made against the body as it
+# stands; and its comment. Current means the value after the comment's first
+# `lastEditedAt` is the body's `lastEditedAt`, `null` matching a body never
+# edited; a round naming none is not current. One query reads both, so an edit
+# between two reads cannot pair a new body with an old round.
 #
 # `set-overflow` means a page came back short of its total — sub-issues,
 # blockers, assignees or labels — so a claim or a blocker could be missing and
@@ -70,9 +81,9 @@ OWNER="${REPO%%/*}"; NAME="${REPO##*/}"
 Q='query($owner:String!, $repo:String!, $n:Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $n) {
-      url number
-      oldest: comments(first: 100) { nodes { author { login } body } }
-      newest: comments(last: 100) { totalCount nodes { author { login } body } }
+      url number lastEditedAt
+      oldest: comments(first: 100) { nodes { author { login } body url } }
+      newest: comments(last: 100) { totalCount nodes { author { login } body url } }
       subIssues(first: 100) {
         totalCount
         nodes {
@@ -118,28 +129,40 @@ printf '%s' "$ISSUE" | jq -e '
   >/dev/null 2>&1 || fail set-overflow
 
 OUT=$(printf '%s' "$ISSUE" | jq -c --arg slug "$SLUG" '
+  # Each verdict comment, with its first line parsed as `head`.
   def verdicts: [ .nodes[]
     | select(.author != null and (.author.login == $slug or .author.login == ($slug + "[bot]")))
-    | (.body // "" | split("\n")[0] | rtrimstr("\r"))
-    | capture("^\\*\\*(Spec|Set) review[^*]*, round [0-9]+: (?<v>READY|CHANGES REQUESTED)\\*\\*").v ];
+    | . + { head: (.body // "" | split("\n")[0] | rtrimstr("\r")
+                   | capture("^\\*\\*(?<k>Spec|Set) review(?<m>[^*]*), round [0-9]+: (?<v>READY|CHANGES REQUESTED)\\*\\*")) } ];
+  def watermark: (.body // "") | split("lastEditedAt")
+    | if length < 2 then null
+      else [.[1] | capture("^`?[`:\\s]*(?<t>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z|null\\b)")]
+           | first | .t? end;
   def cleared: .state == "CLOSED" and (.stateReason == null or .stateReason == "COMPLETED");
   (.oldest | verdicts) as $first | (.newest | verdicts) as $last
   | if ($last | length) == 0 and ($first | length) > 0 and .newest.totalCount > 200
     then "overflow" else
     (($first + $last) | length > 0) as $spec
-    | (if ($last | length) > 0 then $last | last else $first | last end) as $pv
+    | (if ($last | length) > 0 then $last | last else $first | last end) as $pr
+    | ($pr.head.v? // null) as $pv
+    | (.lastEditedAt // "null") as $edited
     | [ .subIssues.nodes[] | select(.state == "OPEN")
         | { url, number, title,
             blocked_by: [ .blockedBy.nodes[] | select(cleared | not) | .url ],
             assignees: [ .assignees.nodes[].login ],
             claim_labels: [ .labels.nodes[].name | select(startswith("assigned:")) ],
-            verdict: (.comments | verdicts | last) }
+            verdict: (.comments | verdicts | last | .head.v?) }
         | .reasons = ( [ if (.blocked_by | length) > 0 then "blocked" else empty end,
                          if (.assignees + .claim_labels | length) > 0 then "claimed" else empty end,
                          if $spec and .verdict != "READY" then "no-ready-verdict" else empty end,
                          if $spec and $pv != "READY" then "design-not-ready" else empty end ] )
       ] as $open
-    | { parent: { url, number, spec_review: $spec, verdict: $pv },
+    | { parent: { url, number, spec_review: $spec, verdict: $pv,
+                  verdict_mode: (if $pr == null then null elif ($pr.head.m | test("design mode")) then "design"
+                                 elif $pr.head.k == "Set" then "set" else "spec" end),
+                  verdict_current: (if $pr == null then null
+                                    else ($pr | watermark) as $w | $w != null and $w == $edited end),
+                  verdict_url: ($pr.url? // null) },
         ready: [ $open[] | select(.reasons == []) | {url, number, title} ],
         waiting: [ $open[] | select(.reasons != []) | del(.verdict) ],
         children: (.subIssues.nodes | length) }

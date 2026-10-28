@@ -33,10 +33,27 @@ row, ask:
    this URL and continue there."
 2. **"Stop"**: "Nothing is claimed."
 
-Without it, say that the design needs a `READY` design review and the
-operator's acceptance first, and take up that review per
-`references/spec-review-rounds.md`, "Handing the issue to its reviewer",
-claiming nothing.
+Without it, read the issue's stage:
+
+```bash
+"<skill-dir>/../../scripts/issue-stage.sh" <owner>/<repo> <n>
+```
+
+At `next=accept`, the latest design-mode round, the comment `round_url=` names,
+reads `READY` against the body as it stands, and only the operator's acceptance
+is missing. Ask the acceptance question from the design-mode bullet of
+`references/spec-review-rounds.md`, "Where it ends", with its two options, and
+start no review. On "Accept", write the row it gives, citing that comment, then
+ask the picker above in place of the bullet's fresh-session prompt. On "Not
+yet", do what the bullet says and claim nothing.
+
+At `next=decompose`, the row is there after all: ask the picker above. At
+`next=unknown`, no reviewer bot is configured: say so, name `reviewer-setup`,
+and stop, claiming nothing. At any other `next=`, say that the design needs a
+`READY` design review and the operator's acceptance first, and take up that
+review per `references/spec-review-rounds.md`,
+"Handing the issue to its reviewer", claiming nothing. On `result=ERROR`, say
+what failed and stop, claiming nothing.
 
 At `children` above 0, ask:
 
