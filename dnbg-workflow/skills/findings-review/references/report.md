@@ -53,7 +53,9 @@ gave one or it is no longer in your context, give the full report.
 ## At a close-out
 
 A role's close-out is the end of its part of the work, which its skill names.
-There, write a retrospective per
-`<skill-dir>/../process-review/references/retrospective.md` and end the report
-with a **Retrospective** section giving the file's path. A report at any other
-moment, such as the author's merge handoff, carries none.
+There, answer the retrospective prompt in
+`<skill-dir>/../process-review/references/retrospective.md`; its "When a
+retrospective is written" says whether that becomes a file, named in a
+**Retrospective** section ending the report, or lines under Observations. A
+report at any other moment, such as the author's merge handoff, carries
+neither.

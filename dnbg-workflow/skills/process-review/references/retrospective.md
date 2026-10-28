@@ -1,12 +1,12 @@
 # Process review: retrospectives
 
 Part of the `process-review` skill, which reads retrospectives in batches to
-find what recurs; this is the format they are written in. Each role writes one
-at its close-out, which its own skill names, whether a session dispatched it or
-not: the author once its PR merges or closes, the PR reviewer when its review
-ends, both sides of a spec review where it ends, the orchestrator at Stop.
-Turns that end earlier, such as the author's at send-to-review, do not write
-one. A retrospective records where the **process** hurt one agent on
+find what recurs; this is the format they are written in, and the policy for
+whether one is written at all. Each role reaches it at its close-out, which its
+own skill names, whether a session dispatched it or not: the author once its PR
+merges or closes, the PR reviewer when its review ends, both sides of a spec
+review where it ends, the orchestrator at Stop. Turns that end earlier, such as
+the author's at send-to-review, write none. A retrospective records where the **process** hurt one agent on
 one issue: the skills, the scripts, the waits. A finding about the code the run
 built or touched, such as a gap the design missed or a defect next to the work,
 is not a retrospective item: it goes in a findings entry, per
@@ -15,6 +15,32 @@ that lists it.
 
 `<skill-dir>` is the `process-review` skill's **Base directory**, or, for an
 agent sent here by path, the directory holding this file's `references/`.
+
+## When a retrospective is written
+
+Retrospectives are **off**, unless a `dnbg-workflow` note at session start says
+they are on. Either way, answer the prompt below for your run; the state decides
+where the answers go.
+
+- **On**: write the file, per the rest of this reference. The report names its
+  path in a **Retrospective** section and says nothing else about process
+  friction. The always-on rule's offer to file upstream ("When shipped tooling
+  doesn't fit, tell the user") is for friction that stopped the task from
+  finishing; the rest waits in the file for `process-review`.
+- **Off**: write no file, and give the report no **Retrospective** section.
+  Under its **Observations**, put each item that would have gone under
+  **Skill wrong or missing** or **Worked around**, both headings whole, as one
+  line opening `Friction:`. Nothing from **Slowed or blocked** or **Wished to ask**
+  is surfaced. After those lines comes the always-on rule's offer to file
+  upstream, with the operator approving the exact text first. With nothing
+  under either heading, there are no lines and no offer.
+
+  A dispatched agent has no one to offer to: it puts the lines in its report
+  and leaves the offer out. Its dispatcher relays them under its own
+  Observations, and the offer is the main session's.
+
+  "Asking the agents for one" below does not apply, and a dispatcher's report
+  names no role as having left none: there is no file to ask for.
 
 ## Where a retrospective goes
 
@@ -97,8 +123,9 @@ date: <YYYY-MM-DD>
 
 ## Asking the agents for one
 
-A session that dispatched an agent, such as `orchestrate` or the spec review's
-spawned reviewer, collects the agent's retrospective from its final report.
+With retrospectives on ("When a retrospective is written"), a session that
+dispatched an agent, such as `orchestrate` or the spec review's spawned
+reviewer, collects the agent's retrospective from its final report.
 When that report names no retrospective path, or the path it gives does not
 exist, continue that agent once with `SendMessage`:
 

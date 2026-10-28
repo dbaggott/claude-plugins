@@ -46,6 +46,12 @@
       "title": "Stamp published PRs, reviews and issue claims with the plugin version",
       "description": "Appends an invisible HTML comment naming this plugin and its version to PR descriptions, review bodies, and issue claim comments, so what a session published can be traced back to the prompts that produced it. Off unless you turn it on — the stamp goes on artifacts other people read.",
       "default": false
+    },
+    "retrospectives": {
+      "type": "boolean",
+      "title": "Write a retrospective file at every close-out",
+      "description": "On, every agent role writes a retrospective of the process friction it met to the retrospective directory when its part of the work ends, for process-review to count later, and says nothing more about that friction in chat. Off, no file is written, and a report surfaces only the friction where a skill was wrong or had to be worked around, with an offer to file it upstream. Off unless you turn it on — the files are for whoever maintains these prompts.",
+      "default": false
     }
   }
 }

@@ -289,3 +289,17 @@ version_stamp_enabled() {
   esac
   return 1
 }
+
+# Has the operator asked for retrospective files?
+#
+# The same gate shape as the stamp's, for a sibling reason: on, every close-out
+# writes a file under the operator's home directory, which only the maintainer
+# of these prompts has a use for. A value this hook cannot read fails toward
+# writing nothing, and the skills, which state `off` literally, then surface the
+# friction in the report instead.
+retrospectives_enabled() {
+  case "${CLAUDE_PLUGIN_OPTION_RETROSPECTIVES:-}" in
+    [Tt][Rr][Uu][Ee]) return 0 ;;
+  esac
+  return 1
+}

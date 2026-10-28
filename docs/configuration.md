@@ -8,6 +8,7 @@ nothing you didn't write.
 - [`owners`](#owners--which-repos-it-enforces-on) — **the only setting that turns the hooks on**
 - [`worktree_path`, `claim_label`, `retrospective_dir` and `findings_dir`](#the-mechanical-opinions) — names and paths you can change
 - [`version_stamp`](#version_stamp--recording-which-prompts-published-what) — off by default; adds a hidden version marker to what you publish
+- [`retrospectives`](#retrospectives--where-process-friction-goes) — off by default; writes a retrospective file at every close-out
 - [Agent roles](#agent-roles--whose-login-each-agent-posts-under) — each role's App, the resolver, and the fallback to your own account
 - [Role Apps' private keys](#role-apps-private-keys) — where each is read from
 
@@ -164,6 +165,41 @@ is read from your **user** `settings.json`, so it is on for all your repos or
 none. And it does **not** stamp commits, issue bodies, or inline review comments;
 only the three surfaces above, each of which is a single artifact whose author is
 already you.
+
+## `retrospectives` — where process friction goes
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `retrospectives` | off | Every close-out writes a retrospective file under `retrospective_dir` for `process-review` to count, and says nothing else about process friction |
+
+Every agent role ends its part of the work with a close-out: the author once its
+PR merges or closes, the reviewer when its review ends, the orchestrator at
+Stop. At each, it answers four questions about where the *process* hurt — what
+slowed it, what a skill got wrong, what it worked around, what it wished it
+could ask. This setting decides where those answers go.
+
+**On**, each close-out writes them to a file under `retrospective_dir`, and the
+report only names the file. `process-review` reads a batch of those files later
+and drafts upstream issues for what recurs. The offer to file an issue upstream
+that the always-on rules make is then kept for friction that stopped the task.
+
+**Off**, nothing is written. The report instead carries, one line each, every
+item where a skill was wrong or missing or had to be worked around, followed by
+an offer to file them upstream with your approval of the exact text. Friction
+that only slowed the work, and questions it wished it could ask, are dropped.
+Both states sort friction by the same two headings, so turning it on changes
+where an item goes, never which items count.
+
+**It is off by default because the files are for whoever maintains these
+prompts.** Retrospectives exist to improve the plugin, and a user who is not
+improving it would collect files under `~/.claude` that nothing of theirs reads.
+Writing the file regardless and gating only what is said in chat was considered
+and rejected for that reason. The failure direction is the stamp's: a value the
+hook can't make sense of leaves retrospectives **off**, and the session-start
+note, which is the only thing that tells a skill it is on, is not emitted.
+
+Like every value here it is read from your **user** `settings.json`, so it is on
+for all your repos or none.
 
 ## Opting a repo into `velocity-tradeoff`
 

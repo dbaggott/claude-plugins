@@ -19,6 +19,17 @@ run_hook() { run_hook_at "$HOOK" "$@"; }
 run_hook_configured() { run_hook_configured_at "$HOOK" "$@"; }
 run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
 
+# The option's value is handed in, unset meaning not passed at all, so the
+# cases that must stay silent go through the same path a real session does.
+run_hook_retrospectives() {  # [option-value]
+  if [ "$#" -eq 0 ]; then
+    run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="$ROOT" "$HOOK"
+  else
+    run env -i PATH="$STUB" HOME="$TMP" CLAUDE_PLUGIN_ROOT="$ROOT" \
+      CLAUDE_PLUGIN_OPTION_RETROSPECTIVES="$1" "$HOOK"
+  fi
+}
+
 # --- rule injection ----------------------------------------------------------
 
 @test "emits the rules file" {
@@ -406,6 +417,27 @@ run_hook_stamped() { run_hook_stamped_at "$HOOK" "$@"; }
   stub_path jq git gh
   run_hook_configured '/tmp/wt' 'assigned:my-bot'
   [[ "$output" == *"INVALID configuration"*"configuration overrides"* ]]
+}
+
+@test "announces retrospectives when they are on" {
+  stub_path jq git gh
+  run_hook_retrospectives true
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"configuration overrides"* ]]
+  [[ "$output" == *"Retrospectives are on"* ]]
+  [[ "$output" == *"Always do the thing."* ]]
+}
+
+@test "says nothing about retrospectives when they are unset, off, or unreadable" {
+  # Off is the default the skills state, so it is no override; a value the gate
+  # cannot read is off too, and like the stamp's gets no rejection notice.
+  stub_path jq git gh
+  run_hook_retrospectives
+  [ "$output" = "$RULES_TEXT" ]
+  run_hook_retrospectives false
+  [ "$output" = "$RULES_TEXT" ]
+  run_hook_retrospectives on
+  [ "$output" = "$RULES_TEXT" ]
 }
 
 @test "still emits the rules when a knob is configured" {
