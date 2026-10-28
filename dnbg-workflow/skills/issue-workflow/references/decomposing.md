@@ -149,11 +149,35 @@ One body edit, after the last child is filed:
 - The coverage markings from step 1, and the end-to-end criteria from step 3.
 - Every mention of a candidate child elsewhere in the body ("child 7") becomes
   that child's URL.
+- Every `decided` row set to `applied`, with none left at `decided`. You own
+  every child and none is in flight yet, so applying a row now is part of this
+  pass. A row decided after step 2 began is first applied to the body, as the
+  opening of this file applies one before step 1. Then, by what the row
+  reaches:
+  - **A row that reaches a child.** One the children were written from matches
+    them by construction. For one decided after step 2 began, edit each child
+    it reaches to match, linking the row from the section it changes as
+    `orchestrate`'s `references/triage.md`, "Promote decided rows into the
+    body", does; where it changes the split, the filed table, the child's
+    `Covers` and `Depends on`, and its relationships (step 4's call) change
+    with it. Then set it to `applied`.
+  - **A row that reaches no child**, a decision about the parent alone, the
+    acceptance row (`Design accepted: …`) among them: set it to `applied`. The
+    design stays accepted, since acceptance is detected by that Entry at any
+    state but `proposed`. Post the line `orchestrate`'s
+    `references/design-change.md` gives such a row, `Decision log: <date> <ID>
+    set to applied, already in the body and every child`, naming a row whose ID
+    is `—` by the opening words of its Entry, one comment carrying a line for
+    each, as the author, from a file in your draft directory
+    (`git-workflow`'s "Draft files"):
+
+    ```bash
+    "<skill-dir>/../../scripts/as-role.sh" author <owner/repo> -- \
+      gh issue comment <parent> --repo <owner/repo> --body-file <file>
+    ```
 - One decision-log row recording the filing, its Entry opening `Children
-  filed`, state `applied`; and every `decided` row the children were written
-  from set to `applied`, since the body and every child match it by
-  construction. A row decided after step 2 began stays `decided` unless each
-  child it reaches has been edited to match it.
+  filed`, state `applied`, written last, so it is the newest row and every row
+  above it is `applied` or `proposed`.
 
 ## 6. Send the set to review
 
