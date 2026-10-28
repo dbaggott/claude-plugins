@@ -16,10 +16,10 @@
 # banks it in `_poll_suspended`, which every elapsed calculation subtracts.
 #
 # The clock is read once and then answered from: `poll_init`, `poll_tick` and
-# `poll_nap`'s own reads around each sleep set `_poll_now`, and every other time
-# question here answers as of the last of those reads without running `date`.
-# A caller that lets time pass outside a nap calls `poll_tick` before asking;
-# both watches do, right after each tick's fetch returns.
+# `poll_nap`'s own reads around each sleep set `_poll_now`, and every elapsed or
+# epoch-seconds question here answers as of the last of those reads without
+# running `date` (the ISO stamps still read the clock). A caller that lets time
+# pass outside a nap calls `poll_tick` before asking.
 #
 # ## The curve
 #
