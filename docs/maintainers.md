@@ -82,10 +82,10 @@ than assuming them. The **CI** is a different matter, since a fork inherits
 - **`release.yml`** needs a GitHub App, because a required status check
   and `GITHUB_TOKEN` are mutually exclusive here (see the comment at the top of
   that file). **It disables itself in a fork** — the job is guarded on an
-  `AUTOMATION_APP_ID` variable you won't have, so it skips silently instead of
+  `RELEASE_APP_ID` variable you won't have, so it skips silently instead of
   failing on a missing credential. Versions stop auto-bumping and you can bump
-  `plugin.json` by hand, or wire up your own App and set `AUTOMATION_APP_ID`
-  (repository variable) plus `AUTOMATION_APP_PRIVATE_KEY` (repository secret).
+  `plugin.json` by hand, or wire up your own App and set `RELEASE_APP_ID`
+  (repository variable) plus `RELEASE_APP_PRIVATE_KEY` (repository secret).
 
 If you don't want automated versioning at all, delete that workflow.
 

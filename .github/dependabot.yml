@@ -1,0 +1,10 @@
+# Keeps the SHA-pinned actions in .github/workflows/ current. Dependabot reads
+# the trailing `# vX.Y.Z` comment on each pin and rewrites SHA and comment
+# together. It does not update `docker://` references, so the actionlint digest
+# in ci.yml is bumped by hand (see the comment on that step).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

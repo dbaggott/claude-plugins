@@ -54,7 +54,7 @@ jobs:
     # and the actionlint image pull happens during job setup regardless of any
     # step condition. `hook-tests` below is where the skip earns its minutes.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # Full history for the changelog step's merge-base diff. The other
           # steps need only the tree, and on a repo this size the deeper fetch
@@ -207,7 +207,7 @@ jobs:
         #
         # Source-following and SCRIPTDIR resolution come from .shellcheckrc, so
         # the hooks' shared lib.sh is analyzed rather than reported unfollowable.
-        uses: ludeeus/action-shellcheck@2.0.0
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           scandir: '.'
 
@@ -245,16 +245,18 @@ jobs:
         # one only scans `.sh` files.
         #
         # The upstream Docker image rather than a third-party wrapper action:
-        # one less party to trust, and pinned to the version verified locally.
-        # The tag is mutable; a digest pin would be stricter, and is worth doing
-        # if this repo's threat model ever justifies the extra step.
+        # one less party to trust, and pinned by digest to the version verified
+        # locally. Dependabot does not update `docker://` references
+        # (https://github.com/dependabot/dependabot-core/issues/8362), so this
+        # digest is bumped by hand: resolve the new tag's index digest from
+        # Docker Hub and update the version comment with it.
         #
         # `-verbose` so a pass is self-evidencing. Without it the step logs
         # nothing on success, and "green with no output" is indistinguishable by
         # eye from a check that collected no files — which is exactly the shape
         # of the failure this check was added for. It prints `Collected N YAML
         # files`, so the log proves work happened rather than implying it.
-        uses: docker://rhysd/actionlint:1.7.12
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # 1.7.12, bumped by hand
         with:
           args: -verbose
 
@@ -304,9 +306,10 @@ jobs:
     # branch name on the head repo, so `auto-release/…` on a fork reads
     # identically to the real thing, and a human or a future automation naming a
     # branch that way would drop the suite without anything saying so. All three
-    # clauses must hold: the branch prefix, a same-repo head, and the automation
+    # clauses must hold: the branch prefix, a same-repo head, and the release
     # App as author. `release.yml` runs under that App's token, so its PRs are
-    # authored by `dbaggott-automation[bot]` — read off PRs 115 through 131.
+    # authored by `claude-plugins-dbaggott[bot]`, the bot user of the App
+    # `claude-plugins-dbaggott`.
     #
     # In a fork the App does not exist, so the author never matches and the suite
     # simply always runs. That is the right default for someone else's
@@ -317,9 +320,9 @@ jobs:
     if: >-
       !(startsWith(github.head_ref, 'auto-release/')
         && github.event.pull_request.head.repo.full_name == github.repository
-        && github.event.pull_request.user.login == 'dbaggott-automation[bot]')
+        && github.event.pull_request.user.login == 'claude-plugins-dbaggott[bot]')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Run the hook test suite
         # `npx` rather than a global install: `npm install -g bats` fails on the
         # runner with EACCES, because the package writes man pages into
