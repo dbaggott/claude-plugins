@@ -86,10 +86,9 @@ gh api graphql -f query='{ repository(owner: "<owner>", name: "<name>") { issue(
   --jq '.data.repository.issue.lastEditedAt // "null"'
 ```
 
-The `// "null"` prints `null` for a never-edited body, where the bare path
-prints an empty line that reads as a missing field. If the body moved after the
-round's value, the round straddled an edit and was made against text you have
-already replaced — say so rather than answering findings that may no longer apply.
+If the body moved after the round's value, the round straddled an edit and was
+made against text you have already replaced — say so rather than answering
+findings that may no longer apply.
 
 ## Answering
 
