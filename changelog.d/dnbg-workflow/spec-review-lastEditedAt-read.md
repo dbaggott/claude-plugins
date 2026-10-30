@@ -1,4 +1,5 @@
-Spec reviews no longer start with a failed `gh issue view --json lastEditedAt`
-call. Both the reviewer and the issue author are now told that `gh issue view`
-does not expose the field, and the author side names the query that reads it,
-printing `null` for a body that was never edited.
+Spec reviews now say that `gh issue view --json` cannot read an issue's
+`lastEditedAt`, on both the reviewer's and the issue author's side, and the
+author's side names the query that does, printing `null` for a body that was
+never edited. Agents had been spending a failed call on `gh issue view` before
+finding the query.
