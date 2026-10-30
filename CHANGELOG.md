@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.103 — 2026-10-30
+
+Releases of these plugins are now published by a GitHub App dedicated to this
+repository, `claude-plugins-dbaggott`, installed on it alone. A credential that
+leaks from another repository can no longer publish a release here. The release
+workflow's own actions are pinned to commit SHAs, so a moved tag cannot change
+what runs in the job that holds the release credential.
+
+
 ## dnbg-workflow 2026.10.102 — 2026-10-30
 
 Filing an issue from an agent summary file now marks that summary `superseded`
