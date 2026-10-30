@@ -75,3 +75,14 @@ bare `#19` or `<owner>/<repo>#19`. The full URL is the only form
 clickable on every surface (raw terminal text needs a scheme) and
 the only one unambiguous when copied between repos. Memory files
 are the exception — Claude-context, not rendered to users.
+
+## Status lives on GitHub, not in a memory file
+
+What shipped, what is open, which PR resolves what, and where an issue
+stands are read from GitHub when needed (`project-status`), never written
+to a memory file or its index, although the harness's memory instructions
+name "ongoing work" as a memory type. A decision made in this workflow is
+in its issue or PR; a memory does not restate it. A memory holds what no
+issue, PR or code records: a way of working the operator asked for, a fact
+outside any repo, or a pointer to where a decision a later session would
+otherwise re-open is recorded.
