@@ -281,6 +281,7 @@ you wrote.
 | `project-status` | `dnbg-workflow` | GitHub only | Which stage of the project flow an issue is at, and the prompt to paste next |
 | `process-review` | `dnbg-workflow` | GitHub only | Finding patterns across agents' retrospectives and drafting upstream issues |
 | `findings-review` | `dnbg-workflow` | GitHub only | Sweeping the findings entries agents keep for what they found about the code, and filing, dropping or keeping each with you |
+| `summary-review` | `dnbg-agent-summaries` | **Any** | Writing agent summary files with a status, and sweeping the stale ones into an archive with you |
 | `reviewer` | `dnbg-workflow` | GitHub only | Reviewing a pushed PR under an independent GitHub App identity |
 | `reviewer-setup` | `dnbg-workflow` | GitHub only | One-time creation of that App (no cloud service, no shared secret) |
 | `velocity-tradeoff` | `dnbg-workflow` | **Any** | Opt-in: how to size work where the risk/benefit trade favors speed |
@@ -329,7 +330,7 @@ claude plugin list
 
 More on updating and versions: [Releases](docs/releases.md).
 
-`dnbg-all` installs all three. To take only part of it, install what you want
+`dnbg-all` installs all four. To take only part of it, install what you want
 instead — they are independent, and none requires another:
 
 | Plugin | What you get |
@@ -337,6 +338,7 @@ instead — they are independent, and none requires another:
 | `dnbg-workflow@dnbg` | The GitHub workflow, its two enforcement hooks, and a GitHub App per agent role. GitHub, except `velocity-tradeoff` |
 | `dnbg-practices@dnbg` | Coding practices. No hooks, no forge, works anywhere |
 | `dnbg-work-summary@dnbg` | PR recaps. No hooks. GitHub |
+| `dnbg-agent-summaries@dnbg` | Summary files with a status, and a sweep that archives the stale ones. No hooks, no forge |
 
 **The plugin is the unit you can enable or disable** — there is no per-skill
 switch. So what you can adopt on its own is decided by how this project packages

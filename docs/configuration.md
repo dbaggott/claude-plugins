@@ -9,6 +9,7 @@ nothing you didn't write.
 - [`worktree_path`, `claim_label`, `retrospective_dir` and `findings_dir`](#the-mechanical-opinions) — names and paths you can change
 - [`version_stamp`](#version_stamp--recording-which-prompts-published-what) — off by default; adds a hidden version marker to what you publish
 - [`retrospectives`](#retrospectives--where-process-friction-goes) — off by default; writes a retrospective file at every close-out
+- [`summary_dir`](#summary_dir--where-dnbg-agent-summaries-keeps-summary-files) — `dnbg-agent-summaries`' one setting: where summary files are written
 - [Agent roles](#agent-roles--whose-login-each-agent-posts-under) — each role's App, the resolver, and the fallback to your own account
 - [Role Apps' private keys](#role-apps-private-keys) — where each is read from
 
@@ -201,6 +202,22 @@ note, which is the only thing that tells a skill it is on, is not emitted.
 
 Like every value here it is read from your **user** `settings.json`, so it is on
 for all your repos or none.
+
+## `summary_dir` — where `dnbg-agent-summaries` keeps summary files
+
+This one belongs to the `dnbg-agent-summaries` plugin rather than to
+`dnbg-workflow`, so it is set on that plugin from `/plugin`.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `summary_dir` | `~/.claude/dnbg-agent-summaries` | Where agents write summary files, flat, one Markdown file per topic, and where `summary-review` sweeps them into `archive/`. Must be an absolute path or one under `~/` |
+
+The value reaches the skill by substitution into its text, so no hook runs. Left
+unset, the skill sees its own placeholder and uses the default instead. A value
+that is not an absolute or `~/` path is not rejected at session start, since no
+hook reads it: the skill uses the default and says so when it next runs.
+
+Like every value here it is read from your **user** `settings.json`.
 
 ## Opting a repo into `velocity-tradeoff`
 

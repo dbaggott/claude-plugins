@@ -18,6 +18,10 @@ drafted in your draft directory (`git-workflow`'s "Draft files"), and
 
 An update to an existing issue is the body edit in "Writing as the author".
 
+When the body came from a summary file and `dnbg-agent-summaries` is installed,
+load its `summary-review` skill and mark that summary `superseded` by the new
+issue's URL, in the same turn.
+
 ## Offer the spec review
 
 Once an issue filed on its own is created, ask with `AskUserQuestion`:

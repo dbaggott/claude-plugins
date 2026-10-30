@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin.json",
   "name": "dnbg-all",
-  "description": "Everything: the workflow plugin, the coding practices, and work summaries. Installs the other three.",
+  "description": "Everything: the workflow plugin, the coding practices, work summaries and agent summary files. Installs the other four.",
   "version": "2026.8.1",
   "author": {
     "name": "Dan Baggott",
@@ -13,6 +13,7 @@
   "dependencies": [
     "dnbg-practices",
     "dnbg-workflow",
-    "dnbg-work-summary"
+    "dnbg-work-summary",
+    "dnbg-agent-summaries"
   ]
 }

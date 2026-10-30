@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin.json",
+  "name": "dnbg-agent-summaries",
+  "description": "Keep the summary files agents write (research, design proposals, issue drafts) in one directory with a status field, and sweep the stale ones into an archive. No hooks, no forge.",
+  "version": "2026.10.0",
+  "author": {
+    "name": "Dan Baggott",
+    "url": "https://github.com/dbaggott"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/dbaggott/claude-plugins",
+  "repository": "https://github.com/dbaggott/claude-plugins",
+  "userConfig": {
+    "summary_dir": {
+      "type": "string",
+      "title": "Where summary files are written",
+      "description": "Directory agents write summary files in, one Markdown file per topic with no per-repo subdirectories; summary-review sweeps stale ones into its archive/ subdirectory. Must be an absolute path or one under '~/'. Leave empty for '~/.claude/dnbg-agent-summaries'.",
+      "default": "~/.claude/dnbg-agent-summaries"
+    }
+  }
+}
