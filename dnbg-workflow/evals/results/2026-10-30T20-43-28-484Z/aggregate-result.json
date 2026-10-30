@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.314",
+  "startedAt": "2026-10-30T20:43:28.484Z",
+  "durationSeconds": 60,
+  "costUsd": 0.3737794,
+  "partial": false,
+  "suite": {
+    "root": "/Users/dan/git/claude-plugins/.worktrees/prose-ab/dnbg-workflow",
+    "ablation": "none",
+    "threshold": 0,
+    "concurrency": 1,
+    "plugins": [
+      {
+        "name": "dnbg-workflow",
+        "version": "2026.10.102",
+        "path": "/Users/dan/git/claude-plugins/.worktrees/prose-ab/dnbg-workflow"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "full-url",
+      "dir": "evals/full-url",
+      "source": "prose",
+      "promptMarkdown": "Write the description for a pull request on acme/widgets. It renames `getUser` to `fetchUser` across the three call sites and fixes #110 and #112. Give me just the description text.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 10,
+      "graders": [
+        {
+          "name": "full-urls",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "https://github\\.com/acme/widgets/issues/\\d+",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "no-bare-numbers",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "(^|[\\s(])#\\d+",
+            "flags": "",
+            "match": "not_contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "costUsd": 0.080148,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-10-30T20:43:28.523Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-KYy4B3/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "full-urls",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched https://github\\.com/acme/widgets/issues/\\d+",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-bare-numbers",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "routing",
+      "dir": "evals/routing",
+      "source": "prose",
+      "promptMarkdown": "Fix the bug described in https://github.com/acme/widgets/issues/110 and open a PR.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 10,
+      "graders": [
+        {
+          "name": "issue-workflow-first",
+          "type": "tool_order",
+          "weight": 1,
+          "config": {
+            "before": {
+              "tool": "Skill",
+              "input_match": "issue-workflow"
+            },
+            "after": {
+              "tool": "Skill",
+              "input_match": "git-workflow"
+            }
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 6,
+            "costUsd": 0.21589540000000002,
+            "judgeCostUsd": 0,
+            "durationSeconds": 44,
+            "startedAt": "2026-10-30T20:43:38.823Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-tIoEs3/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "issue-workflow-first",
+                "passed": false,
+                "weight": 1,
+                "explanation": "\"after\" tool Skill never called",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0,
+        "passRate": 0
+      }
+    },
+    {
+      "name": "rules-reach-session",
+      "dir": "evals/rules-reach-session",
+      "source": "prose",
+      "promptMarkdown": "List every `##` heading that arrived in your context at session start, one per line and nothing else. If no such context arrived, reply with the single line `NO RULES IN CONTEXT`.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 10,
+      "graders": [
+        {
+          "name": "no-flattery",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "No flattery",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "verify-before-asserting",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "Verify before asserting",
+            "flags": "",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "costUsd": 0.077736,
+            "judgeCostUsd": 0,
+            "durationSeconds": 6,
+            "startedAt": "2026-10-30T20:44:22.668Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-En2Zl2/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "no-flattery",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched No flattery",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "verify-before-asserting",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched Verify before asserting",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 3,
+    "casesPassed": 3,
+    "overallScore": 0.6666666666666666,
+    "overallPassRate": 0.6666666666666666
+  }
+}
