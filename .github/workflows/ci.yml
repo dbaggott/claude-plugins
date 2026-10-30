@@ -54,7 +54,7 @@ jobs:
     # and the actionlint image pull happens during job setup regardless of any
     # step condition. `hook-tests` below is where the skip earns its minutes.
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Full history for the changelog step's merge-base diff. The other
           # steps need only the tree, and on a repo this size the deeper fetch
@@ -326,7 +326,7 @@ jobs:
         && github.event.pull_request.head.repo.full_name == github.repository
         && github.event.pull_request.user.login == 'claude-plugins-dbaggott[bot]')
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run the hook test suite
         # `npx` rather than a global install: `npm install -g bats` fails on the
         # runner with EACCES, because the package writes man pages into
