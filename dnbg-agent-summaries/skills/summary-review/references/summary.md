@@ -11,7 +11,8 @@ file and `<topic>` is a lowercase-dashed slug. Create the directory if it is
 missing. Files that belong to the summary, such as images, go in a directory
 beside it with the same stem: `<summary_dir>/YYYY-MM-DD-<topic>/`.
 
-When a file with that name already exists, overwrite it, folding any prior
+A name already in `<summary_dir>/archive/` is taken: add a `-2` suffix to the
+stem. When a file with that name already exists at the top level, overwrite it, folding any prior
 content worth keeping into the new file, for example as a "History" section. Use
 a `-v2` suffix only when keeping both versions side by side is the point, such as
 a superseded approach worth referring back to.
@@ -51,8 +52,9 @@ status_ref: https://github.com/<owner>/<repo>/issues/<n>
 - **A new summary** is `active`.
 - **When a new summary replaces an old one**, set the old one to `superseded`,
   with the new file's name in `status_ref:`, in the same turn.
-- **When an issue is filed from a summary's text**, set that summary to
-  `superseded`, with the issue's URL in `status_ref:`, in the same turn. The
+- **When an issue is filed from a summary's text, or the text is folded into
+  an existing issue's body**, set that summary to `superseded`, with the issue's
+  URL in `status_ref:`, in the same turn. The
   issue body is now the version that gets kept current.
 - **When the operator says a summary is done with**, set it to `retired` and
   remove any `status_ref:`.

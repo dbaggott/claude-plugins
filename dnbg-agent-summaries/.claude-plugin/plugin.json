@@ -14,7 +14,7 @@
     "summary_dir": {
       "type": "string",
       "title": "Where summary files are written",
-      "description": "Directory agents write summary files in, one Markdown file per topic with no per-repo subdirectories; summary-review sweeps stale ones into its archive/ subdirectory. Must be an absolute path or one under '~/'. Leave empty for '~/.claude/dnbg-agent-summaries'.",
+      "description": "Directory agents write summary files in, one Markdown file per topic with no per-repo subdirectories; summary-review sweeps stale ones into its archive/ subdirectory. Must be an absolute path or one under '~/', using only letters, digits and '. _ - /'; anything else is ignored and the default used instead. Leave empty for '~/.claude/dnbg-agent-summaries'.",
       "default": "~/.claude/dnbg-agent-summaries"
     }
   }

@@ -6,5 +6,7 @@ file's frontmatter saying whether it is still needed (`active`, `superseded` or
 superseded or retired into `archive/`, flags files older than 60 days for you to
 keep or archive, and moves nothing until you approve.
 
+## Migration
 If your own `CLAUDE.md` tells agents where to write summaries, set `summary_dir`
-to that directory and remove the section; the skill replaces it.
+to that directory and remove the section; the skill replaces it. Until you do,
+agents have two conventions to follow.

@@ -210,11 +210,11 @@ This one belongs to the `dnbg-agent-summaries` plugin rather than to
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `summary_dir` | `~/.claude/dnbg-agent-summaries` | Where agents write summary files, flat, one Markdown file per topic, and where `summary-review` sweeps them into `archive/`. Must be an absolute path or one under `~/` |
+| `summary_dir` | `~/.claude/dnbg-agent-summaries` | Where agents write summary files, flat, one Markdown file per topic, and where `summary-review` sweeps them into `archive/`. Must be an absolute path or one under `~/`, with the same character rule as `worktree_path` |
 
 The value reaches the skill by substitution into its text, so no hook runs. Left
 unset, the skill sees its own placeholder and uses the default instead. A value
-that is not an absolute or `~/` path is not rejected at session start, since no
+that breaks the rule is not rejected at session start, since no
 hook reads it: the skill uses the default and says so when it next runs.
 
 Like every value here it is read from your **user** `settings.json`.

@@ -11,11 +11,12 @@ skill sweeps the ones that are not into `archive/`.
 
 ## The summary directory
 
-The summary directory is `${user_config.summary_dir}`. Where that value still
-starts with `$`, or is empty, the setting is unset: use
+The summary directory is `${user_config.summary_dir}`. Where that value is
+empty, or is still a `${…}` placeholder, the setting is unset: use
 `~/.claude/dnbg-agent-summaries`. A value that is neither an absolute path nor
-one under `~/` is not usable either: use the default, and say so in your reply.
-Expand `~` to your home directory. `<summary_dir>` below means this directory.
+one under `~/`, or that holds a character outside letters, digits and `.` `_`
+`-` `/`, is not usable either, since it goes into shell commands: use the
+default, and say so in your reply. Expand `~` to your home directory. `<summary_dir>` below means this directory.
 
 ## Writing or updating a summary file
 
@@ -40,7 +41,8 @@ summary** and is never moved.
 
 ### 2. Classify each summary by its status
 
-The statuses are defined in `references/summary.md`.
+Read `<skill-dir>/references/summary.md` first: it defines the statuses and the
+frontmatter that step 5 writes.
 
 - `superseded` with a file name in `status_ref:`: **archive** when that file
   exists at the top level or in `archive/`, since an earlier sweep may have
@@ -54,14 +56,22 @@ The statuses are defined in `references/summary.md`.
   1. a "Filed as <URL>" or "Superseded by" banner: `superseded`, with that URL
      or file name;
   2. a "SHIPPED" or "Out of date" banner: `retired`;
-  3. a newer summary on the same topic tags: `superseded`, with its file name;
+  3. a newer summary with the same topic tags that covers the same subject,
+     such as the same `<topic>` slug or one that says it replaces this file:
+     `superseded`, with its file name. Shared tags alone are not enough, since
+     one project tag covers many subjects;
   4. otherwise `active`.
+- Any other frontmatter, such as a status not listed above, or `superseded`
+  with no `status_ref:` or one that is neither a file name nor a URL: **keep**,
+  report it as malformed, and propose a status as for a file with none.
 
 ### 3. Check the age of every kept file
 
 A kept file is an **age candidate** when the date in its filename is more than
 60 days before today, and it has no `kept:` date or that date is also more than
-60 days before today. Use the filename date, never the file's modification time,
+60 days before today. A file whose name does not start with a valid
+`YYYY-MM-DD` date is a candidate unless its `kept:` date is within 60 days, and
+its report row says the name carries no date. Use the filename date, never the file's modification time,
 which sync tools change. For each candidate, suggest keep or archive from what
 it says, such as open work it still tracks.
 
@@ -88,8 +98,17 @@ ends at the report: nothing moves, and no `status:` or `kept:` is written.
 
 ### 5. Apply what was approved
 
-Edit only the `status:`, `status_ref:` and `kept:` frontmatter keys, and never
-delete a file.
+First check every archive row for a collision: neither the file's name nor its
+asset directory's name may already be in `<summary_dir>/archive/`. Check with
+`test`, since `mv -n` can skip a move and still exit 0:
+
+```bash
+test ! -e "<summary_dir>/archive/<stem>.md" && test ! -e "<summary_dir>/archive/<stem>"
+```
+
+When any row collides, stop before writing or moving anything, and report each
+collision for the operator to resolve. Otherwise apply the table. Edit only the
+`status:`, `status_ref:` and `kept:` frontmatter keys, and never delete a file.
 
 - **An age candidate kept**: write `kept: <today>`, as `YYYY-MM-DD`.
 - **An age candidate or kept file sent to archive**: write `status: retired`,
@@ -97,16 +116,9 @@ delete a file.
 - **A proposed status**: write it, with its `status_ref:`, into each file still
   kept. A file being archived takes it too, so the archive says why.
 - **Archive** each archive row into `<summary_dir>/archive/`, creating that
-  directory if it is missing. Before each move, check that neither the file's
-  name nor its asset directory's name is already in `archive/`, since `mv -n`
-  can skip a move and still exit 0:
-
-  ```bash
-  test ! -e "<summary_dir>/archive/<stem>.md" && test ! -e "<summary_dir>/archive/<stem>"
-  ```
-
-  When the check fails, stop and report the collision, leaving that file and
-  every later one unmoved. Otherwise move the file, and its asset directory if
-  it has one, with `mv -n`, then confirm each source path is gone.
+  directory if it is missing. Re-run the collision check just before each move,
+  then move the file, and its asset directory if it has one, with `mv -n`, and
+  confirm each source path is gone. A check or move that fails stops the sweep
+  there, with the files already moved and the one that failed in the report.
 
 Close with one line per file changed: its path and what was done to it.
