@@ -202,14 +202,18 @@ jobs:
         # Bring our own shellcheck (the pre-installed one on ubuntu-latest
         # tracks the runner image's release cadence, which lags upstream by
         # months). Pin an exact version so the CI signal is stable across
-        # runner-image updates and a future shellcheck-action release can't
-        # silently flap the check.
+        # runner-image updates and a future shellcheck release can't silently
+        # flap the check. Pinning the action by SHA doesn't do that alone: it
+        # downloads shellcheck's `stable` release unless `version:` says
+        # otherwise. Dependabot doesn't update that input, so it is bumped by
+        # hand.
         #
         # Source-following and SCRIPTDIR resolution come from .shellcheckrc, so
         # the hooks' shared lib.sh is analyzed rather than reported unfollowable.
         uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           scandir: '.'
+          version: v0.11.0
 
       - name: Verify docs/media matches the demo scripts
         if: ${{ !cancelled() }}
