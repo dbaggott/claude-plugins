@@ -91,6 +91,9 @@ gh api graphql -f query='{
 }'
 ```
 
+`gh issue view --json` does not expose `lastEditedAt`, so the snapshot is this
+query.
+
 Record the time you read it: that, and each issue's `lastEditedAt`
 (`body_edited` in the script's object), are what `references/rounds.md` gates
 the post on.

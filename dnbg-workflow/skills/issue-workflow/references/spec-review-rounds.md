@@ -78,8 +78,17 @@ One comment per issue, carrying a verdict — `READY` or `CHANGES REQUESTED` —
 blocking, `<issue>-O<n>` observations. `CHANGES REQUESTED` means at least one
 blocking finding; observations do not block a `READY`.
 
-Check that published `lastEditedAt` against your body's current value. If the body
-moved after it, the round straddled an edit and was made against text you have
+Check that published `lastEditedAt` against your body's current value, read
+with this query, since `gh issue view --json` does not expose the field:
+
+```bash
+gh api graphql -f query='{ repository(owner: "<owner>", name: "<name>") { issue(number: <n>) { lastEditedAt } } }' \
+  --jq '.data.repository.issue.lastEditedAt // "null"'
+```
+
+The `// "null"` prints `null` for a never-edited body, where the bare path
+prints an empty line that reads as a missing field. If the body moved after the
+round's value, the round straddled an edit and was made against text you have
 already replaced — say so rather than answering findings that may no longer apply.
 
 ## Answering
@@ -166,9 +175,10 @@ other issue is plain.
   round re-checked a change, acceptance stands, and no new stage starts here.
 - **A tracking issue whose round ran in design mode**, as the round comment's
   first line names. The `READY` covers only the body it was made against, so
-  ask only while the body's `lastEditedAt` still matches the round's; a fold
-  above that edited the body reopens the review instead. Ask with
-  `AskUserQuestion`: "The design review is `READY`. Accept the design?"
+  ask only while the body's `lastEditedAt`, read as in "What a round looks
+  like", still matches the round's; a fold above that edited the body reopens
+  the review instead. Ask with `AskUserQuestion`: "The design review is
+  `READY`. Accept the design?"
   1. **"Accept (Recommended)"**: "Write the acceptance row, then give the
      decomposition prompt."
   2. **"Not yet"**: "Nothing is written. Any edit to the body reopens the
