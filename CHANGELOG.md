@@ -10,6 +10,35 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.102 — 2026-10-30
+
+Filing an issue from an agent summary file now marks that summary `superseded`
+by the new issue, when `dnbg-agent-summaries` is installed.
+
+
+## dnbg-agent-summaries 2026.10.1 — 2026-10-30
+
+New plugin. Agents' summary files (outstanding work, research, design proposals,
+issue drafts) now have a home and a lifecycle: one directory, set with
+`summary_dir` (default `~/.claude/dnbg-agent-summaries`), and a `status:` in each
+file's frontmatter saying whether it is still needed (`active`, `superseded` or
+`retired`). The `summary-review` skill sweeps the directory: it archives what is
+superseded or retired into `archive/`, flags files older than 60 days for you to
+keep or archive, and moves nothing until you approve.
+
+## Migration
+If your own `CLAUDE.md` tells agents where to write summaries, set `summary_dir`
+to that directory and remove the section; the skill replaces it. Until you do,
+agents have two conventions to follow.
+
+
+## dnbg-all 2026.10.1 — 2026-10-30
+
+`dnbg-all` now also installs `dnbg-agent-summaries`, which keeps agents' summary
+files in one directory with a status field and sweeps the stale ones into an
+archive.
+
+
 ## dnbg-workflow 2026.10.101 — 2026-10-28
 
 The PR and issue watches read the clock once per poll instead of once per
