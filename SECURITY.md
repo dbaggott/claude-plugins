@@ -31,9 +31,9 @@ Nothing is backported. If you have pinned an old version, updating is the fix.
 ## What installing this grants
 
 **Hooks ship with `dnbg-workflow` only** — and so with `dnbg-all`, which depends
-on it. `dnbg-practices` and `dnbg-work-summary` install skills and nothing else;
-neither runs any shell, which is why the first of them describes itself as "No
-hooks, no forge."
+on it. `dnbg-practices`, `dnbg-work-summary` and `dnbg-agent-summaries` install skills
+and nothing else; none runs any shell, which is why the first and last of them
+describe themselves as "No hooks, no forge."
 
 Installing `dnbg-workflow` means **it runs shell on your machine without asking
 each time** — that is what a Claude Code hook is. Five hooks fire automatically

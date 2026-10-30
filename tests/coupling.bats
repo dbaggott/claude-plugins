@@ -761,7 +761,7 @@ remote_read_calls() {  # <SKILL.md>
   # its paths` covers its own pointers.
   for ps in dnbg-workflow/reviewer dnbg-workflow/issue-reviewer \
             dnbg-workflow/git-workflow dnbg-workflow/orchestrate \
-            dnbg-practices/coding-practices; do
+            dnbg-practices/coding-practices dnbg-agent-summaries/summary-review; do
     plugin=${ps%/*}; s=${ps#*/}
     local found=0
     skill="$ROOT/$plugin/skills/$s/SKILL.md"
