@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: '(^|[\s(])#\d+'
+pattern: '#\d+'
 match: not_contains
 target: last_message
 ---

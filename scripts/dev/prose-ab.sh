@@ -33,12 +33,13 @@
 #   scripts/dev/prose-ab.sh --case rules-reach-session --runs 1 .
 #       The canary: a 0 means the plugin's hooks did not reach the run in this
 #       environment, which makes every other case's result ambiguous.
-#   git diff > /tmp/trim.patch
+#   git diff > /tmp/trim.patch && git stash
 #   scripts/dev/prose-ab.sh --case routing /tmp/trim.patch
 #       Whether a trim of the pickup prose changes which skill loads first. A 0
 #       on `routing` is read against the runs' `error` field (a turn cap or a
 #       timeout, counted in the `errors=` column) before it is read as a
-#       routing failure.
+#       routing failure; for the transcripts themselves, run `claude plugin
+#       eval` on the plugin directly with `--keep-temp`.
 #   scripts/dev/prose-ab.sh --case full-url ../other-worktree
 #
 # What a case can measure here: a prompt the passage decides. A plain prompt
@@ -48,19 +49,19 @@
 # tests/evals/. The next case worth writing is the non-GitHub decline, a repo
 # whose origin is a gitlab.com URL, which is the first to need `--scaffold`.
 #
-# Output, last:
+# The arms run one after the other; -j is the runner's concurrency within an
+# arm. Output, last:
 #   base: score=<0..1> errors=<n>/<runs> status=<n> json=<path>
 #   head: score=<0..1> errors=<n>/<runs> status=<n> json=<path>
 #   delta=<head minus base>
-# Exits 0 when both arms ran to a score, 1 on a usage error, 2 when an arm did
-# not. Each arm's JSON, the runner's full result document, and its HTML report
-# (<arm>-report.html beside it) are kept.
+# Exits 0 when both arms ran to a score, 1 when it stopped before any arm ran,
+# 2 when an arm did not run to a score. Each arm's JSON, the runner's full
+# result document, and its HTML report (<arm>-report.html beside it) are kept.
 
 set -uo pipefail
 
 usage() {
   sed -n '/^# Usage:/,/^#$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
-  exit 1
 }
 die() { echo "prose-ab.sh: $*" >&2; exit 1; }
 
@@ -68,17 +69,17 @@ case_name='' plugin='' head_arg='' runs=8
 model=() jobs=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --case)   [ $# -ge 2 ] || usage; case_name=$2; shift 2 ;;
-    --plugin) [ $# -ge 2 ] || usage; plugin=$2; shift 2 ;;
-    --runs)   [ $# -ge 2 ] || usage; runs=$2; shift 2 ;;
-    --model)  [ $# -ge 2 ] || usage; model=(--model "$2"); shift 2 ;;
-    -j)       [ $# -ge 2 ] || usage; jobs=(-j "$2"); shift 2 ;;
-    -h|--help) usage ;;
+    --case)   [ $# -ge 2 ] || { usage; exit 1; }; case_name=$2; shift 2 ;;
+    --plugin) [ $# -ge 2 ] || { usage; exit 1; }; plugin=$2; shift 2 ;;
+    --runs)   [ $# -ge 2 ] || { usage; exit 1; }; runs=$2; shift 2 ;;
+    --model)  [ $# -ge 2 ] || { usage; exit 1; }; model=(--model "$2"); shift 2 ;;
+    -j)       [ $# -ge 2 ] || { usage; exit 1; }; jobs=(-j "$2"); shift 2 ;;
+    -h|--help) usage; exit 0 ;;
     -*) die "unknown option $1" ;;
-    *)  [ -z "$head_arg" ] || usage; head_arg=$1; shift ;;
+    *)  [ -z "$head_arg" ] || { usage; exit 1; }; head_arg=$1; shift ;;
   esac
 done
-[ -n "$case_name" ] && [ -n "$head_arg" ] || usage
+[ -n "$case_name" ] && [ -n "$head_arg" ] || { usage; exit 1; }
 [[ "$runs" =~ ^[1-9][0-9]*$ ]] || die "--runs takes a positive integer, got '$runs'"
 [ -e "$head_arg" ] || die "head '$head_arg' does not exist"
 
@@ -102,11 +103,11 @@ else
 fi
 
 # Which plugin: the one with `evals/<case>/` one level below the head root, or
-# the one --plugin names.
+# the one --plugin names. `tests/evals/` is not a plugin.
 found=()
 for d in "$head_root"/*/evals/"$case_name"/; do
-  [ -d "$d" ] || continue
   d=${d%/evals/*}
+  [ -f "$d/.claude-plugin/plugin.json" ] || continue
   found+=("${d##*/}")
 done
 if [ -n "$plugin" ]; then
