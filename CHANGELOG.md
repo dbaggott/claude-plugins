@@ -10,6 +10,30 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.104 — 2026-10-30
+
+Filing an issue from an agent summary file now sets the summary's status the way
+`dnbg-agent-summaries` defines it, with a `Filed as` line naming the issue,
+rather than marking it `superseded` by the issue's URL.
+
+
+## dnbg-agent-summaries 2026.10.2 — 2026-10-30
+
+A summary filed as one or more issues now carries a `Filed as <URL>` line under
+its title naming every issue, and is marked `retired`, or left `active` when it
+stays the deeper context, instead of `superseded` by a single issue URL.
+`superseded` now means only that a newer summary file replaces it. A sweep that
+finds a summary still marked `superseded` by an issue URL proposes the new form
+and writes the `Filed as` line for you.
+
+The sweep no longer proposes a status for a file without one from a banner word
+such as "SHIPPED" or "Filed as", which matched one finding's status deep in a
+file and a banner the file's next sentence contradicted. It reads what the file
+says about itself, quotes the line its proposal rests on, and proposes `active`
+as borderline when the file's own words conflict, so a file you still use is not
+proposed for archive on a word it happens to contain.
+
+
 ## dnbg-workflow 2026.10.103 — 2026-10-30
 
 Releases of these plugins are now published by a GitHub App dedicated to this
