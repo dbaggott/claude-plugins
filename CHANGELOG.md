@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.105 — 2026-10-30
+
+Spec reviews now say that `gh issue view --json` cannot read an issue's
+`lastEditedAt`, on both the reviewer's and the issue author's side, and the
+author's side names the query that does, printing `null` for a body that was
+never edited. Agents had been spending a failed call on `gh issue view` before
+finding the query.
+
+
 ## dnbg-workflow 2026.10.104 — 2026-10-30
 
 Filing an issue from an agent summary file now sets the summary's status the way
