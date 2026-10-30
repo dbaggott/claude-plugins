@@ -53,7 +53,8 @@
 #   head: score=<0..1> errors=<n>/<runs> status=<n> json=<path>
 #   delta=<head minus base>
 # Exits 0 when both arms ran to a score, 1 on a usage error, 2 when an arm did
-# not. The JSON files are the runner's full result documents and are kept.
+# not. Each arm's JSON, the runner's full result document, and its HTML report
+# (<arm>-report.html beside it) are kept.
 
 set -uo pipefail
 
@@ -141,7 +142,8 @@ run_arm() {  # <arm>
   echo "running $1 arm: $runs runs of $case_name from $work/$1 (quiet under --json)"
   claude plugin eval "$work/$1" --case "$case_name" --ablation none --runs "$runs" \
     ${model[@]+"${model[@]}"} ${jobs[@]+"${jobs[@]}"} \
-    --threshold 0 --no-publish --trust-plugin --json "$work/$1.json"
+    --threshold 0 --no-publish --trust-plugin --json "$work/$1.json" \
+    --report "$work/$1-report.html"
 }
 run_arm base; base_status=$?
 run_arm head; head_status=$?
