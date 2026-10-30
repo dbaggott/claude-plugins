@@ -62,9 +62,9 @@ usage() {
   sed -n '/^# Usage:/,/^#$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
   exit 1
 }
-die() { echo "prose-ab.sh: $*" >&2; exit "${2:-1}"; }
+die() { echo "prose-ab.sh: $*" >&2; exit 1; }
 
-case_name='' plugin='' head='' runs=8
+case_name='' plugin='' head_arg='' runs=8
 model=() jobs=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -75,36 +75,34 @@ while [ $# -gt 0 ]; do
     -j)       [ $# -ge 2 ] || usage; jobs=(-j "$2"); shift 2 ;;
     -h|--help) usage ;;
     -*) die "unknown option $1" ;;
-    *)  [ -z "$head" ] || usage; head=$1; shift ;;
+    *)  [ -z "$head_arg" ] || usage; head_arg=$1; shift ;;
   esac
 done
-[ -n "$case_name" ] && [ -n "$head" ] || usage
+[ -n "$case_name" ] && [ -n "$head_arg" ] || usage
 [[ "$runs" =~ ^[1-9][0-9]*$ ]] || die "--runs takes a positive integer, got '$runs'"
-[ -e "$head" ] || die "head '$head' does not exist"
+[ -e "$head_arg" ] || die "head '$head_arg' does not exist"
 
 base_root=$(git rev-parse --show-toplevel) || die "not inside a git repository"
 tmp=${TMPDIR:-/tmp}
 work=$(mktemp -d "${tmp%/}/prose-ab.XXXXXX") || exit 1
-trap 'rm -rf "$work/base" "$work/head" "$work/root"' EXIT
+trap 'rm -rf "$work/base" "$work/head" "$work/root"; rmdir "$work" 2>/dev/null' EXIT
 
-if [ -d "$head" ]; then
-  head_root=$(cd "$head" && pwd)
+if [ -d "$head_arg" ]; then
+  head_root=$(cd "$head_arg" && pwd)
 else
-  # The copy is the base's working tree, modifications included, so the patch
-  # lands on what the operator is looking at rather than on HEAD. `git apply`
-  # works outside a repository, so the copy needs no `.git`.
-  patch=$(cd "$(dirname "$head")" && pwd)/$(basename "$head")
+  # `git apply` works outside a repository, so the copy needs no `.git`.
+  patch=$(cd "$(dirname "$head_arg")" && pwd)/$(basename "$head_arg")
   head_root=$work/root
   mkdir "$head_root"
   git -C "$base_root" ls-files -z \
-    | while IFS= read -r -d '' f; do [ -e "$base_root/$f" ] && printf '%s\0' "$f"; done \
+    | while IFS= read -r -d '' f; do if [ -e "$base_root/$f" ]; then printf '%s\0' "$f"; fi; done \
     | tar -C "$base_root" --null -T - -cf - | tar -C "$head_root" -xf - \
     || die "copying $base_root failed"
-  (cd "$head_root" && git apply "$patch") || die "patch $head did not apply cleanly"
+  (cd "$head_root" && git apply "$patch") || die "patch $head_arg did not apply cleanly"
 fi
 
-# The case names the plugin: `<plugin>/evals/<case>/` one level below the head
-# root, with --plugin deciding only when more than one plugin has it.
+# Which plugin: the one with `evals/<case>/` one level below the head root, or
+# the one --plugin names.
 found=()
 for d in "$head_root"/*/evals/"$case_name"/; do
   [ -d "$d" ] || continue
@@ -161,7 +159,8 @@ echo "base: ${base_read:-score=null errors=null}/$runs status=$base_status json=
 echo "head: ${head_read:-score=null errors=null}/$runs status=$head_status json=$work/head.json"
 base_score=${base_read#score=}; base_score=${base_score%% *}
 head_score=${head_read#score=}; head_score=${head_score%% *}
-if [ "$base_status" = 0 ] && [ "$head_status" = 0 ] && [ -n "$base_read" ] && [ -n "$head_read" ]; then
+if [ "$base_status" = 0 ] && [ "$head_status" = 0 ] \
+  && [[ "$base_score" =~ ^[0-9.]+$ ]] && [[ "$head_score" =~ ^[0-9.]+$ ]]; then
   echo "delta=$(jq -n --argjson b "$base_score" --argjson h "$head_score" '$h - $b')"
   exit 0
 fi
