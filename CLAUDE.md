@@ -28,3 +28,9 @@ on an agent's read of the inputs.
 
 CONTRIBUTING.md's "You can run CI's checks locally" lists the commands and says
 which of them are narrower than the CI step they stand for.
+
+When a change trims or rewrites skill prose and the question is whether a
+passage does anything, the check is `scripts/dev/prose-ab.sh`: one eval case
+run against two trees that differ in that passage, scored. It is for a trim, a
+review dispute over a passage, and a Claude Code or model bump. A reviewer who
+doubts a passage asks for the two scores rather than arguing from reading.

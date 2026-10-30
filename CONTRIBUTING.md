@@ -138,6 +138,23 @@ each plugin source. Those, and the fragment rule above, are short shell blocks
 in the `lint` job of [`.github/workflows/ci.yml`](.github/workflows/ci.yml) if
 you want to run the rest by hand.
 
+### Evals
+
+None of these runs in CI. Each spends model calls on your own credential, and
+the last two write to a live repository.
+
+- `scripts/dev/prose-ab.sh` answers whether a passage of skill prose is
+  load-bearing: one eval case, two trees differing in the passage, two scores.
+  The seed cases are under `dnbg-workflow/evals/`.
+- `tests/evals/delegated-mode/run.sh` answers whether an author running as a
+  subagent, with no operator to ask, records the question where its dispatcher
+  finds it or decides it silently.
+- `tests/evals/restart/run.sh` answers whether a fresh orchestrator finishes the
+  sweep a killed one left behind.
+- `tests/evals/set-review/create.sh` files a deliberately incomplete
+  decomposition for `issue-reviewer` to review by hand, and the review's round
+  comments are the result.
+
 ## More
 
 [`README.md`](README.md) covers what the plugins are and what they do to a
