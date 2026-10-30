@@ -94,28 +94,27 @@ jobs:
     #    check — the PR would wait forever for a check that never ran.
     #
     # 2. Fork guard. This workflow needs a GitHub App that only this repo's
-    #    owner has. A fork without AUTOMATION_APP_ID set skips the job outright
+    #    owner has. A fork without RELEASE_APP_ID set skips the job outright
     #    rather than failing on a missing credential — versions just stop
     #    auto-bumping, which is the right default for someone who forked this to
     #    build their own marketplace. `vars` rather than `secrets` because the
     #    secrets context is unavailable in a job-level `if`; an App ID isn't
     #    secret anyway, so it belongs in a variable regardless.
     if: >-
-      ${{ vars.AUTOMATION_APP_ID != ''
+      ${{ vars.RELEASE_APP_ID != ''
           && !startsWith(github.event.head_commit.message, 'auto: release') }}
     steps:
       - name: Generate GitHub App token
         id: token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
-          app-id: ${{ vars.AUTOMATION_APP_ID }}
-          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
-          # Scope the minted token to this repo alone, even if the App is
-          # installed on others. The App can be a general-purpose automation
-          # identity; the token it hands this run must not be.
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # Scope the minted token to this repo alone, whatever else the
+          # App's installation ever covers.
           repositories: ${{ github.event.repository.name }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # Read the tip of main, not this run's trigger commit. With `ref`
           # unset, checkout uses `github.sha` — the pushed commit — so a run that
