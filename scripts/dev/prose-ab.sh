@@ -25,8 +25,9 @@
 # resolves to the *installed* plugin of that name, not the directory.
 #
 # Each run is a `claude -p` session on your own credential: the seed cases
-# under dnbg-workflow/evals/ cost roughly $0.03 to $0.10 and 10 to 60 seconds
-# apiece, so a two-arm measurement at 8 runs is in the order of a dollar.
+# under dnbg-workflow/evals/ cost roughly $0.08 (one turn) to $0.30 (several)
+# and under a minute apiece, so a two-arm measurement at 8 runs is a few
+# dollars.
 #
 # Examples, against the seed cases:
 #   scripts/dev/prose-ab.sh --case rules-reach-session --runs 1 .
