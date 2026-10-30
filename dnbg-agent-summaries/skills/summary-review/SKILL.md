@@ -48,22 +48,25 @@ frontmatter that step 5 writes.
   exists at the top level or in `archive/`, since an earlier sweep may have
   archived the replacement. When it exists in neither, **keep** the file and
   report the broken pointer.
-- `superseded` with an issue URL in `status_ref:`: **archive**.
 - `retired`: **archive**.
 - `active`: **keep**.
-- No `status:`, from before this convention: propose one from what the file
-  says, in this order, and classify the file under it:
-  1. a "Filed as <URL>" or "Superseded by" banner: `superseded`, with that URL
-     or file name;
-  2. a "SHIPPED" or "Out of date" banner: `retired`;
-  3. a newer summary with the same topic tags that covers the same subject,
-     such as the same `<topic>` slug or one that says it replaces this file:
-     `superseded`, with its file name. Shared tags alone are not enough, since
-     one project tag covers many subjects;
-  4. otherwise `active`.
+- No `status:`, from before this convention: read the file and propose the
+  status whose definition fits, from what the file says about itself: a status
+  note at its top, a statement that it is kept as the record or the deeper
+  context, or a newer summary that covers the same subject, meaning the same
+  `<topic>` slug or one that says it replaces this one, which is `superseded`
+  with that file's name in `status_ref:`. Shared tags alone are not enough,
+  since one project tag covers many subjects. A word like "shipped",
+  "superseded" or "filed" further down describes a part of the work, not the
+  file. Quote the line the proposal rests on in the report row. When the file's
+  own words point different ways, or nothing settles it, propose `active` and
+  call it out as borderline. Classify the file under the proposed status.
 - Any other frontmatter, such as a status not listed above, or `superseded`
-  with no `status_ref:` or one that is neither a file name nor a URL: **keep**,
-  report it as malformed, and propose a status as for a file with none.
+  with no `status_ref:` or one that is not a file name: **keep** this sweep,
+  report it as malformed, and propose a status as for a file with none, which
+  step 5 writes so the next sweep classifies the file under it. A `status_ref:`
+  holding an issue URL is a `Filed as` note from an earlier rule: read it as
+  one at the top of the file, and step 5 writes it as that line.
 
 ### 3. Check the age of every kept file
 
@@ -108,13 +111,18 @@ test ! -e "<summary_dir>/archive/<stem>.md" && test ! -e "<summary_dir>/archive/
 
 When any row collides, stop before writing or moving anything, and report each
 collision for the operator to resolve. Otherwise apply the table. Edit only the
-`status:`, `status_ref:` and `kept:` frontmatter keys, and never delete a file.
+`status:`, `status_ref:` and `kept:` frontmatter keys, plus the one `Filed as`
+line below, and never delete a file.
 
 - **An age candidate kept**: write `kept: <today>`, as `YYYY-MM-DD`.
 - **An age candidate or kept file sent to archive**: write `status: retired`,
   remove any `status_ref:`, and archive it as below.
-- **A proposed status**: write it, with its `status_ref:`, into each file still
-  kept. A file being archived takes it too, so the archive says why.
+- **A proposed status**: write it into each file still kept, with its
+  `status_ref:`, or removing one the new status does not take. A file being
+  archived takes it too, so the archive says why.
+- **A removed `status_ref:` that held an issue URL**: add a `Filed as <URL>`
+  line naming that URL, placed as `references/summary.md` says, unless the file
+  already names the URL in one.
 - **Archive** each archive row into `<summary_dir>/archive/`, creating that
   directory if it is missing. Re-run the collision check just before each move,
   then move the file, and its asset directory if it has one, with `mv -n`, and
