@@ -110,9 +110,8 @@ jobs:
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          # Scope the minted token to this repo alone. The App is installed
-          # on this repo only, so this changes nothing today; it keeps a run's
-          # token narrow if that installation ever widens.
+          # Scope the minted token to this repo alone, whatever else the
+          # App's installation ever covers.
           repositories: ${{ github.event.repository.name }}
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
