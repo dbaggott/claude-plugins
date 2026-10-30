@@ -58,8 +58,8 @@ status_ref: YYYY-MM-DD-<topic>.md
   under the title, or as the body's first line when the file has no title,
   extending the line when one is already there, so it names every issue the
   text went into. Then, in the same turn, set the summary to `retired` when the
-  issues are now the record, or leave it `active` when the file stays the deeper
-  context the issues point back to.
+  issues now carry everything the file did, or leave it `active` when the file
+  keeps content the issues point back to, such as the research behind them.
 - **When the operator says a summary is done with**, set it to `retired` and
   remove any `status_ref:`.
 

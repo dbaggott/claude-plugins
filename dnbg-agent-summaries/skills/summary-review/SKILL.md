@@ -54,19 +54,19 @@ frontmatter that step 5 writes.
   status whose definition fits, from what the file says about itself: a status
   note at its top, a statement that it is kept as the record or the deeper
   context, or a newer summary that covers the same subject, meaning the same
-  `<topic>` slug or one that says it replaces this one. Shared tags alone are
-  not enough, since one project tag covers many subjects. A word like
-  "shipped", "superseded" or "filed" further down describes a part of the work,
-  not the file. Quote the line the proposal rests on in the report row. When
-  the file's own words point different ways, or nothing settles it, propose
-  `active` and call it out as borderline. Classify the file under the proposed
-  status.
+  `<topic>` slug or one that says it replaces this one, which is `superseded`
+  with that file's name in `status_ref:`. Shared tags alone are not enough,
+  since one project tag covers many subjects. A word like "shipped",
+  "superseded" or "filed" further down describes a part of the work, not the
+  file. Quote the line the proposal rests on in the report row. When the file's
+  own words point different ways, or nothing settles it, propose `active` and
+  call it out as borderline. Classify the file under the proposed status.
 - Any other frontmatter, such as a status not listed above, or `superseded`
-  with no `status_ref:` or one that is not a file name: **keep**, report it as
-  malformed, and propose a status as for a file with none. A `status_ref:`
-  holding an issue URL is a summary filed under an earlier rule: propose
-  `retired`, or `active` when the file says it stays the deeper context, and
-  step 5 writes its `Filed as <URL>` line.
+  with no `status_ref:` or one that is not a file name: **keep** this sweep,
+  report it as malformed, and propose a status as for a file with none, which
+  step 5 writes so the next sweep classifies the file under it. A `status_ref:`
+  holding an issue URL is a `Filed as` note from an earlier rule: read it as
+  one at the top of the file, and step 5 writes it as that line.
 
 ### 3. Check the age of every kept file
 
@@ -119,10 +119,10 @@ line below, and never delete a file.
   remove any `status_ref:`, and archive it as below.
 - **A proposed status**: write it into each file still kept, with its
   `status_ref:`, or removing one the new status does not take. A file being
-  archived takes it too, so the archive says why. Where it replaces a
-  `status_ref:` holding an issue URL, also add a `Filed as <URL>` line naming
-  that URL, placed as `references/summary.md` says, unless the file already
-  names the URL in one.
+  archived takes it too, so the archive says why.
+- **A removed `status_ref:` that held an issue URL**: add a `Filed as <URL>`
+  line naming that URL, placed as `references/summary.md` says, unless the file
+  already names the URL in one.
 - **Archive** each archive row into `<summary_dir>/archive/`, creating that
   directory if it is missing. Re-run the collision check just before each move,
   then move the file, and its asset directory if it has one, with `mv -n`, and
