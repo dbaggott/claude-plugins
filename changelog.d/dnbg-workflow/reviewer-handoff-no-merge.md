@@ -1,0 +1,1 @@
+- **Changed:** a reviewer in its own session now ends its approving handoff on `Done:`, naming the PR watch, and notifies with the verdict and short SHA instead of telling the operator the PR is ready to merge; the merge stays with the author's handoff, which reads the merge state.
