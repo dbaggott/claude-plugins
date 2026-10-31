@@ -47,7 +47,15 @@ one carrying a command, with the PRs it lands, since a lower command lands
 fewer. A handoff with no command names the PR it waits on; its **Your move:**
 says that PR's approval is what the merge waits on. A `failed` from the
 command's read-back is a merge that did not happen: pass the message to that
-PR's author, whose ask comes back through you.
+PR's author, whose ask comes back through you. An `enqueued` or a `pending`
+is a merge still to come, which the authors' watches report.
+
+A stack forms on a PR already approved, whose handoff may be relayed with a
+`gh pr merge` that GitHub refuses from then on. When a stacked author's PR
+announcement carries `GitHub stack <n>`, `SendMessage` the base PR's author
+that a PR was stacked on its PR; it sends a fresh handoff
+(`references/merge-wait.md`, "A stacked PR whose base moved"), which you relay
+in place of the earlier one.
 
 When a child's PR merges, `SendMessage` the author of each open PR based on
 its branch or above it in its stack: its base PR merged, so it takes

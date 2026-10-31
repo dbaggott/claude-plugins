@@ -149,8 +149,9 @@ and the forge head is what moves: your worktree's `HEAD` still carries the old
 commits. So first `git -C <worktree-path> fetch origin` and test
 `git -C <worktree-path> merge-base --is-ancestor <recorded base head>
 origin/<branch-name>`. When it does **not** hold, GitHub has rebased the PR:
-`git -C <worktree-path> reset --hard origin/<branch-name>`, do step 4, and arm
-the review watch as the closing paragraph says; you rebase nothing. When it
+`git -C <worktree-path> reset --hard origin/<branch-name>`, then step 1 and
+step 4 only, and arm the review watch as the closing paragraph says; you rebase
+nothing. When it
 holds, the cascade has not reached the PR, or did not run: re-read the test
 every 20 seconds for up to two minutes, then go on to step 1 as for a PR in no
 stack. A `DIRTY` on a head GitHub already rebased is the ordinary case: surface
@@ -186,6 +187,11 @@ and ask.
 4. In the description, drop the stacked line when the base is now the default
    branch, or record `origin/<base>`'s SHA as the new base head when it is
    not. A `GitHub stack <n>` line stays either way.
+
+When told instead that a PR was stacked on yours, your relayed command is
+refused from now on: read the stack and compose the handoff again per
+`references/merge.md`, "A PR in a stack", adding the `GitHub stack <n>.` line
+to your description, and send it; the merge watch runs on.
 
 The head moved, so the review is no longer clean: arm the review watch, per
 `references/review-rounds.md`, not the merge watch. The reviewer re-verdicts on

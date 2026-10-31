@@ -135,6 +135,24 @@ posts() { grep -c '^api -X POST' "$CALLS" || true; }
   [ "$(posts)" -eq 1 ]
 }
 
+@test "a PR already in a stack is OK with that stack, and nothing is written" {
+  stack 4 3 1:open 2:open 4:open
+  run "$STACK" o/r 4 --onto=2
+  [ "$output" = "result=OK stack=3" ]
+  [ "$(posts)" -eq 0 ]
+}
+
+@test "a base PR that is not the open top of its stack is not-top, with nothing written" {
+  stack 2 3 1:open 2:open 5:open
+  run "$STACK" o/r 4 --onto=2
+  [ "$output" = "result=ERROR reason=not-top" ]
+  [ "$(posts)" -eq 0 ]
+  # A merged PR above it does not make it not-top: the open top is what counts.
+  stack 2 3 1:open 2:open 5:merged
+  run "$STACK" o/r 4 --onto=2
+  [ "$output" = "result=OK stack=3" ]
+}
+
 @test "a 409 on add is retried once, and a 200 after it is OK" {
   stack 2 3 1:open 2:open
   printf '409\n200\n' > "$ADD_STATUSES"
@@ -162,10 +180,10 @@ posts() { grep -c '^api -X POST' "$CALLS" || true; }
   [ "$(posts)" -eq 1 ]
 }
 
-@test "a base PR in no stack on another branch is stack-create with nothing formed" {
+@test "a base PR in no stack on another branch is not-default-base with nothing formed" {
   echo feature > "$BASE_REF"
   run "$STACK" o/r 4 --onto=2
-  [ "$output" = "result=ERROR reason=stack-create" ]
+  [ "$output" = "result=ERROR reason=not-default-base" ]
   [ "$(posts)" -eq 0 ]
 }
 

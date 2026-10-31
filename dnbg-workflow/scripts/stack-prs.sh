@@ -10,16 +10,20 @@
 #
 # Form:
 #   result=OK stack=<n>
-#   result=ERROR reason=bad-args|unsupported-forge|stack-read|pr-view|stack-create|stack-add
-# <pr> joins the stack <base pr> is in. When <base pr> is in none, the stack is
-# created from [<base pr>, <pr>] if <base pr> targets the default branch;
-# `stack-create` without forming anything when it targets another branch, since
-# that chain was never stacked and stacking its top would leave the stack's
-# trunk a branch the merge deletes. `stack-add` is the forge refusing the add,
-# after one retry when it answered 409 (another request was editing the stack;
+#   result=ERROR reason=bad-args|unsupported-forge|stack-read|not-top|pr-view|not-default-base|stack-create|stack-add
+# <pr> joins the stack <base pr> is in, above it. A <pr> already in a stack is
+# OK with that stack: a re-run after a crash forms nothing twice. GitHub stacks
+# are linear, so a <base pr> that is not the open top of its stack is `not-top`
+# with nothing written: a second PR based on the same branch stays on the manual
+# path. When <base pr> is in no stack, the stack is created from [<base pr>,
+# <pr>] if <base pr> targets the default branch; `not-default-base` with nothing
+# written when it targets another branch, since that chain was never stacked and
+# stacking its top would leave the stack's trunk a branch the merge deletes.
+# `stack-create` and `stack-add` are the forge refusing the write, the add after
+# one retry when it answered 409 (another request was editing the stack;
 # STACK_RETRY_WAIT seconds between the two, default 5). Run it as the author:
-# `as-role.sh author <owner/repo> -- stack-prs.sh …`. Unlike the read-only
-# scripts it keeps GH_TOKEN, which is where the resolver puts the role's token.
+# `as-role.sh author <owner/repo> -- stack-prs.sh …` puts the role's token in
+# GH_TOKEN, which this script leaves in place.
 #
 # Read:
 #   result=OK stack=<n|none> below=<pr,…|none> above=<pr,…|none>
@@ -27,7 +31,8 @@
 # `below` and `above` are the OPEN PRs under and over <pr> in its stack, bottom
 # to top. Merged and closed PRs stay in a stack on GitHub and are left out here:
 # a merge of <pr> lands exactly `below` with it, and `above` is what GitHub
-# rebases after it. Reads run under the caller's own auth.
+# rebases after it. A PR in no stack answers an empty list, observed, not a 404.
+# Reads run under the caller's own auth.
 #
 # A stack's number is drawn from the repo's issue and PR sequence, so it can
 # equal a PR number; nothing here treats it as one.
@@ -78,9 +83,15 @@ if [ -z "$BASE" ]; then
   exit 0
 fi
 
+OWN=$(stack_of "$PR") || fail stack-read
+if [ -n "$OWN" ]; then
+  echo "result=OK stack=$(printf '%s' "$OWN" | jq -r '.number')"; exit 0
+fi
 STACK=$(stack_of "$BASE") || fail stack-read
 if [ -n "$STACK" ]; then
   N=$(printf '%s' "$STACK" | jq -r '.number')
+  TOP=$(printf '%s' "$STACK" | jq -r '[.pull_requests[] | select(.state == "open" and .merged_at == null) | .number] | last // empty')
+  [ "$TOP" = "$BASE" ] || fail not-top
   # One retry on 409: the stack was being edited by another request, which
   # finishes on its own. Any other refusal is final.
   for attempt in 1 2; do
@@ -99,7 +110,7 @@ BASE_REF=$(gh pr view "$BASE" --repo "$REPO" --json baseRefName --jq '.baseRefNa
   && [ -n "$BASE_REF" ] || fail pr-view
 DEFAULT=$(gh repo view "$REPO" --json defaultBranchRef --jq '.defaultBranchRef.name // empty' 2>/dev/null) \
   && [ -n "$DEFAULT" ] || fail pr-view
-[ "$BASE_REF" = "$DEFAULT" ] || fail stack-create
+[ "$BASE_REF" = "$DEFAULT" ] || fail not-default-base
 N=$(gh api -X POST "repos/$REPO/stacks" -F "pull_requests[]=$BASE" -F "pull_requests[]=$PR" \
       --jq '.number' 2>/dev/null) && [ -n "$N" ] || fail stack-create
 echo "result=OK stack=$N"
