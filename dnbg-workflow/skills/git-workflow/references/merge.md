@@ -45,13 +45,14 @@ A PR whose description records `GitHub stack <n>` (`SKILL.md`, step 8) takes a d
 "<skill-dir>/../../scripts/stack-prs.sh" <owner>/<repo> <num>
 ```
 
-The command is GitHub's asynchronous merge, with the repo's merge method in place of `squash` where it differs, and it lands `<num>` together with every PR in `below=`:
+The command block is GitHub's asynchronous merge, with the repo's merge method in place of `squash` where it differs and `<head>` the full SHA `pr-verdict.sh` read, followed by a read of its result until it leaves `pending`. It lands `<num>` together with every PR in `below=`:
 
 ```
-gh api --method PUT repos/<owner>/<repo>/pulls/<num>/merge-async -f merge_method=squash
+u=$(gh api --method PUT repos/<owner>/<repo>/pulls/<num>/merge-async -f merge_method=squash -f sha=<head> --jq .details.uuid)
+for i in $(seq 40); do s=$(gh api repos/<owner>/<repo>/pulls/<num>/merge-async/$u --jq '.status + " " + (.details.sha // .details.message // "")'); case $s in pending*) sleep 3 ;; *) echo "$s"; break ;; esac; done
 ```
 
-Run `pr-verdict.sh` on each PR in `below=`. The command goes out only when each reads approved at head under `SKILL.md`'s "Know the repo's merge settings" rule, and the handoff names them as landing with this PR; when one does not, name the lowest such PR as what the merge waits on and carry no command. Say that the command returns before the merge happens and that your merge watch reports the landing, so the operator need not poll. Pick the form by state as above, with this command in place of the `gh pr merge` one: the call takes no `--auto`, so where a form above would add it, say the checks still outstanding and that the command works once they pass. It takes no `--delete-branch` either; `references/post-merge.md` step 4 deletes the remote branch where the repo does not.
+`sha=<head>` makes a push in between cancel the merge rather than land a head nobody approved. The second line prints `merged <sha>` or `failed <message>`: repository rules run only when the merge executes, so a refusal reaches nothing but that status, and your merge watch, which reports a landing, cannot see it. Say so, and that a `failed` comes back to you as a merge that did not happen, which you surface and ask about. Run `pr-verdict.sh` on each PR in `below=`. The command goes out only when each reads approved at head under `SKILL.md`'s "Know the repo's merge settings" rule, and the handoff names them as landing with this PR; when one does not, name the lowest such PR as what the merge waits on and carry no command. Pick the form by state as above, with this block in place of the `gh pr merge` one: the call takes no `--auto`, so where a form above would add it, name the checks still outstanding and say the command works once they pass. It takes no `--delete-branch` either; `references/post-merge.md` step 4 deletes the remote branch where the repo does not. A failure partway through a stack leaves the PRs below the failed one landed, so their authors see the merge, and the failed one and those above it open.
 
 A stacked PR, one whose base is not the default branch, that records no stack would merge into its base's branch, so its handoff carries no merge command: it says the PR is approved and waits on its base PR, and the command comes in the fresh handoff after the rebase (`references/merge-wait.md`, "A stacked PR whose base moved").
 

@@ -45,7 +45,9 @@ in a stack"). Relay each as `SKILL.md`'s "Relay the merge handoff" does.
 Holding handoffs for several PRs of one stack, **Your move:** names the topmost
 one carrying a command, with the PRs it lands, since a lower command lands
 fewer. A handoff with no command names the PR it waits on; its **Your move:**
-says that PR's approval is what the merge waits on.
+says that PR's approval is what the merge waits on. A `failed` from the
+command's read-back is a merge that did not happen: pass the message to that
+PR's author, whose ask comes back through you.
 
 When a child's PR merges, `SendMessage` the author of each open PR based on
 its branch or above it in its stack: its base PR merged, so it takes
