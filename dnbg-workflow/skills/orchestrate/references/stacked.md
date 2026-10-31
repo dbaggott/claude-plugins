@@ -41,11 +41,16 @@ whose PR resolves a blocker of a `waiting` child: "Merge now, or stack
 On GitHub each stacked PR joins its base PR's stack (`git-workflow`, step 8),
 so its handoff carries a merge command once every PR below it is approved, and
 that one merge lands them all (`git-workflow`'s `references/merge.md`, "A PR
-in a stack"). Relay each as `SKILL.md`'s "Relay the merge handoff" does.
-Holding handoffs for several PRs of one stack, **Your move:** names the topmost
-one carrying a command, with the PRs it lands, since a lower command lands
-fewer. A handoff with no command names the PR it waits on; its **Your move:**
-says that PR's approval is what the merge waits on. A `failed` from the
+in a stack"). The operator entered this mode because they cannot merge until
+every child's PR is approved, so a handoff for a PR with a child still to come
+above it is not their move: hold it. Say in a line that the PR is approved and
+which PRs are approved so far, with no **Your move:** and no command, and keep
+the handoff. When no `waiting` or `ready` child is left, relay the topmost
+handoff as `SKILL.md`'s "Relay the merge handoff" does, with its command as
+**Your move:**, naming the PRs it lands. A lower handoff goes out as **Your
+move:** only when the operator asks to land what is approved, or when a child
+above cannot be built in this run, such as its author stopped on a question
+only the operator answers; say which in the relay. A `failed` from the
 command's read-back is a merge that did not happen: pass the message to that
 PR's author, whose ask comes back through you. An `enqueued` or a `pending`
 is a merge still to come, which the authors' watches report.
