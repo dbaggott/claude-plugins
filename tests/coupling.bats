@@ -1312,14 +1312,16 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
     false; }
 }
 
-# A tracking-issue reviewer's parent watch sees every child PR on the parent's
-# timeline, so an `--exclude` naming only the closeout PR wakes on its first tick
-# for PRs step 3 already collected. Step 4 builds the set that prevents that, and
-# step 7 has to arm with that set rather than a narrower one of its own.
+# Step 7 of issue-mode-tracking.md, the reviewer's parent watch beside the
+# closeout PR.
+tracking_watch_step() {  # <issue-mode-tracking.md>
+  awk '/^7\. /{inside=1} /^8\. /{exit} inside' "$1"
+}
+
 # Prints the sentences of step 7 that name `--exclude` without naming step 4's
 # set (step 4, or the parent's `pr-sources.sh` run), one per line.
 tracking_watch_unsourced_exclude() {  # <issue-mode-tracking.md>
-  awk '/^7\. /{inside=1} /^8\. /{exit} inside' "$1" | tr '\n' ' ' | tr -s ' ' \
+  tracking_watch_step "$1" | tr '\n' ' ' | tr -s ' ' \
     | sed 's/\. /.\
 /g' | grep -e '--exclude' | grep -v -e 'step 4' -e 'pr-sources\.sh'
 }
@@ -1328,13 +1330,13 @@ tracking_watch_unsourced_exclude() {  # <issue-mode-tracking.md>
   local f="$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode-tracking.md"
   grep -q '^7\. .*Keep watching the parent' "$f" || {
     echo "issue-mode-tracking.md has no step 7 parent watch"; false; }
-  awk '/^7\. /{inside=1} inside' "$f" | grep -q -e '--exclude' || {
+  tracking_watch_step "$f" | grep -q -e '--exclude' || {
     echo "step 7 no longer names --exclude"; false; }
   run tracking_watch_unsourced_exclude "$f"
   [ -z "$output" ] || {
     echo "step 7 names --exclude without step 4's set: $output"; false; }
 
-  # The wording this test replaced: the closeout PR alone, no source for the set.
+  # A step 7 that excludes the closeout PR alone has to fail the check.
   cat > "$BATS_TEST_TMPDIR/tracking.md" <<'MD'
 7. **Keep watching the parent while you watch the PR**, with step 2's call on
    the parent alone and the closeout PR's URL in its `--exclude`, since the

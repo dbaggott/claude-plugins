@@ -96,11 +96,11 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    The printed login must be the bot's, `<slug>[bot]`; if it is not, stop and
    tell the operator.
 7. **Keep watching the parent while you watch the PR**, with step 2's call on
-   the parent alone and step 4's set in its `--exclude`, read from the parent's
-   `pr-sources.sh` run when you arm: the closeout PR, since the PR's own watch
-   covers it, and every other PR that run finds, since step 3 has collected
-   them. A child added or reopened then reaches you even when the PR does not
-   move. On each of its returns, and before each new round, go back
+   the parent alone and, in its `--exclude`, the set step 4 passes with the
+   closeout PR added, from a fresh `pr-sources.sh` run on the parent each time
+   you arm: the PR's own watch covers the closeout PR, and the rest are already
+   known, so only a PR new since the arm wakes it. A child added or reopened
+   then reaches you even when the PR does not move. On each of its returns, and before each new round, go back
    to step 1. A child open again is unbuilt work: request changes naming it,
    whatever the PR's diff. Report at each verdict, and keep watching after
    it: both watches run in the background, so a turn you end with them armed
