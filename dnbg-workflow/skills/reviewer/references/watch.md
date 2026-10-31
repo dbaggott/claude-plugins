@@ -134,10 +134,11 @@ moments on each PR:
   `**Reviewer handoff: APPROVED at <sha>**`, with the full 40-character head
   SHA the approval sits on, then the full report. An `APPROVE` on a later head
   carries a fresh handoff, the same first line with the new SHA, as a delta
-  against the previous one. In a session of your own, the handoff turn ends on
-  `**Done:**`, naming the PR watch still running and what ends it: `CLOSED`
-  when you review one PR, the assignment's end ("End state" above) in the
-  issue-scoped mode. Its notification carries the verdict and the short head
+  against the previous one. Unless you are a dispatched agent, the handoff turn
+  ends on `**Done:**`, naming each watch still running and what ends it: the PR
+  watch ends at `CLOSED`, and in the issue-scoped mode the assignment runs on
+  past it to a fresh discovery ("End state" above), with the issue wait named
+  too when it is armed. Its notification carries the verdict and the short head
   SHA. The handoff carries no merge guidance: no merge command, no "ready to
   merge", and no pointer to an author's handoff. The merge command is composed
   from merge state you never read, and the PR may have no agent author; where

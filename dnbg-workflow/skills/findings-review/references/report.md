@@ -60,9 +60,8 @@ line under 200 characters with no markdown, leading with the action, such as
 `Answer the question on PR 570`. A "not sent" result means the operator is at
 the terminal and already sees the turn; it is not an error. A Done notifies only
 at `orchestrate`'s Stop, which ends a run long enough that the operator has
-likely left, and at the turn a reviewer in its own session ends on its handoff,
-leading with the verdict and the short head SHA, such as `PR 570 approved at
-1a2b3c4`. Whether to merge waits for whoever reads the merge state.
+likely left, and at the reviewer's approving handoff, whose notification
+`reviewer`'s `references/watch.md`, "Report the review", gives.
 
 A dispatched agent, any subagent whose turns end in a report to the session
 that dispatched it, writes no closing line and sends no notification.

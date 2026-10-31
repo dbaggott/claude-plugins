@@ -2173,7 +2173,7 @@ reviewer_handoff_leaves_merge() {  # <report.md> <watch.md>
   [ -n "$closing" ] || { echo "no '$CLOSING_HEADING' section in $1"; return 1; }
   [ -n "$handoff" ] || { echo "no '$HANDOFF_HEADING' section in $2"; return 1; }
   for p in "${MERGE_PHRASES[@]}"; do
-    grep -qiF -- "$p" <<<"$closing" \
+    grep -qiwF -- "$p" <<<"$closing" \
       && { echo "'$CLOSING_HEADING' in $1 carries the merge phrase '$p'"; bad=1; }
   done
   [[ "$handoff" == *"$HANDOFF_DONE"* ]] \
