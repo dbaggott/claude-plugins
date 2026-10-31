@@ -547,12 +547,12 @@ verdict_states() {  # <file>
 
 # The README's skill table is a *promise per skill*, and its second and
 # third columns are only true if every skill the repo ships has actually been
-# classified. A skill added without a row inherits neither claim, and the matrix
+# classified. A skill added without a row inherits neither claim, and the table
 # keeps asserting complete coverage it no longer has — the rot this pins against.
 #
-# The "What's in it" table is the single classification (plugin + forge); the
-# matrix section points at it rather than repeating the lists, so there is one
-# place to update and this check has one place to read.
+# The "What's in it" table is the single classification (plugin + forge);
+# docs/forge-support.md points at it rather than repeating the lists, so there is
+# one place to update and this check has one place to read.
 readme_skill_rows() {  # <README.md> -> "<skill> <plugin> <forge>"
   # Rows of the four-column table, keyed on the leading `| \`skill\` |`. The
   # forge cell is normalised to coupled/neutral: it is prose ("GitHub only",
@@ -587,7 +587,7 @@ tree_skills() {  # -> "<skill> <plugin>"
 }
 
 @test "every skill in the tree is classified in the README, under the plugin that ships it" {
-  # Both directions. A missing row is the rot above; a stale row is a matrix
+  # Both directions. A missing row is the rot above; a stale row is the table
   # promising a skill that no longer exists, or naming the wrong plugin — which
   # is the specific claim `velocity-tradeoff` exists to keep honest, since its
   # value is precisely that a neutral skill sits in the coupled plugin.
