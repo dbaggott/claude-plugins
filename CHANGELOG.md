@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.110 — 2026-10-31
+
+A reviewer running in its own session no longer tells you to merge when it approves. Its handoff turn ends on `Done:`, naming the PR watch still running, and its notification carries the verdict and short SHA, such as `PR 570 approved at 1a2b3c4`. The merge command still comes from the author's handoff, which reads the merge state; on a PR no agent authored, there is none.
+
+
 ## dnbg-workflow 2026.10.109 — 2026-10-31
 
 A reviewer on a tracking issue no longer wakes on its first tick for child PRs it already knows about. While it watches the closeout PR, its watch on the parent now excludes every PR a fresh `pr-sources.sh` run on the parent finds, the closeout PR included, rather than the closeout PR alone.
