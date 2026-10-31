@@ -38,15 +38,19 @@ whose PR resolves a blocker of a `waiting` child: "Merge now, or stack
 
 ## The merges
 
-A stacked PR's merge handoff carries no merge command, since merging it would
-land it on its base's branch. Relay it as `SKILL.md`'s "Relay the merge
-handoff" does, with **Your move:** naming the base PR to merge first, or the
-bottom of the stack's handoff when it was relayed already.
+On GitHub each stacked PR joins its base PR's stack (`git-workflow`, step 8),
+so its handoff carries a merge command once every PR below it is approved, and
+that one merge lands them all (`git-workflow`'s `references/merge.md`, "A PR
+in a stack"). Relay each as `SKILL.md`'s "Relay the merge handoff" does.
+Holding handoffs for several PRs of one stack, **Your move:** names the topmost
+one carrying a command, with the PRs it lands, since a lower command lands
+fewer. A handoff with no command names the PR it waits on; its **Your move:**
+says that PR's approval is what the merge waits on.
 
-The operator merges a stack bottom-up. When a child's PR merges,
-`SendMessage` the author of each PR based on its branch: its base PR merged, so
-it rebases per
-`git-workflow`'s `references/merge-wait.md`, "A stacked PR whose base moved".
-Its fresh handoff follows its reviewer's re-verdict, and you relay it as any
-other. A stacked PR that closes unmerged leaves the PRs based on its branch
+When a child's PR merges, `SendMessage` the author of each open PR based on
+its branch or above it in its stack: its base PR merged, so it takes
+`git-workflow`'s `references/merge-wait.md`, "A stacked PR whose base moved",
+resetting to the head GitHub rebased, or rebasing itself where no stack was
+formed. Its fresh handoff follows its reviewer's re-verdict, and you relay it
+as any other. A stacked PR that closes unmerged leaves the PRs based on its branch
 without a base: `SKILL.md`'s ask on a PR closed unmerged names them.

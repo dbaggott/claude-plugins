@@ -37,7 +37,23 @@ Pick the merge-method flag from what the repo actually allows (`--squash`, `--me
 
 Drop `--delete-branch` when `delete_branch_on_merge` is already on for the repo — it's redundant there, though harmless.
 
-A stacked PR, one whose base is not the default branch, would merge into that branch, so its handoff carries no merge command. It says the PR is approved and waits on its base PR, and the command comes in the fresh handoff after the rebase (`references/merge-wait.md`, "A stacked PR whose base moved").
+### A PR in a stack
+
+A PR whose description records `GitHub stack <n>` (`SKILL.md`, step 8) takes a different command: GitHub refuses `gh pr merge` on a PR in a stack, whatever its base is now. Read the stack:
+
+```bash
+"<skill-dir>/../../scripts/stack-prs.sh" <owner>/<repo> <num>
+```
+
+The command is GitHub's asynchronous merge, with the repo's merge method in place of `squash` where it differs, and it lands `<num>` together with every PR in `below=`:
+
+```
+gh api --method PUT repos/<owner>/<repo>/pulls/<num>/merge-async -f merge_method=squash
+```
+
+Run `pr-verdict.sh` on each PR in `below=`. The command goes out only when each reads approved at head under `SKILL.md`'s "Know the repo's merge settings" rule, and the handoff names them as landing with this PR; when one does not, name the lowest such PR as what the merge waits on and carry no command. Say that the command returns before the merge happens and that your merge watch reports the landing, so the operator need not poll. Pick the form by state as above, with this command in place of the `gh pr merge` one: the call takes no `--auto`, so where a form above would add it, say the checks still outstanding and that the command works once they pass. It takes no `--delete-branch` either; `references/post-merge.md` step 4 deletes the remote branch where the repo does not.
+
+A stacked PR, one whose base is not the default branch, that records no stack would merge into its base's branch, so its handoff carries no merge command: it says the PR is approved and waits on its base PR, and the command comes in the fresh handoff after the rebase (`references/merge-wait.md`, "A stacked PR whose base moved").
 
 For a multi-repo PR set (see `SKILL.md`'s "Multi-repo changes"), run both reads **per repo** — siblings can need different forms, because both the check state and the repo settings differ across repos.
 

@@ -36,11 +36,16 @@ keeps it.
 
 ## Stacked PRs
 
-`orchestrate`'s stacked mode, which bases a child issue's PR on its blocker's
-approved but unmerged PR while the operator is away, uses no forge feature
-beyond the ones the flow already does: a PR opened against another branch, and
-a manual `git rebase --onto` once that branch's PR merges. The skills state it
-in forge-neutral terms.
+`orchestrate`'s stacked mode bases a child issue's PR on its blocker's approved
+but unmerged PR while the operator is away. The mode itself uses no forge
+feature beyond a PR opened against another branch, and the skills state it in
+forge-neutral terms. On GitHub it goes further, and only there: `stack-prs.sh`
+puts each such PR into a GitHub stack, GitHub rebases the PRs above a merged
+one itself, and one merge lands a PR with every approved PR below it. A PR in a
+stack refuses `gh pr merge`, so its handoff carries GitHub's asynchronous merge
+call instead. On every other forge, and on GitHub where the stack could not be
+formed, the path is the manual one: `gh pr merge` on the bottom PR, and the next
+PR's author rebases with `git rebase --onto` once it lands.
 
 ## What happens on an unsupported forge
 
