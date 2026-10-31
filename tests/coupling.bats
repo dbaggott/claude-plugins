@@ -1230,6 +1230,41 @@ tree_agents() {  # -> each agent definition's path
   [ "$bad" -eq 0 ]
 }
 
+# <skill file> -> the issue-blocking reasons the paragraph after its call does
+# not name, one line each, then any the script's header does not declare.
+issue_blocking_reason_gaps() {
+  local src="$ROOT/dnbg-workflow/scripts/issue-blocking.sh"
+  local reasons r para
+  reasons=$(grep -oE '\bfail [a-z-]+' "$src" | sed 's/^fail //' | sort -u)
+  [ -n "$reasons" ] || { echo "no fail reasons found in $(basename "$src") — the extractor broke"; return; }
+  # The prose that dispatches on the result: the paragraph after the call's
+  # closing fence.
+  para=$(awk '/issue-blocking\.sh" <owner>/ { call = 1; next }
+              call && /^```/ { inside = 1; next }
+              inside && NF { text = 1; print; next }
+              inside && text { exit }' "$1")
+  [ -n "$para" ] || { echo "$(basename "$1") no longer calls issue-blocking.sh — the extractor broke"; return; }
+  for r in $reasons; do
+    grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" <<<"$para" \
+      || echo "the issue-blocking paragraph does not name ERROR reason '$r'"
+    sed -n '/^# Prints/,/^set -euo/p' "$src" | grep -qE "(^|[^a-z-])${r}([^a-z-]|\$)" \
+      || echo "$(basename "$src") emits '$r' but its header does not declare it"
+  done
+}
+
+@test "every issue-blocking ERROR reason is named where the merge sweep reads it" {
+  run issue_blocking_reason_gaps "$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md"
+  [ -z "$output" ] || { echo "$output"; false; }
+}
+
+@test "a merge-sweep paragraph missing an issue-blocking reason is caught" {
+  local f="$BATS_TEST_TMPDIR/SKILL.md"
+  sed 's/, and `set-overflow` that/, and that/' \
+    "$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" > "$f"
+  run issue_blocking_reason_gaps "$f"
+  [ "$output" = "the issue-blocking paragraph does not name ERROR reason 'set-overflow'" ]
+}
+
 # The ready set holds a child until its latest spec or set review verdict reads
 # READY, and finds that verdict by the first line `issue-reviewer` posts. A
 # reworded heading would hold every child of a reviewed project forever, with
