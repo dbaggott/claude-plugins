@@ -178,7 +178,8 @@ write the comment alone: the parent's orchestrator collects it from the child
 An operator who will be away can delegate a class of question to you, such as
 "take the default on anything about X". Record it as a `decided` row whose
 **Answer** opens `Delegated:` and names the class, with **Question** `none,
-asked at dispatch`. A later question inside that class is answered as the
+asked at dispatch`, posted as a comment even on a tracking issue's parent, so
+the rows that apply it have its URL to cite. A later question inside that class is answered as the
 delegation says, with **Basis** `operator, delegated at <that row's URL>`.
 Anything outside every recorded delegation escalates as before, and the
 operator being away widens nothing on the allowlist. A delegation changes no

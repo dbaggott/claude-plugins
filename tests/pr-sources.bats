@@ -24,6 +24,9 @@ setup() {
   # One file per PR, named by `pr_key`; a PR with none reads as an open,
   # untagged PR that closes nothing.
   export PRS="$BATS_TEST_TMPDIR/prs"; mkdir -p "$PRS"
+  # The repo's default branch, as `gh repo view --jq` prints it; empty is a
+  # read that fails.
+  export DEFAULT_BRANCH="$BATS_TEST_TMPDIR/default_branch"; echo main > "$DEFAULT_BRANCH"
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
 echo "$*" >> "$CALLS"
@@ -36,6 +39,9 @@ case "$1 $2" in
     [ -f "$f.fail" ] && exit 1
     if [ -f "$f" ]; then cat "$f"
     else echo '{"title":"t","headRefName":"b","closingIssuesReferences":[],"state":"OPEN"}'; fi ;;
+  "repo view")
+    [ -s "$DEFAULT_BRANCH" ] || exit 1
+    cat "$DEFAULT_BRANCH" ;;
   "search prs")
     [ -f "$FAIL_SEARCH" ] && exit 1
     cat "$SEARCH" ;;
@@ -306,4 +312,53 @@ xref() {  # <url> [more...]
   run "$SOURCES" o/r 5
   [ "$(state_of "$output" https://x/pull/1)" = unknown ]
   [ "$(state_of "$output" https://y/pull/6)" = unknown ]
+}
+
+# A PR based on another PR's branch gets no closing references until it targets
+# the default branch, so its body's keyword is what says it closes the issue.
+stacked_pr() {  # <url> <base> <body>
+  jq -cn --arg b "$2" --arg body "$3" \
+    '{title: "t", headRefName: "h", baseRefName: $b, body: $body, closingIssuesReferences: [], state: "OPEN"}' \
+    > "$PRS/$(pr_key "$1")"
+}
+G=https://github.com/o/r/pull/9
+
+@test "a PR on a non-default base with a closing keyword for the issue reads closes" {
+  local body
+  for body in "Closes https://github.com/o/r/issues/5" "fixes: o/r#5" "Resolved #5." "RESOLVES https://github.com/O/R/issues/5"; do
+    xref "$G"; stacked_pr "$G" feature "$body"
+    run "$SOURCES" o/r 5
+    [ "$(relevance_of "$output" "$G")" = closes ] || { echo "$body: $output"; false; }
+  done
+}
+
+@test "a keyword for another issue, no keyword, or the default base still reads mention" {
+  local body
+  for body in "Closes #50" "Closes https://github.com/o/r/issues/50" "See #5" "Closes o/rx#5" "Closes https://github.com/o/r/issues/5/x"; do
+    xref "$G"; stacked_pr "$G" feature "$body"
+    run "$SOURCES" o/r 5
+    [ "$(relevance_of "$output" "$G")" = mention ] || { echo "$body: $output"; false; }
+  done
+  stacked_pr "$G" main "Closes #5"
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" "$G")" = mention ]
+}
+
+@test "a bare #n keyword counts only from a PR in the issue's own repo" {
+  local other=https://github.com/o/other/pull/9
+  xref "$other"; stacked_pr "$other" feature "Closes #5"
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" "$other")" = mention ]
+  stacked_pr "$other" feature "Closes o/r#5"
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" "$other")" = closes ]
+}
+
+@test "a default branch that cannot be read leaves a stacked PR a mention, and is read only for a keyword" {
+  xref "$G"; stacked_pr "$G" feature "Closes #5"; : > "$DEFAULT_BRANCH"
+  run "$SOURCES" o/r 5
+  [ "$(relevance_of "$output" "$G")" = mention ]
+  echo main > "$DEFAULT_BRANCH"; : > "$CALLS"; stacked_pr "$G" feature "no keyword"
+  run "$SOURCES" o/r 5
+  ! grep -q '^repo view' "$CALLS"
 }

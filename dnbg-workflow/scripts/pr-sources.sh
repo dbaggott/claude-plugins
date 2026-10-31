@@ -13,7 +13,10 @@
 #
 # `relevance` says whether a PR is the issue's own work, so a caller acting on the
 # union need not re-derive it:
-#   closes   — it carries a closing reference to the issue;
+#   closes   — it carries a closing reference to the issue, or, based on a
+#              branch other than its repo's default, a closing keyword for it
+#              in its body, which GitHub links only once the PR targets the
+#              default branch;
 #   sibling  — a tagged multi-repo sibling: its title starts with `[<head branch>]`,
 #              the pairing `git-workflow`'s "Multi-repo changes" requires, on the
 #              branch of a `closes` PR in the set, or on any branch when no
@@ -146,11 +149,22 @@ urls=$(printf '%s\n%s\n%s\n' "$closing_urls" "$xref_urls" "$search_urls" \
 # `<url>\t<closes>\t<head>\t<tagged>\t<state>`, or `<url>\tunread` when the PR
 # could not be read.
 ISSUE_URL="https://github.com/$REPO/issues/$ISSUE"
+# Whether a PR body carries a GitHub closing keyword for the issue, as a full
+# URL, `<owner>/<repo>#<n>`, or `#<n>` from a PR in the issue's own repo.
+# shellcheck disable=SC2016  # jq program
+KEYWORD_JQ='
+  def esc: gsub("(?<c>[.\\-])"; "\\\(.c)");
+  ($issue | capture("^https://github.com/(?<r>[^/]+/[^/]+)/issues/(?<n>[0-9]+)$")) as $i
+  | ($url | capture("^https://github.com/(?<r>[^/]+/[^/]+)/pull/")).r as $pr_repo
+  | ( [ ($issue | esc), (($i.r | esc) + "#" + $i.n) ]
+      + (if ($pr_repo | ascii_downcase) == ($i.r | ascii_downcase) then ["#" + $i.n] else [] end) ) as $refs
+  | (.body // "") | test("\\b(close[sd]?|fix(e[sd])?|resolve[sd]?):?[ \\t]+("
+                          + ($refs | join("|")) + ")(?![0-9A-Za-z/])"; "i")'
 read_pr() {  # <pr-url>
-  local j listed=false
+  local j listed=false line base default
   printf '%s\n' "$closing_urls" | grep -qxF "$1" && listed=true
-  if j=$(gh pr view "$1" --json title,headRefName,closingIssuesReferences,state 2>/dev/null) \
-     && echo "$j" | jq -r --arg url "$1" --arg issue "$ISSUE_URL" --argjson listed "$listed" '
+  if j=$(gh pr view "$1" --json title,headRefName,baseRefName,body,closingIssuesReferences,state 2>/dev/null) \
+     && line=$(echo "$j" | jq -r --arg url "$1" --arg issue "$ISSUE_URL" --argjson listed "$listed" '
           (.headRefName // "") as $h
           | [ $url,
               ($listed or any((.closingIssuesReferences // [])[];
@@ -158,7 +172,18 @@ read_pr() {  # <pr-url>
               $h,
               ($h != "" and ((.title // "") | startswith("[" + $h + "]"))),
               (.state // "unknown") ]
-          | map(tostring) | join("\t")' 2>/dev/null; then
+          | map(tostring) | join("\t")' 2>/dev/null); then
+    # A stacked PR's keyword: read the default branch only when it could matter.
+    if [ "$(cut -f2 <<<"$line")" = false ] \
+       && echo "$j" | jq -e --arg url "$1" --arg issue "$ISSUE_URL" "$KEYWORD_JQ" >/dev/null 2>&1; then
+      base=$(echo "$j" | jq -r '.baseRefName // empty')
+      default=$(gh repo view "$(sed -E 's#^https://github.com/([^/]+/[^/]+)/pull/.*#\1#' <<<"$1")" \
+                  --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || true)
+      if [ -n "$base" ] && [ -n "$default" ] && [ "$base" != "$default" ]; then
+        line=$(awk -F'\t' -v OFS='\t' '{ $2 = "true"; print }' <<<"$line")
+      fi
+    fi
+    printf '%s\n' "$line"
     return
   fi
   if $listed; then printf '%s\ttrue\t\tfalse\tunknown\n' "$1"; else printf '%s\tunread\n' "$1"; fi
