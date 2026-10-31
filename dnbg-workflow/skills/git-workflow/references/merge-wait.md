@@ -149,10 +149,19 @@ merge may not conflict, so the message is the trigger as often as the watch.
    PR merged and this PR still targets its branch, which happens when that
    branch was not deleted, retarget it as the author:
    `gh pr edit <num> --repo <owner>/<repo> --base <default-branch>`.
-2. Go on only when `git -C <worktree-path> merge-base --is-ancestor <recorded
-   base head> HEAD` holds and the same test against `origin/<base>` does not:
-   the base no longer carries the commits this branch was cut from. Otherwise
-   the conflict is the ordinary case above.
+   `<base>` below is the base after any retarget.
+2. Test whether `origin/<base>` still carries the commits this branch was cut
+   from: `git -C <worktree-path> merge-base --is-ancestor <recorded base head>
+   origin/<base>`.
+   - **It does not**, and the same test against `HEAD` holds: the base was
+     squashed or rewritten. Go on to step 3.
+   - **It does**, as after a merge commit, and the watch reported no
+     `result=DIRTY`: nothing needs rebasing. Do step 4
+     and skip the rest. If `pr-verdict.sh` still reads HEAD approved, go on to
+     `references/merge.md`'s handoff. If not, since a retarget can dismiss an
+     approval with HEAD unmoved, comment on the PR asking the reviewer to
+     re-verdict the unchanged head, and arm the review watch.
+   - Anything else is the ordinary case above: surface and ask.
 3. Rebase and push:
 
    ```bash
