@@ -37,7 +37,24 @@ Pick the merge-method flag from what the repo actually allows (`--squash`, `--me
 
 Drop `--delete-branch` when `delete_branch_on_merge` is already on for the repo — it's redundant there, though harmless.
 
-A stacked PR, one whose base is not the default branch, would merge into that branch, so its handoff carries no merge command. It says the PR is approved and waits on its base PR, and the command comes in the fresh handoff after the rebase (`references/merge-wait.md`, "A stacked PR whose base moved").
+### A PR in a stack
+
+Before composing any merge command, read the PR's stack, one `GET`:
+
+```bash
+"<skill-dir>/../../scripts/stack-prs.sh" <owner>/<repo> <num>
+```
+
+At `stack=none`, nothing above changes. At `result=ERROR reason=stack-read`, carry no command and say the stack could not be read, since it decides the command's form. At `stack=<n>`, GitHub refuses `gh pr merge`, whatever the PR's base is now, and the command block is its asynchronous merge, with the repo's merge method in place of `squash` where it differs and `<head>` the full SHA `pr-verdict.sh` read, followed by a read of its result until it leaves `pending`. It lands `<num>` together with every PR in `below=`:
+
+```
+r=$(gh api --method PUT repos/<owner>/<repo>/pulls/<num>/merge-async -f merge_method=squash -f sha=<head>) && u=$(jq -r '.details.uuid // empty' <<<"$r") || u=
+for i in $(seq 40); do [ -n "$u" ] || break; s=$(gh api repos/<owner>/<repo>/pulls/<num>/merge-async/$u --jq '.status + " " + (.details.sha // .details.message // "")'); case $s in pending*) sleep 3 ;; *) break ;; esac; done; echo "${s:-$r}"
+```
+
+`sha=<head>` makes a push to `<num>` in between cancel the merge rather than land a head nobody approved; the PRs in `below=` are pinned only by the reads below. The block ends by printing `merged <sha>`, `failed <message>`, `enqueued` (a merge queue took the stack; your watch reports the landing when it merges), or `pending` after two minutes, when the second line is run again. With no UUID it prints the `PUT`'s own answer: a 200 means the PR was already merged or queued, a 409 that an earlier request is still running and nothing new was asked. Repository rules run only when the merge executes, so a `failed` reaches nothing but that status, and your merge watch, which reports a landing, cannot see it. Say so in the handoff, and that a `failed` comes back to you as a merge that did not happen, which you surface and ask about. Say too that a merge run from a PR in `below=` instead lands only that PR and the ones under it, leaving this PR open for GitHub to rebase, with a fresh handoff after its re-verdict. Read `pr-verdict.sh` and `fetch-pr-state.sh` on each PR in `below=` as on `<num>`: the command goes out only when every one is approved at head under `SKILL.md`'s "Know the repo's merge settings" rule, and the form is picked by the worst merge state among them, since the landing fails on any of them. When one is not approved or not mergeable, name the lowest such PR as what the merge waits on and carry no command. The call takes no `--auto`, so where a form above would add it, name the checks still outstanding and say the command works once they pass. It takes no `--delete-branch` either; `references/post-merge.md` step 4 deletes the remote branch where the repo does not. A failure partway through a stack leaves the PRs below the failed one landed, so their authors see the merge, and the failed one and those above it open.
+
+A stacked PR, one whose base is not the default branch, that records no stack would merge into its base's branch, so its handoff carries no merge command: it says the PR is approved and waits on its base PR, and the command comes in the fresh handoff after the rebase (`references/merge-wait.md`, "A stacked PR whose base moved").
 
 For a multi-repo PR set (see `SKILL.md`'s "Multi-repo changes"), run both reads **per repo** — siblings can need different forms, because both the check state and the repo settings differ across repos.
 
