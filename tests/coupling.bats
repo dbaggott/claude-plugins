@@ -1312,6 +1312,42 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
     false; }
 }
 
+# Step 7 of issue-mode-tracking.md, the reviewer's parent watch beside the
+# closeout PR.
+tracking_watch_step() {  # <issue-mode-tracking.md>
+  awk '/^7\. /{inside=1} /^8\. /{exit} inside' "$1"
+}
+
+# Prints the sentences of step 7 that name `--exclude` without naming step 4's
+# set (step 4, or the parent's `pr-sources.sh` run), one per line.
+tracking_watch_unsourced_exclude() {  # <issue-mode-tracking.md>
+  tracking_watch_step "$1" | tr '\n' ' ' | tr -s ' ' \
+    | sed 's/\. /.\
+/g' | grep -e '--exclude' | grep -v -e 'step 4' -e 'pr-sources\.sh'
+}
+
+@test "the tracking-issue parent watch arms with step 4's exclude set" {
+  local f="$ROOT/dnbg-workflow/skills/reviewer/references/issue-mode-tracking.md"
+  grep -q '^7\. .*Keep watching the parent' "$f" || {
+    echo "issue-mode-tracking.md has no step 7 parent watch"; false; }
+  tracking_watch_step "$f" | grep -q -e '--exclude' || {
+    echo "step 7 no longer names --exclude"; false; }
+  run tracking_watch_unsourced_exclude "$f"
+  [ -z "$output" ] || {
+    echo "step 7 names --exclude without step 4's set: $output"; false; }
+
+  # A step 7 that excludes the closeout PR alone has to fail the check.
+  cat > "$BATS_TEST_TMPDIR/tracking.md" <<'MD'
+7. **Keep watching the parent while you watch the PR**, with step 2's call on
+   the parent alone and the closeout PR's URL in its `--exclude`, since the
+   PR's own watch covers it, so a child added or reopened reaches you even when
+   the PR does not move.
+MD
+  run tracking_watch_unsourced_exclude "$BATS_TEST_TMPDIR/tracking.md"
+  [ -n "$output" ] || {
+    echo "the check passed a step 7 that excludes the closeout PR alone"; false; }
+}
+
 @test "issue-workflow SKILL.md still points at each of its paths" {
   local skill="$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" f
   for f in creating filing claiming project-pickup resolving spec-review-rounds spec-review-wait; do
