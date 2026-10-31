@@ -146,16 +146,15 @@ merge may not conflict, so the message is the trigger as often as the watch.
 
 When the description records `GitHub stack <n>`, GitHub rebases the PR itself,
 and the forge head is what moves: your worktree's `HEAD` still carries the old
-commits. So first `git -C <worktree-path> fetch origin` and test
-`git -C <worktree-path> merge-base --is-ancestor <recorded base head>
-origin/<branch-name>`. When it does **not** hold, GitHub has rebased the PR:
-`git -C <worktree-path> reset --hard origin/<branch-name>`, then step 1 and
-step 4 only, and arm the review watch as the closing paragraph says; you rebase
-nothing. When it
-holds, the cascade has not reached the PR, or did not run: re-read the test
-every 20 seconds for up to two minutes, then go on to step 1 as for a PR in no
-stack. A `DIRTY` on a head GitHub already rebased is the ordinary case: surface
-and ask.
+commits. So first `git -C <worktree-path> fetch origin` and compare
+`git -C <worktree-path> rev-parse origin/<branch-name>` with `HEAD`. You are the
+branch's only pusher, so a different SHA means GitHub moved it, whatever the
+repo's merge method: `git -C <worktree-path> reset --hard origin/<branch-name>`,
+then step 1 and step 4 only, and arm the review watch as the closing paragraph
+says; you rebase nothing. The same SHA means the cascade has not reached the PR,
+or did not run: re-read every 20 seconds for up to two minutes, then go on to
+step 1 as for a PR in no stack. A `DIRTY` on a head GitHub already rebased is
+the ordinary case: surface and ask.
 
 1. `git -C <worktree-path> fetch origin`, then read the base:
    `gh pr view <num> --repo <owner>/<repo> --json baseRefName`. If the base
