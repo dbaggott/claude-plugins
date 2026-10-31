@@ -22,7 +22,9 @@ competes with its owner's.
 
 A tracking issue is driven child by child, each through this flow, by the loop
 in `references/multi-issue.md`, which applies design changes per
-`references/design-change.md`. Its parent is resolved by a closeout PR that you
+`references/design-change.md`; in stacked mode, which the prompt asks for or
+a `Stacked mode` row on the parent records, `references/stacked.md` changes
+that loop. Its parent is resolved by a closeout PR that you
 author, per `references/closeout.md`: the one artifact that is yours. Several
 issues with no parent, each resolved by its own PR or all by one, are driven
 per `references/several-issues.md`. Every
@@ -227,7 +229,7 @@ The bracketed phrase replaces "when you're done" whenever the check is declared
 step 4 read as cleared and the second, with its rows, for one read as pending.
 The operator-steps line goes in for an issue with an `Operator steps` row.
 The stack line goes in for a child the ready set gave a `base`, with that
-branch and its `base_pr` (`references/multi-issue.md`, "Stacked mode").
+branch and its `base_pr` (`references/stacked.md`).
 The next line goes in only for an open PR
 that step 3 found as `closes` or `sibling`, that the operator handed over, or
 that a dead author left; the one after only for a worktree that step 3 found or

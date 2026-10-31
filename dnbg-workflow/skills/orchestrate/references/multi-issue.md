@@ -48,11 +48,9 @@ verdict on a child. On a child closing, first collect that child's rows (below).
 3. **Read the ready set:**
 
    ```bash
-   "<skill-dir>/../../scripts/ready-set.sh" <owner>/<repo> <parent> --slug=<slug> [--stacked]
+   "<skill-dir>/../../scripts/ready-set.sh" <owner>/<repo> <parent> --slug=<slug>
    ```
 
-   `--stacked` goes in under stacked mode (below), where a `ready` child may
-   carry `base` and `base_pr`: its one blocker's approved PR, to base it on.
    `ready` is what may be dispatched, in the parent's order. `waiting` gives each
    held child's `reasons`: `blocked` (with the `blocked_by` URLs, which include
    a blocker closed as not planned), `claimed`, and, when `parent.spec_review`
@@ -66,16 +64,13 @@ verdict on a child. On a child closing, first collect that child's rows (below).
 5. **Dispatch** while fewer than three children are in flight, or the cap the
    operator set: take the next `ready` child, skipping any that a `decided` row
    still being applied reaches, or whose blocker is still in flight, since its
-   body may yet need that blocker's merge sweep (below). A child carrying
-   `base` is not skipped for its blocker: the sweep reaches its author when the
-   blocker merges. Claim it first, with
+   body may yet need that blocker's merge sweep (below). Claim it first, with
    `claim-issue.sh <owner>/<repo> <child> --as=orchestrator --claim` and the
    same `--label` and
    `--stamp` as any claim. The claim is what keeps the next ready set from
    offering the child again, so a child whose claim did not return `result=OK`
    is not dispatched. Then run `SKILL.md`'s steps 3 to 5 on it and dispatch its
-   author with `SKILL.md`'s recipe, with its stack line for a child carrying
-   `base`.
+   author with `SKILL.md`'s recipe.
 6. **Nothing in flight, nothing ready, and no `decided` row still being
    applied** means the run cannot progress: a cycle, a blocker outside the
    project, or a child held for a verdict or by someone else. Report each open
@@ -85,35 +80,10 @@ verdict on a child. On a child closing, first collect that child's rows (below).
 
 A child is **in flight** while it is open and `claim-issue.sh` reads `OWN` on
 it, or closed, until its author's final report and its reviewer's
-`**Reviewer close-out: assignment ended**` are in. Under stacked mode, a child
-whose author's latest report is a merge handoff does not count toward the cap
-while `pr-verdict.sh` still reads its PR approved at head, so approved PRs
-waiting on the operator's merge never hold a dispatch. Then apply the sweep its
+`**Reviewer close-out: assignment ended**` are in. Then apply the sweep its
 author's final report carries (below), collect both agents' close-outs, and
 fold the run's findings into the parent (`references/findings-fold.md`). A
 child that closes without a merged PR: tell the operator.
-
-## Stacked mode
-
-When the operator cannot merge for a while, stacked mode keeps the run moving:
-a child whose one blocker has an approved PR is based on that PR's branch
-rather than waiting for the merge. It is on when the operator's prompt says so,
-such as "orchestrate `<URL>`, stacked" or "I'm away: stack the PRs". Record it
-before the first dispatch as a `decided` row on the parent with ID `Stacked
-mode`, **Question** `none, asked at dispatch`, **Answer** `On.`, and **Basis**
-`operator`, in session; a restart reads the latest such row. It changes no
-design, so its table row is written as `applied`.
-
-With `AskUserQuestion`, offer it once, at the first merge handoff you relay
-whose PR resolves a blocker of a `waiting` child: "Merge now, or stack
-`<child URL>` on this branch?", recorded the same way with **Question** naming
-that PR, and **Answer** `On.` or `Off.`. Without `AskUserQuestion`, a prompt
-that says nothing about it means the mode is off.
-
-The operator merges a stack bottom-up. Each merge retargets the next PR to the
-default branch and dismisses its approval; its author rebases it, per
-`git-workflow`'s `references/merge-wait.md`, and sends a fresh handoff once its
-reviewer re-verdicts, which you relay as any other.
 
 ## Waiting
 
