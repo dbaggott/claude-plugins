@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.111 — 2026-10-31
+
+Fixed the merge sweep's read of the issues a closed issue blocks. The sweep named
+`gh issue view --json blocking` without its shape, so the first `jq` read of it
+failed. A new `issue-blocking.sh` lists the open blocked issues and ends on a
+result line, and the sweep now treats any `ERROR` from it as an incomplete sweep
+rather than an empty one.
+
+
 ## dnbg-workflow 2026.10.110 — 2026-10-31
 
 A reviewer running in its own session no longer tells you to merge when it approves. Its handoff turn ends on `Done:`, naming the PR watch still running, and its notification carries the verdict and short SHA, such as `PR 570 approved at 1a2b3c4`. The merge command still comes from the author's handoff, which reads the merge state; on a PR no agent authored, there is none.
