@@ -1,0 +1,1 @@
+A reviewer on a tracking issue no longer wakes on its first tick for child PRs it has already collected. While it watches the closeout PR, its watch on the parent now excludes every PR the parent's `pr-sources.sh` run finds, the same set it uses before the closeout PR exists, rather than the closeout PR alone.
