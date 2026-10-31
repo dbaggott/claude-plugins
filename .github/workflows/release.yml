@@ -313,7 +313,9 @@ jobs:
               # fragments are still on main, so the next push re-plans this
               # release and nothing is lost. Not fatal on its own: the PR may
               # have merged since the last poll, and the job fails either way.
-              gh pr close "$branch" --delete-branch --comment \
+              # `--repo` makes gh delete only the remote branch; without it gh
+              # also checks out main here to delete the local one.
+              gh pr close "$branch" --repo "$GITHUB_REPOSITORY" --delete-branch --comment \
                 "This release did not merge within 15 minutes (${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}), so it is closed rather than left to a re-run. Its changelog fragments are still on main; the next merge to main releases them." \
                 || echo "::warning::could not close $branch — if it is still open, close it by hand rather than re-running its checks" >&2
               exit 1
