@@ -149,7 +149,8 @@ Below the first line, in this order:
 - **Answer** — the answer, in a sentence or two.
 - **Basis** — the allowlist item it was decided under and the rationale it rests
   on, quoted or linked; or `operator`, with how they answered (in session, or
-  the comment's URL).
+  the comment's URL); or `operator, delegated at <row URL>`, for an answer
+  within a class of question the operator delegated to you.
 
 A row under (a) names the decision it applies:
 
@@ -173,6 +174,14 @@ Under a tracking issue you orchestrate, each row is also a row of the parent's
 decision-log table, per `references/multi-issue.md`. Orchestrating only a child,
 write the comment alone: the parent's orchestrator collects it from the child
 (`issue-workflow`'s `references/tracking-issue.md`, "Who writes the body").
+
+An operator who will be away can delegate a class of question to you, such as
+"take the default on anything about X". Record it as a `decided` row whose
+**Answer** opens `Delegated:` and names the class, with **Question** `none,
+asked at dispatch`. A later question inside that class is answered as the
+delegation says, with **Basis** `operator, delegated at <that row's URL>`.
+Anything outside every recorded delegation escalates as before, and the
+operator being away widens nothing on the allowlist.
 
 An escalation gets two rows: `proposed` when you ask, and `decided` with the
 operator's answer when it arrives. A restart reads a `proposed` row with nothing

@@ -42,6 +42,14 @@ only by installing the GitHub-coupled plugin, where it then works normally: the
 "yes" in the third column above is a per-skill promise, and a `dnbg-workflow`
 install on GitLab keeps it.
 
+## Stacked PRs
+
+`orchestrate`'s stacked mode, which bases a child issue's PR on its blocker's
+approved but unmerged PR while the operator is away, uses no forge feature
+beyond the ones the flow already does: a PR opened against another branch, and
+a manual `git rebase --onto` once that branch's PR merges. Its intent is stated
+in forge-neutral terms, so a second forge's backend carries it unchanged.
+
 ## What happens on an unsupported forge
 
 **It declines; it does not adapt.** A forge-coupled skill says plainly that the

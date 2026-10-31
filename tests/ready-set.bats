@@ -2,7 +2,8 @@
 #
 # Tests for the tracking issue's ready set. `gh` is stubbed: it prints whatever
 # JSON the test wrote, and exits 1 when the test asks it to, as real `gh` does on a
-# GraphQL error.
+# GraphQL error. Under `--stacked` the script runs from a copy beside stubs of
+# `pr-sources.sh` and `pr-verdict.sh`, which answer from files the test writes.
 
 READY="${BATS_TEST_DIRNAME}/../dnbg-workflow/scripts/ready-set.sh"
 U=https://github.com/o/r/issues
@@ -16,6 +17,7 @@ setup() {
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$@" >> "$ARGV"
+if [ "$1 $2" = "pr view" ]; then echo "{\"headRefName\":\"branch-$3\"}"; exit 0; fi
 cat "$ANSWER"
 [ -f "$GQL_EXIT" ] && exit 1
 exit 0
@@ -64,7 +66,7 @@ numbers() { object "$1" | jq -c "[.$2[].number]"; }
   answer "$(child 2)" "$(child 3 CLOSED)"
   run "$READY" o/r 1 --slug=$BOT
   [ "$status" -eq 0 ]
-  [[ "$(line "$output")" =~ ^result=OK\ now=[0-9T:Z-]+\ children=2\ open=1\ ready=1$ ]]
+  [[ "$(line "$output")" =~ ^result=OK\ now=[0-9T:Z-]+\ children=2\ open=1\ ready=1\ stacked=0$ ]]
   [ "$(object "$output" | jq -c '.ready')" = "[{\"url\":\"$U/2\",\"number\":2,\"title\":\"t2\"}]" ]
   [ "$(numbers "$output" waiting)" = '[]' ]
   [ "$(object "$output" | jq -c .parent)" = "{\"url\":\"$U/1\",\"number\":1,\"spec_review\":false,\"verdict\":null,\"verdict_mode\":null,\"verdict_current\":null,\"verdict_url\":null}" ]
@@ -225,7 +227,7 @@ round_of() {
 @test "a parent with no sub-issues is an empty set, not an error" {
   answer
   run "$READY" o/r 1 --slug=$BOT
-  [[ "$(line "$output")" == *"children=0 open=0 ready=0" ]]
+  [[ "$(line "$output")" == *"children=0 open=0 ready=0 stacked=0" ]]
 }
 
 @test "any page short of its total is set-overflow, so a hidden claim or blocker cannot read as ready" {
@@ -308,4 +310,134 @@ round_of() {
   # -f binds a String, -F an Int: the flag preceding each binding is what decides it.
   [ "$(grep -B1 -x 'repo=123' "$ARGV" | head -1)" = -f ]
   [ "$(grep -B1 -x 'n=7' "$ARGV" | head -1)" = -F ]
+}
+
+# The stacked copy: ready-set.sh beside stub siblings. `sources <n> <lines…>`
+# writes what pr-sources.sh prints for issue <n>, its result line last;
+# `verdict <pr> <line>` what pr-verdict.sh prints for that PR. An issue or PR
+# with no file is a read that fails.
+stacked_setup() {
+  local d="$BATS_TEST_TMPDIR/scripts"; mkdir -p "$d"
+  cp "$READY" "$d/ready-set.sh"
+  export SOURCES="$BATS_TEST_TMPDIR/sources" VERDICTS="$BATS_TEST_TMPDIR/verdicts"
+  mkdir -p "$SOURCES" "$VERDICTS"
+  printf '#!/usr/bin/env bash\ncat "$SOURCES/$2" 2>/dev/null || echo "result=ERROR reason=all-sources"\n' > "$d/pr-sources.sh"
+  printf '#!/usr/bin/env bash\ncat "$VERDICTS/$2" 2>/dev/null || echo "result=ERROR reason=pr-view"\n' > "$d/pr-verdict.sh"
+  chmod +x "$d"/*.sh
+  STACKED_READY="$d/ready-set.sh"
+}
+P=https://github.com/o/r/pull
+ALL_OK="closing=ok search=ok timeline=ok"
+sources() { local n=$1; shift; printf '%s\n' "$@" > "$SOURCES/$n"; }
+verdict() { echo "$2" > "$VERDICTS/$1"; }
+APPROVED="result=OK head=h verdict=APPROVED verdict_sha=h at_head=1 reviewed_after_head=1 review_decision= verdict_at=t"
+# Child 3 blocked by sibling 2 alone, whose PR 20 is its one open closing PR.
+stacked_case() {
+  answer "$(child 2)" "$(blocked_by "$(child 3)" 2 OPEN)"
+  sources 2 "$P/20 relevance=closes state=OPEN" "$P/7 relevance=mention state=OPEN" "result=OK count=2 $ALL_OK"
+  verdict 20 "$APPROVED"
+}
+stacked_numbers() {  # -> "<ready numbers> <waiting numbers> <stacked>"
+  echo "$(numbers "$output" ready) $(numbers "$output" waiting) $(line "$output" | grep -oE 'stacked=[0-9]+')"
+}
+
+@test "stacked: a child blocked only by a sibling with one approved closing PR is ready on its branch" {
+  stacked_setup; stacked_case
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$status" -eq 0 ]
+  [ "$(stacked_numbers)" = "[2,3] [] stacked=1" ]
+  [ "$(object "$output" | jq -c '.ready[1]')" \
+    = "{\"url\":\"$U/3\",\"number\":3,\"title\":\"t3\",\"base\":\"branch-20\",\"base_pr\":\"$P/20\"}" ]
+  [ "$(object "$output" | jq -c '.ready[0] | keys')" = '["number","title","url"]' ]
+}
+
+@test "stacked: without the flag the same child waits, and nothing beyond the one query runs" {
+  stacked_setup; stacked_case
+  run "$STACKED_READY" o/r 1 --slug=$BOT
+  [ "$(stacked_numbers)" = "[2] [3] stacked=0" ]
+  ! grep -qx view "$ARGV"
+}
+
+@test "stacked: a blocker PR not approved at head keeps the child waiting" {
+  stacked_setup
+  local v
+  for v in "result=OK head=h verdict=CHANGES_REQUESTED verdict_sha=h at_head=1 reviewed_after_head=1 review_decision= verdict_at=t" \
+           "result=OK head=h2 verdict=APPROVED verdict_sha=h at_head=0 reviewed_after_head=0 review_decision= verdict_at=t" \
+           "result=OK head=h verdict=APPROVED verdict_sha=h at_head=1 reviewed_after_head=unknown review_decision= verdict_at=t" \
+           "result=OK head=h verdict=APPROVED verdict_sha=h at_head=1 reviewed_after_head=1 review_decision=REVIEW_REQUIRED verdict_at=t" \
+           "result=ERROR reason=pr-view"; do
+    stacked_case; verdict 20 "$v"
+    run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+    [ "$(stacked_numbers)" = "[2] [3] stacked=0" ] || { echo "$v: $output"; false; }
+  done
+  stacked_case
+  verdict 20 "${APPROVED/review_decision=/review_decision=APPROVED}"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[2,3] [] stacked=1" ]
+}
+
+@test "stacked: a blocker with two open closing PRs, none, or one whose state is unknown keeps the child waiting" {
+  stacked_setup
+  local case
+  for case in two none unknown closed other-repo; do
+    stacked_case
+    case $case in
+      two)     sources 2 "$P/20 relevance=closes state=OPEN" "$P/21 relevance=closes state=OPEN" "result=OK count=2 $ALL_OK" ;;
+      none)    sources 2 "$P/7 relevance=mention state=OPEN" "result=OK count=1 $ALL_OK" ;;
+      unknown) sources 2 "$P/20 relevance=closes state=OPEN" "$P/21 relevance=closes state=unknown" "result=OK count=2 $ALL_OK" ;;
+      closed)  sources 2 "$P/20 relevance=closes state=unknown" "result=OK count=1 $ALL_OK"; verdict 20 "$APPROVED" ;;
+      other-repo) sources 2 "https://github.com/o/other/pull/20 relevance=closes state=OPEN" "result=OK count=1 $ALL_OK" ;;
+    esac
+    run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+    [ "$(stacked_numbers)" = "[2] [3] stacked=0" ] || { echo "$case: $output"; false; }
+  done
+  # A merged or closed PR beside the open one does not count against it.
+  stacked_case
+  sources 2 "$P/19 relevance=closes state=CLOSED" "$P/20 relevance=closes state=OPEN" "result=OK count=2 $ALL_OK"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[2,3] [] stacked=1" ]
+}
+
+@test "stacked: a discovery source that is not ok, or no discovery at all, keeps the child waiting" {
+  stacked_setup
+  local s
+  for s in "closing=fail search=ok timeline=ok" "closing=ok search=shape timeline=ok" "closing=ok search=ok timeline=fail"; do
+    stacked_case
+    sources 2 "$P/20 relevance=closes state=OPEN" "result=OK count=1 $s"
+    run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+    [ "$(stacked_numbers)" = "[2] [3] stacked=0" ] || { echo "$s: $output"; false; }
+  done
+  stacked_case; rm "$SOURCES/2"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[2] [3] stacked=0" ]
+}
+
+@test "stacked: two uncleared blockers keep the child waiting however their PRs stand" {
+  stacked_setup; stacked_case
+  answer "$(child 2)" "$(child 4)" "$(blocked_by "$(blocked_by "$(child 3)" 2 OPEN)" 4 OPEN)"
+  sources 4 "$P/40 relevance=closes state=OPEN" "result=OK count=1 $ALL_OK"
+  verdict 40 "$APPROVED"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[2,4] [3] stacked=0" ]
+  # One of the two cleared leaves one, which stacks.
+  answer "$(child 2)" "$(blocked_by "$(blocked_by "$(child 3)" 2 OPEN)" 4 CLOSED)"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[2,3] [] stacked=1" ]
+}
+
+@test "stacked: a blocker outside the parent, or a child held for another reason too, is not stacked" {
+  stacked_setup; stacked_case
+  sources 9 "$P/90 relevance=closes state=OPEN" "result=OK count=1 $ALL_OK"
+  verdict 90 "$APPROVED"
+  answer "$(child 2)" "$(blocked_by "$(child 3)" 9 OPEN)" \
+         "$(blocked_by "$(child 4 | jq -c '.labels = {totalCount: 1, nodes: [{name: "assigned:x"}]}')" 2 OPEN)"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[2] [3,4] stacked=0" ]
+  [ "$(object "$output" | jq -c '.waiting[1].reasons')" = '["blocked","claimed"]' ]
+}
+
+@test "stacked: the flag is accepted alongside the others in any order" {
+  stacked_setup; stacked_case
+  run "$STACKED_READY" --stacked o/r 1 --slug=$BOT
+  [ "$(stacked_numbers)" = "[2,3] [] stacked=1" ]
 }

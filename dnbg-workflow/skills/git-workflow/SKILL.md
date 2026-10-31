@@ -50,6 +50,8 @@ per plugin.
 
    Run it on every worktree you work in, one you take over or continue included. It reads `result=OK`; on `result=ERROR`, stop and say what it named.
 
+   When your prompt names a branch to stack on, that branch is the base: `origin/<that branch>` stands in for `origin/<default-branch>` here and in step 7's ranges. Note `git rev-parse origin/<that branch>` now, as the recorded base head step 8 writes down.
+
    In a sandboxed Claude Code session, three calls write the main checkout's `.git/config`, which the sandbox refuses whatever its settings: `git worktree add` from `origin/<default-branch>`, which records the upstream; the install's first run in a repository; and step 8's `git push -u`. Run those outside the sandbox. On a worktree you take over or continue, in a repository where the install has run before, the install writes nothing there and runs sandboxed. Pushes and `gh` calls also need network access to `github.com` and `api.github.com`, which the sandbox refuses unless `sandbox.network.allowedDomains` or its prompt allows them.
 5. Make changes in the worktree.
 6. Commit.
@@ -66,7 +68,7 @@ per plugin.
    - **A rename the issue specifies in full**, in any file, as long as each hunk only swaps the old name for the new one or rewraps the line it lands on. Its standards pass checks that the new name was not already taken, and greps the tree for the old one, which may stay only in released history such as CHANGELOG.md.
 
    Size alone never qualifies. Say the defect pass was skipped, and why, when you announce the PR and in the PR description, which names the files for generated, data or prose hunks and the issue for a rename.
-8. Push, and **open the PR as a draft**, its description drafted at `<file>`, which is `<draft directory>/pr-body.md` ("Draft files"):
+8. Push, and **open the PR as a draft**, its description drafted at `<file>`, which is `<draft directory>/pr-body.md` ("Draft files"). On a stacked branch, add `--base <that branch>` to `gh pr create`, and keep the line `Stacked on <branch> of <PR URL>, recorded base head <sha>.` in the as-built section of each rewrite of the description while the PR stays stacked:
 
    ```bash
    git -C <worktree-path> push -u origin <branch-name>

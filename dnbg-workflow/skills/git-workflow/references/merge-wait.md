@@ -135,3 +135,23 @@ Reading the rollup again after a terminal block finds nothing.
 On `result=DIRTY`, surface the conflict and ask (without `AskUserQuestion`:
 `<skill-dir>/../issue-workflow/references/delegated.md`); don't resolve it autonomously,
 since which side wins is the operator's call.
+
+The one exception is a stacked PR whose base merged. When the PR description
+records a base head, the PR's base (`gh pr view <num> --json baseRefName`) is
+now the default branch, and `git merge-base --is-ancestor <recorded base head>
+HEAD` holds in the worktree, the conflict is only the base's squash. Rebase
+past it and push:
+
+```bash
+git -C <worktree-path> fetch origin
+git -C <worktree-path> rebase --onto origin/<default-branch> <recorded base head>
+git -C <worktree-path> push --force-with-lease
+```
+
+The retarget dismissed the approval and the push moved the head, so the review
+is no longer clean: drop the stacked line from the description and arm the
+review watch, per `references/review-rounds.md`, not the merge watch. The
+reviewer re-verdicts on the new head, which reaches you as `ACTIVITY`, and
+`references/merge.md`'s handoff follows as after any clean review. A rebase
+that stops on a conflict is the ordinary case again: `git rebase --abort`, then
+surface and ask.
