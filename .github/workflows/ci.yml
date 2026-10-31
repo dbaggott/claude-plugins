@@ -11,7 +11,7 @@ name: CI
 # config only ever names the umbrella, so it never has to learn about
 # individual jobs. A new gating check is a step in `lint` unless it is slow; a
 # new *job* also has to be added to `ci-required.needs`, and has to run on every
-# event, because `ci-required` accepts only `success` and fails on `skipped`.
+# event, because `ci-required` accepts only `success`.
 #
 # Steps rather than jobs for the static checks, because Actions bills each job
 # rounded up to the whole minute. Those checks total well under a minute of
