@@ -2149,3 +2149,57 @@ reviewer_refusals_handled() {  # <reviewer SKILL.md> <as-role.sh>
       || { echo "dropping 'fail $r' was not caught: $output"; false; }
   done
 }
+
+# A reviewer in its own session hands over an APPROVE on report.md's closing
+# line. The merge command is the author's to compose from the merge state, which
+# the reviewer never reads, so a merge example in the closing-line contract, or
+# a reviewer handoff that stops ending on Done, has the reviewer tell the
+# operator to merge.
+CLOSING_FILE="$ROOT/dnbg-workflow/skills/findings-review/references/report.md"
+CLOSING_HEADING='## The closing line'
+HANDOFF_FILE="$ROOT/dnbg-workflow/skills/reviewer/references/watch.md"
+HANDOFF_HEADING='## Report the review'
+HANDOFF_DONE='the handoff turn ends on `**Done:**`'
+MERGE_PHRASES=('ready to merge' 'merge it')
+
+section_collapsed() {  # <file> <heading> -> the section, collapsed to one line
+  awk -v h="$2" '$0 == h { s = 1; next } s && /^## / { exit } s' "$1" | tr -s '\n ' ' '
+}
+
+reviewer_handoff_leaves_merge() {  # <report.md> <watch.md>
+  local closing handoff p bad=0
+  closing=$(section_collapsed "$1" "$CLOSING_HEADING")
+  handoff=$(section_collapsed "$2" "$HANDOFF_HEADING")
+  [ -n "$closing" ] || { echo "no '$CLOSING_HEADING' section in $1"; return 1; }
+  [ -n "$handoff" ] || { echo "no '$HANDOFF_HEADING' section in $2"; return 1; }
+  for p in "${MERGE_PHRASES[@]}"; do
+    grep -qiwF -- "$p" <<<"$closing" \
+      && { echo "'$CLOSING_HEADING' in $1 carries the merge phrase '$p'"; bad=1; }
+  done
+  [[ "$handoff" == *"$HANDOFF_DONE"* ]] \
+    || { echo "'$HANDOFF_HEADING' in $2 no longer says $HANDOFF_DONE"; bad=1; }
+  return "$bad"
+}
+
+@test "the closing-line contract carries no merge phrase, and the reviewer's handoff ends on Done" {
+  run reviewer_handoff_leaves_merge "$CLOSING_FILE" "$HANDOFF_FILE"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "a merge phrase in the closing-line section, or the handoff's Done sentence removed, is caught" {
+  local p report="$BATS_TEST_TMPDIR/report.md" watch="$BATS_TEST_TMPDIR/watch.md"
+  for p in "${MERGE_PHRASES[@]}"; do
+    awk -v h="$CLOSING_HEADING" -v p="$p" '{ print } $0 == h { print "Notify `PR 570 approved — " p "`." }' \
+      "$CLOSING_FILE" > "$report"
+    run reviewer_handoff_leaves_merge "$report" "$HANDOFF_FILE"
+    [ "$status" -ne 0 ] && [[ "$output" == *"merge phrase '$p'"* ]] \
+      || { echo "'$p' in the closing-line section was not caught: $output"; false; }
+  done
+  # Removed from the collapsed section, so the sentence wrapped across lines goes too.
+  printf '%s\n%s\n' "$HANDOFF_HEADING" "$(section_collapsed "$HANDOFF_FILE" "$HANDOFF_HEADING" \
+    | sed 's/the handoff turn ends on `\*\*Done:\*\*`//')" > "$watch"
+  run reviewer_handoff_leaves_merge "$CLOSING_FILE" "$watch"
+  [ "$status" -ne 0 ] && [[ "$output" == *"no longer says"* ]] \
+    || { echo "removing the Done sentence was not caught: $output"; false; }
+}

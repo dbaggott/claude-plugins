@@ -1,0 +1,1 @@
+A reviewer running in its own session no longer tells you to merge when it approves. Its handoff turn ends on `Done:`, naming the PR watch still running, and its notification carries the verdict and short SHA, such as `PR 570 approved at 1a2b3c4`. The merge command still comes from the author's handoff, which reads the merge state; on a PR no agent authored, there is none.

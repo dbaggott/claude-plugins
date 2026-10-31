@@ -57,10 +57,11 @@ is the move, and it notifies on its own.
 On a Your move, also call the harness's notification tool where it has one, in
 Claude Code `PushNotification`, loading it first if it is deferred. Send one
 line under 200 characters with no markdown, leading with the action, such as
-`PR 570 approved — ready to merge`. A "not sent" result means the operator is at
+`Answer the question on PR 570`. A "not sent" result means the operator is at
 the terminal and already sees the turn; it is not an error. A Done notifies only
 at `orchestrate`'s Stop, which ends a run long enough that the operator has
-likely left.
+likely left, and at the reviewer's approving handoff, whose notification
+`reviewer`'s `references/watch.md`, "Report the review", gives.
 
 A dispatched agent, any subagent whose turns end in a report to the session
 that dispatched it, writes no closing line and sends no notification.
