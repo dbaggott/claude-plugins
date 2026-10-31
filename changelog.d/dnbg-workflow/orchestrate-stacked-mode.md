@@ -1,3 +1,0 @@
-`orchestrate` gains a stacked mode for a tracking issue whose operator cannot merge for a while. Ask for it at dispatch ("orchestrate `<URL>`, stacked"), or accept it when offered at the first merge handoff that blocks a waiting child. A child whose one blocker has an approved PR is then dispatched on that PR's branch, and approved PRs waiting on a merge no longer fill the cap on children in flight. When you merge the stack bottom-up, each next PR's author rebases it past the merged base and asks for a fresh approval instead of stopping on the conflict.
-
-An operator leaving for a while can also delegate a class of question to the orchestrator at dispatch, and the decision log records each answer given under that delegation as such.
