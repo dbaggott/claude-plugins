@@ -8,27 +8,19 @@ the calls below:
 - `reviewer` and `reviewer-setup` are built on **GitHub Apps**. The point is an
   identity distinct from your own that can post a verdict on a PR you authored,
   which GitHub forbids from your own account. `reviewer-setup` automates the
-  GitHub App **Manifest flow** that `bootstrap.py` drives; GitLab and Bitbucket
-  reach the same identity far more cheaply, through project and repository
-  access tokens, so the setup is per-forge rather than portable. The reviewer is
-  GitHub-only today because only the GitHub backend exists — see
-  https://github.com/dbaggott/claude-plugins/issues/149.
+  GitHub App **Manifest flow** that `bootstrap.py` drives; another forge would
+  reach the same identity through its own token mechanism, so the setup is
+  per-forge rather than portable.
 - `git-workflow`'s review, merge-state, and auto-merge handling reads
   GitHub-shaped fields (`mergeStateStatus`, `statusCheckRollup`, review threads).
 - `check-issue-create.sh` matches `gh issue create`, and `owners` resolves
   against `github.com` remotes.
 
-So support is stated per forge. **Status** describes the forge-coupled skills —
-the forge-neutral ones already work everywhere, which is what the third column
-says:
-
-| Forge | Forge-coupled skills | Forge-neutral skills | Status |
-| --- | --- | --- | --- |
-| GitHub | yes | yes | **Supported** |
-| GitLab | no | yes | [Next](https://github.com/dbaggott/claude-plugins/issues/149) |
-| Bitbucket | no | yes | [Planned](https://github.com/dbaggott/claude-plugins/issues/150) |
-| Azure Repos | no | yes | Not planned |
-| Anything else, including self-hosted and GitHub Enterprise | no | yes | Unsupported |
+**GitHub is the one supported forge.** Everything else, self-hosted and GitHub
+Enterprise included, is unsupported, and there is no plan to add another forge
+unless someone asks for one: an issue naming the forge you use is the request.
+That is a statement about the forge-coupled skills; the forge-neutral ones
+already work everywhere.
 
 Which skills are which is the **Forge** column of [What's in
 it](../README.md#whats-in-it) — and read the **Plugin** column beside it, because
@@ -39,8 +31,8 @@ two neutral skills are obtained differently: `coding-practices` ships in
 `dnbg-workflow` because it governs how to size a change and whether to split a
 PR — a workflow question. A non-GitHub user therefore gets `velocity-tradeoff`
 only by installing the GitHub-coupled plugin, where it then works normally: the
-"yes" in the third column above is a per-skill promise, and a `dnbg-workflow`
-install on GitLab keeps it.
+neutral promise is per skill, and a `dnbg-workflow` install on another forge
+keeps it.
 
 ## What happens on an unsupported forge
 
@@ -49,9 +41,7 @@ flow is GitHub-only, names the host it actually found, and hands back to
 whatever flow your project already uses. It will not run a `gh` command that
 cannot succeed, and it will not translate itself to `glab` or the Bitbucket API
 — a half-translated flow is worse than either extreme, and translating properly
-is [the per-forge
-backends'](https://github.com/dbaggott/claude-plugins/issues/149) job rather than
-something to do by halves here.
+is a per-forge backend's job rather than something to do by halves here.
 
 *What* it checks differs by skill, because the coupled skills don't all act on the
 repo you're standing in:

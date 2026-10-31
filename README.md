@@ -359,16 +359,15 @@ floor and six command-line tools — are in [requirements](docs/requirements.md)
 
 ## Which forges
 
-**GitHub is supported.** GitLab is
-[next](https://github.com/dbaggott/claude-plugins/issues/149), then
-[Bitbucket](https://github.com/dbaggott/claude-plugins/issues/150); everything
-else is unsupported. The forge-neutral skills — `coding-practices` and
-`velocity-tradeoff` — work anywhere regardless.
+**GitHub is supported.** Nothing else is, and there is no plan to add another
+forge unless someone asks for one: an issue naming the forge you use is the
+request. The forge-neutral skills — `coding-practices` and `velocity-tradeoff`
+— work anywhere regardless.
 
 On an unsupported forge a coupled skill **declines and says so**, naming the host
-it found, rather than half-translating itself to another CLI. The per-forge
-matrix, what each skill checks, and why another forge needs its own backend are
-in [forge support](docs/forge-support.md).
+it found, rather than half-translating itself to another CLI. What each skill
+checks, and why another forge needs its own backend, are in
+[forge support](docs/forge-support.md).
 
 ## What it runs on your machine
 
@@ -412,7 +411,7 @@ has the detail, and an issue first is always cheaper than a declined PR.
 | --- | --- |
 | [Requirements](docs/requirements.md) | Claude Code floor, the six CLI tools, platforms |
 | [Configuration](docs/configuration.md) | Install scopes, `owners`, the configurable names and paths, the version stamp, the reviewer key |
-| [Forge support](docs/forge-support.md) | Per-forge matrix, and what declining looks like |
+| [Forge support](docs/forge-support.md) | What is supported, and what declining looks like |
 | [Releases](docs/releases.md) | Updating, auto-update, CalVer, installing a specific version |
 | [Security](SECURITY.md) | Threat model, what the hooks see, reporting a vulnerability |
 | [Contributing](CONTRIBUTING.md) | Scope, the fragment rule, running CI locally |
