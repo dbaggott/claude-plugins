@@ -10,6 +10,13 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.107 — 2026-10-31
+
+`orchestrate` gains a stacked mode for a tracking issue whose operator cannot merge for a while. Ask for it at dispatch ("orchestrate `<URL>`, stacked"), or accept it when offered at the first merge handoff that blocks a waiting child. A child whose one blocker has an approved PR is then dispatched on that PR's branch, and approved PRs waiting on a merge no longer fill the cap on children in flight. When you merge the stack bottom-up, each next PR's author rebases it past the merged base and asks for a fresh approval instead of stopping on the conflict.
+
+An operator leaving for a while can also delegate a class of question to the orchestrator at dispatch, and the decision log records each answer given under that delegation as such.
+
+
 ## dnbg-workflow 2026.10.106 — 2026-10-30
 
 A new always-on rule keeps project status out of Claude Code's auto-memory.
