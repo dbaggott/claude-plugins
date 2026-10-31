@@ -55,12 +55,13 @@ command's read-back is a merge that did not happen: pass the message to that
 PR's author, whose ask comes back through you. An `enqueued` or a `pending`
 is a merge still to come, which the authors' watches report.
 
-A stack forms on a PR already approved, whose handoff may be relayed with a
-`gh pr merge` that GitHub refuses from then on. When a stacked author's PR
-announcement carries `GitHub stack <n>`, `SendMessage` the base PR's author
-that a PR was stacked on its PR; it sends a fresh handoff
-(`references/merge-wait.md`, "A stacked PR whose base moved"), which you relay
-in place of the earlier one.
+A stack forms on a PR already approved, whose handoff may carry a `gh pr
+merge` that GitHub refuses from then on. When a stacked author's PR
+announcement carries `GitHub stack <n>` and the base PR's handoff carried `gh
+pr merge`, `SendMessage` the base PR's author that a PR was stacked on its PR;
+it sends a fresh handoff (`git-workflow`'s `references/merge-wait.md`, "A
+stacked PR whose base moved"), which replaces the earlier one. A base PR whose
+handoff already carried the stack's command needs no message.
 
 When a child's PR merges, `SendMessage` the author of each open PR based on
 its branch or above it in its stack: its base PR merged, so it takes

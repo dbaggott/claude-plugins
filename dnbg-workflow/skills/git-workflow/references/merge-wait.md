@@ -187,10 +187,11 @@ the ordinary case: surface and ask.
    branch, or record `origin/<base>`'s SHA as the new base head when it is
    not. A `GitHub stack <n>` line stays either way.
 
-When told instead that a PR was stacked on yours, your relayed command is
-refused from now on: read the stack and compose the handoff again per
-`references/merge.md`, "A PR in a stack", adding the `GitHub stack <n>.` line
-to your description, and send it; the merge watch runs on.
+When told instead that a PR was stacked on yours, and your handoff carried
+`gh pr merge`, that command is refused from now on: read the stack and compose
+the handoff again per `references/merge.md`, "A PR in a stack", adding the
+`GitHub stack <n>.` line to your description, and send it; the merge watch runs
+on. A handoff that already carried the stack's command stands as it is.
 
 The head moved, so the review is no longer clean: arm the review watch, per
 `references/review-rounds.md`, not the merge watch. The reviewer re-verdicts on
