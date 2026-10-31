@@ -306,6 +306,16 @@ jobs:
           until [ "$(gh pr view "$branch" --json state --jq .state)" = "MERGED" ]; do
             if [ "$(date +%s)" -ge "$deadline" ]; then
               echo "::error::release PR did not merge within 15m — check ci-required on $branch" >&2
+              # Close it rather than leave it open with auto-merge armed. A
+              # re-run of its failed check would otherwise merge it, and its
+              # `auto: release` commit makes this workflow skip that push, so
+              # the bumped versions would land on main and never be tagged. The
+              # fragments are still on main, so the next push re-plans this
+              # release and nothing is lost. Not fatal on its own: the PR may
+              # have merged since the last poll, and the job fails either way.
+              gh pr close "$branch" --delete-branch --comment \
+                "This release did not merge within 15 minutes (${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}), so it is closed rather than left to a re-run. Its changelog fragments are still on main; the next merge to main releases them." \
+                || echo "::warning::could not close $branch — if it is still open, close it by hand rather than re-running its checks" >&2
               exit 1
             fi
             sleep 15

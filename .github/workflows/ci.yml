@@ -7,11 +7,10 @@ name: CI
 #
 # Two working jobs and an aggregator. `lint` holds every static check as a
 # step; `hook-tests` stands alone because it runs longer than all of them
-# combined and is the one check a release PR can skip outright. `ci-required`
-# aggregates both via `needs:` — the branch-protection config only ever names
-# the umbrella, so it never has to learn about individual jobs. A new gating
-# check is a step in `lint` unless it is slow or independently skippable; a new
-# *job* also has to be added to `ci-required.needs`.
+# combined. `ci-required` aggregates both via `needs:` — the branch-protection
+# config only ever names the umbrella, so it never has to learn about
+# individual jobs. A new gating check is a step in `lint` unless it is slow; a
+# new *job* also has to be added to `ci-required.needs`.
 #
 # Steps rather than jobs for the static checks, because Actions bills each job
 # rounded up to the whole minute. Those checks total well under a minute of
@@ -52,7 +51,7 @@ jobs:
     # steps on "is this the release PR" was measured and does not pay: shellcheck
     # and actionlint are ~4s of a ~27s job that bills a whole minute either way,
     # and the actionlint image pull happens during job setup regardless of any
-    # step condition. `hook-tests` below is where the skip earns its minutes.
+    # step condition.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -300,31 +299,6 @@ jobs:
   hook-tests:
     name: hook-tests
     runs-on: ubuntu-latest
-    # Its own job, not a step in `lint`: it runs long enough to be worth the
-    # parallelism, and it is the only check a release PR skips. `ci-required`
-    # accepts `skipped`, so opting out does not hold the gate open — which is
-    # exactly why the exemption has to be narrow. This is the repo's only
-    # behavioural coverage, and a PR that skips it still shows a green umbrella.
-    #
-    # A branch name is not a credential. `github.head_ref` is the *unqualified*
-    # branch name on the head repo, so `auto-release/…` on a fork reads
-    # identically to the real thing, and a human or a future automation naming a
-    # branch that way would drop the suite without anything saying so. All three
-    # clauses must hold: the branch prefix, a same-repo head, and the release
-    # App as author. `release.yml` runs under that App's token, so its PRs are
-    # authored by `claude-plugins-dbaggott[bot]`, the bot user of the App
-    # `claude-plugins-dbaggott`.
-    #
-    # In a fork the App does not exist, so the author never matches and the suite
-    # simply always runs. That is the right default for someone else's
-    # marketplace, and it is the safe direction for this clause to fail in: a
-    # wrong login here costs two billed minutes per release, never a false green.
-    #
-    # On `push` every operand is empty or null, so main is unaffected.
-    if: >-
-      !(startsWith(github.head_ref, 'auto-release/')
-        && github.event.pull_request.head.repo.full_name == github.repository
-        && github.event.pull_request.user.login == 'claude-plugins-dbaggott[bot]')
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run the hook test suite
@@ -367,9 +341,11 @@ jobs:
         run: |
           set -euo pipefail
           echo "needs.*.result = $RESULTS"
+          # `success` only: no job above is conditional, so `skipped` means
+          # something went wrong rather than that a check opted out.
           for r in ${RESULTS//,/ }; do
             case "$r" in
-              success|skipped) ;;
+              success) ;;
               *) echo "::error::dependency reported '$r'"; exit 1 ;;
             esac
           done
