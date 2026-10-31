@@ -181,7 +181,8 @@ An operator who will be away can delegate a class of question to you, such as
 asked at dispatch`. A later question inside that class is answered as the
 delegation says, with **Basis** `operator, delegated at <that row's URL>`.
 Anything outside every recorded delegation escalates as before, and the
-operator being away widens nothing on the allowlist.
+operator being away widens nothing on the allowlist. A delegation changes no
+design, so under a tracking issue its table row is written as `applied`.
 
 An escalation gets two rows: `proposed` when you ask, and `decided` with the
 operator's answer when it arrives. A restart reads a `proposed` row with nothing

@@ -27,12 +27,13 @@
 # Both lists keep the parent's sub-issue order.
 #
 # `--stacked` also readies a child held only by `blocked` whose one uncleared
-# blocker is a sibling with a PR approved at head, for the child to be based on
+# blocker is an open sibling with a PR approved at head, for the child to be based on
 # that PR's branch: `base` is the branch, `base_pr` the PR's URL, and `stacked`
 # counts such children, 0 without the flag. The child, its blocker and the PR
 # are all in `<owner/repo>`. The blocker's PRs are those `pr-sources.sh` lists
 # there as `relevance=closes` with `state=OPEN` or `unknown`: exactly one, it
-# `OPEN`, and `pr-verdict.sh` reading it approved as `git-workflow` defines it.
+# `OPEN`, not from a fork, and `pr-verdict.sh` reading it approved as
+# `git-workflow` defines it.
 # A read that fails, or a discovery source not `ok`, leaves the child waiting.
 #
 # A verdict is a comment by `<slug>` or `<slug>[bot]` whose first line is
@@ -162,6 +163,7 @@ set_of() {  # <stack object>
     | [ .subIssues.nodes[] | select(.state == "OPEN")
         | { url, number, title,
             blocked_by: [ .blockedBy.nodes[] | select(cleared | not) | .url ],
+            open_blockers: [ .blockedBy.nodes[] | select(.state == "OPEN") | .url ],
             assignees: [ .assignees.nodes[].login ],
             claim_labels: [ .labels.nodes[].name | select(startswith("assigned:")) ],
             verdict: (.comments | verdicts | last | .head.v?) }
@@ -170,8 +172,7 @@ set_of() {  # <stack object>
                          if $spec and .verdict != "READY" then "no-ready-verdict" else empty end,
                          if $spec and $pv != "READY" then "design-not-ready" else empty end ] )
       ] as $open
-    | ($open | map(if .reasons == ["blocked"] and $stack[.url] != null
-                   then .reasons = [] | . + $stack[.url] else . end)) as $open
+    | ($open | map(if $stack[.url] then .reasons = [] | . + $stack[.url] else . end)) as $open
     | [ .subIssues.nodes[].url ] as $siblings
     | (.url | sub("/issues/[0-9]+$"; "/issues/")) as $here
     | { parent: { url, number, spec_review: $spec, verdict: $pv,
@@ -182,8 +183,9 @@ set_of() {  # <stack object>
                   verdict_url: ($pr.url? // null) },
         ready: [ $open[] | select(.reasons == [])
                  | {url, number, title} + (if .base then {base, base_pr} else {} end) ],
-        waiting: [ $open[] | select(.reasons != []) | del(.verdict) ],
-        candidates: [ $open[] | select(.reasons == ["blocked"] and (.blocked_by | length) == 1)
+        waiting: [ $open[] | select(.reasons != []) | del(.verdict, .open_blockers) ],
+        candidates: [ $open[] | select(.reasons == ["blocked"] and .blocked_by == .open_blockers
+                                       and (.blocked_by | length) == 1)
                       | select((.url | startswith($here)) and (.blocked_by[0] | startswith($here))
                                and (.blocked_by[0] as $b | any($siblings[]; . == $b)))
                       | {url, blocker: .blocked_by[0]} ],
@@ -218,19 +220,26 @@ base_for() {  # <blocker url>
     && [ "$(field at_head "$verdict")" = 1 ] && [ "$(field reviewed_after_head "$verdict")" = 1 ] \
     || return 0
   case "$(field review_decision "$verdict")" in ''|APPROVED) ;; *) return 0 ;; esac
-  branch=$(gh pr view "${pr##*/}" --repo "$REPO" --json headRefName 2>/dev/null \
-             | jq -r '.headRefName // empty' 2>/dev/null) || return 0
+  # A fork's branch is not on this repo's remote, so nothing can be based on it.
+  branch=$(gh pr view "${pr##*/}" --repo "$REPO" --json headRefName,isCrossRepository 2>/dev/null \
+             | jq -r 'select(.isCrossRepository == false) | .headRefName // empty' 2>/dev/null) \
+    || return 0
   [ -n "$branch" ] || return 0
   jq -cn --arg b "$branch" --arg p "$pr" '{base: $b, base_pr: $p}'
 }
 
 if $STACKED; then
-  STACK='{}'
+  # Keyed by child, and by blocker so a blocker shared by several children is
+  # read once, `null` for one that bases nothing.
+  STACK='{}'; BASES='{}'
   while IFS=$'\t' read -r child blocker; do
     [ -n "$child" ] || continue
-    entry=$(base_for "$blocker")
-    [ -n "$entry" ] || continue
-    STACK=$(jq -c --arg c "$child" --argjson e "$entry" '.[$c] = $e' <<<"$STACK")
+    if ! jq -e --arg b "$blocker" 'has($b)' <<<"$BASES" >/dev/null; then
+      entry=$(base_for "$blocker")
+      BASES=$(jq -c --arg b "$blocker" --argjson e "${entry:-null}" '.[$b] = $e' <<<"$BASES")
+    fi
+    STACK=$(jq -c --arg c "$child" --arg b "$blocker" --argjson m "$BASES" \
+              'if $m[$b] then .[$c] = $m[$b] else . end' <<<"$STACK")
   done < <(printf '%s' "$OUT" | jq -r '.candidates[] | [.url, .blocker] | @tsv')
   [ "$STACK" = '{}' ] || { OUT=$(set_of "$STACK") || fail issue-query-shape; }
 fi

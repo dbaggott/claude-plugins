@@ -37,7 +37,7 @@ Pick the merge-method flag from what the repo actually allows (`--squash`, `--me
 
 Drop `--delete-branch` when `delete_branch_on_merge` is already on for the repo — it's redundant there, though harmless.
 
-A stacked PR, one whose base is not the default branch, would merge into that branch. Say in the handoff that it merges only after its base PR, whose merge retargets it, and that a fresh handoff follows the rebase (`references/merge-wait.md`, on `result=DIRTY`).
+A stacked PR, one whose base is not the default branch, would merge into that branch, so its handoff carries no merge command. It says the PR is approved and waits on its base PR, and the command comes in the fresh handoff after the rebase (`references/merge-wait.md`, "A stacked PR whose base moved"). Arm the merge watch all the same.
 
 For a multi-repo PR set (see `SKILL.md`'s "Multi-repo changes"), run both reads **per repo** — siblings can need different forms, because both the check state and the repo settings differ across repos.
 

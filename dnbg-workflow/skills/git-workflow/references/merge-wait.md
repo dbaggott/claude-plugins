@@ -136,22 +136,37 @@ On `result=DIRTY`, surface the conflict and ask (without `AskUserQuestion`:
 `<skill-dir>/../issue-workflow/references/delegated.md`); don't resolve it autonomously,
 since which side wins is the operator's call.
 
-The one exception is a stacked PR whose base merged. When the PR description
-records a base head, the PR's base (`gh pr view <num> --json baseRefName`) is
-now the default branch, and `git merge-base --is-ancestor <recorded base head>
-HEAD` holds in the worktree, the conflict is only the base's squash. Rebase
-past it and push:
+### A stacked PR whose base moved
 
-```bash
-git -C <worktree-path> fetch origin
-git -C <worktree-path> rebase --onto origin/<default-branch> <recorded base head>
-git -C <worktree-path> push --force-with-lease
-```
+The one exception is a stacked PR, whose description records a base head
+(`SKILL.md`, step 8), when its base PR merged or was rebased. A squash or a
+rebase rewrites the base's commits, so the PR still carries the old ones: on
+`result=DIRTY`, or when told the base PR merged, rebase it past them. Its
+merge may not conflict, so the message is the trigger as often as the watch.
 
-The retarget dismissed the approval and the push moved the head, so the review
-is no longer clean: drop the stacked line from the description and arm the
-review watch, per `references/review-rounds.md`, not the merge watch. The
-reviewer re-verdicts on the new head, which reaches you as `ACTIVITY`, and
-`references/merge.md`'s handoff follows as after any clean review. A rebase
-that stops on a conflict is the ordinary case again: `git rebase --abort`, then
-surface and ask.
+1. `git -C <worktree-path> fetch origin`, then read the base:
+   `gh pr view <num> --repo <owner>/<repo> --json baseRefName`. If the base
+   PR merged and this PR still targets its branch, which happens when that
+   branch was not deleted, retarget it as the author:
+   `gh pr edit <num> --repo <owner>/<repo> --base <default-branch>`.
+2. Go on only when `git -C <worktree-path> merge-base --is-ancestor <recorded
+   base head> HEAD` holds and the same test against `origin/<base>` does not:
+   the base no longer carries the commits this branch was cut from. Otherwise
+   the conflict is the ordinary case above.
+3. Rebase and push:
+
+   ```bash
+   git -C <worktree-path> rebase --onto origin/<base> <recorded base head>
+   git -C <worktree-path> push --force-with-lease
+   ```
+
+   A rebase that stops on a conflict is the ordinary case: `git rebase
+   --abort`, then surface and ask.
+4. In the description, drop the stacked line when the base is now the default
+   branch, or record `origin/<base>`'s SHA as the new base head when it is
+   not.
+
+The head moved, so the review is no longer clean: arm the review watch, per
+`references/review-rounds.md`, not the merge watch. The reviewer re-verdicts on
+the new head, which reaches you as `ACTIVITY`, and `references/merge.md`'s
+handoff follows as after any clean review.

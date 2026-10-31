@@ -14,10 +14,14 @@ setup() {
   export ANSWER="$BATS_TEST_TMPDIR/answer.json"; : > "$ANSWER"
   export ARGV="$BATS_TEST_TMPDIR/argv"; : > "$ARGV"
   export GQL_EXIT="$BATS_TEST_TMPDIR/gql_exit"
+  export FORK="$BATS_TEST_TMPDIR/fork"
   cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$@" >> "$ARGV"
-if [ "$1 $2" = "pr view" ]; then echo "{\"headRefName\":\"branch-$3\"}"; exit 0; fi
+if [ "$1 $2" = "pr view" ]; then
+  echo "{\"headRefName\":\"branch-$3\",\"isCrossRepository\":$([ -f "$FORK" ] && echo true || echo false)}"
+  exit 0
+fi
 cat "$ANSWER"
 [ -f "$GQL_EXIT" ] && exit 1
 exit 0
@@ -321,7 +325,8 @@ stacked_setup() {
   cp "$READY" "$d/ready-set.sh"
   export SOURCES="$BATS_TEST_TMPDIR/sources" VERDICTS="$BATS_TEST_TMPDIR/verdicts"
   mkdir -p "$SOURCES" "$VERDICTS"
-  printf '#!/usr/bin/env bash\ncat "$SOURCES/$2" 2>/dev/null || echo "result=ERROR reason=all-sources"\n' > "$d/pr-sources.sh"
+  export SOURCE_CALLS="$BATS_TEST_TMPDIR/source_calls"; : > "$SOURCE_CALLS"
+  printf '#!/usr/bin/env bash\necho "$2" >> "$SOURCE_CALLS"\ncat "$SOURCES/$2" 2>/dev/null || echo "result=ERROR reason=all-sources"\n' > "$d/pr-sources.sh"
   printf '#!/usr/bin/env bash\ncat "$VERDICTS/$2" 2>/dev/null || echo "result=ERROR reason=pr-view"\n' > "$d/pr-verdict.sh"
   chmod +x "$d"/*.sh
   STACKED_READY="$d/ready-set.sh"
@@ -440,4 +445,27 @@ stacked_numbers() {  # -> "<ready numbers> <waiting numbers> <stacked>"
   stacked_setup; stacked_case
   run "$STACKED_READY" --stacked o/r 1 --slug=$BOT
   [ "$(stacked_numbers)" = "[2,3] [] stacked=1" ]
+}
+
+@test "stacked: a blocker closed as not planned, or a PR from a fork, keeps the child waiting" {
+  stacked_setup; stacked_case
+  answer "$(child 2 CLOSED)" "$(blocked_by "$(child 3)" 2 CLOSED NOT_PLANNED)"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[] [3] stacked=0" ]
+  stacked_case; touch "$FORK"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[2] [3] stacked=0" ]
+}
+
+@test "stacked: a blocker shared by several children is read once, and bases each" {
+  stacked_setup; stacked_case
+  answer "$(child 2)" "$(blocked_by "$(child 3)" 2 OPEN)" "$(blocked_by "$(child 4)" 2 OPEN)"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[2,3,4] [] stacked=2" ]
+  [ "$(cat "$SOURCE_CALLS")" = 2 ]
+  # A shared blocker that bases nothing is read once too.
+  : > "$SOURCE_CALLS"; rm "$VERDICTS/20"
+  run "$STACKED_READY" o/r 1 --slug=$BOT --stacked
+  [ "$(stacked_numbers)" = "[2] [3,4] stacked=0" ]
+  [ "$(cat "$SOURCE_CALLS")" = 2 ]
 }
