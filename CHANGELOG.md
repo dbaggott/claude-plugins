@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.10.109 — 2026-10-31
+
+A reviewer on a tracking issue no longer wakes on its first tick for child PRs it already knows about. While it watches the closeout PR, its watch on the parent now excludes every PR a fresh `pr-sources.sh` run on the parent finds, the closeout PR included, rather than the closeout PR alone.
+
+
 ## dnbg-workflow 2026.10.108 — 2026-10-31
 
 In `orchestrate`'s stacked mode on GitHub, each stacked PR now joins its base PR's GitHub stack. When you merge a PR in a stack, GitHub rebases the PRs above it itself, so no author rebases and force-pushes after your merge, and a stacked PR's merge handoff carries a command that lands it together with every approved PR below it. That command is GitHub's asynchronous merge (`gh api --method PUT …/merge-async`), since GitHub refuses `gh pr merge` on a PR in a stack; it returns before the merge happens, and the author's watch reports the landing. Where the stack could not be formed, the handoff and the rebase work as before.
