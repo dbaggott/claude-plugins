@@ -1262,7 +1262,7 @@ documented_verdict_lines() {  # -> one first line per documented form, filled in
           blockedBy: {totalCount: 0, nodes: []}, comments: c}]}}}}}' > "$BATS_TEST_TMPDIR/a.json"
     run env PATH="$stub:$PATH" ANSWER="$BATS_TEST_TMPDIR/a.json" \
       "$ROOT/dnbg-workflow/scripts/ready-set.sh" o/r 1 --slug=bot
-    if [[ "$(tail -1 <<<"$output")" != *" ready=1" ]] \
+    if [[ "$(tail -1 <<<"$output")" != *" ready=1 "* ]] \
        || [ "$(head -1 <<<"$output" | jq .parent.spec_review)" != true ]; then
       echo "documented verdict line not read: $line"; echo "$output"; return 1
     fi

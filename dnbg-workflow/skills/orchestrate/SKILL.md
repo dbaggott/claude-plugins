@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Drive one GitHub issue to a merged PR from the main session — claim it, dispatch an author subagent and a reviewer subagent, answer the author's questions that the issue's own body answers, escalate the rest to the operator, log every answer on the issue, and stop when the PR merges. Given a tracking issue, does the same for each of its sub-issues in dependency order, ending on the closeout PR that resolves the parent. Given several issues with no parent, drives each through its own PR, or the set through one PR. Load when asked to orchestrate an issue, a tracking issue or several issues ("orchestrate the resolution of <issue URL>", "orchestrate <issue URL>", "orchestrate <issue URL> and <issue URL>", "drive <issue> with an author and a reviewer"), or when restarting an orchestrator on an issue. Skip for resolving an issue yourself, which is `issue-workflow`, and for reviewing one, which is `reviewer`.
+description: Drive one GitHub issue to a merged PR from the main session — claim it, dispatch an author subagent and a reviewer subagent, answer the author's questions that the issue's own body answers, escalate the rest to the operator, log every answer on the issue, and stop when the PR merges. Given a tracking issue, does the same for each of its sub-issues in dependency order, ending on the closeout PR that resolves the parent; in stacked mode, bases a child on its blocker's approved, unmerged PR. Given several issues with no parent, drives each through its own PR, or the set through one PR. Load when asked to orchestrate an issue, a tracking issue or several issues ("orchestrate the resolution of <issue URL>", "orchestrate <issue URL>", "orchestrate <issue URL> and <issue URL>", "drive <issue> with an author and a reviewer"), or when restarting an orchestrator on an issue. Skip for resolving an issue yourself, which is `issue-workflow`, and for reviewing one, which is `reviewer`.
 ---
 
 # Orchestrate
@@ -22,7 +22,9 @@ competes with its owner's.
 
 A tracking issue is driven child by child, each through this flow, by the loop
 in `references/multi-issue.md`, which applies design changes per
-`references/design-change.md`. Its parent is resolved by a closeout PR that you
+`references/design-change.md`; in stacked mode, which the prompt asks for or
+a `Stacked mode` row on the parent records, `references/stacked.md` changes
+that loop. Its parent is resolved by a closeout PR that you
 author, per `references/closeout.md`: the one artifact that is yours. Several
 issues with no parent, each resolved by its own PR or all by one, are driven
 per `references/several-issues.md`. Every
@@ -212,6 +214,8 @@ promote it into the body as its `## Operator check before review` section.
 > cleared at `<row URL>`; do not stop for it.] [The check is pending: rework to
 > these feedback rows in order, then stop for it again: `<row URLs>`.]
 > [Its operator steps: `<answer>`, per `<row URL>`.]
+> [Stack your branch on `<branch>` of `<PR URL>`, which resolves your blocker
+> and is approved but not merged: open your PR against that branch.]
 > [Continue `<PR URL>`, which is already open for it, on its branch
 > `<branch>`.] [Its worktree from a predecessor is at `<path>`; continue
 > there.] [The author before you died mid-task. It left unpushed commits
@@ -224,6 +228,8 @@ The bracketed phrase replaces "when you're done" whenever the check is declared
 (step 5); of the two bracketed lines after it, the first goes in for a check
 step 4 read as cleared and the second, with its rows, for one read as pending.
 The operator-steps line goes in for an issue with an `Operator steps` row.
+The stack line goes in for a child the ready set gave a `base`, with that
+branch and its `base_pr` (`references/stacked.md`).
 The next line goes in only for an open PR
 that step 3 found as `closes` or `sibling`, that the operator handed over, or
 that a dead author left; the one after only for a worktree that step 3 found or
@@ -276,7 +282,8 @@ own Summary.
   is `**Reviewer close-out: assignment ended**` and whose Summary names the
   issue rather than one PR — go to "Stop";
 - the author's report that its PR closed unmerged — ask the operator whether
-  to dispatch a new author or stop;
+  to dispatch a new author or stop, naming each child whose PR is based on its
+  branch, which is left without a base and which the answer covers too;
 - a wait on its own background work — an armed watch, or a background review
   at self-review — which wakes it when it returns, so nothing.
 

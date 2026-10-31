@@ -2,19 +2,19 @@
 # Which of a tracking issue's sub-issues may be dispatched now, as one
 # forge-neutral object.
 #
-#   ready-set.sh <owner/repo> <parent> --slug=<reviewer login>
+#   ready-set.sh <owner/repo> <parent> --slug=<reviewer login> [--stacked]
 #
 # Prints the object, then exactly one result line, then exits 0:
 #   {"parent":{"url":…,"number":…,"spec_review":true|false,
 #              "verdict":"READY"|"CHANGES REQUESTED"|null,
 #              "verdict_mode":"design"|"spec"|"set"|null,
 #              "verdict_current":true|false|null,"verdict_url":…|null},
-#    "ready":[{"url":…,"number":…,"title":…}],
+#    "ready":[{"url":…,"number":…,"title":…[,"base":…,"base_pr":…]}],
 #    "waiting":[{"url":…,"number":…,"title":…,
 #                "reasons":["blocked"|"claimed"|"no-ready-verdict"|"design-not-ready",…],
 #                "blocked_by":["<blocker url>",…],
 #                "assignees":[…],"claim_labels":[…]}]}
-#   result=OK now=<iso> children=<count> open=<count> ready=<count>
+#   result=OK now=<iso> children=<count> open=<count> ready=<count> stacked=<count>
 #   result=ERROR reason=bad-args|unsupported-forge|not-found|issue-query|issue-query-shape|set-overflow now=<iso>
 #
 # A child is ready when it is open, every issue blocking it was closed as
@@ -25,6 +25,16 @@
 # stood for was never built. `waiting` holds every other open child with each
 # reason it is held; closed children appear in neither list, only in the counts.
 # Both lists keep the parent's sub-issue order.
+#
+# `--stacked` also readies a child held only by `blocked` whose one uncleared
+# blocker is an open sibling with a PR approved at head, for the child to be based on
+# that PR's branch: `base` is the branch, `base_pr` the PR's URL, and `stacked`
+# counts such children, 0 without the flag. The child, its blocker and the PR
+# are all in `<owner/repo>`. The blocker's PRs are those `pr-sources.sh` lists
+# there as `relevance=closes` with `state=OPEN` or `unknown`: exactly one, it
+# `OPEN`, not from a fork, and `pr-verdict.sh` reading it approved as
+# `git-workflow` defines it.
+# A read that fails, or a discovery source not `ok`, leaves the child waiting.
 #
 # A verdict is a comment by `<slug>` or `<slug>[bot]` whose first line is
 # `**Spec review…, round <n>: READY**` or `**Set review…, round <n>: …**`, with
@@ -57,10 +67,11 @@ unset GH_TOKEN
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 fail() { echo "result=ERROR reason=$1 now=$(now_iso)"; exit 0; }
 
-REPO=""; N=""; SLUG=""
+REPO=""; N=""; SLUG=""; STACKED=false
 for arg in "$@"; do
   case "$arg" in
     --slug=*) SLUG="${arg#--slug=}" ;;
+    --stacked) STACKED=true ;;
     --*) fail bad-args ;;
     *) if [ -z "$REPO" ]; then REPO="$arg"
        elif [ -z "$N" ]; then N="$arg"
@@ -128,7 +139,10 @@ printf '%s' "$ISSUE" | jq -e '
   and all(.subIssues.nodes[]; (.assignees | full) and (.labels | full) and (.blockedBy | full))' \
   >/dev/null 2>&1 || fail set-overflow
 
-OUT=$(printf '%s' "$ISSUE" | jq -c --arg slug "$SLUG" '
+# Run once with no stack, then, under --stacked, again with the bases found for
+# the children the first run names as candidates.
+set_of() {  # <stack object>
+  printf '%s' "$ISSUE" | jq -c --arg slug "$SLUG" --argjson stack "$1" '
   # Each verdict comment, with its first line parsed as `head`.
   def verdicts: [ .nodes[]
     | select(.author != null and (.author.login == $slug or .author.login == ($slug + "[bot]")))
@@ -149,6 +163,7 @@ OUT=$(printf '%s' "$ISSUE" | jq -c --arg slug "$SLUG" '
     | [ .subIssues.nodes[] | select(.state == "OPEN")
         | { url, number, title,
             blocked_by: [ .blockedBy.nodes[] | select(cleared | not) | .url ],
+            open_blockers: [ .blockedBy.nodes[] | select(.state == "OPEN") | .url ],
             assignees: [ .assignees.nodes[].login ],
             claim_labels: [ .labels.nodes[].name | select(startswith("assigned:")) ],
             verdict: (.comments | verdicts | last | .head.v?) }
@@ -157,18 +172,78 @@ OUT=$(printf '%s' "$ISSUE" | jq -c --arg slug "$SLUG" '
                          if $spec and .verdict != "READY" then "no-ready-verdict" else empty end,
                          if $spec and $pv != "READY" then "design-not-ready" else empty end ] )
       ] as $open
+    | ($open | map(if $stack[.url] then .reasons = [] | . + $stack[.url] else . end)) as $open
+    | [ .subIssues.nodes[].url ] as $siblings
+    | (.url | sub("/issues/[0-9]+$"; "/issues/")) as $here
     | { parent: { url, number, spec_review: $spec, verdict: $pv,
                   verdict_mode: (if $pr == null then null elif ($pr.head.m | test("design mode")) then "design"
                                  elif $pr.head.k == "Set" then "set" else "spec" end),
                   verdict_current: (if $pr == null then null
                                     else ($pr | watermark) as $w | $w != null and $w == $edited end),
                   verdict_url: ($pr.url? // null) },
-        ready: [ $open[] | select(.reasons == []) | {url, number, title} ],
-        waiting: [ $open[] | select(.reasons != []) | del(.verdict) ],
+        ready: [ $open[] | select(.reasons == [])
+                 | {url, number, title} + (if .base then {base, base_pr} else {} end) ],
+        waiting: [ $open[] | select(.reasons != []) | del(.verdict, .open_blockers) ],
+        candidates: [ $open[] | select(.reasons == ["blocked"] and .blocked_by == .open_blockers
+                                       and (.blocked_by | length) == 1)
+                      | select((.url | startswith($here)) and (.blocked_by[0] | startswith($here))
+                               and (.blocked_by[0] as $b | any($siblings[]; . == $b)))
+                      | {url, blocker: .blocked_by[0]} ],
         children: (.subIssues.nodes | length) }
-    end' 2>/dev/null) || fail issue-query-shape
+    end' 2>/dev/null
+}
+OUT=$(set_of '{}') || fail issue-query-shape
 [ "$OUT" != '"overflow"' ] || fail set-overflow
 
-printf '%s\n' "$OUT" | jq -c 'del(.children)'
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# The field <key> of a `k=v` result line, matched exactly so `verdict_sha=` is
+# not read as `verdict=`.
+field() {  # <key> <line>
+  awk -v k="$1" '{ for (i = 1; i <= NF; i++) { n = index($i, "=")
+      if (n && substr($i, 1, n - 1) == k) { print substr($i, n + 1); exit } } }' <<<"$2"
+}
+# The stack entry for a blocker, or nothing when the child stays waiting.
+# A PR of this repo has the parent's URL with `/pull/` for `/issues/`.
+PULLS=$(printf '%s' "$OUT" | jq -r '.parent.url | sub("/issues/[0-9]+$"; "/pull/")')
+base_for() {  # <blocker url>
+  local src line prs pr verdict branch
+  src=$("$HERE/pr-sources.sh" "$REPO" "${1##*/}") || return 0
+  line=$(tail -1 <<<"$src")
+  [ "$(field result "$line")" = OK ] || return 0
+  [ "$(field closing "$line") $(field search "$line") $(field timeline "$line")" = "ok ok ok" ] || return 0
+  prs=$(awk -v p="$PULLS" 'index($1, p) == 1 && $2 == "relevance=closes" \
+                             && ($3 == "state=OPEN" || $3 == "state=unknown")' <<<"$src")
+  [ "$(grep -c . <<<"$prs")" -eq 1 ] && [[ "$prs" == *" state=OPEN" ]] || return 0
+  pr=${prs%% *}
+  verdict=$("$HERE/pr-verdict.sh" "$REPO" "${pr##*/}") || return 0
+  [ "$(field result "$verdict")" = OK ] && [ "$(field verdict "$verdict")" = APPROVED ] \
+    && [ "$(field at_head "$verdict")" = 1 ] && [ "$(field reviewed_after_head "$verdict")" = 1 ] \
+    || return 0
+  case "$(field review_decision "$verdict")" in ''|APPROVED) ;; *) return 0 ;; esac
+  # A fork's branch is not on this repo's remote, so nothing can be based on it.
+  branch=$(gh pr view "${pr##*/}" --repo "$REPO" --json headRefName,isCrossRepository 2>/dev/null \
+             | jq -r 'select(.isCrossRepository == false) | .headRefName // empty' 2>/dev/null) \
+    || return 0
+  [ -n "$branch" ] || return 0
+  jq -cn --arg b "$branch" --arg p "$pr" '{base: $b, base_pr: $p}'
+}
+
+if $STACKED; then
+  # Keyed by child, and by blocker so a blocker shared by several children is
+  # read once, `null` for one that bases nothing.
+  STACK='{}'; BASES='{}'
+  while IFS=$'\t' read -r child blocker; do
+    [ -n "$child" ] || continue
+    if ! jq -e --arg b "$blocker" 'has($b)' <<<"$BASES" >/dev/null; then
+      entry=$(base_for "$blocker")
+      BASES=$(jq -c --arg b "$blocker" --argjson e "${entry:-null}" '.[$b] = $e' <<<"$BASES")
+    fi
+    STACK=$(jq -c --arg c "$child" --arg b "$blocker" --argjson m "$BASES" \
+              'if $m[$b] then .[$c] = $m[$b] else . end' <<<"$STACK")
+  done < <(printf '%s' "$OUT" | jq -r '.candidates[] | [.url, .blocker] | @tsv')
+  [ "$STACK" = '{}' ] || { OUT=$(set_of "$STACK") || fail issue-query-shape; }
+fi
+
+printf '%s\n' "$OUT" | jq -c 'del(.children, .candidates)'
 printf '%s' "$OUT" | jq -r --arg now "$NOW" '
-  "result=OK now=\($now) children=\(.children) open=\((.ready + .waiting) | length) ready=\(.ready | length)"'
+  "result=OK now=\($now) children=\(.children) open=\((.ready + .waiting) | length) ready=\(.ready | length) stacked=\([.ready[] | select(.base)] | length)"'

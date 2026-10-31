@@ -135,3 +135,47 @@ Reading the rollup again after a terminal block finds nothing.
 On `result=DIRTY`, surface the conflict and ask (without `AskUserQuestion`:
 `<skill-dir>/../issue-workflow/references/delegated.md`); don't resolve it autonomously,
 since which side wins is the operator's call.
+
+### A stacked PR whose base moved
+
+The one exception is a stacked PR, whose description records a base head
+(`SKILL.md`, step 8), when its base PR merged or was rebased. A squash or a
+rebase rewrites the base's commits, so the PR still carries the old ones: on
+`result=DIRTY`, or when told the base PR merged, rebase it past them. Its
+merge may not conflict, so the message is the trigger as often as the watch.
+
+1. `git -C <worktree-path> fetch origin`, then read the base:
+   `gh pr view <num> --repo <owner>/<repo> --json baseRefName`. If the base
+   PR merged and this PR still targets its branch, which happens when that
+   branch was not deleted, retarget it as the author:
+   `gh pr edit <num> --repo <owner>/<repo> --base <default-branch>`.
+   `<base>` below is the base after any retarget.
+2. Test whether `origin/<base>` still carries the commits this branch was cut
+   from: `git -C <worktree-path> merge-base --is-ancestor <recorded base head>
+   origin/<base>`.
+   - **It does not**, and the same test against `HEAD` holds: the base was
+     squashed or rewritten. Go on to step 3.
+   - **It does**, as after a merge commit, and the watch reported no
+     `result=DIRTY`: nothing needs rebasing. Do step 4
+     and skip the rest. If `pr-verdict.sh` still reads HEAD approved, go on to
+     `references/merge.md`'s handoff. If not, since a retarget can dismiss an
+     approval with HEAD unmoved, comment on the PR asking the reviewer to
+     re-verdict the unchanged head, and arm the review watch.
+   - Anything else is the ordinary case above: surface and ask.
+3. Rebase and push:
+
+   ```bash
+   git -C <worktree-path> rebase --onto origin/<base> <recorded base head>
+   git -C <worktree-path> push --force-with-lease
+   ```
+
+   A rebase that stops on a conflict is the ordinary case: `git rebase
+   --abort`, then surface and ask.
+4. In the description, drop the stacked line when the base is now the default
+   branch, or record `origin/<base>`'s SHA as the new base head when it is
+   not.
+
+The head moved, so the review is no longer clean: arm the review watch, per
+`references/review-rounds.md`, not the merge watch. The reviewer re-verdicts on
+the new head, which reaches you as `ACTIVITY`, and `references/merge.md`'s
+handoff follows as after any clean review.
