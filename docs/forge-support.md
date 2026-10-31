@@ -47,8 +47,8 @@ install on GitLab keeps it.
 `orchestrate`'s stacked mode, which bases a child issue's PR on its blocker's
 approved but unmerged PR while the operator is away, uses no forge feature
 beyond the ones the flow already does: a PR opened against another branch, and
-a manual `git rebase --onto` once that branch's PR merges. Its intent is stated
-in forge-neutral terms, so a second forge's backend carries it unchanged.
+a manual `git rebase --onto` once that branch's PR merges. The skills state it
+in forge-neutral terms.
 
 ## What happens on an unsupported forge
 
