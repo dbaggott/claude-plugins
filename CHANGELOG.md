@@ -10,6 +10,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.11.4 — 2026-11-01
+
+Rules that `git-workflow`, `issue-workflow`, `orchestrate` and `reviewer` each
+restated now have one full statement, with shorter copies elsewhere: the role
+resolver's mechanics live in `git-workflow`'s "Acting as the author", full-URL
+references in the always-on rule, and the version stamp's rationale in
+`reviewer`. The GitHub-only and "Related skills" sections are shorter. An agent
+with these skills loaded together carries less repeated text.
+
+
 ## dnbg-workflow 2026.11.3 — 2026-11-01
 
 In an attended Claude Code session (terminal, desktop app, VS Code), a watch now
