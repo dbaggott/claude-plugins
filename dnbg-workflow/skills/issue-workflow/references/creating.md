@@ -34,9 +34,9 @@ The single highest-value section. At creation time there is almost always a clea
 Before writing the body, check whether the direction is a project, which
 belongs in a tracking issue. First state the direction's acceptance criterion
 in one sentence: what is true once all of it has landed. Apply the tests to
-that sentence, not to the pieces the direction has already been cut into, since
-each piece can pass the per-issue test on its own. It is a project when any of
-these holds:
+that sentence and the whole direction it states, not to the pieces the
+direction has already been cut into, since each piece can pass the per-issue
+test on its own. It is a project when any of these holds:
 
 - it needs more than one PR to land, PRs that depend on each other or on shared
   decisions, by your reading of the proposed approach;
@@ -44,11 +44,13 @@ these holds:
 - it has an acceptance criterion no single PR can run (the per-issue test above).
 
 Issues that share only a topic are not a project, however many issues or PRs
-they take. Issues whose shared goal's criterion needs more than one of their PRs
-are one, even when each PR merges on its own. The tracking issue buys a review
-of the set of PRs against the goal's criteria, in `reviewer`'s issue mode, and a
-close-out that runs the goal's criterion once. A child of a tracking issue is
-already in its project, so the check does not apply to it.
+they take: their sentence is each one's own criterion joined by "and". Issues
+whose shared goal's criterion needs more than one of their PRs together are one
+by the third test, even when each PR merges on its own. The tracking issue buys
+a review, in `reviewer`'s issue mode, of all its children's PRs against the
+goal's criteria, and, under `orchestrate`, a close-out that runs the goal's
+criterion once. A child of a tracking issue is already in its project, so the
+check does not apply to it.
 
 When a test fires, ask with `AskUserQuestion`: "This looks like a project rather
 than one issue, because <the tests that fired>. File it as a tracking issue?",
