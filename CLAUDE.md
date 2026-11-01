@@ -35,5 +35,6 @@ reviewer asks for the two scores from `scripts/dev/prose-ab.sh` and the author
 runs them, read as the script's header says. A cut the reviewer accepts from
 reading needs no scores. When no case under `<plugin>/evals/` exercises the
 passage, write one, within what the header says a case can measure, and keep
-it. After a Claude Code or model bump the same cases run again, and a score
-that moved is the same question.
+it; where none can, the operator decides. After a Claude Code or model bump the
+same cases run again, and a score that moved from the one recorded on the PR
+that settled it is the same question.
