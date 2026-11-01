@@ -106,14 +106,15 @@ then the child's own body. `references/triage.md`'s allowlist applies, and a
 decision the parent's log already holds, in its table or its archived rows, is
 applied, citing its row.
 
-Every row is written twice: the `Decision log:` comment on the child, as
-`references/triage.md` gives it, and a row in the parent's decision-log table,
-whose **Child** cell is the child's URL and whose **Entry** links that comment.
-A decision raised on the parent, such as an operator comment there or a
-systemic finding, has only the table row, and reaches a child through
-`references/design-change.md`, which promotes it into the child's body.
+Every row is written twice, as the `Decision log:` comment on the child and a
+row of the parent's decision-log table linking it, by one call:
+`references/triage.md`'s `decision-row.sh` call with `--parent=<parent URL>`.
+Its `parent-` reasons are `log-row.sh`'s below; re-run the same call.
 
-Append the table row with:
+A decision raised on the parent, such as an operator comment or a systemic
+finding, has only the table row, and reaches a child through
+`references/design-change.md`, which promotes it into the child's body. Append
+it with:
 
 ```bash
 "<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --table="Decision log" \
