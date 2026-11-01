@@ -10,6 +10,14 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.11.5 — 2026-11-01
+
+On a tracking issue, the orchestrator now marks a decision-log row `applied`
+with `log-row.sh --set-state`, which changes only that row's State cell and
+confirms the write against a concurrent writer, instead of reading the whole
+parent body into its context and writing it back by hand.
+
+
 ## dnbg-workflow 2026.11.4 — 2026-11-01
 
 Rules that `git-workflow`, `issue-workflow`, `orchestrate` and `reviewer` each
