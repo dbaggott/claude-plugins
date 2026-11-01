@@ -42,7 +42,10 @@ the author:
 
 Dispatch on the result:
 
-- **`ACTIVITY`** with `kinds=comment` — the next round landed. Read it.
+- **`ACTIVITY`** with `kinds=comment` — the next round landed. Read it. A
+  comment whose first line is `Usage:` is a close-out's usage record, not a
+  round: answer nothing to it, and when it is the only new comment, re-arm
+  from the printed line.
 - **`CLOSED`** — the issue closed rather than converging. Stop.
 - **`IDLE`** — the deadline elapsed. Re-arm; after a second empty window, tell the
   operator nothing has landed rather than waiting silently. An `IDLE` carrying

@@ -5,11 +5,12 @@ find what recurs; this is the format they are written in, and the policy for
 whether one is written at all. Each role reaches it at its close-out, which its
 own skill names, whether a session dispatched it or not: the author once its PR
 merges or closes, the PR reviewer when its review ends, both sides of a spec
-review where it ends, the orchestrator at Stop. Turns that end earlier, such as
-the author's at send-to-review, write none. A retrospective records where the **process** hurt one agent on
-one issue: the skills, the scripts, the waits. A finding about the code the run
-built or touched, such as a gap the design missed or a defect next to the work,
-is not a retrospective item: it goes in a findings entry, per
+review where it ends, the orchestrator at Stop and at each restart. Turns that
+end earlier, such as the author's at send-to-review, write none. A
+retrospective records where the **process** hurt one agent on one issue: the
+skills, the scripts, the waits. A finding about the code the run built or
+touched, such as a gap the design missed or a defect next to the work, is not a
+retrospective item: it goes in a findings entry, per
 `<skill-dir>/../findings-review/references/entry.md`, written with the report
 that lists it.
 
@@ -22,18 +23,40 @@ Retrospectives are **off**, unless a `dnbg-workflow` note at session start says
 they are on. Either way, answer the prompt below for your run; the state decides
 where the answers go.
 
-- **On**: write the file, per the rest of this reference. The report names its
+- **On**: write the file, per the rest of this reference, with the usage of
+  your run in its frontmatter: run
+  `"<skill-dir>/../../scripts/session-usage.sh" --nonce`, then, in a second
+  Bash call, the same script given the nonce it printed, and record its lines
+  as "The file" shows, posting them on the issue too when they read
+  `scope=session`, per "The `Usage:` comment" below. The report names its
   path in a **Retrospective** section, with a dispatcher's also naming each path
   its agents' reports gave, and says nothing else about process friction. The
   always-on rule's offer to file upstream ("When shipped tooling
   doesn't fit, tell the user") is for friction that stopped the task from
   finishing; the rest waits in the file for `process-review`.
+
+  **The `Usage:` comment.** A `scope=session` result goes on the issue the
+  file's `issue:` names, the first for a list, as a comment whose first line
+  is exactly `Usage:`, followed by the result line and each `child=` line, one
+  per line, in a fenced block. Draft it in your draft directory
+  (`<skill-dir>/../git-workflow/references/draft-files.md`) and post it as
+  your role, `author` for `author` and `spec-author`, `reviewer` for
+  `reviewer` and `issue-reviewer`, and `orchestrator`:
+
+  ```bash
+  "<skill-dir>/../../scripts/as-role.sh" <role> <owner>/<repo> -- \
+    gh issue comment <n> --repo <owner>/<repo> --body-file <file>
+  ```
+
+  A `scope=self` result posts nothing: it is inside its dispatcher's
+  `child=` lines.
 - **Off**: write no file, and give the report no **Retrospective** section.
   Under its **Observations**, put each item that would have gone under
   **Skill wrong or missing** or **Worked around**, both headings whole, as one
-  line opening `Friction:`. Nothing from **Slowed or blocked** or **Wished to ask**
-  is surfaced. After those lines comes the always-on rule's offer to file
-  upstream, with the operator approving the exact text first. With nothing
+  line opening `Friction:`. Nothing from **Slowed or blocked**, **Wished to
+  ask** or **Read but not used** is surfaced. After those lines comes the
+  always-on rule's offer to file upstream, with the operator approving the
+  exact text first. With nothing
   under either heading, there are no lines and no offer.
 
   A dispatched agent has no one to offer to: it puts the lines in its report
@@ -75,6 +98,8 @@ Answer from this run only, one heading per question:
   or contradicted by the tree?
 - **Worked around**: what did you work around?
 - **Wished to ask**: what did you wish you could have asked?
+- **Read but not used**: which reference files or sections did you read that
+  this run did not need? One bullet per file, naming it.
 
 ## The file
 
@@ -87,6 +112,25 @@ role: <role>
 issue: <issue URL>
 plugin_version: <version>
 date: <YYYY-MM-DD>
+usage:
+  result: OK
+  scope: <session|self>
+  agent: <main|agentType>
+  requests: <n>
+  input: <n>
+  cache_write: <n>
+  cache_read: <n>
+  output: <n>
+children:
+  - agent: <agentType>
+    id: <agent id>
+    depth: <n>
+    parent: <session|agent id>
+    requests: <n>
+    input: <n>
+    cache_write: <n>
+    cache_read: <n>
+    output: <n>
 ---
 
 ## Slowed or blocked
@@ -104,10 +148,19 @@ date: <YYYY-MM-DD>
 ## Wished to ask
 
 - <item>
+
+## Read but not used
+
+- <file or section>
 ```
 
 - **`role`** is the `<role>` in the file name.
-- **All four headings, spelled exactly as above.** `process-review` groups by
+- **`usage`** holds `session-usage.sh`'s result line, one key per field and
+  named as the line names it, so `agent` is the line's and `role` stays the
+  file's own. **`children`** holds one entry per `child=` line, keyed the same
+  way, the `child=` value under `agent`; with no `child=` lines, leave it out.
+  An `UNKNOWN` result is `usage: {result: UNKNOWN, reason: <reason>}`.
+- **All five headings, spelled exactly as above.** `process-review` groups by
   them. Under a heading with nothing to report, write `Nothing.`, since a clean
   run is data too.
 - **One bullet per item, naming what it is about**: the skill and step, the
@@ -124,8 +177,8 @@ date: <YYYY-MM-DD>
 
   Write `none` only when neither gives one. Never write a version from memory,
   since a guessed version reads like a real one.
-- **No secrets and no tokens.** The files are local, but `process-review` quotes
-  them into issue drafts.
+- **No secrets and no credentials.** The files are local, but `process-review`
+  quotes them into issue drafts.
 
 ## Asking the agents for one
 
@@ -144,4 +197,5 @@ agent's whole transcript for one more turn, and a late one finds the cache cold.
 A dispatch cut off by a restart of its dispatcher leaves no retrospective, and
 so does an agent replaced after dying on an error. Nothing can reach the old
 agent, so the loss is not recovered. Say in your own final report which roles
-have none.
+have none. The usage of an agent a restart cut off survives in the restarting
+orchestrator's `children`.

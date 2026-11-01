@@ -1,0 +1,9 @@
+{
+  "claude_code": "2.1.299",
+  "date": "2026-11-01",
+  "nonces": {
+    "main": "usage-0000000000000000",
+    "agent-a203bc81e0c8339ce": "usage-203bc81e0c8339ce",
+    "agent-a7bee05399d9d6f22": "usage-7bee05399d9d6f22"
+  }
+}

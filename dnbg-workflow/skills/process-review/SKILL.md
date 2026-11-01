@@ -10,7 +10,7 @@ file is an anecdote. This finds what recurs across many, and drafts an upstream
 issue for whatever the shipped tooling is to blame for. It runs cold: everything
 it needs is in the files and this page.
 
-The file format, including the four headings this groups by, is in this
+The file format, including the five headings this groups by, is in this
 skill's `references/retrospective.md`, at
 `<skill-dir>/references/retrospective.md`. `<skill-dir>` is the **Base
 directory** announced when this skill loads.
@@ -49,8 +49,10 @@ that one. The batch is drawn from every `*.md` file under the root, recursively,
   `plugin_version`. Its `batch` is what was named. Nothing is carried in.
 
 Read every file in the batch in full. A file missing `role` or `issue` in its
-frontmatter, or missing any of the four headings, goes under **Unreadable** in
-the report with what it lacks, and counts toward nothing. A file written before
+frontmatter, or missing any of the first four headings, goes under
+**Unreadable** in the report with what it lacks, and counts toward nothing. A
+file without `## Read but not used`, the fifth, was written before it existed:
+it is readable, and contributes nothing under that heading. A file written before
 a spec round's role became its own carries the PR role for a spec round too:
 `reviewer` before `issue-reviewer`, `author` before `spec-author`. It is
 readable, and counts under the role it carries. An
