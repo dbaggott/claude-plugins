@@ -64,6 +64,15 @@ with almost no overlap, so each lives in its own file. Read the one you are on:
 opening a worktree.** Claiming comes first, and an issue already being worked by
 someone else is a stop, not a merge conflict to discover later.
 
+**The one exception: your prompt says the issue is, or the issues are, already
+claimed under your session id**, as an orchestrator's dispatch does. Then run
+only `"<skill-dir>/../../scripts/claim-issue.sh" <owner>/<repo> <n> --as=author`,
+once for each issue the prompt names. When every one reads `result=OWN`, go
+straight to `references/resolving.md` without reading `references/claiming.md`
+or running `pr-sources.sh`: the orchestrator ran those checks before dispatch
+and put any open PR into your prompt. Any other result, for any issue, sends
+you to `references/claiming.md`, followed as written.
+
 Everything below applies to both.
 
 ## Writing as the author
