@@ -174,15 +174,16 @@ reads are larger than that or would otherwise sit through many later wakes:
 Dispatch it with the Agent tool, in the background, as `general-purpose`, with
 no `model` and the step's prompt below. Fill the prompt's inputs: the parent,
 the PR, `<scripts>` as the absolute path of `<skill-dir>/../../scripts`, since
-the subagent loads no skill, and the lines the prompt closes on. The subagent fills the rest
-from what it reads. The sweep, the one that drafts bodies, also gets a draft directory,
-from `mktemp -d <scratchpad>/bookkeeping-<parent>.XXXXXX`. It ends its turn
-on its reply: a result line, then one line per item. You act on the reply and stay the one who decides: every
-question, escalation, row other than the step's own, and message to an author
-is yours. A reply not in the step's format, or a subagent that died, means the
-step runs inline, re-reading what the subagent may already have written: the
-table, a sibling's body, and the comments of a sibling someone else holds, for
-one already naming the PR's URL.
+the subagent loads no skill, and the lines the prompt closes on. The subagent
+fills the rest from what it reads. The sweep, the one that drafts bodies, also
+gets a draft directory, from `mktemp -d
+<scratchpad>/bookkeeping-<parent>.XXXXXX`. It ends its turn on its reply: a
+result line, then one line per item. You act on the reply and stay the one who
+decides: every question, escalation, row other than the step's own, and message
+to an author is yours. A reply not in the step's format, or a subagent that
+died, means the step runs inline, re-reading what the subagent may already have
+written: the table, a sibling's body, and the comments of a sibling someone
+else holds, for one already naming the PR's URL.
 
 A step out in a subagent is not done until you have acted on its reply: on
 start, run the loop only once the rows are collected; the loop dispatches
