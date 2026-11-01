@@ -14,8 +14,8 @@ Both cases share these:
   they arrive.
 - **"Restart on schedule" reads this session's context size and counts its
   wakes across every issue**, waits until every author in flight has a PR open
-  or is waiting on the operator, and tells the operator to start the fresh session on every issue
-  URL still open, naming the case.
+  or is waiting on the operator, and tells the operator to start the fresh
+  session on every issue URL still open, naming the case.
 
 ## Independent issues
 
