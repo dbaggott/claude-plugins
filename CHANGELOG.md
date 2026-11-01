@@ -10,6 +10,16 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.11.12 — 2026-11-01
+
+Filing an issue now states the direction's acceptance criterion in one sentence
+before testing whether it is a project, so a direction already cut into pieces
+is no longer judged piece by piece and filed as independent issues when its goal
+needs more than one of their PRs. The check also says what a tracking issue
+buys: a review of all its children's PRs against the goal's criteria, and, under
+`orchestrate`, a close-out that runs that criterion.
+
+
 ## dnbg-workflow 2026.11.11 — 2026-11-01
 
 The `author-orchestrated` and `reviewer-orchestrated` subagents no longer get the Artifact tools (`Artifact`, `ArtifactComments`, `ArtifactData`), which neither uses. That covers every place they are dispatched: `orchestrate`, and the spec reviews `issue-workflow`, `findings-review` and `process-review` spawn. In a session with artifacts enabled, it keeps the `Artifact` tool's definition out of every turn's context. A session without those tools launches both agents as before.
