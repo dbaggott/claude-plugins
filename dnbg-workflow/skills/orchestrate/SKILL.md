@@ -283,6 +283,8 @@ own Summary.
 - the author's report that its PR closed unmerged — ask the operator whether
   to dispatch a new author or stop, naming each child whose PR is based on its
   branch, which is left without a base and which the answer covers too;
+- a bookkeeping subagent's reply, under a tracking issue — act on it per
+  `references/multi-issue.md`, "The bookkeeping steps";
 - a wait on its own background work — an armed watch, or a background review
   at self-review — which wakes it when it returns, so nothing.
 

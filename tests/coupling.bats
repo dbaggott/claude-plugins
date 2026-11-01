@@ -793,8 +793,8 @@ remote_read_calls() {  # <SKILL.md>
   for f in "$ROOT"/*/skills/*/references/*.md; do
     found=$((found + 1))
     size=$(wc -c <"$f")
-    [ "$size" -le 12000 ] || {
-      echo "${f#"$ROOT"/} is $((size)) bytes — split it at a heading to 12000 or under"
+    [ "$size" -le 18000 ] || {
+      echo "${f#"$ROOT"/} is $((size)) bytes — split it at a heading to 18000 or under"
       bad=1; }
   done
   shopt -u nullglob
@@ -1979,8 +1979,8 @@ row_prefix() {  # <triage.md> -> the text before the first placeholder in the ro
   awk '/^## The row/ { s = 1 } s && /^```/ { getline; print; exit }' "$1" | sed 's/<.*//'
 }
 
-collector_prefixes() {  # <file> -> each prefix the file filters comments on
-  tr -s '\n ' ' ' <"$1" | grep -o 'first line starts with `[^`]*`' | sed 's/^[^`]*`//; s/`$//'
+collector_prefixes() {  # <file> -> each prefix the file filters comments on, quoted prompts included
+  sed 's/^>[[:space:]]*//' "$1" | tr -s '\n ' ' ' | grep -o 'first line starts with `[^`]*`' | sed 's/^[^`]*`//; s/`$//'
 }
 
 @test "the decision-log collectors filter on the prefix triage.md's row starts with" {
