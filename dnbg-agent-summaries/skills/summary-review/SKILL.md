@@ -42,7 +42,8 @@ summary** and is never moved.
 ### 2. Classify each summary by its status
 
 Read `<skill-dir>/references/summary.md` first: it defines the statuses and the
-frontmatter that step 5 writes.
+frontmatter that step 5 writes. Keep each file's full contents as you read
+them, not only its frontmatter: step 5 compares against them.
 
 - `superseded` with a file name in `status_ref:`: **archive** when that file
   exists at the top level or in `archive/`, since an earlier sweep may have
@@ -110,9 +111,10 @@ test ! -e "<summary_dir>/archive/<stem>.md" && test ! -e "<summary_dir>/archive/
 ```
 
 When any row collides, stop before writing or moving anything, and report each
-collision for the operator to resolve. Otherwise apply the table. Edit only the
-`status:`, `status_ref:` and `kept:` frontmatter keys, plus the one `Filed as`
-line below, and never delete a file.
+collision for the operator to resolve. Otherwise apply the table. Make every
+write below with Edit, per `references/summary.md`, "Writing the file". Change
+only the `status:`, `status_ref:` and `kept:` frontmatter keys, plus the one
+`Filed as` line below, and never delete a file.
 
 - **An age candidate kept**: write `kept: <today>`, as `YYYY-MM-DD`.
 - **An age candidate or kept file sent to archive**: write `status: retired`,
@@ -124,9 +126,17 @@ line below, and never delete a file.
   line naming that URL, placed as `references/summary.md` says, unless the file
   already names the URL in one.
 - **Archive** each archive row into `<summary_dir>/archive/`, creating that
-  directory if it is missing. Re-run the collision check just before each move,
-  then move the file, and its asset directory if it has one, with `mv -n`, and
-  confirm each source path is gone. A check or move that fails stops the sweep
-  there, with the files already moved and the one that failed in the report.
+  directory if it is missing. For each row, in this order:
+  1. Read the file again and compare its contents with what step 2 kept, never
+     its modification time. When they differ, another writer changed it during
+     the sweep: skip the row, writing nothing to it and moving nothing, and
+     report it as changed during the sweep. This comes before the row's own
+     writes, so the sweep never mistakes its own Edit for another writer's.
+  2. Make the row's writes from the bullets above.
+  3. Re-run the collision check, then move the file, and its asset directory if
+     it has one, with `mv -n`, and confirm each source path is gone. A check or
+     move that fails stops the sweep there, with the files already moved and
+     the one that failed in the report.
 
-Close with one line per file changed: its path and what was done to it.
+Close with one line per file changed, its path and what was done to it, and one
+per row skipped as changed during the sweep.
