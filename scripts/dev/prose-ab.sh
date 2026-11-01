@@ -61,7 +61,7 @@
 # that grant it:
 #   scripts/dev/prose-ab.sh --case worktree-before-edit --scaffold \
 #       --allow-tools Bash --allow-tools Edit /tmp/trim.patch
-#       Whether an edit in a covered repo starts with `git worktree add`.
+#       Whether an edit in a covered repo is made in a worktree created first.
 #   scripts/dev/prose-ab.sh --case non-github-decline --scaffold \
 #       --allow-tools Bash /tmp/trim.patch
 #       Whether a repo whose origin is on gitlab.com is declined, with no `gh`
