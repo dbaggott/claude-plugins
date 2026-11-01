@@ -383,7 +383,9 @@ flight has a PR open or is waiting on the operator, so a fresh author can
 continue the pushed work. Then check every decision is on the issue,
 and in the parent under a tracking issue, stop your subagents, and
 tell the operator that you are restarting and why: they start a fresh session on
-the same URL, which resumes from GitHub and re-claims under "On start". End on
+the same URL, which resumes from GitHub and re-claims under "On start". Close
+out per `<skill-dir>/../process-review/references/retrospective.md`'s "When a
+retrospective is written", with `role: orchestrator`, as at Stop. End on
 your closing line, **Your move:**, with that session's prompt,
 `orchestrate <issue URL>`, in a fenced block, and notify, per
 `<skill-dir>/../findings-review/references/report.md`, "The closing line".

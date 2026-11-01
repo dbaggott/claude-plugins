@@ -902,8 +902,8 @@ retrospective_headings() {  # <file> -> the `## ` headings, in order
   local tmpl="$ROOT/dnbg-workflow/skills/process-review/references/retrospective.md"
   local want f n=0 bad=0
   want=$(awk '/^```markdown$/{inside=1; next} /^```$/{inside=0} inside' "$tmpl" | grep '^## ')
-  [ "$(printf '%s\n' "$want" | wc -l)" -eq 4 ] || {
-    echo "retrospective.md's template does not carry four headings:"; echo "$want"; false; }
+  [ "$(printf '%s\n' "$want" | wc -l)" -eq 5 ] || {
+    echo "retrospective.md's template does not carry five headings:"; echo "$want"; false; }
   for f in "$ROOT"/tests/fixtures/retrospectives/*/*/*.md; do
     n=$((n + 1))
     [ "$(retrospective_headings "$f")" = "$want" ] || {
