@@ -55,7 +55,10 @@
 # tests/evals/. A granted `Bash` runs under the runner's sandbox, with no
 # network and a temporary `HOME`, so a run's `gh` is on `PATH` but
 # unauthenticated and its `git fetch` fails, and a prompt that ends in a push
-# has to stop before it. The two cases that grant it:
+# has to stop before it. These cases also need a git the sandbox can read: on
+# macOS, `/usr/bin/git` hands off to the Command Line Tools' git, which the
+# sandbox cannot read, so install another, such as Homebrew's. The two cases
+# that grant it:
 #   scripts/dev/prose-ab.sh --case worktree-before-edit --scaffold \
 #       --allow-tools Bash --allow-tools Edit /tmp/trim.patch
 #       Whether an edit in a covered repo starts with `git worktree add`.

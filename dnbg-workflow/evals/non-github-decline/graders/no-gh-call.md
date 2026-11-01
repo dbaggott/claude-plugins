@@ -6,4 +6,4 @@ min: 0
 max: 0
 ---
 
-A `gh` in command position: at the start of the command, after a shell separator or `$(`, or on a new line. A bare `\bgh\s` also matches `which -a git gh`, which a run looking for a usable git makes.
+A `gh` in command position: at the start of the command, after a shell separator or `$(`, or on a new line. A bare `\bgh\s` would also match `gh` as an argument, as in `which -a git gh`.
