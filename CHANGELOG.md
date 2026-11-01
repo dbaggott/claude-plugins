@@ -10,6 +10,19 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-agent-summaries 2026.11.1 — 2026-11-01
+
+Fixed two agents writing the same summary file losing each other's changes. An
+agent now creates a summary with Write and changes one only with Edit, never
+through the shell, and applies a refused change again to the file as it now
+stands. A summary the sweep archives while an agent is still updating it is
+moved back out of `archive/` and marked active, rather than written again beside
+the archived copy.
+
+The sweep now skips, and reports, a file it was about to archive that another
+writer changed after the sweep read it, instead of archiving it.
+
+
 ## dnbg-workflow 2026.10.111 — 2026-10-31
 
 Fixed the merge sweep's read of the issues a closed issue blocks. The sweep named
