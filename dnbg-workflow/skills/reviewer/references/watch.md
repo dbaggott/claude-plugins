@@ -15,7 +15,7 @@ the reviewer:
 | `act=` | Results | What to do |
 |---|---|---|
 | `round` | `COMMITS`, `ACTIVITY`, `READY` | Read the `── round ──` file (fallback: run the `── next ──` command) first: the diff, bodies, threads and verdict the result's entry reads from. |
-| `rearm` | `CHECKS`, `IDLE` | Re-arm from the printed line, as its entry says. |
+| `rearm` | `IDLE` | Re-arm from the printed line, as its entry says. |
 | `read` | `CLOSED`, `ERROR` | Act on its entry below. |
 
 Each return is also a line to the operator: what came back, what you did, the PR
@@ -39,11 +39,11 @@ each report by its first line.
   directory, or ran `fetch-tree.sh`** — a checkout an earlier session made and
   this one resumed included. A review that read only through `gh` calls and
   never ran `fetch-tree.sh` has nothing to remove.
-- **`CHECKS`** (`checks='<names>'`, and `failed_tests='<names>'` when the job
-  log names them) — a check on the watched head stopped passing, and nothing
-  else came with it. Not your finding to fix and not a re-review: note it in
-  your next reply if it touches what you asked for, otherwise re-arm. The names are shell-quoted because forge check names
-  contain spaces.
+- **`checks='<names>'`** on any result above — a check on the watched head is
+  failing. A red build on its own is not a wake for you, so it arrives only on
+  a result that is: not your finding to fix and not a re-review. Note it in
+  your reply if it touches what you asked for. The names are shell-quoted
+  because forge check names contain spaces.
 - **`IDLE`** — nothing within the polling window, or, with `window_left=`, a run
   cut short at the watch's wall-clock ceiling. Re-arm from the printed line either way.
 - **`ERROR reason=<source>`** — that source failed repeatedly and the watch
