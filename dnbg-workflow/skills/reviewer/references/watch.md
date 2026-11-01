@@ -14,7 +14,7 @@ the reviewer:
 
 | `act=` | Results | What to do |
 |---|---|---|
-| `round` | `COMMITS`, `ACTIVITY`, `READY` | Run the `── next ──` line first: the `pr-round.sh` call, arguments filled in, returning the diff, bodies, threads and verdict the result's entry reads from. |
+| `round` | `COMMITS`, `ACTIVITY`, `READY` | Read the `── round ──` file (fallback: run the `── next ──` command) first: the diff, bodies, threads and verdict the result's entry reads from. |
 | `rearm` | `CHECKS`, `IDLE` | Re-arm from the printed line, as its entry says. |
 | `read` | `CLOSED`, `ERROR` | Act on its entry below. |
 
@@ -76,7 +76,7 @@ each report by its first line.
 or replies landed alongside whatever the result names. `activity=0` means the
 burst was something else — a verdict, a check — so there is nothing
 conversational to go looking for. The JSON lines above the result line say what
-landed and from whom; **the text is behind the `── next ──` command**: run it.
+landed and from whom; **the text is in the `── round ──` file**: read it.
 The primary result says what to do first; handle the conversation per
 **Responding to comments and replies** in `SKILL.md` in the same pass as the
 re-review — not on a later wake, because the re-arm below sets `since_iso` to

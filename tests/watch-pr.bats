@@ -554,26 +554,139 @@ EOF
   [[ "$output" != *"four things below"* ]]
 }
 
-# A prose pointer to pr-round.sh in another file loses to any instruction to batch
-# reads — it arrives after the work it was meant to direct. The filled-in command
-# is reachable from the wake itself, which is what makes it hold.
-@test "a reported round prints the pr-round.sh call with its arguments filled in" {
+# The wake carries the round itself, so the caller's first turn reads it rather
+# than spending a turn on the fetch.
+review_burst() {
   printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"x","commit":{"oid":"%s"}}]' \
     "$(sha40 0)" > "$REVIEWS"
+}
+
+# The path on the burst's `── round ──` line.
+round_file() { sed -n 's/^── round ── //p' <<<"$output"; }
+
+# A copy of the scripts with pr-round.sh replaced by the script on stdin, so a
+# test can make the round fetch fail or record that it ran. The watch runs
+# pr-round.sh from its own directory.
+fake_round() {
+  SCRIPTS="$BATS_TEST_TMPDIR/scripts"
+  cp -R "$(dirname "$WATCH")" "$SCRIPTS"
+  { echo "#!$BASH"; cat; } > "$SCRIPTS/pr-round.sh"
+  chmod +x "$SCRIPTS/pr-round.sh"
+  export ROUND_CALLS="$BATS_TEST_TMPDIR/round-calls"
+}
+
+@test "a reported round's file holds what the pr-round.sh call returns" {
+  review_burst
   INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
-  [[ "$output" == *"── next ──"* ]]
-  [[ "$output" == *"/pr-round.sh\" o/r 1 $(sha40 0) 1970-01-01T00:00:00Z bot"* ]]
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "$output" != *"── next ──"* ]]
+  local f; f=$(round_file)
+  [ -s "$f" ]
+  [[ "$f" == "$TMPDIR"/pr-round-1-* ]]
+  local want
+  want=$("$(dirname "$WATCH")/pr-round.sh" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot)
+  [ "$(cat "$f")" = "$want" ]
 }
 
 # pr-round.sh takes five arguments and answers bad-args to four, so a blank
-# last-head has to reach it as a literal `""` rather than collapsing away.
-@test "a blank last-head prints as an empty-string argument, not a missing one" {
-  printf '[{"state":"CHANGES_REQUESTED","submittedAt":"2999-01-01T00:00:00Z","author":{"login":"someone"},"body":"x","commit":{"oid":"%s"}}]' \
-    "$(sha40 0)" > "$REVIEWS"
+# last-head has to reach it as an empty argument rather than collapsing away.
+@test "a blank last-head reaches the round fetch as an empty argument" {
+  review_burst
   INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "" 1970-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
+  local f; f=$(round_file)
+  grep -q '^result=OK' "$f"
+}
+
+@test "a round fetch that fails prints the pr-round.sh call instead" {
+  fake_round <<'STUB'
+echo partial
+exit 1
+STUB
+  review_burst
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$SCRIPTS/watch-pr.sh" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
+  [ "$status" -eq 0 ]
+  [[ "${lines[-1]}" == result=ACTIVITY* ]]
+  [[ "$output" != *"── round ──"* ]]
+  [[ "$output" == *"── next ──"* ]]
+  [[ "$output" == *"/pr-round.sh\" o/r 1 $(sha40 0) 1970-01-01T00:00:00Z bot"* ]]
+  [[ "$output" == *"watch-pr.sh: the round fetch failed"* ]]
+}
+
+@test "a round fetch that writes nothing prints the pr-round.sh call instead" {
+  fake_round <<'STUB'
+exit 0
+STUB
+  review_burst
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$SCRIPTS/watch-pr.sh" o/r 1 "" 1970-01-01T00:00:00Z bot --role=reviewer
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"── round ──"* ]]
+  # The fallback call keeps a blank last-head as a literal `""`, which pr-round.sh
+  # needs to count five arguments.
   [[ "$output" == *"/pr-round.sh\" o/r 1 \"\" 1970-01-01T00:00:00Z bot"* ]]
+  [ -z "$(find "$TMPDIR" -name 'pr-round-*')" ]
+}
+
+# pr-round.sh answers in its last line, so a file ending on anything else, an
+# ERROR included, is not a round to read.
+@test "a round fetch that ends on result=ERROR prints the pr-round.sh call instead" {
+  fake_round <<'STUB'
+echo result=ERROR reason=bad-args
+STUB
+  review_burst
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$SCRIPTS/watch-pr.sh" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"── round ──"* ]]
+  [[ "$output" == *"── next ──"* ]]
+}
+
+# The same burst, reported because GitHub reads keep failing: a fetch then would
+# fail too, so the caller is handed the call to make once GitHub answers.
+@test "a burst reported over failing reads does not fetch the round" {
+  fake_round <<'STUB'
+echo ran >> "$ROUND_CALLS"
+echo result=OK
+STUB
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'STUB'
+case "$1 $2" in
+  "pr view") echo '{"state":"OPEN","isDraft":false,"headRefOid":"0000000000000000000000000000000000000009","reviews":[],"comments":[]}' ;;
+  *) exit 1 ;;
+esac
+STUB
+  chmod +x "$STUB/gh"
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 SETTLE=120 SETTLE_MAX=120 WINDOW=60 \
+    run "$SCRIPTS/watch-pr.sh" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=COMMITS* ]]
+  [[ "$output" == *"── next ──"* ]]
+  [[ "$output" != *"── round ──"* ]]
+  [ ! -e "$ROUND_CALLS" ]
+}
+
+# The caller reads the path and re-arms from the line in later Bash calls, whose
+# working directory need not be this one.
+@test "a relative --round-dir is made absolute, and a missing one is created" {
+  review_burst
+  cd "$BATS_TEST_TMPDIR"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer \
+    --round-dir=new/drafts
+  [ "$status" -eq 0 ]
+  local f; f=$(round_file)
+  [[ "$f" == "$PWD/new/drafts"/pr-round-1-* ]]
+  [ -s "$f" ]
+  [[ "$output" == *"--round-dir='$PWD/new/drafts'"* ]]
+}
+
+@test "--round-dir places the round file and is carried on the re-arm line" {
+  review_burst
+  local dir="$BATS_TEST_TMPDIR/drafts dir"; mkdir -p "$dir"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer \
+    "--round-dir=$dir"
+  [ "$status" -eq 0 ]
+  local f; f=$(round_file)
+  [[ "$f" == "$dir"/pr-round-1-* ]]
+  [ -s "$f" ]
+  [[ "$output" == *"--round-dir='$dir'"* ]]
 }
 
 # The case the flag exists for: a push and a reply in one burst. The reply is only
@@ -1289,14 +1402,20 @@ EOF
 
 # --- a red build is not a round to spend ----------------------------------------
 
-# `── next ──` is a four-request round over the diff, bodies and threads, and both
-# skills say a red build is neither a re-review nor a finding to answer.
-@test "a checks-only wake does not offer a pr-round" {
+# The round is four requests over the diff, bodies and threads, and both skills
+# say a red build is neither a re-review nor a finding to answer.
+@test "a checks-only wake neither fetches nor offers a pr-round" {
+  fake_round <<'STUB'
+echo ran >> "$ROUND_CALLS"
+echo result=OK
+STUB
   echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
-    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
+    run "$SCRIPTS/watch-pr.sh" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
   [[ "${lines[-1]}" == result=CHECKS* ]]
-  [[ "$output" != *"next"* ]]
+  [[ "$output" != *"── next ──"* ]]
+  [[ "$output" != *"── round ──"* ]]
+  [ ! -e "$ROUND_CALLS" ]
   # The re-arm line is still there — that is how the watch continues.
   [[ "$output" == *"re-arm"* ]]
 }
@@ -1307,7 +1426,7 @@ EOF
   INTERVAL=1 SETTLE=1 WINDOW=10 \
     run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=author
   [[ "${lines[-1]}" == result=ACTIVITY* ]]
-  [[ "$output" == *"next"* ]]
+  [[ "$output" == *"── round ──"* ]]
 }
 
 # --- a blocked PR is the normal state of one under review ----------------------

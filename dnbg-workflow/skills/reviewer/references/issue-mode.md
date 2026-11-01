@@ -183,7 +183,7 @@ background with `timeout: 7200000` as `SKILL.md`'s watch is:
 
 ```bash
 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> <slug> \
-  --role=reviewer --was-draft
+  --role=reviewer --was-draft --round-dir=<draft directory>
 ```
 
 `<last_head>` is the full 40-character SHA from

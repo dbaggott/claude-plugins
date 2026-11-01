@@ -86,6 +86,12 @@ to `${TMPDIR:-/tmp}/dnbg-watch/`, swept after three days. It records the
 repo, PR number and poll outcomes so a watch that dies can be diagnosed — no
 tokens, no diff content. `WATCH_LOG=off` disables it.
 
+On a review wake, `watch-pr.sh` also writes the review round it fetched (the
+diff, review and comment bodies, and open threads) to a file only you can read,
+in the directory its `--round-dir` names, else `${TMPDIR:-/tmp}`. The skills
+point it at the agent's draft directory and delete each file once its round is
+handled. Nothing sweeps the `${TMPDIR:-/tmp}` default.
+
 `git-workflow` writes git config in each worktree it creates: it sets
 `extensions.worktreeConfig` in the repository's shared config, and, in that
 worktree's own config, a credential helper that pushes as the author role and
