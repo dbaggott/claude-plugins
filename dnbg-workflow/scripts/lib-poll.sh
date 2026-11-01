@@ -95,17 +95,35 @@ poll_broken() {   # $1 = consecutive failures, $2 = awake seconds when the strea
 # reviewer's watch, a problem for the author's), so only the number lives here.
 WINDOW=${WINDOW:-21600}
 
-# How long one run may last, in WALL-CLOCK seconds, whatever WINDOW says. A
-# headless Claude Code session stops a background command at its Bash `timeout`
-# (600 s when none is passed, 7200 s at most), and a watch stopped that way
-# prints no result line. So a window longer than this is served as several runs:
-# the run that reaches the ceiling reports IDLE with `window_left=`, and its
-# re-arm line carries the remainder as WINDOW_LEFT. The skills spawn every watch
-# with the 7200 s maximum, and the gap to this ceiling is room for a burst seen
-# just before it to settle; tests/coupling.bats pins the two together. Wall-clock
-# rather than awake time because the harness's deadline is not ours to see, and
-# wall time is never less than awake time.
+# How long one run may last, in WALL-CLOCK seconds, whatever WINDOW says. An
+# unattended Claude Code session (`-p`, the Agent SDK, CI, cloud) stops a
+# background command at its Bash `timeout` (7200 s at most), and a watch stopped
+# that way prints no result line. So a window longer than this is served as
+# several runs: the run that reaches the ceiling reports IDLE with
+# `window_left=`, and its re-arm line carries the remainder as WINDOW_LEFT. The
+# skills spawn every watch with the 7200 s maximum, and the gap to this ceiling
+# is room for a burst seen just before it to settle; tests/coupling.bats pins
+# the two together. Wall-clock rather than awake time because the harness's
+# deadline is not ours to see, and wall time is never less than awake time.
+#
+# An attended session (terminal, desktop app, VS Code) puts no time limit on
+# background commands, so there the ceiling is off and one run serves the whole
+# window, where a split would only cost the agent a wake to re-arm. Source:
+# "Time limit for background commands" in
+# https://code.claude.com/docs/en/tools-reference, which says the limit has
+# applied only to unattended sessions since v2.1.288. The variable this keys
+# on, CLAUDE_CODE_SESSION_ATTENDED=1, is not documented
+# (https://code.claude.com/docs/en/env-vars does not list it), so a release
+# that drops or renames it falls back to the ceiling, costing only the saving.
+# A WINDOW_CEILING the caller gives always wins, so whether one was given is
+# read before the default line fills it in; an empty one counts as not given,
+# as it does for that line.
+_poll_ceiling_given=${WINDOW_CEILING:+x}
 WINDOW_CEILING=${WINDOW_CEILING:-6300}
+_poll_ceiling_off=
+if [ -z "$_poll_ceiling_given" ] && [ "${CLAUDE_CODE_SESSION_ATTENDED:-}" = 1 ]; then
+  _poll_ceiling_off=1
+fi
 
 # How much of WINDOW this run still owes. Unset on a first arm; a run cut short
 # by the ceiling hands the remainder to the next one through its re-arm line.
@@ -299,7 +317,7 @@ poll_trace_init() {
   # status that caused it rather than as a clean finish.
   # shellcheck disable=SC2064
   trap 'poll_log "EXIT code=$?"' EXIT
-  poll_log "START script=$(basename "$0") args=[${_poll_argv}] parent=$(_poll_parent) window=${WINDOW}s left=${WINDOW_LEFT}s ceiling=${WINDOW_CEILING}s curve=${POLL_CURVE}"
+  poll_log "START script=$(basename "$0") args=[${_poll_argv}] parent=$(_poll_parent) window=${WINDOW}s left=${WINDOW_LEFT}s ceiling=$([ -n "$_poll_ceiling_off" ] && echo off || echo "${WINDOW_CEILING}s") curve=${POLL_CURVE}"
 }
 
 # Breakpoints, split into parallel arrays at source time so a malformed knob
@@ -402,7 +420,8 @@ poll_interval() { poll_interval_at "$(poll_quiet)"; }
 poll_wall() { echo $(( _poll_now - _poll_start )); }
 
 poll_timed_out() {
-  [ "$(poll_awake)" -ge "$WINDOW_LEFT" ] || [ "$(poll_wall)" -ge "$WINDOW_CEILING" ]
+  [ "$(poll_awake)" -ge "$WINDOW_LEFT" ] && return 0
+  [ -z "$_poll_ceiling_off" ] && [ "$(poll_wall)" -ge "$WINDOW_CEILING" ]
 }
 
 # On a run that has timed out, the part of the window it leaves unserved: empty
@@ -445,8 +464,10 @@ poll_nap() {
   # Never sleep through the ceiling: a nap at the 300 s cap that started just
   # under it would spend most of the margin the ceiling keeps for the settle.
   # Past it, only a settle is still running, and that naps on the curve as usual.
-  to_ceiling=$(( WINDOW_CEILING - $(poll_wall) ))
-  if [ "$to_ceiling" -gt 0 ] && [ "$to_ceiling" -lt "$iv" ]; then iv=$to_ceiling; fi
+  if [ -z "$_poll_ceiling_off" ]; then
+    to_ceiling=$(( WINDOW_CEILING - $(poll_wall) ))
+    if [ "$to_ceiling" -gt 0 ] && [ "$to_ceiling" -lt "$iv" ]; then iv=$to_ceiling; fi
+  fi
   # Before the sleep, not after: a watch is killed mid-sleep far more often than
   # mid-poll, and a line written afterwards is the one line that would be missing.
   _poll_log_tick "$iv"
