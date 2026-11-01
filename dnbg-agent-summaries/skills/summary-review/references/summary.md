@@ -11,8 +11,8 @@ file and `<topic>` is a lowercase-dashed slug. Create the directory if it is
 missing. Files that belong to the summary, such as images, go in a directory
 beside it with the same stem: `<summary_dir>/YYYY-MM-DD-<topic>/`.
 
-A name already in `<summary_dir>/archive/` is taken by a new summary: add a
-`-2` suffix to the stem. When a file with that name already exists at the top
+When you start a new summary and its name is already in `<summary_dir>/archive/`,
+the name is taken: add a `-2` suffix to the stem. When a file with that name already exists at the top
 level, update it as below rather than starting it again: replace the sections
 your content changes, and keep prior content worth keeping, for example by
 adding a "History" section. Use a `-v2` suffix only when keeping both versions
@@ -23,7 +23,8 @@ to.
 
 Create a new summary with Write. Change an existing one only with Edit,
 replacing just the section you are changing: Write on an existing file replaces
-it whole, dropping any change another writer made after your read. Never write
+it whole, losing whatever you did not carry over, another writer's change
+included. Never write
 a summary's contents through Bash, such as a heredoc, `sed -i` or a script,
 since that skips the file tools' check that the file is unchanged since you
 read it. Moving a file with `mv -n` or checking it with `test` writes no

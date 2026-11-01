@@ -130,8 +130,7 @@ only the `status:`, `status_ref:` and `kept:` frontmatter keys, plus the one
   1. Read the file again and compare its contents with what step 2 kept, never
      its modification time. When they differ, another writer changed it during
      the sweep: skip the row, writing nothing to it and moving nothing, and
-     report it as changed during the sweep. This comes before the row's own
-     writes, so the sweep never mistakes its own Edit for another writer's.
+     report it as changed during the sweep.
   2. Make the row's writes from the bullets above.
   3. Re-run the collision check, then move the file, and its asset directory if
      it has one, with `mv -n`, and confirm each source path is gone. A check or
