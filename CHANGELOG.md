@@ -10,6 +10,15 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.11.8 — 2026-11-01
+
+The orchestrator now posts a decision-log row with one `decision-row.sh` call,
+which composes the row's comment, posts it under the orchestrator role, and,
+under a tracking issue, appends the parent's decision-log table row that links
+it. A re-run reuses an identical comment rather than posting a second, so a
+call whose outcome is unknown is safe to repeat.
+
+
 ## dnbg-workflow 2026.11.7 — 2026-11-01
 
 `orchestrate` now restarts on the size of its context rather than on a count of
