@@ -16,17 +16,17 @@ the stage the watch was armed for:
 
 | `act=` | Results | What to do |
 |---|---|---|
-| `round` | `ACTIVITY`, `READY` | Run the `── next ──` command and go to `references/review-received.md`. |
+| `round` | `ACTIVITY`, `READY` | Read the `── round ──` file (fallback: run the `── next ──` command) and go to `references/review-received.md`. |
 | `fix` | `CHECKS` | Read the failure, rerunning it once if the diff doesn't touch the test, per its entry below; re-arm from the printed line. |
 | `cleanup` | `CLOSED` | Go to `references/post-merge.md`. |
 | `report` | `BLOCKED`; `IDLE` at the review stage; a merge-stage `IDLE` with no `merge=` | Run the checks the result's entry here or in `references/merge-wait.md` makes first (`pr-verdict.sh` on an `IDLE`, the cause read off `pr-threads.sh` and `pr-verdict.sh` on `BLOCKED`), then tell the operator, and don't re-arm. |
 | `rearm` | `IDLE` with `window_left=`; a merge-stage `IDLE` with `merge=` | Re-arm from the printed line, saying what a `merge=` field names. |
 | `read` | `DIRTY`, `ERROR` | Read its entry before acting: a stacked PR's `DIRTY` is rebased rather than asked about, and the `ERROR` reasons take opposite remedies. |
 
-After any `alive` heartbeat lines, the script prints a summary of the activity it saw as one JSON object per line — who posted what kind of thing, where, without the text — then, on the results with a round behind them, a `── next ──` line carrying the `pr-round.sh` call that reads that round in full, then one result line. Treat the returns differently:
+After any `alive` heartbeat lines, the script prints a summary of the activity it saw as one JSON object per line — who posted what kind of thing, where, without the text — then, on the results with a round behind them, a `── round ── <path>` line naming the file that holds that round in full, as the watch fetched it with `pr-round.sh` (or, when that fetch failed, a `── next ──` line carrying the call to run instead), then one result line. Treat the returns differently:
 
 - **`result=ACTIVITY`** — a review, comment or reply landed. Go to `references/review-received.md`.
-- **`result=COMMITS`** — someone pushed to the branch. **Reviewer role only**: this role cannot tell your push from anyone else's, so it reports none of them rather than waking you on your own. A third party's push is not lost by that — it is not *announced*, but the head the re-arm carries does not advance past it, so the next round's `── next ──` diff still spans it. A reviewer who pushes *and* comments does wake you, as `ACTIVITY`, and that diff covers the push too.
+- **`result=COMMITS`** — someone pushed to the branch. **Reviewer role only**: this role cannot tell your push from anyone else's, so it reports none of them rather than waking you on your own. A third party's push is not lost by that — it is not *announced*, but the head the re-arm carries does not advance past it, so the next round's diff still spans it. A reviewer who pushes *and* comments does wake you, as `ACTIVITY`, and that diff covers the push too.
 - **`activity=1` on any burst** — comments or replies landed alongside whatever the result names. **Handle them in this same pass**, per `references/review-received.md`. Ignoring the flag is *permanent* loss, not deferral — you re-arm with `since` set to now, so anything unread is filtered out for good. `activity=0` means the burst was something else (a verdict, a check), so there is no conversation to go looking for.
 - **`result=CLOSED`** — merged or closed. Stop watching and go to `references/post-merge.md`, which runs the cleanup if `state=MERGED` and closes out either way.
 - **`result=ERROR reason=<source>`** — the watch itself is broken: that source failed repeatedly, so it cannot see. **Do not re-arm** — you would poll straight back into the same failure. Check `gh auth status` and the `<num>`/`<repo>` pair, then tell the operator. Unlike `IDLE` this means nothing about the PR; the watch never got a look at it.

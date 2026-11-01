@@ -24,8 +24,11 @@ HEAD=$(gh pr view <num> --repo <repo> --json headRefOid --jq .headRefOid)
 # author's login, which is the author App's, or yours when the role falls back.
 # So with an author App, your own comments on the PR wake it.
 # --last-verdict= is empty here and only here: it says "no verdict handled yet".
+# --round-dir is where the watch writes the round it fetches on a wake: your
+# draft directory (SKILL.md's "Draft files"), which the re-arm line keeps.
 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
-  "$HEAD" "<the time you noted in step 1>" "" --role=author --last-verdict=
+  "$HEAD" "<the time you noted in step 1>" "" --role=author --last-verdict= \
+  --round-dir=<draft directory>
 ```
 
 **Re-arm from the line the watch prints, not from the clock.** Every result you

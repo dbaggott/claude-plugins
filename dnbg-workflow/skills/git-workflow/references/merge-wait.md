@@ -96,7 +96,8 @@ edited re-arm line, in the background with `timeout: 7200000`:
 
 ```bash
 WINDOW=21600 "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <num> \
-  <head> <verdict_at> "" --role=author --last-verdict=<verdict_sha> --merge-stage
+  <head> <verdict_at> "" --role=author --last-verdict=<verdict_sha> --merge-stage \
+  --round-dir=<draft directory>
 ```
 
 `<head>`, `<verdict_at>` and `<verdict_sha>` are those fields of the

@@ -5,7 +5,8 @@
 #
 #   watch-pr.sh <owner/repo> <pr> [<last_head>] [<since>] [<slug>] \
 #     --role=author|reviewer [--was-draft] [--last-verdict=<sha>] \
-#     [--last-checks=<names>] [--last-checks-head=<sha>] [--merge-stage]
+#     [--last-checks=<names>] [--last-checks-head=<sha>] [--merge-stage] \
+#     [--round-dir=<dir>]
 #
 # Exactly one result line, then exit 0:
 #   result=COMMITS  new_head=<sha> activity=0|1 now=<iso>   # someone pushed
@@ -45,8 +46,11 @@
 # armed with, as its `since=` field, so the next run re-observes what this one
 # held. The first arm has
 # no line to copy, so its `since` follows the first-arm rule in watch-issue.sh's
-# header. A burst also carries `── next ──`, the pr-round.sh call that reads
-# it in full. CLOSED, ERROR, DIRTY and BLOCKED carry
+# header. A burst that is not checks-only also carries `── round ── <path>`: the
+# watch runs pr-round.sh for the burst itself and writes its output to a
+# `mktemp` file under `--round-dir` (default `${TMPDIR:-/tmp}`). When that fetch
+# fails, the burst carries `── next ──` in its place, the pr-round.sh call to
+# run by hand. CLOSED, ERROR, DIRTY and BLOCKED carry
 # neither — none of the four clears without a human, so a re-armed watch would
 # report the same state on its next tick for as long as it kept being re-armed.
 #
@@ -77,6 +81,7 @@ _poll_argv="$*"
 
 REPO=""; PR=""; LAST_HEAD=""; SINCE=""; SLUG=""
 ROLE=""; WAS_DRAFT=0; LAST_VERDICT=""; LAST_CHECKS=""; LAST_CHECKS_HEAD=""; MERGE_STAGE=0
+ROUND_DIR=""
 bad=0; pos=0
 for arg in "$@"; do
   case "$arg" in
@@ -86,6 +91,7 @@ for arg in "$@"; do
     --last-checks=*)  LAST_CHECKS="${arg#--last-checks=}" ;;
     --last-checks-head=*) LAST_CHECKS_HEAD="${arg#--last-checks-head=}" ;;
     --merge-stage)    MERGE_STAGE=1 ;;
+    --round-dir=*)    ROUND_DIR="${arg#--round-dir=}" ;;
     --*)              bad=1 ;;
     *) pos=$(( pos + 1 ))
        case $pos in
@@ -211,7 +217,7 @@ rearm_cmd() {  # [head] [since] [verdict]
   printf '%s "%s/watch-pr.sh" %s %s %s %s %s --role=%s%s --last-verdict=%s --last-checks=%s --last-checks-head=%s' \
     "$(poll_window_env "$split_left")" "$HERE" "$REPO" "$PR" "${1:-${rearm_head:-\"\"}}" "${2:-$NOW}" \
     "$SLUG" "$ROLE" \
-    "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)$([ "$MERGE_STAGE" = 1 ] && printf ' --merge-stage' || true)" \
+    "$([ "$WAS_DRAFT" = 1 ] && [ "$saw_ready" = 0 ] && printf ' --was-draft' || true)$([ "$MERGE_STAGE" = 1 ] && printf ' --merge-stage' || true)$([ -n "$ROUND_DIR" ] && printf ' --round-dir=%s' "$(shq "$ROUND_DIR")" || true)" \
     "${3-${verdict_sha:-$LAST_VERDICT}}" "$(shq "$checks_baseline")" "$checks_head"
 }
 
@@ -231,6 +237,22 @@ emit_next() {
   printf '── next ──\n'
   printf '"%s/pr-round.sh" %s %s %s %s %s\n' \
     "$HERE" "$REPO" "$PR" "${LAST_HEAD:-\"\"}" "$SINCE" "$SLUG"
+}
+
+# The round emit_next names, fetched here so the caller's first turn reads it
+# instead of spending a turn on the fetch. Any failure falls back to emit_next,
+# which hands the caller the same call to make by hand.
+emit_round() {
+  local dir="${ROUND_DIR:-${TMPDIR:-/tmp}}" head="${obs_head:-none}" f=""
+  if f=$(mktemp "$dir/pr-round-$PR-${head:0:12}.XXXXXX" 2>/dev/null) \
+     && "$HERE/pr-round.sh" "$REPO" "$PR" "$LAST_HEAD" "$SINCE" "$SLUG" > "$f" \
+     && [ -s "$f" ]; then
+    printf '── round ── %s\n' "$f"
+    return 0
+  fi
+  if [ -n "$f" ] && [ ! -s "$f" ]; then rm -f "$f"; f=""; fi
+  echo "watch-pr.sh: the round fetch failed, so the call to run follows${f:+; partial output in $f}" >&2
+  emit_next
 }
 
 verdict_field() {
@@ -334,16 +356,17 @@ report_burst() {
      && [ "$saw_activity" = 0 ] && [ -z "$verdict_sha" ]; then checks_only=1; fi
 
   emit_activity
-  # Withheld for a checks-only wake: `── next ──` is a four-request round over
-  # the diff, the bodies and the threads, and both skills say a red build is
-  # neither a re-review nor a finding to answer. Offering it there invites a
-  # round they are then told not to spend.
-  [ "$checks_only" = 0 ] && emit_next
-  # `── next ──` hands the caller a diff spanning from the head this run was
-  # armed with, so reporting is what makes every move up to now handled.
+  # Stamped before the round is fetched, so activity landing during the fetch
+  # falls after the re-arm's `since` and the next watch reports it.
+  NOW=$(poll_now_iso)
+  # Withheld for a checks-only wake: the round is four requests over the diff,
+  # the bodies and the threads, and both skills say a red build is neither a
+  # re-review nor a finding to answer.
+  [ "$checks_only" = 0 ] && emit_round
+  # The round spans from the head this run was armed with, so reporting is what
+  # makes every move up to now handled.
   rearm_head="$obs_head"
   [ -n "$saw_checks" ] && checks_baseline="$saw_checks"
-  NOW=$(poll_now_iso)
   watch_rearm "$(rearm_cmd)"
   local ck="" mg=""
   [ -n "$saw_checks" ] && ck=" checks=$(shq "$saw_checks")"

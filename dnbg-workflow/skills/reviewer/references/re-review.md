@@ -10,9 +10,10 @@ the author asks for another look, or the last blocker under your
 verdict is keyed to the current HEAD, whether or not it moved.
 
 **Take the round in one call** — the delta diff, whatever landed in
-conversation, your standing verdict, and every unresolved thread. The watcher
-prints this call as its `── next ──` line with the arguments filled in; run that
-rather than composing it:
+conversation, your standing verdict, and every unresolved thread. On a wake the
+watcher has already made this call and names its output on the `── round ──`
+line: read that file. When it prints a `── next ──` line instead, the fetch
+failed: run that, arguments filled in, rather than composing it:
 
 ```bash
 "<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-reviewed-sha> <since_iso> <slug>

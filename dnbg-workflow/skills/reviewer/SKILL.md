@@ -652,8 +652,12 @@ PR to resume (it re-assesses current state and picks the watch back up).
    "<skill-dir>/../../scripts/watch-pr.sh" <owner>/<repo> <n> <last_head> <since_iso> \
      <slug> \
      --role=reviewer [--was-draft] [--last-verdict=<sha>] \
-     [--last-checks=<names>] [--last-checks-head=<sha>]
+     [--last-checks=<names>] [--last-checks-head=<sha>] \
+     --round-dir=<draft directory>
    ```
+
+   `--round-dir` is where the watch writes the round it fetches on a wake: your
+   draft directory (`git-workflow`'s "Draft files"), which the re-arm line keeps.
 
    `--role=reviewer` is what makes this the reviewer's watch: the author's pushes
    are the wake rather than noise, merge state is not your business, `IDLE` is
@@ -684,14 +688,16 @@ PR to resume (it re-assesses current state and picks the watch back up).
    Don't branch from the result names alone — the two `ERROR` codes take opposite
    remedies, and a missing `result=` line reads like a quiet PR while meaning the
    opposite.
-4. **Where the return carries a `── next ──` line, run that command.** It is
-   `pr-round.sh` with every argument already filled in, and one call returns the
-   whole round: the delta diff, the activity *with* bodies, every unresolved
-   thread with the `PRRT_…` id a reply takes, and the standing verdict. The
-   watcher summarises — who posted what kind of thing, where — and this is what
-   delivers. Assembling the round from separate `gh` calls instead costs several
-   round trips and still misses the threads, which is what a reviewer reads as
-   outstanding work.
+4. **Where the return carries a `── round ── <path>` line, read that file.** The
+   watch has already run `pr-round.sh` for the burst and written its output
+   there: the delta diff, the activity *with* bodies, every unresolved thread
+   with the `PRRT_…` id a reply takes, and the standing verdict. The watcher's
+   own lines summarise — who posted what kind of thing, where — and this is what
+   delivers. Where a `── next ──` line stands in its place, the watch could not
+   fetch the round: run that command, `pr-round.sh` with every argument filled
+   in, which returns the same. Assembling the round from separate `gh` calls
+   instead costs several round trips and still misses the threads, which is what
+   a reviewer reads as outstanding work.
 
 **A turn that posts an `APPROVE` ends with your handoff.** Post, arm the watch
 as above (a re-arm runs its printed `── re-arm ──` line), then end the turn
@@ -700,12 +706,12 @@ The watch runs on: the review ends at `CLOSED`, not here.
 
 ## Responding to comments and replies
 
-When the watcher surfaces `ACTIVITY`, the round is one call away and the round is
-the source: the packet's `── activity ──` section, from the `── next ──` command
-above. **That is what you read; don't go fetching the comment endpoints
-yourself.** The watcher's own JSON lines carry no bodies — they say what landed
-and from whom, not what it said — so they route you to the packet rather than
-standing in for it. Everything is already in that packet, so a fan-out across the
+When the watcher surfaces `ACTIVITY`, the round is the source: the packet's
+`── activity ──` section, in the `── round ──` file of step 4 above (from its
+`── next ──` command when the watch could not fetch it). **That is what you
+read; don't go fetching the comment endpoints yourself.** The watcher's own
+JSON lines carry no bodies — they say what landed and from whom, not what it
+said — so they route you to the packet rather than standing in for it. Everything is already in that packet, so a fan-out across the
 endpoints can only re-fetch what you hold — and with no inline threads of your
 own filed, the first case below cannot fire at all. Respond only when there's
 something substantive to add — never "I agree" filler. An inline object carries

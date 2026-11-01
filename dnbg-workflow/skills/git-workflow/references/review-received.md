@@ -9,13 +9,13 @@ here with the merge handoff; a review with findings continues in
 
 **Read the whole round in one call** — review bodies, inline findings, the standing verdict, and every unresolved thread. A verdict alone is a third of the review, and three separate reads are three chances to perform two.
 
-**Run the `── next ──` command the watcher printed.** It is this, with every argument already filled in:
+**Read the file the watcher named on its `── round ──` line.** The watcher has already made this call, with every argument filled in, and written its output there. When it printed a `── next ──` line in its place, the fetch failed: run that command, which is this:
 
 ```bash
 "<skill-dir>/../../scripts/pr-round.sh" <owner>/<repo> <n> <last-handled-sha> <since-iso> <author-login>
 ```
 
-The same values the watcher was armed with — the SHA you last handled, the timestamp marking "handled up to here", and the author role's login (the author App's, or yours when the role falls back), whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta — which is what the printed command already does on a first round.
+The same values the watcher was armed with — the SHA you last handled, the timestamp marking "handled up to here", and the author role's login (the author App's, or yours when the role falls back), whose activity is excluded so your replies don't come back as news. It prints `── diff ──`, `── activity ──` and `── threads ──` sections, then one result line carrying `verdict`, `verdict_sha`, `at_head`, `reviewed_after_head` and a `_src` status per source. Pass `""` for the SHA when you have handled none yet; that asks for the full diff rather than a delta — which is what the watcher's call already does on a first round.
 
 What the sections are for, and the mistake each one prevents:
 
