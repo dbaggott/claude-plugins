@@ -12,8 +12,9 @@
 #   result=COMMITS  new_head=<sha> activity=0|1 now=<iso>   # someone pushed
 #   result=ACTIVITY activity=1 now=<iso>                    # review/comment/reply, not the caller's
 #   result=CHECKS   checks='<names>' [failed_tests='<names>'] now=<iso>
-#                   # only a check stopped passing; failed_tests is best effort,
-#                   # the `not ok` lines of the failing jobs' logs, `; `-joined
+#                   # only a check stopped passing — author role only; failed_tests
+#                   # is best effort, the `not ok` lines of the failing jobs' logs,
+#                   # `; `-joined
 #
 # Any burst also carries `checks='<names>'` when a check on the head is failing,
 # so a wake that is primarily something else still says the build is red. The
@@ -67,7 +68,9 @@
 # is the only point at which a terminal block is worth stopping for. Before it,
 # a blocked PR is the ordinary state of one under review.
 #   reviewer  waits for a push. COMMITS is the wake; merge state is not its
-#             business. Ignores the bot's login. Longer window — quiet is normal.
+#             business, and a red build is not a wake: it rides on the next
+#             burst as `checks=`. Ignores the bot's login. Longer window —
+#             quiet is normal.
 #
 # ⚠️ THE SLUG IS WHOSE ACTIVITY TO IGNORE, AND THE TWO ROLES IGNORE DIFFERENT
 # PEOPLE. Defaulting it without a role hands a reviewer watch the operator's
@@ -290,7 +293,7 @@ verdict_field() {
 act_for() {  # <result> [window_left]
   case "$1:$ROLE" in
     COMMITS:*|ACTIVITY:*|READY:*) echo round ;;
-    CHECKS:reviewer|IDLE:reviewer) echo rearm ;;
+    IDLE:reviewer) echo rearm ;;
     CHECKS:author) echo fix ;;
     CLOSED:author) echo cleanup ;;
     BLOCKED:author) echo report ;;
@@ -325,6 +328,12 @@ report_idle() {
   echo "result=IDLE${idle_merge:+ merge=$idle_merge}$held$(poll_window_field "$split_left") act=$(act_for IDLE "$split_left") now=$NOW"; exit 0
 }
 
+# Whether a failing check is a wake on its own. Only the author acts on a red
+# build alone; for the reviewer the failure is held to ride on its next burst as
+# `checks=`, and a window with nothing else in it ends on IDLE, the baseline
+# unadvanced.
+checks_wake() { [ "$ROLE" = author ]; }
+
 # Whether anything is still worth waking the caller for. A settle can outlive its
 # own reason — a red check that goes green again while the window holds — and
 # reporting an empty burst emits a bare `ACTIVITY activity=1` for activity that
@@ -332,7 +341,7 @@ report_idle() {
 # since a verdict standing at HEAD is a wake on its own with no flag set.
 have_burst() {
   [ "$saw_ready" = 1 ] || [ "$saw_commits" = 1 ] || [ "$saw_activity" = 1 ] \
-    || [ -n "$saw_checks" ] || [ -n "$verdict_sha" ]
+    || { [ -n "$saw_checks" ] && checks_wake; } || [ -n "$verdict_sha" ]
 }
 
 # A burst in hand outranks ERROR: the activity is real, and reporting ERROR
@@ -380,9 +389,9 @@ report_burst() {
   # Stamped before the round is fetched, so activity landing during the fetch
   # falls after the re-arm's `since` and the next watch reports it.
   NOW=$(poll_now_iso)
-  # Withheld for a checks-only wake: the round is four requests over the diff,
-  # the bodies and the threads, and both skills say a red build is neither a
-  # re-review nor a finding to answer.
+  # Withheld for a checks-only wake, which only the author gets: the round is
+  # four requests over the diff, the bodies and the threads, and a red build is
+  # neither a re-review nor a finding to answer.
   [ "$checks_only" = 0 ] && emit_round
   # The round spans from the head this run was armed with, so reporting is what
   # makes every move up to now handled.
@@ -392,10 +401,10 @@ report_burst() {
   local ck="" mg=""
   [ -n "$saw_checks" ] && ck=" checks=$(shq "$saw_checks")"
   [ -n "$stop_merge" ] && mg=" merge=$stop_merge"
-  # A verdict excludes this arm deliberately: CHECKS is documented as "not your
-  # finding to fix, re-arm without acting", and the re-arm marks the verdict
-  # handled — so reducing an unhandled verdict to CHECKS loses it until the IDLE
-  # backstop notices an approval standing at HEAD, a window later.
+  # A verdict excludes this arm deliberately: CHECKS sends the author to the
+  # build, not to the review, and the re-arm marks the verdict handled — so
+  # reducing an unhandled verdict to CHECKS loses it until the IDLE backstop
+  # notices an approval standing at HEAD, a window later.
   if [ "$checks_only" = 1 ]; then
     local ft
     ft=$(failed_tests) || ft=""
@@ -523,7 +532,7 @@ while :; do
     # advances the baseline onto a set that never existed.
     saw_checks=""
   else
-    [ "$checks_now" != "$saw_checks" ] && changed=1
+    checks_wake && [ "$checks_now" != "$saw_checks" ] && changed=1
     saw_checks="$checks_now"
   fi
 

@@ -1227,10 +1227,9 @@ EOF
 
 # --- a verdict outranks a red check as the result name -------------------------
 
-# CHECKS is documented as "not your finding to fix — re-arm without acting", and
-# the re-arm marks the verdict handled. So reducing an unhandled verdict to a
-# CHECKS wake loses it until the IDLE backstop notices an approval at HEAD, a
-# whole window later.
+# CHECKS sends the author to the build, not to the review, and the re-arm marks
+# the verdict handled. So reducing an unhandled verdict to a CHECKS wake loses it
+# until the IDLE backstop notices an approval at HEAD, a whole window later.
 @test "a verdict standing at HEAD is not reduced to a CHECKS wake" {
   printf '%s' "$(reviews APPROVED "$(sha40 0)" someone)" > "$REVIEWS"
   echo '[{"name":"build","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
@@ -1240,6 +1239,70 @@ EOF
   # The red build still rides along — it is not dropped, only demoted.
   [[ "${lines[-1]}" == *"checks='build'"* ]]
   [[ "${lines[-1]}" == *"verdict=APPROVED"* ]]
+}
+
+# --- a red build alone is not a reviewer wake ---------------------------------
+#
+# The reviewer's handling of one is a no-op, so the failure is held for the next
+# burst that is a wake, and the baseline stays where the caller left it.
+
+@test "a reviewer watch with only a check failing runs to IDLE, unadvanced" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "$output" != *"result=CHECKS"* ]]
+  [[ "${lines[-1]}" == "result=IDLE act=rearm now="* ]]
+  local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
+  # Its own `now=`, not a held `since=`: nothing was held back.
+  [[ "$rearm" == *" $(sha40 0) ${lines[-1]##* now=} bot "* ]]
+  [[ "$rearm" == *"--last-checks=''"* ]]
+}
+
+@test "a reviewer's held failure rides on the next comment and advances" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  AT_TICK=3 AT_TICK_FILE="$REVIEWS" \
+    AT_TICK_VALUE='[{"state":"COMMENTED","submittedAt":"2026-06-01T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"x"}}]' \
+    INTERVAL=1 SETTLE=1 WINDOW=20 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot --role=reviewer
+  [[ "$output" != *"result=CHECKS"* ]]
+  [[ "${lines[-1]}" == "result=ACTIVITY "*"checks='ci'"* ]]
+  local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
+  [[ "$rearm" == *"--last-checks='ci'"* ]]
+}
+
+@test "a reviewer's held failure rides on the next push and advances" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  AT_TICK=3 AT_TICK_FILE="$HEADCOUNT" AT_TICK_VALUE=1 \
+    INTERVAL=1 SETTLE=1 WINDOW=20 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [[ "$output" != *"result=CHECKS"* ]]
+  [[ "${lines[-1]}" == "result=COMMITS new_head=$(sha40 1) "*"checks='ci'"* ]]
+  local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
+  [[ "$rearm" == *"--last-checks='ci' --last-checks-head=$(sha40 1)"* ]]
+}
+
+# With SETTLE=1 a checks-only settle would have released by the third tick, so a
+# CLOSED reported bare is one the failure did not hold up or front.
+@test "a reviewer's failing check does not front or delay CLOSED" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  AT_TICK=3 AT_TICK_FILE="$PRSTATE" AT_TICK_VALUE=MERGED \
+    INTERVAL=1 SETTLE=1 WINDOW=20 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [ "${#lines[@]}" -eq 1 ]
+  [[ "${lines[0]}" == "result=CLOSED state=MERGED"* ]]
+  [ "$(cat "$TICKS")" -eq 3 ]
+}
+
+# A settle long enough to be open when the reads start failing, which for the
+# author reports the burst before the ERROR.
+@test "a reviewer's failing check does not turn ERROR into a burst" {
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP"
+  AT_TICK=2 AT_TICK_FILE="$FAIL_PRVIEW" AT_TICK_VALUE=x \
+    INTERVAL=1 SETTLE=30 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=60 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
+  [ "$(grep -c '^result=' <<<"$output")" -eq 1 ]
+  [[ "${lines[-1]}" == "result=ERROR reason=pr-view"* ]]
+  [[ "$output" != *"re-arm"* ]]
 }
 
 # --- what the caller has handled is advanced by a report, not by a sighting -----
@@ -1402,8 +1465,8 @@ EOF
 
 # --- a red build is not a round to spend ----------------------------------------
 
-# The round is four requests over the diff, bodies and threads, and both skills
-# say a red build is neither a re-review nor a finding to answer.
+# The round is four requests over the diff, bodies and threads, and a red build
+# is neither a re-review nor a finding to answer.
 @test "a checks-only wake neither fetches nor offers a pr-round" {
   fake_round <<'STUB'
 echo ran >> "$ROUND_CALLS"
@@ -1726,8 +1789,9 @@ expect_act() {  # <state> <result-prefix> <act> <watch flags...>
 @test "act: a reviewer's READY is a round" {
   expect_act READY READY round --role=reviewer --was-draft
 }
-@test "act: a reviewer's CHECKS is a re-arm" {
-  expect_act CHECKS "CHECKS checks='ci'" rearm --role=reviewer
+# A red build alone is no reviewer wake: the window ends on its IDLE.
+@test "act: a reviewer's red build alone ends on an IDLE re-arm" {
+  expect_act CHECKS IDLE rearm --role=reviewer
 }
 # watch.md: in issue mode CLOSED is the trigger to re-discover, and the watch
 # cannot see the mode.
