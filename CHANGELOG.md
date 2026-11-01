@@ -10,6 +10,17 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.11.9 — 2026-11-01
+
+Under a tracking issue, the orchestrator now runs its larger bookkeeping reads
+in short-lived subagents that reply in a line or two, so those reads no longer
+sit in its context through every later wake: collecting decision rows from more
+than three children, a merge's sweep of more than one sibling, and the scan for
+review findings that recur across children's PRs, which now reads each PR's
+inline review comments with their file paths. The orchestrator still makes
+every decision, escalation and message to an author.
+
+
 ## dnbg-workflow 2026.11.8 — 2026-11-01
 
 The orchestrator now posts a decision-log row with one `decision-row.sh` call,
