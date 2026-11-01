@@ -10,6 +10,14 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.11.2 — 2026-11-01
+
+A review watch that wakes on a new review, comment or push now fetches the
+review round itself and names the file it wrote it to, so the agent reads the
+round on the turn it wakes instead of spending a turn fetching it. If that
+fetch fails, the watch prints the command to run, as before.
+
+
 ## dnbg-workflow 2026.11.1 — 2026-11-01
 
 Every result line from `watch-pr.sh` and `watch-issue.sh` now carries an `act=`
