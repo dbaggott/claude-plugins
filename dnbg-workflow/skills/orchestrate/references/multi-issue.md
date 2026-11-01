@@ -81,9 +81,8 @@ verdict on a child. On a child closing, first collect that child's rows (below).
 A child is **in flight** while it is open and `claim-issue.sh` reads `OWN` on
 it, or closed, until its author's final report and its reviewer's
 `**Reviewer close-out: assignment ended**` are in. Then apply the sweep its
-author's final report carries (below), collect both
-agents' close-outs, and fold the run's findings into the parent
-(`references/findings-fold.md`). A
+author's final report carries (below), collect both agents' close-outs, and
+fold the run's findings into the parent (`references/findings-fold.md`). A
 child that closes without a merged PR: tell the operator.
 
 ## Waiting
@@ -163,7 +162,7 @@ for systemic problems each read material whose conclusion fits in a line.
 
 What you read stays in your context, re-sent on every later wake, and a
 subagent starts at about 36K tokens of its own, so a step runs in one where its
-reads are larger than that:
+reads are larger than that or would otherwise sit through many later wakes:
 
 - **Collecting rows**: in a subagent when it reads more than three children;
   inline otherwise.
@@ -172,19 +171,24 @@ reads are larger than that:
 - **The cross-child scan**: always in a subagent.
 
 Dispatch it with the Agent tool, in the background, as `general-purpose`, with
-no `model`, its own draft directory per `git-workflow`'s "Draft files" (role
-`bookkeeping`), and the step's prompt below. Fill each `<…>`, and give
-`<scripts>` as the absolute path of `<skill-dir>/../../scripts`, since the
-subagent loads no skill. It ends its turn on its reply: a result line, then one
-line per item. You act on the reply and stay the one who decides: every
+no `model` and the step's prompt below. Fill each `<…>` but the `<its …>`
+ones, which the subagent takes from each URL, and give `<scripts>` as the
+absolute path of `<skill-dir>/../../scripts`, since the subagent loads no
+skill. The sweep, the one that drafts bodies, also gets a draft directory,
+from `mktemp -d <scratchpad>/bookkeeping-<parent>.XXXXXX`. It ends its turn
+on its reply: a result line, then one line per item. You act on the reply and stay the one who decides: every
 question, escalation, row other than the step's own, and message to an author
 is yours. A reply not in the step's format, or a subagent that died, means the
-step runs inline, re-reading what the subagent may already have written.
+step runs inline, re-reading what the subagent may already have written: the
+table, a sibling's body, and the comments of a sibling someone else holds, for
+one already naming the PR's URL.
 
 A step out in a subagent is not done until you have acted on its reply: on
-start, dispatch nothing until the rows are collected, and a child whose sweep
-is out stays in flight. Before a restart, wait for every reply rather than
-stopping the subagent.
+start, run the loop only once the rows are collected; the loop dispatches
+nothing while a scan is out; and a child whose sweep is out stays in flight.
+While rows are being collected, edit the parent's body only through
+`log-row.sh` or `decision-row.sh`, which re-check their writes. Before a
+restart, wait for every reply rather than stopping the subagent.
 
 ## Collect the children's rows
 
@@ -214,24 +218,22 @@ Then handle each new row as "On start" step 3 does. In a subagent:
 >    repos/<owner>/<repo>/issues/<parent>/comments`, keeping those opening
 >    `Decision log: archived rows`.
 > 2. For each child below, read its comments with `gh api --paginate
->    repos/<owner>/<repo>/issues/<n>/comments`, owner, repo and number taken
->    from the child's URL. Keep those whose first line starts with
+>    repos/<its owner>/<its repo>/issues/<its number>/comments`, all three
+>    taken from the child's URL. Keep those whose first line starts with
 >    `Decision log: ` and whose URL neither the body nor an archived-rows
 >    comment links.
 > 3. Append each, oldest first, with `<scripts>/log-row.sh <owner>/<repo>
 >    <parent> --table="Decision log" --row='| <today> | <ID> | <child URL> |
->    <answer> (<comment URL>) | <state> |' --as=orchestrator`, the parent's
->    owner and repo. The ID and state are the comment's first line's, the answer
+>    <answer> (<comment URL>) | <state> |' --as=orchestrator`. The ID and state are the comment's first line's, the answer
 >    its **Answer**, with each `|` escaped as `\|`. On `write-lost`, `write` or
 >    `issue-query`, run it once more.
 >
-> Reply with `rows=<n appended> new=<ID:state,… or none>
-> body_chars=<last value log-row.sh printed, or none>`, then a line `failed
-> <comment URL> <reason>` for each row not appended.
+> Reply with `rows=<n appended> body_chars=<last value log-row.sh printed, or
+> none>`, then a line `new <ID> <state> <comment URL>` for each row appended,
+> and a line `failed <comment URL> <reason>` for each row not appended.
 > Children: `<child URLs>`
-> Your draft directory: `<path>`
 
-Handle each `new=` row as "On start" step 3 does, run "Keep the log under the
+Handle each `new` row as "On start" step 3 does, run "Keep the log under the
 body limit" on `body_chars`, and append each `failed` row inline, escalating
 when it fails again.
 
@@ -256,20 +258,21 @@ re-review. In a subagent:
 > You mark shipped, with `<PR URL>`, the items its merge shipped in the open
 > siblings below. Edit no body this prompt does not send you to, write no
 > decision row, ask no one, and send no message to any agent. Every write runs
-> as `<scripts>/as-role.sh orchestrator <owner>/<repo> -- <command>`, from a
-> body file in your draft directory.
-> For each sibling, run `<scripts>/claim-issue.sh <owner>/<repo> <n>
-> --as=orchestrator`, owner, repo and number taken from its URL:
+> as `<scripts>/as-role.sh orchestrator <its owner>/<its repo> -- <command>`,
+> from a non-empty body file in your draft directory, deleted once posted.
+> For each sibling, run `<scripts>/claim-issue.sh <its owner>/<its repo> <its
+> number> --as=orchestrator`, all three taken from its URL:
 > - `UNCLAIMED`: read its body, mark each item shipped with the PR's URL, and
->   write it back with `gh issue edit <n> --repo <owner>/<repo> --body-file
->   <file>`, re-reading the body just before the write.
+>   write it back with `gh issue edit <its number> --repo <its owner>/<its
+>   repo> --body-file <file>`, re-reading the body just before the write.
 > - `FOREIGN`: comment the items and the PR's URL on it with `gh issue comment
->   <n> --repo <owner>/<repo> --body-file <file>`, for its holder to fold in.
+>   <its number> --repo <its owner>/<its repo> --body-file <file>`, for its
+>   holder to fold in.
 > - `OWN`: change nothing; this run's author holds it.
 >
 > Reply with `swept=<sibling URLs edited or commented, or none>`, then a line
 > `notify=<sibling URL>:<items>` for each `OWN` sibling, and a line `failed
-> <sibling URL> <reason>` for each write that did not return `result=OK`.
+> <sibling URL> <reason>` for each write whose command exited non-zero.
 > Siblings and their items: `<from the author's final report>`
 > Your draft directory: `<path>`
 
@@ -298,9 +301,9 @@ prompt.
 > to any agent.
 > For the new round's PR and each other PR below, read the review bodies and
 > the inline review comments, resolved ones included, with `gh api --paginate
-> repos/<owner>/<repo>/pulls/<n>/reviews` and `gh api --paginate
-> repos/<owner>/<repo>/pulls/<n>/comments`, owner, repo and number taken from
-> each PR's URL. An inline comment's `path` is its file, and its
+> repos/<its owner>/<its repo>/pulls/<its number>/reviews` and `gh api
+> --paginate repos/<its owner>/<its repo>/pulls/<its number>/comments`, all
+> three taken from each PR's URL. An inline comment's `path` is its file, and its
 > `pull_request_review_id` is the review it belongs to.
 > A finding in the new round recurs when a finding on another PR cites the same
 > `R#` or `D#`, or is on the same `path` and is the same kind of finding.
@@ -309,9 +312,8 @@ prompt.
 > words>` for each.
 > The new round: review `<review URL>` on `<PR URL>`.
 > The other PRs: `<PR URLs>`
-> Your draft directory: `<path>`
 
-Drop a `recurs` item a row already holds. Each finding, from the log or the
+Each finding, from the log or the
 scan, is a parent-table row, `proposed`, naming the IDs and the children
 involved, plus a findings entry (`SKILL.md`), and it escalates like any
 question. A pattern already in a row is not raised again.

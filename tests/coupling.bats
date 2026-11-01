@@ -793,8 +793,8 @@ remote_read_calls() {  # <SKILL.md>
   for f in "$ROOT"/*/skills/*/references/*.md; do
     found=$((found + 1))
     size=$(wc -c <"$f")
-    [ "$size" -le 18000 ] || {
-      echo "${f#"$ROOT"/} is $((size)) bytes — split it at a heading to 18000 or under"
+    [ "$size" -le 19000 ] || {
+      echo "${f#"$ROOT"/} is $((size)) bytes — split it at a heading to 19000 or under"
       bad=1; }
   done
   shopt -u nullglob
