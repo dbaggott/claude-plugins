@@ -1,7 +1,11 @@
 # Git workflow: composing the merge command
 
-Part of the `git-workflow` skill. Read this once a review is clean and you are
-composing the merge handoff; `references/review-received.md` routes here.
+Part of the `git-workflow` skill. Read this the first time in the session a
+review is clean and you are composing the merge handoff, and compose a later
+handoff, such as one after a re-verdict, from that copy. Read it again when the
+watch result that brought you here is `ERROR`, when a watch returned no
+`result=` line, or when the context has been compacted since you read it.
+`references/review-received.md` routes here.
 `references/merge-wait.md` carries the watch until the merge lands, and
 `references/post-merge.md` the cleanup after it.
 

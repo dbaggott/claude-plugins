@@ -1,10 +1,22 @@
 # Reviewer: after the watch returns
 
-Part of the `reviewer` skill. Read this when `watch-pr.sh` returns, before
-branching on what it said. `SKILL.md` carries the flow up to spawning the watch;
-everything from the first return to the final report is here.
+Part of the `reviewer` skill. Read this on the session's first return of
+`watch-pr.sh`, before branching on what it said, and act on that copy at later
+returns. Read it again when a result is `ERROR`, when a watch returns no
+`result=` line, or when the context has been compacted since you read it.
+`SKILL.md` carries the flow up to spawning the watch; everything from the first
+return to the final report is here.
 
 ## Branch on `result=`
+
+Every result line carries `act=`, the branch below that its result takes for
+the reviewer:
+
+| `act=` | Results | What to do |
+|---|---|---|
+| `round` | `COMMITS`, `ACTIVITY`, `READY` | Run the `── next ──` line first: the `pr-round.sh` call, arguments filled in, returning the diff, bodies, threads and verdict the result's entry reads from. |
+| `rearm` | `CHECKS`, `IDLE` | Re-arm from the printed line, as its entry says. |
+| `read` | `CLOSED`, `ERROR` | Act on its entry below. |
 
 Each return is also a line to the operator: what came back, what you did, the PR
 URL. Not a re-summary of the review — that is already on the PR, and the reports
@@ -12,10 +24,6 @@ are owed at an approval and at `CLOSED`, per "Report the review" below. A turn
 that ends with one of those reports opens with its first line, and the return's
 line goes into the Summary of the report on that PR: the dispatcher recognises
 each report by its first line.
-
-`COMMITS`, `ACTIVITY` and `READY` carry a `── next ──` line — the `pr-round.sh`
-call, arguments filled in, returning the diff, the bodies, the threads and the
-verdict together. **Run it first; it is what their handling below reads from.**
 
 - **`COMMITS`** (`new_head=…`) — the author pushed. Re-review at the new HEAD
   per `references/re-review.md`, and resolve threads the new diff addressed.
@@ -67,14 +75,13 @@ verdict together. **Run it first; it is what their handling below reads from.**
 **`activity=1` on any result is not decoration — read it.** It means comments
 or replies landed alongside whatever the result names. `activity=0` means the
 burst was something else — a verdict, a check — so there is nothing
-conversational to go looking for. The JSON lines above the
-result line say what landed and from whom; **the text is behind the `── next ──`
-command**, which is `pr-round.sh` with its arguments filled in and returns the
-bodies, the unresolved threads and the diff in one call. Run it. The
-primary result says what to do first; handle the conversation per **Responding to
-comments and replies** in `SKILL.md` in the same pass as the re-review — not on
-a later wake, because the re-arm below sets `since_iso` to the reported `now`,
-which filters out everything already reported. Deferring those replies deletes them.
+conversational to go looking for. The JSON lines above the result line say what
+landed and from whom; **the text is behind the `── next ──` command**: run it.
+The primary result says what to do first; handle the conversation per
+**Responding to comments and replies** in `SKILL.md` in the same pass as the
+re-review — not on a later wake, because the re-arm below sets `since_iso` to
+the reported `now`, which filters out everything already reported. Deferring
+those replies deletes them.
 
 `verdict=<state>` alongside `verdict_sha=` says which verdict now stands, so you
 can tell another reviewer's objection from an approval before fetching anything.

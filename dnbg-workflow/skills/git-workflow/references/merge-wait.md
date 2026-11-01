@@ -68,8 +68,10 @@ unless you are a dispatched agent, on the closing line in
 `<skill-dir>/../findings-review/references/report.md`: **Your move:** merge,
 with the command repeated, and no watch running. Then stop; do not silently
 re-arm. An `IDLE` carrying a `merge=` field is the exception: it names a cause and has a remedy, so it is re-armed rather than stopped —
-`merge=behind` wants an "Update branch" click, and `merge=unrecognised:<value>`
-means the schema moved and wants the enum capture re-run.
+`merge=behind` wants an "Update branch" click, `merge=unrecognised:<value>`
+means the schema moved and wants the enum capture re-run, and `merge=blocked` is
+a terminal block the window closed on before its confirming read, which the
+next run makes.
 
 When the operator says anything about the merge — kicking it off or asserting it
 is done — verify the state before acting on the words, per
@@ -196,4 +198,5 @@ on. A handoff that already carried the stack's command stands as it is.
 The head moved, so the review is no longer clean: arm the review watch, per
 `references/review-rounds.md`, not the merge watch. The reviewer re-verdicts on
 the new head, which reaches you as `ACTIVITY`, and `references/merge.md`'s
-handoff follows as after any clean review.
+handoff follows as after any clean review, composed from the copy you read for
+the first one.

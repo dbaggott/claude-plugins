@@ -676,7 +676,11 @@ PR to resume (it re-assesses current state and picks the watch back up).
    without the flag, and `READY` is emitted only when it is set — the PR would be
    picked up on its next push, or never, and an idle watch is indistinguishable
    from a quiet PR.
-3. **On return, read `references/watch.md` before branching on `result=`.**
+3. **On the session's first return, read `references/watch.md` before
+   branching on `result=`.** On a later return, act on the copy you already
+   hold, unless the result is `ERROR`, there is no `result=` line, or the
+   context has been compacted since you read it: then read it again. Every
+   result line carries `act=`, the branch that file's table names for it.
    Don't branch from the result names alone — the two `ERROR` codes take opposite
    remedies, and a missing `result=` line reads like a quiet PR while meaning the
    opposite.

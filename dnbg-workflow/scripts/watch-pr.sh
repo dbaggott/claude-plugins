@@ -35,6 +35,10 @@
 #   result=ERROR    reason=<source> now=<iso>               # the watch is broken — do NOT re-arm
 #                   # reason=role: the resolver refused the author's login (why, on stderr)
 #
+# Every result line also carries `act=<token>`, just before `now=` (last on a
+# CLOSED, which has none): the branch the caller's reference prescribes for that
+# result, role and stage. `act_for` below says where the values come from.
+#
 # Every result a caller re-arms from is preceded by a `── re-arm ──` line
 # carrying the next invocation, whose `since` is that result's `now=` — except an
 # IDLE still holding an unreported burst, which hands back the `since` it was
@@ -105,7 +109,7 @@ WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
 . "$(dirname "$0")/lib-role.sh"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-fatal() { echo "result=ERROR reason=$1 now=$(poll_now_iso)"; exit 0; }
+fatal() { echo "result=ERROR reason=$1 act=read now=$(poll_now_iso)"; exit 0; }
 
 # Enumerated rather than a range: bracket ranges match in collation order, which
 # under bash 3.2 in a UTF-8 locale interleaves case, so `a-f` would span
@@ -233,6 +237,35 @@ verdict_field() {
   [ -n "$verdict_sha" ] && printf ' verdict_sha=%s verdict=%s' "$verdict_sha" "$verdict_state" || true
 }
 
+# The `act=` value: the branch the caller's reference prescribes for <result> in
+# this role and stage — `reviewer/references/watch.md` for a reviewer, and
+# `git-workflow/references/watch-results.md` and `merge-wait.md` for an author,
+# each of which tables the values. Where the reference branches on something this
+# script cannot see, the value is `read`, which sends the caller back to it: a
+# reviewer's CLOSED, since only it knows whether it is in issue mode, where CLOSED
+# means re-discover; an author's DIRTY, since only it knows whether the PR is
+# stacked, which it rebases rather than asking about. ERROR is always `read`.
+act_for() {  # <result> [window_left]
+  case "$1:$ROLE" in
+    COMMITS:*|ACTIVITY:*|READY:*) echo round ;;
+    CHECKS:reviewer|IDLE:reviewer) echo rearm ;;
+    CHECKS:author) echo fix ;;
+    CLOSED:author) echo cleanup ;;
+    BLOCKED:author) echo report ;;
+    # A run cut short at the ceiling goes on, and so does a merge-stage window
+    # whose `merge=` names a cause with a remedy. Any other author IDLE is news:
+    # at the review stage a reviewer that never answered, at the merge stage a
+    # merge that never came.
+    IDLE:author)
+      if [ -n "${2:-}" ] || { [ "$MERGE_STAGE" = 1 ] && [ -n "$idle_merge" ]; }; then
+        echo rearm
+      else
+        echo report
+      fi ;;
+    *) echo read ;;
+  esac
+}
+
 # IDLE is reachable with a burst still held: the draft hold gates the release but
 # not the window. Nothing was reported, so the re-arm hands back the state this
 # run was given — the hold survives, and the next run re-observes what this one
@@ -247,7 +280,7 @@ report_idle() {
   else
     watch_rearm "$(rearm_cmd)"
   fi
-  echo "result=IDLE${idle_merge:+ merge=$idle_merge}$held$(poll_window_field "$split_left") now=$NOW"; exit 0
+  echo "result=IDLE${idle_merge:+ merge=$idle_merge}$held$(poll_window_field "$split_left") act=$(act_for IDLE "$split_left") now=$NOW"; exit 0
 }
 
 # Whether anything is still worth waking the caller for. A settle can outlive its
@@ -267,7 +300,7 @@ report_error() {
   if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] && have_burst; then
     report_burst
   fi
-  echo "result=ERROR reason=$1 now=$(poll_now_iso)"
+  echo "result=ERROR reason=$1 act=read now=$(poll_now_iso)"
   exit 0
 }
 
@@ -322,15 +355,15 @@ report_burst() {
   if [ "$checks_only" = 1 ]; then
     local ft
     ft=$(failed_tests) || ft=""
-    echo "result=CHECKS checks=$(shq "$saw_checks")${ft:+ failed_tests=$(shq "$ft")}$mg now=$NOW"
+    echo "result=CHECKS checks=$(shq "$saw_checks")${ft:+ failed_tests=$(shq "$ft")}$mg act=$(act_for CHECKS) now=$NOW"
     exit 0
   fi
   if [ "$saw_ready" = 1 ]; then
-    echo "result=READY new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) now=$NOW"
+    echo "result=READY new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) act=$(act_for READY) now=$NOW"
   elif [ "$saw_commits" = 1 ]; then
-    echo "result=COMMITS new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) now=$NOW"
+    echo "result=COMMITS new_head=$new_head activity=$saw_activity$ck$mg$(verdict_field) act=$(act_for COMMITS) now=$NOW"
   else
-    echo "result=ACTIVITY activity=$saw_activity$ck$mg$(verdict_field) now=$NOW"
+    echo "result=ACTIVITY activity=$saw_activity$ck$mg$(verdict_field) act=$(act_for ACTIVITY) now=$NOW"
   fi
   exit 0
 }
@@ -347,7 +380,7 @@ report_stop() {  # <result> [extra]
   # reads the state again (twice, for a terminal block),
   # so nothing is lost and the stop still happens.
   if have_burst; then stop_merge="$1"; report_burst; fi
-  echo "result=$1${2:+ $2} now=$(poll_now_iso)"
+  echo "result=$1${2:+ $2} act=$(act_for "$1") now=$(poll_now_iso)"
   exit 0
 }
 
@@ -401,7 +434,7 @@ while :; do
   esac
 
   if [ "$STATE" = MERGED ] || [ "$STATE" = CLOSED ]; then
-    echo "result=CLOSED state=$STATE"; exit 0
+    echo "result=CLOSED state=$STATE act=$(act_for CLOSED)"; exit 0
   fi
 
   [ -z "$obs_head" ] && [ -n "$HEAD" ] && obs_head="$HEAD"

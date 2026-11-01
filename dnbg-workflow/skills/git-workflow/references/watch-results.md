@@ -1,13 +1,27 @@
 # Git workflow: watch results
 
-Part of the `git-workflow` skill. Read this whenever an author-side
-`watch-pr.sh` returns, before branching on what it said.
-`references/review-rounds.md` starts the watch and says how to re-arm from its
-`── re-arm ──` line. At the merge stage, `references/merge-wait.md` governs
-re-arming, `IDLE`, `DIRTY` and `BLOCKED cause=terminal`; the other entries here
-apply there too.
+Part of the `git-workflow` skill. Read this on the session's first return of
+an author-side `watch-pr.sh`, before branching on what it said, and act on that
+copy at later returns. Read it again when a result is `ERROR`, when a watch
+returns no `result=` line, or when the context has been compacted since you
+read it. `references/review-rounds.md` starts the watch and says how to re-arm
+from its `── re-arm ──` line. At the merge stage, `references/merge-wait.md`
+governs re-arming, `IDLE`, `DIRTY` and `BLOCKED cause=terminal`; the other
+entries here apply there too.
 
 ## Branch on `result=`
+
+Every result line carries `act=`, the branch its result takes for the author at
+the stage the watch was armed for:
+
+| `act=` | Results | What to do |
+|---|---|---|
+| `round` | `ACTIVITY`, `READY` | Run the `── next ──` command and go to `references/review-received.md`. |
+| `fix` | `CHECKS` | Read the failure, rerunning it once if the diff doesn't touch the test, per its entry below; re-arm from the printed line. |
+| `cleanup` | `CLOSED` | Go to `references/post-merge.md`. |
+| `report` | `BLOCKED`; `IDLE` at the review stage; a merge-stage `IDLE` with no `merge=` | Run the checks the result's entry here or in `references/merge-wait.md` makes first (`pr-verdict.sh` on an `IDLE`, the cause read off `pr-threads.sh` and `pr-verdict.sh` on `BLOCKED`), then tell the operator, and don't re-arm. |
+| `rearm` | `IDLE` with `window_left=`; a merge-stage `IDLE` with `merge=` | Re-arm from the printed line, saying what a `merge=` field names. |
+| `read` | `DIRTY`, `ERROR` | Read its entry before acting: a stacked PR's `DIRTY` is rebased rather than asked about, and the `ERROR` reasons take opposite remedies. |
 
 After any `alive` heartbeat lines, the script prints a summary of the activity it saw as one JSON object per line — who posted what kind of thing, where, without the text — then, on the results with a round behind them, a `── next ──` line carrying the `pr-round.sh` call that reads that round in full, then one result line. Treat the returns differently:
 

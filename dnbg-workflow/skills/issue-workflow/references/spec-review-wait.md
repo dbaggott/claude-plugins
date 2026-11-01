@@ -1,8 +1,11 @@
 # Issue workflow: waiting for the next spec-review round
 
-Part of the `issue-workflow` skill. Read this whenever `references/spec-review-rounds.md`
-sends you to wait for a round, which is any wait not on a spawned reviewer's
-report. `<skill-dir>` is this skill's Base directory.
+Part of the `issue-workflow` skill. Read this the first time in the session that
+`references/spec-review-rounds.md` sends you to wait for a round, which is any
+wait not on a spawned reviewer's report, and act on that copy at later waits.
+Read it again when a result is `ERROR`, when a watch returns no `result=` line,
+or when the context has been compacted since you read it. `<skill-dir>` is this
+skill's Base directory.
 
 Spawn the wait as a **background** task with `timeout: 7200000`, and every
 re-arm of it the same way, so idle polling never enters the conversation.
@@ -25,6 +28,17 @@ author has an App. Arm it
 *after* posting the response. The first-arm rule's time is the comment's own,
 not your clock's, because a body edit carries no login to filter: a `since`
 before your last edit by GitHub's clock wakes the watch on your own round.
+
+Every result line carries `act=`, the branch below that its result takes for
+the author:
+
+| `act=` | Results | What to do |
+|---|---|---|
+| `round` | `ACTIVITY` with `comment` in `kinds=` | Read the round. |
+| `stop` | `CLOSED` with no re-arm line | Stop. |
+| `count` | `IDLE` with no `window_left=` | Count the empty window and re-arm from the printed line; tell the operator after the second. |
+| `rearm` | `IDLE` with `window_left=` | Re-arm from the printed line, without counting it. |
+| `read` | `ERROR`, any other `ACTIVITY`, a `CLOSED` that re-arms the issues still open, and any result with `missing=` or `closed=` | `ERROR` takes its entry below. For the rest, read the issues before acting, say which issues closed or are missing, and re-arm from any printed line. |
 
 Dispatch on the result:
 

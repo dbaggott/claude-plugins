@@ -326,7 +326,10 @@ reports it as the row's **Question**; an answer other than the change as built
 sends the author back to rework it.
 
 Triage it against the design (step 5) under the allowlist in
-`references/triage.md`, which also gives the log row's exact shape:
+`references/triage.md`, which also gives the log row's exact shape. You read it
+before the first question; triage each later one from that copy, reading it
+again only when the context has been compacted since. Each citation of it below
+points into that copy.
 
 - **Answerable** — the design's recorded rationale covers the case, and the
   answer is on the allowlist. Post the `Decision log:` row on the issue with the

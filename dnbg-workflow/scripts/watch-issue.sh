@@ -17,6 +17,10 @@
 #   result=ERROR    reason=<source> now=<iso>
 #                   # reason=role: the resolver refused the author's login (why, on stderr)
 #
+# Every result line also carries `act=<token>`, just before `now=`: the branch the
+# caller's reference prescribes for that result and role. `act_for` below says
+# where the values come from.
+#
 # THE RE-ARM CONTRACT. Results a caller re-arms from carry a `── re-arm ──` line,
 # the next invocation with every argument filled in: `since` set to this run's
 # `now`, and any newly-seen PR folded into `--exclude`. An agent runs that line;
@@ -108,7 +112,7 @@ WINDOW=${WINDOW:-$([ "$ROLE" = author ] && echo 1800 || echo 21600)}
 . "$(dirname "$0")/lib-role.sh"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-fatal() { echo "result=ERROR reason=$1 now=$(poll_now_iso)"; exit 0; }
+fatal() { echo "result=ERROR reason=$1 act=read now=$(poll_now_iso)"; exit 0; }
 
 case "$ROLE" in author|reviewer) ;; *) bad=1 ;; esac
 [ -n "$REPO" ] || bad=1
@@ -201,16 +205,41 @@ rearm_fields() {  # [issues-override]
 # nothing is named to the caller rather than silently dropped from the set.
 missing_field() { [ -n "$seen_missing" ] && printf ' missing=%s' "$seen_missing" || true; }
 
+# The `act=` value: the branch the caller's reference prescribes for <result> in
+# this role — `reviewer/references/issue-mode-wait.md` for a reviewer and
+# `issue-workflow/references/spec-review-wait.md` for an author, each of which
+# tables the values. Where the reference branches on something this script cannot
+# see, the value is `read`, which sends the caller back to it. A reviewer's
+# ACTIVITY and CLOSED are always that: several references wait with this role,
+# and each handles those two its own way. So is any result naming a missing
+# issue or, on ACTIVITY, a closed one, which the caller has to say something
+# about.
+act_for() {  # <result> [window_left | remaining, on CLOSED] [closed]
+  if [ -n "$seen_missing" ] || [ -n "${3:-}" ]; then echo read; return; fi
+  case "$1:$ROLE" in
+    # Every caller re-arms an IDLE. A full window that came back empty is also
+    # counted, since each tells the operator after the second; one cut short at
+    # the ceiling is not.
+    IDLE:*) if [ -n "${2:-}" ]; then echo rearm; else echo count; fi ;;
+    ACTIVITY:author)
+      case " $hit_kinds " in *" comment "*) echo round ;; *) echo read ;; esac ;;
+    # Only once nothing is left to watch: with issues still open the closure is
+    # reported and the rest re-armed.
+    CLOSED:author) if [ -n "${2:-}" ]; then echo read; else echo stop; fi ;;
+    *) echo read ;;
+  esac
+}
+
 report_idle() {
   stamp_now
   split_left=$(poll_split_left)
   watch_rearm "$(rearm_cmd)"
-  echo "result=IDLE$(missing_field)$(rearm_fields)$(poll_window_field "$split_left") now=$NOW"; exit 0
+  echo "result=IDLE$(missing_field)$(rearm_fields)$(poll_window_field "$split_left") act=$(act_for IDLE "$split_left") now=$NOW"; exit 0
 }
 
 report_error() {
   [ "$settle_until" != 0 ] && report_hit
-  echo "result=ERROR reason=$1 now=$(poll_now_iso)"
+  echo "result=ERROR reason=$1 act=read now=$(poll_now_iso)"
   exit 0
 }
 
@@ -226,7 +255,7 @@ report_hit() {  # [closed-list] [issues-override|NONE]
   kinds=$(printf '%s\n' "$hit_kinds" | tr ' ' '\n' | grep -v '^$' | sort -u | paste -sd, - || true)
   edited=$(printf '%s' "$last_json" | jq -r '
     [ .issues[] | "\(.number):\(.body_edited // "none")" ] | join(",")' 2>/dev/null || echo "")
-  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited${1:+ closed=$1}$(missing_field)$fields now=$NOW"
+  echo "result=ACTIVITY issues=$issues kinds=$kinds edited=$edited${1:+ closed=$1}$(missing_field)$fields act=$(act_for ACTIVITY "" "${1:-}") now=$NOW"
   exit 0
 }
 
@@ -335,7 +364,7 @@ while :; do
     if [ -n "$remaining" ]; then
       watch_rearm "$(rearm_cmd " $remaining")"; fields=$(rearm_fields " $remaining")
     fi
-    echo "result=CLOSED issues=$closed_issues$(missing_field)$fields now=$NOW"; exit 0
+    echo "result=CLOSED issues=$closed_issues$(missing_field)$fields act=$(act_for CLOSED "$remaining") now=$NOW"; exit 0
   fi
 
   # Counted rather than merely present, so a SECOND comment extends the window
