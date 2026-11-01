@@ -14,7 +14,8 @@
 # `input_tokens`. An absent cache field counts 0. Any failure is UNKNOWN, never
 # a guessed number: `no-session-id` an unset CLAUDE_CODE_SESSION_ID,
 # `no-transcript` no transcript file for it, `no-usage` no such entry, `parse` a
-# line that is not a JSON object.
+# line after the entry that is not a JSON object, or a usage field on it that is
+# not a number. A bad line before the entry is not read.
 #
 # CLAUDE_CODE_SESSION_ID is documented (https://code.claude.com/docs/en/env-vars);
 # the transcript's entry format is not, and changes between Claude Code versions
@@ -38,17 +39,22 @@ shopt -u nullglob
 # shellcheck disable=SC2012  # The names are paths this script globbed, not input.
 TRANSCRIPT=$(ls -t "${MATCHES[@]}" | head -n 1)
 
-TOKENS=$(jq -n -r '
-  reduce inputs as $e (null;
-    if ($e | type) != "object" then error("not an object")
-    elif $e.type == "assistant" and $e.isSidechain != true
-         and (try $e.message.usage.input_tokens catch null | type) == "number"
-    then $e.message.usage
-    else . end)
-  | if . == null then "none"
-    else .input_tokens + (.cache_read_input_tokens // 0)
-         + (.cache_creation_input_tokens // 0)
-    end' "$TRANSCRIPT" 2>/dev/null) || unknown parse
+# Read from the end, so the cost is the lines after the entry, not the run's
+# whole history, and a bad line before the entry is never reached.
+reverse() { if command -v tac >/dev/null; then tac "$1"; else tail -r "$1"; fi; }
+# Classified by its output, not its status: jq stops at the first match, which
+# can end the reversal on SIGPIPE, and an error prints nothing, which is parse.
+TOKENS=$(reverse "$TRANSCRIPT" | jq -n -R -r '
+  first(inputs
+    | (try fromjson catch null)
+    | if type != "object" then error("not an object")
+      elif .type == "assistant" and .isSidechain != true
+           and (try .message.usage.input_tokens catch null | type) == "number"
+      then .message.usage
+           | .input_tokens + (.cache_read_input_tokens // 0)
+             + (.cache_creation_input_tokens // 0)
+      else empty end)
+  // "none"' 2>/dev/null) || true
 
 case "$TOKENS" in
   none) unknown no-usage ;;

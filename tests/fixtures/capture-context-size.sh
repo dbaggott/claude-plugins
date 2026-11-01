@@ -11,13 +11,18 @@
 # committed. Re-take it after a Claude Code upgrade: the format is internal, and
 # a fixture written by hand would match the script rather than the format. The
 # fixture's token count is pinned in tests/context-size.bats, so set it there to
-# the sum of the three input fields of the last assistant entry it printed.
+# the sum of the three input fields it prints for the last main-thread
+# assistant entry.
 set -euo pipefail
 
 LINES="${1:-14}"
 : "${CLAUDE_CODE_SESSION_ID:?run this from a Claude Code session}"
+shopt -s nullglob
+MATCHES=("${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$CLAUDE_CODE_SESSION_ID".jsonl)
+shopt -u nullglob
+[ "${#MATCHES[@]}" -gt 0 ] || { echo "no transcript for session $CLAUDE_CODE_SESSION_ID" >&2; exit 1; }
 # shellcheck disable=SC2012  # The names are paths this script globbed, not input.
-SRC=$(ls -t "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$CLAUDE_CODE_SESSION_ID".jsonl | head -n 1)
+SRC=$(ls -t "${MATCHES[@]}" | head -n 1)
 OUT="$(cd "$(dirname "$0")" && pwd)/context-size/transcript.jsonl"
 mkdir -p "$(dirname "$OUT")"
 
@@ -31,4 +36,4 @@ mkdir -p "$(dirname "$OUT")"
        then {message: {usage: .message.usage}} else {} end)'
 } > "$OUT"
 echo "$OUT"
-jq -c 'select(.type == "assistant") | .message.usage | {input_tokens, cache_read_input_tokens, cache_creation_input_tokens}' "$OUT" | tail -n 1
+jq -c 'select(.type == "assistant" and .isSidechain != true) | .message.usage | {input_tokens, cache_read_input_tokens, cache_creation_input_tokens}' "$OUT" | tail -n 1

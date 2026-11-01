@@ -84,6 +84,12 @@ setup() {
   [ "$output" = "result=UNKNOWN reason=parse" ]
 }
 
+@test "a bad line before the last assistant entry is never read" {
+  { printf '{"type":"user","mess\n[1]\n'; cat "$FIXTURE"; } > "$TRANSCRIPT"
+  run "$SIZE"
+  [ "$output" = "result=OK tokens=$FIXTURE_TOKENS" ]
+}
+
 @test "a line that is JSON but not an object is unknown" {
   echo '[1,2]' >> "$TRANSCRIPT"
   run "$SIZE"
