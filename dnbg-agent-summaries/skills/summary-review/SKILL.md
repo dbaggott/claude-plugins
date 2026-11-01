@@ -114,11 +114,16 @@ When any row collides, stop before writing or moving anything, and report each
 collision for the operator to resolve. Otherwise apply the table. Make every
 write below with Edit, per `references/summary.md`, "Writing the file". Change
 only the `status:`, `status_ref:` and `kept:` frontmatter keys, plus the one
-`Filed as` line below, and never delete a file.
+`Filed as` line below, and never delete a file. An archive row's writes wait
+for its step 2 in the Archive bullet, after the comparison there, so the sweep
+never mistakes its own Edit for another writer's. When the file tools refuse
+one of the sweep's Edits because the file changed, skip the rest of that row,
+and report it as changed during the sweep, rather than applying the write
+again.
 
 - **An age candidate kept**: write `kept: <today>`, as `YYYY-MM-DD`.
 - **An age candidate or kept file sent to archive**: write `status: retired`,
-  remove any `status_ref:`, and archive it as below.
+  remove any `status_ref:`, and archive it.
 - **A proposed status**: write it into each file still kept, with its
   `status_ref:`, or removing one the new status does not take. A file being
   archived takes it too, so the archive says why.

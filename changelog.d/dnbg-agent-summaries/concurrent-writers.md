@@ -5,5 +5,5 @@ stands. A summary the sweep archives while an agent is still updating it is
 moved back out of `archive/` and marked active, rather than written again beside
 the archived copy.
 
-The sweep now skips, and reports, a file another writer changed after the sweep
-read it, instead of archiving the older state.
+The sweep now skips, and reports, a file it was about to archive that another
+writer changed after the sweep read it, instead of archiving it.

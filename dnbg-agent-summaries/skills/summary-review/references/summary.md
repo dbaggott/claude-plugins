@@ -41,7 +41,8 @@ it again, which would leave the older copy in `archive/` beside a new one:
 
 1. Move it back with `mv -n`, and its asset directory too if it has one, and
    confirm each source path in `archive/` is gone.
-2. Set `status: active` with one Edit, removing any `status_ref:`.
+2. Read it at its restored path, since the sweep may have written to it, then
+   set `status: active` with one Edit, removing any `status_ref:`.
 3. Make your change as an Edit.
 
 Say in your reply that you moved it back from `archive/`, and why. When the name
