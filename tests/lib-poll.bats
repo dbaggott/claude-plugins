@@ -22,6 +22,9 @@ load clock
 
 setup() {
   contain_traces
+  # The suite runs inside Claude Code sessions as well as in CI, and an attended
+  # session's variable turns the ceiling off; the tests that want it set say so.
+  unset CLAUDE_CODE_SESSION_ATTENDED
 }
 
 # Prints the pid of watch $1's nap `sleep` once it exists; fails if none appears.
@@ -253,6 +256,55 @@ nap_child() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"TIMED_OUT"* ]]
   [[ "$output" == *"left=21590 field=[ window_left=21590]"* ]]
+}
+
+# An attended session puts no time limit on background commands, so the split the
+# ceiling makes would be a wake spent only on re-arming. The suspend is the case
+# that tells "ceiling off" from "ceiling raised to the window": wall time runs
+# far past awake time, and still the run ends on the window alone. Hour-long naps
+# and no heartbeat keep a six-hour window to a few ticks.
+@test "an attended session serves the whole window in one run, through a suspend" {
+  setup_clock
+  echo 100000 > "$SUSPEND"
+  run bash -c "export CLAUDE_CODE_SESSION_ATTENDED=1 WINDOW=21600 INTERVAL=3600 HEARTBEAT=100000; unset WINDOW_CEILING; . '$LIB'
+    poll_init
+    while ! poll_timed_out; do poll_nap; done
+    echo awake=\$(poll_awake) wall=\$(poll_wall) left=[\$(poll_split_left)]"
+  [ "$status" -eq 0 ]
+  local awake wall
+  awake=$(sed -n 's/^awake=\([0-9]*\).*/\1/p' <<<"$output")
+  wall=$(sed -n 's/.* wall=\([0-9]*\).*/\1/p' <<<"$output")
+  [ "$awake" -ge 21600 ]
+  [ "$wall" -ge 121600 ]
+  [[ "${lines[-1]}" == *"left=[]" ]]
+}
+
+@test "outside an attended session the ceiling is 6300 seconds" {
+  setup_clock
+  run bash -c "export WINDOW=21600 INTERVAL=3600 HEARTBEAT=100000; unset WINDOW_CEILING; . '$LIB'
+    echo ceiling=\$WINDOW_CEILING
+    poll_init
+    while ! poll_timed_out; do poll_nap; done
+    echo wall=\$(poll_wall) left=\$(poll_split_left)"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ceiling=6300"* ]]
+  [[ "${lines[-1]}" == "wall=6300 left="* ]]
+}
+
+@test "an explicit WINDOW_CEILING holds in an attended session too" {
+  setup_clock
+  run bash -c "export CLAUDE_CODE_SESSION_ATTENDED=1 WINDOW=21600 WINDOW_CEILING=1000; . '$LIB'
+    poll_init
+    while ! poll_timed_out; do poll_nap; done
+    echo wall=\$(poll_wall) left=\$(poll_split_left)"
+  [ "$status" -eq 0 ]
+  [[ "${lines[-1]}" == "wall=1000 left=20600" ]]
+}
+
+@test "an explicit WINDOW_CEILING is still validated in an attended session" {
+  run bash -c "export CLAUDE_CODE_SESSION_ATTENDED=1 WINDOW_CEILING=0; . '$LIB'"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"WINDOW_CEILING must be a positive integer"* ]]
 }
 
 @test "a window knob that is not a positive integer is refused" {

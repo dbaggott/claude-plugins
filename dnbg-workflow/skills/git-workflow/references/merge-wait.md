@@ -56,10 +56,10 @@ builds it from GitHub instead.
 the PR is ready — the claim "I am watching for the merge now" has to be about a
 watcher that is running.
 
-An `IDLE` carrying `window_left=` does not end the wait. Six hours is longer
-than one run may last, so the watch ends each run at its ceiling and carries the
-rest of the window on its re-arm line. Re-arm from that line without waking
-anyone.
+An `IDLE` carrying `window_left=` does not end the wait. In a session that
+limits background commands, six hours is longer than one run may last, so the
+watch ends each run at its ceiling and carries the rest of the window on its
+re-arm line. Re-arm from that line without waking anyone.
 
 On a bare `result=IDLE` here — six hours of laptop-open time with no merge, and
 no `merge=` field naming a cause — wake **once** and say the PR is still open and
