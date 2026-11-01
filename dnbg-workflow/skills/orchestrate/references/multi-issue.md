@@ -125,19 +125,37 @@ Append the table row with:
 fails again. `section-missing` or `table-missing` means the parent has no
 decision log to append to, which is an escalation.
 
+Change a row's state with the same script, giving the row as it reads now
+(the text you appended, or read on start) and the new state:
+
+```bash
+"<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --table="Decision log" \
+  --set-state=applied \
+  --row='| <date> | <ID> | <child URL or —> | <entry> | decided |' [--row=…] --as=orchestrator
+```
+
+It rewrites only each given row's state cell, every row given in one write.
+`result=OK` means each row reads the new state, so a re-run is safe, and the
+other failures are handled as an append's are. `row-missing` means a row given
+is in the table in neither state: the text you hold may be stale, as after a
+compaction, so read the parent's decision-log table once and run it again with
+the row as it reads there. Escalate if the row is not in the table, or the
+second run fails too.
+
 Every `decided` row, an answer to one child's question included, is finished
 through `references/design-change.md`, whose last step marks it `applied`.
 A row of the operator check before review (`references/triage.md`, "The row")
 whose feedback changes no design section has nothing to sweep: set it `applied`
-with the one-line note `design-change.md` gives for a row already in the body.
+with `log-row.sh --set-state`, and post the one-line note `design-change.md`
+gives for a row already in the body.
 
 You are the parent body's only writer. A child's body is its author's, per
 `SKILL.md`; you edit one only in a design change's sweep of a child not yet
 dispatched (`references/design-change.md`), or in a merge's sweep of a child no
 one holds (below). Any other
-body edit, a row's state cell included, is reading the body, changing it, and
-writing it back with the body edit in `SKILL.md`'s "Write as the orchestrator",
-re-read just before each write. A sweep's edit of a child's body is the same.
+body edit, the scripted append and state change aside, is reading the body,
+changing it, and writing it back with the body edit in `SKILL.md`'s "Write as
+the orchestrator", re-read just before each write. A sweep's edit of a child's body is the same.
 
 **An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
 the loop pauses until they answer, and the events that arrived meanwhile are

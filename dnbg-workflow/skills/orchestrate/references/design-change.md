@@ -7,7 +7,8 @@ nothing beyond the asking child's body runs only steps 3 and 6. Such a row is wo
 checks the current state rather than assuming it is first to run. A row whose
 entry the parent's body and every child it reaches already carry (step 2,
 whose set serves every row of the pass) is not swept: set its state to
-`applied` and post one line on the parent, `Decision log: <date> <ID> set to
+`applied` with `log-row.sh --set-state` (`references/multi-issue.md`, "Triage
+and the log") and post one line on the parent, `Decision log: <date> <ID> set to
 applied, already in the body and every child`, as the orchestrator, from a
 file in your draft directory:
 
@@ -17,7 +18,8 @@ file in your draft directory:
 ```
 
 Every body edit below, the parent's and a child's, is the body edit in
-`SKILL.md`'s "Write as the orchestrator".
+`SKILL.md`'s "Write as the orchestrator", except step 6's state change, which
+is `log-row.sh --set-state`.
 
 Act on the row at once. The decision is the gate, and the edits below are part
 of applying it, not a precondition for acting on it.
@@ -97,4 +99,6 @@ author.
 ## 6. Mark the row applied
 
 Once the parent and every reached open child match the decision, and every
-re-review is `READY`, change the row's state cell to `applied`.
+re-review is `READY`, change the row's state cell to `applied` with
+`log-row.sh --set-state` (`references/multi-issue.md`, "Triage and the log").
+Rows a pass applies together take one call, a `--row` for each.
