@@ -16,7 +16,8 @@ setup() {
   export CALLS="$BATS_TEST_TMPDIR/calls"; : > "$CALLS"
   export COMMENTS="$BATS_TEST_TMPDIR/comments"; echo '[]' > "$COMMENTS"
   export BODY="$BATS_TEST_TMPDIR/body"
-  export COMMENT_FAILS=0 EDIT_FAILS=0
+  export COMMENT_FAILS=0 EDIT_FAILS=0 CREATED
+  CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   cat > "$STUB/gh" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$CALLS"
@@ -24,13 +25,14 @@ printf 'gh %s token=%s\n' "$*" "${GH_TOKEN:-none}" >> "$NET_LOG"
 case "$1 $2" in
   "api user") echo operator-login ;;
   "api --paginate") cat "$COMMENTS" ;;
+  "api repos/"*) echo "${CREATED:0:10}" ;;
   "issue comment")
     [ "$COMMENT_FAILS" = 0 ] || exit 1
     while [ "$#" -gt 0 ]; do [ "$1" = --body-file ] && f="$2"; shift; done
     id=$(( $(jq length "$COMMENTS") + 1 ))
     url="https://github.com/acme/r/issues/7#issuecomment-$id"
     jq --rawfile b "$f" --arg u "$url" \
-      '. + [{body: $b, html_url: $u, created_at: (now | todate)}]' \
+      '. + [{body: $b, html_url: $u, created_at: env.CREATED}]' \
       "$COMMENTS" > "$COMMENTS.new" && mv "$COMMENTS.new" "$COMMENTS"
     echo "$url" ;;
   "api graphql")
@@ -118,6 +120,30 @@ EOF
   [[ "$output" == "result=OK "*" parent=OK "* ]]
   grep -qxF "| $(today) | D4 | $CHILD | Use a \\| b ($CHILD#issuecomment-1) | decided |" "$BODY"
   [ "$(posted | sed -n 4p)" = '**Answer:** Use a | b' ]
+}
+
+@test "a new comment's row takes the server's creation date, not the local clock's" {
+  CREATED=2026-10-31T23:59:59Z
+  run --separate-stderr "$ROW" acme/r 7 "${ARGS[@]}" --parent="$PARENT" --as=orchestrator
+  [[ "$output" == "result=OK "*" parent=OK "* ]]
+  grep -q '^api repos/acme/r/issues/comments/1 ' "$CALLS"
+  grep -qxF "| 2026-10-31 | D4 | $CHILD | Leave the body to the orchestrator. ($CHILD#issuecomment-1) | applied |" "$BODY"
+}
+
+@test "a multi-line answer stays in the comment and is one line in the table" {
+  run --separate-stderr "$ROW" acme/r 7 '--id=Operator check | A' --state=decided --question=q \
+    --answer=$'Changes needed:\n- one\n- two' --basis=operator --parent="$PARENT" --as=orchestrator
+  [[ "$output" == "result=OK "*" parent=OK "* ]]
+  diff <(posted) - <<'EOF2'
+Decision log: Operator check | A — decided
+
+**Question:** q
+**Answer:** Changes needed:
+- one
+- two
+**Basis:** operator
+EOF2
+  grep -qxF "| $(today) | Operator check \\| A | $CHILD | Changes needed: - one - two ($CHILD#issuecomment-1) | decided |" "$BODY"
 }
 
 @test "a re-run finds its identical comment, from any author, and posts and appends nothing" {
@@ -220,7 +246,9 @@ bad() {
   bad acme/r 7 "${ARGS[@]}" --as=
   bad acme/r 7 --id=D4 --state=done --question=q --answer=a --basis=b --as=orchestrator
   bad acme/r 7 --id=D4 --state=decided --question=q --basis=b --as=orchestrator
-  bad acme/r 7 --id=D4 --state=decided --question=q --answer=$'a\nb' --basis=b --as=orchestrator
+  bad acme/r 7 --id=$'D\n4' --state=decided --question=q --answer=a --basis=b --as=orchestrator
+  bad acme/r 7 "${ARGS[@]}" --parent= --as=orchestrator
+  bad acme/r 7 "${ARGS[@]}" --parent="$PARENT" --entry= --as=orchestrator
   bad acme/r 7 "${ARGS[@]}" --entry=e --as=orchestrator
   bad acme/r 7 "${ARGS[@]}" --table-state=applied --as=orchestrator
   bad acme/r 7 "${ARGS[@]}" --parent="$PARENT" --table-state=done --as=orchestrator

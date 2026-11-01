@@ -164,7 +164,7 @@ Decision log: D4 — applied
 ```
 
 Post it under the orchestrator role with one call, which composes the row
-above from one-line values:
+above from its values, each quoted for the shell (a `'` inside one as `'\''`):
 
 ```bash
 "<skill-dir>/../../scripts/decision-row.sh" <owner>/<repo> <n> \
