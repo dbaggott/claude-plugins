@@ -45,8 +45,8 @@ test on its own. It is a project when any of these holds:
 
 Issues that share only a topic are not a project, however many issues or PRs
 they take: their sentence is each one's own criterion joined by "and". Issues
-whose shared goal's criterion needs more than one of their PRs together are one
-by the third test, even when each PR merges on its own. The tracking issue buys
+whose shared goal's criterion needs more than one of their PRs together are a
+project by the third test, even when each PR merges on its own. The tracking issue buys
 a review, in `reviewer`'s issue mode, of all its children's PRs against the
 goal's criteria, and, under `orchestrate`, a close-out that runs the goal's
 criterion once. A child of a tracking issue is already in its project, so the
