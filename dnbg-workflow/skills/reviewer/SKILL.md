@@ -9,14 +9,9 @@ You are acting as an **independent code reviewer** on a pull request. Your job
 is to find real issues, not to nitpick, and to post a proper GitHub review.
 
 The review posts under your **reviewer GitHub App identity**
-(`agent-reviewer-<you>[bot]`), not your personal account. That separation is
-the whole point, and it buys two things nothing else does:
-
-- **A binding verdict on your own PR.** GitHub forbids approving a PR you
-  authored. A distinct App identity is not you, so it can.
-- **A review that reads as independent.** A verdict from a separate identity is
-  what a human merger weighs — and, where the repo requires reviews at all, what
-  can satisfy that requirement.
+(`agent-reviewer-<you>[bot]`), not your personal account: GitHub forbids
+approving a PR you authored, and a separate identity can, giving a verdict a
+human merger weighs as independent and a required-review gate can count.
 
 **This skill is GitHub-only, judged by the host of the PR you were given, never
 your working directory.** If that PR is not on `github.com`, say that reviewing
@@ -26,14 +21,8 @@ GitHub PR reviewed from another forge's checkout needs no check.
 Invoking this skill is your authorization to post directly: verdict and inline
 comments go to GitHub in one pass.
 
-## How this differs from `/code-review`
-
-`/code-review` reviews your *local* changes — the branch and anything
-uncommitted — and reports back to you. This skill reviews a *pushed PR* end to
-end and posts a real GitHub **review** with a binding verdict — the thing a human
-merger reads, and the thing a required-review gate counts where the repo has
-one — under the bot identity. Use this when asked to review a PR; use
-`/code-review` on your own unpushed work, as `git-workflow`'s self-review does.
+`/code-review`, which `git-workflow`'s self-review runs, is for your own
+unpushed work and posts nothing.
 
 ## Reviewing an issue
 
@@ -81,37 +70,14 @@ Throughout, `<repo>` is `owner/name` and `<n>` is the PR number. Pass
 `--repo <repo>` explicitly so the skill works from any directory. Resolving the
 PR can use your own `gh` auth; the bot is only needed to post.
 
-### If the PR is a draft, ask before reviewing
+### If the PR is a draft
 
 Read `isDraft` when you resolve the PR — for one named by number,
 `gh pr view <n> --repo <repo> --json isDraft`.
 
-**Naming a draft is not evidence the operator noticed it was one.** Say it's a
-draft, then call `AskUserQuestion` (the tool auto-appends "Other"):
-
-1. **"Wait until it's ready (Recommended)"** — "Hold the review; watch the PR and
-   review when it leaves draft."
-2. **"Review it now"** — "Review the draft as asked and post the verdict."
-
-Waiting is recommended because draft is the author's signal that the work is not
-yet endorsed for review, and a verdict on a draft spends the attention that
-signal is asking you to withhold — the same reason a *discovered* draft is held
-back without asking at all.
-
-On 1, post nothing now: arm the watch with `--was-draft` (see "Watch the PR", which gives the first-arm rule)
-and review when it reports `READY`. On 2, carry on with the flow below. Without
-`AskUserQuestion`, a dispatcher's "wait until it's ready" or "review it now" is
-the answer; with neither, ask on the PR per `<skill-dir>/../issue-workflow/references/delegated.md`.
-
-**Say what waiting costs when you take option 1**, in the same breath: the watch
-lives in this session, so a PR marked ready after the session ends gets no review
-until someone asks again. That is the operator's to weigh — option 2 is what
-buys a verdict in hand right now. It belongs here rather than in the option's
-description because a pre-answered wait takes option 1 with no picker rendered
-at all.
-
-Skip the picker when they have already answered — "review it even though it's a
-draft", "review it once it's ready" — and don't replace it with a prose question.
+When it reads `true` for a PR you were asked to review by name, read
+`references/draft-pr.md` before reviewing: it asks whether to wait. A draft
+issue mode discovers is held without asking.
 
 ## Post as the bot
 
@@ -190,8 +156,9 @@ review.
 ## Repo settings you cannot read
 
 Branch protection and rulesets take **admin** to read, so from write access the
-endpoint answers 403 or 404 rather than the truth — `git-workflow`'s "Know the
-repo's merge settings" refuses the call for exactly that reason. These follow
+endpoint answers 403 or 404 rather than the truth —
+`<skill-dir>/../git-workflow/references/approval.md`
+refuses the call for exactly that reason. These follow
 from not knowing, and point in opposite directions on purpose:
 
 - **Assume the direction that makes your behavior safe, not the convenient one.**
@@ -522,7 +489,7 @@ between that read and the POST still leaves the review pinned to `<head-sha>`,
 and the watch's next tick sees the newer HEAD.
 
 Write the review body, and each inline comment's body, to its own file in your
-draft directory (`<skill-dir>/../git-workflow/SKILL.md`, "Draft files") with
+draft directory (`<skill-dir>/../git-workflow/references/draft-files.md`) with
 your file-writing tool, and hand each to `jq --rawfile`. Nothing then passes
 through the shell's quoting, so an apostrophe or a newline in a finding cannot
 break the command — which an inline `--arg "<body>"` does. The payload is built
@@ -602,9 +569,8 @@ so the body file carries no SHA of its own to fall out of step with `commit_id`:
 ```
 
 A force-push rewrites a review's `commit_id` (`pr-verdict.sh` holds the
-mechanism), so it stops recording what you looked at. A review body is never
-rewritten, which makes this the only durable record and you the only party that
-knows it first-hand.
+mechanism), and a review body is never rewritten, so this stamp is the only
+durable record of what you looked at.
 
 Don't post a stream of individual top-level comments, and don't follow the
 review with a top-level comment that recaps it.
@@ -614,10 +580,9 @@ review with a top-level comment that recaps it.
 After posting the initial review, keep watching the PR and act on changes
 automatically: a background poller wakes you on a change, you act, then re-arm.
 
-The watch runs as long as your Claude session is alive. If the laptop just sleeps
-(lid closed), the poller suspends and resumes on wake — its next poll catches
-whatever changed meanwhile. If you quit the session, re-invoke the skill on the
-PR to resume (it re-assesses current state and picks the watch back up).
+The watch lives as long as your session. A sleeping laptop suspends it and its
+next poll catches up on wake; after quitting the session, re-invoke the skill
+on the PR to resume (it re-assesses current state and picks the watch back up).
 
 1. **Record state** after each action: the HEAD SHA you last reviewed, a
    timestamp marking "handled up to here" (on the first arm, the review's
@@ -653,7 +618,8 @@ PR to resume (it re-assesses current state and picks the watch back up).
    ```
 
    `--round-dir` is where the watch writes the round it fetches on a wake: your
-   draft directory (`git-workflow`'s "Draft files"), which the re-arm line keeps.
+   draft directory (`<skill-dir>/../git-workflow/references/draft-files.md`),
+   which the re-arm line keeps.
 
    `--role=reviewer` is what makes this the reviewer's watch: the author's pushes
    are the wake rather than noise, merge state is not your business, `IDLE` is
@@ -752,16 +718,11 @@ HEAD's diff, the author's clarification, or external evidence (a linked PR, a
 test reference, a verified reply) — resolve the corresponding review thread, so
 the human merging sees there are no outstanding asks.
 
-There's no CLI flag, and what the live API makes non-obvious is why this is a
-script rather than a block to adapt:
-
-- **`--mine` matches on the App `slug`, not `bot_login`.** GraphQL reports a Bot
-  author's `login` *without* the `[bot]` suffix (e.g. `agent-reviewer-<you>`), so
-  matching `bot_login` (`…[bot]`) never hits — and a filter that matches nothing
-  looks exactly like having no outstanding findings.
-- **An empty slug bails rather than defaulting.** Same reason: an empty match
-  string selects no thread at all. `result=ERROR reason=no-slug` means the bot
-  isn't set up, not that there is nothing to resolve.
+Use the script rather than a block adapted from it: GraphQL reports a Bot
+author's `login` without the `[bot]` suffix, so `--mine` matches on the App
+`slug`, and a filter that matches nothing looks exactly like having no
+outstanding findings. `result=ERROR reason=no-slug` means the bot isn't set up,
+not that there is nothing to resolve.
 
 ```bash
 # 1. List unresolved threads on this PR the bot authored.
@@ -787,12 +748,10 @@ Don't post comments that are neither actionable nor informative — no "Reviewed
 looks good, posting approval" filler. The verdict and body carry the signal.
 
 This does **not** cover a re-verdict (`references/re-review.md`), on a moved
-HEAD or after the last blocker is answered on an unmoved one. It is informative
-even when its body is a single sentence: on a moved HEAD it is the only thing
-that attaches an `APPROVED` `commit_id` to the current HEAD, and on an unmoved
-one it is the only thing that replaces a `CHANGES_REQUESTED` you no longer
-stand behind. The rule here bans content-free commentary, not a verdict whose
-content is the verdict.
+HEAD or after the last blocker is answered on an unmoved one, even when its
+body is a single sentence: it is the only thing that attaches an `APPROVED`
+`commit_id` to a moved HEAD, or replaces a `CHANGES_REQUESTED` you no longer
+stand behind.
 
 ## When to ask, when to skip
 

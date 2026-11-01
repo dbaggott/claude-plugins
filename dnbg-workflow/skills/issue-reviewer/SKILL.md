@@ -256,7 +256,7 @@ made against an earlier body.
 
 Rounds post under the bot identity, each post behind the resolver, which puts
 the bot's token in place for that one command. `<path>` is a file in your
-draft directory (`<skill-dir>/../git-workflow/SKILL.md`, "Draft files").
+draft directory (`<skill-dir>/../git-workflow/references/draft-files.md`).
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" reviewer <repo> -- \

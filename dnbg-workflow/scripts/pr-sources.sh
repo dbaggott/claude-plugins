@@ -18,9 +18,9 @@
 #              in its body, which GitHub links only once the PR targets the
 #              default branch;
 #   sibling  — a tagged multi-repo sibling: its title starts with `[<head branch>]`,
-#              the pairing `git-workflow`'s "Multi-repo changes" requires, on the
-#              branch of a `closes` PR in the set, or on any branch when no
-#              `closes` PR's branch is known;
+#              the pairing `git-workflow`'s `references/multi-repo.md`
+#              requires, on the branch of a `closes` PR in the set, or on any
+#              branch when no `closes` PR's branch is known;
 #   mention  — neither; it only cites the issue;
 #   unknown  — the PR could not be read, and the closing source did not list it.
 # A PR both closing and tagged reads `closes`.
@@ -55,8 +55,8 @@
 #
 # All three can only find what the author linked. A sibling PR whose body never
 # mentions the issue is invisible to every method here — there is nothing to
-# discover. `git-workflow`'s "Multi-repo changes" requires that mention for this
-# reason.
+# discover. `git-workflow`'s `references/multi-repo.md` requires that mention
+# for this reason.
 #
 # Runs under your own auth: `GH_TOKEN`, where `as-role.sh` puts a role token,
 # is unset below rather than used. Reads of an issue are the operator's and only writes run as

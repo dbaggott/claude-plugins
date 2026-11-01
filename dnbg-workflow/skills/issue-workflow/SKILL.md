@@ -5,12 +5,6 @@ description: "How to create, maintain, and pick up GitHub issues so context surv
 
 # Issue workflow
 
-An issue is a handoff: the session that creates it has rich context (the conversation, the code just read, the direction just agreed), and the session that resolves it has only the issue body. Whoever resolves it — a fresh interactive session, an automated agent, a human — reads that body cold. The failure modes this skill exists to prevent:
-
-- **Wasted research.** An issue body full of unlabeled cross-references forces the resolver to either follow every link (burning context budget before any code changes) or skip them (and maybe miss the one that mattered).
-- **Wrong implementation path.** An issue that was perfectly clear *in the context of its creation* reads as open-ended to a cold resolver, who then picks a different approach than the one everyone had in mind. The resolution should not depend on which agent happens to pick the issue up.
-- **Rotted handoff.** The body was accurate at creation, then the world changed — part of the work shipped, a referenced PR closed, new evidence landed in a comment — and a cold resolver faithfully implements stale truth.
-
 ## This flow is GitHub-only
 
 Everything below is `gh issue` and GitHub's own labels, assignees and linked-PR
@@ -77,7 +71,7 @@ Everything below applies to both.
 Every issue write this skill has you make goes up as the **author role**:
 filing an issue, editing its body or labels, commenting, claiming, minting a
 label. Each runs through the role resolver, with any body drafted in your
-draft directory (`git-workflow`'s "Draft files"):
+draft directory (`<skill-dir>/../git-workflow/references/draft-files.md`):
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \

@@ -175,8 +175,7 @@ and a `--request-changes` leaves threads the author has to resolve on work still
 in progress.
 
 This applies to the **discovered** set only — hold these back without asking. A
-draft the operator *names* gets the picker in `SKILL.md`'s "If the PR is a draft,
-ask before reviewing".
+draft the operator *names* gets the picker in `references/draft-pr.md`.
 
 Watch a held-back draft rather than dropping it, arming the ready check, in the
 background with `timeout: 7200000` as `SKILL.md`'s watch is:
@@ -193,9 +192,10 @@ one you printed for a human.
 
 **All three can only find what the author linked.** A sibling PR whose body
 never mentions the issue is invisible to every method here — there is nothing to
-discover. `git-workflow`'s "Multi-repo changes" requires that mention for this
-reason; if you find a set that looks incomplete, check whether a sibling simply
-failed to link, and say so rather than assuming the set is whole.
+discover. `<skill-dir>/../git-workflow/references/multi-repo.md` requires that
+mention for this reason; if you find a set that looks incomplete, check whether
+a sibling simply failed to link, and say so rather than assuming the set is
+whole.
 
 The URLs are full URLs rather than numbers, which is what makes the multi-repo
 case work at all: a number collides across repos and a URL does not. Once you

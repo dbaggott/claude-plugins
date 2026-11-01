@@ -38,8 +38,9 @@ whose PR resolves a blocker of a `waiting` child: "Merge now, or stack
 
 ## The merges
 
-On GitHub each stacked PR joins its base PR's stack (`git-workflow`, step 8),
-so its handoff carries a merge command once every PR below it is approved, and
+On GitHub each stacked PR joins its base PR's stack
+(`<skill-dir>/../git-workflow/references/stacked-branch.md`), so its handoff
+carries a merge command once every PR below it is approved, and
 that one merge lands them all (`git-workflow`'s `references/merge.md`, "A PR
 in a stack"). A handoff for a PR with a child still to come above it is not
 the operator's move: hold it. Say in a line that the PR is approved and which

@@ -61,9 +61,9 @@ the operator to run themselves.
 
 Every GitHub write you make, whether a comment, a body edit, a label or a claim,
 goes through the role resolver as `orchestrator`. It posts under the
-orchestrator's App, or under the operator's login when that App is not set up.
-A comment, from a body file in your draft directory (`git-workflow`'s "Draft
-files"):
+orchestrator's App, or under the operator's login when that App is not set up. A
+comment, from a body file in your draft directory
+(`<skill-dir>/../git-workflow/references/draft-files.md`):
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
@@ -174,30 +174,18 @@ alongside the dispatch.
 
 Each goes through the Agent tool, in the background, as this plugin's agent for
 its role: the author as `dnbg-workflow:author-orchestrated`, the reviewer as
-`dnbg-workflow:reviewer-orchestrated`.
-A background subagent that ends its turn with a watch still running is woken
-when that watch returns, so each keeps its own watch across its turns.
-Give each its own draft directory and end its prompt with the line naming it,
-per `git-workflow`'s "Draft files", for every dispatch below.
+`dnbg-workflow:reviewer-orchestrated`. A background subagent that ends its turn
+with a watch still running is woken when that watch returns, so each keeps its
+own watch across its turns. Give each its own draft directory and end its prompt
+with the line naming it, per
+`<skill-dir>/../git-workflow/references/draft-files.md`, for every dispatch
+below.
 
-**Operator steps first.** Before dispatching an author, ask the operator about
-the issue's `## Operator steps` (`issue-workflow`'s `references/creating.md`)
-with `AskUserQuestion`, listing each step with when the work needs it, and two
-options: **"Done"**, already done, and **"Not yet"**, the author stops at each
-step when it gets there; a split answer comes through "Other". On a tracking
-issue, ask once, before the run's first dispatch, re-dispatches on start
-included, about every open child's steps together, each under its child's URL,
-so a conflict in their order, such as a permission changed before the setup
-that needed it, shows before any work. An answer that holds a child until a
-step is done holds its dispatch until the operator confirms the step, in a later
-row of the same ID. Each answer is a row on its issue,
-`Decision log: Operator steps — decided`, with **Question** `none, asked at
-dispatch`, the answer, and **Basis** `operator`, in session. The operator's
-answer to an author's stop at a step is a later row of the same ID. An issue
-that already carries one is not asked again, and the latest row is the answer.
-The answer changes no design: it is not promoted into the body, and a tracking
-issue's table row for it is written as `applied`, with `--table-state=applied`.
-Dispatch does not wait on "Not yet", since most steps are needed late.
+**Operator steps first.** Before dispatching an author on an issue whose body
+has an `## Operator steps` section (`issue-workflow`'s
+`references/creating.md`), and on a tracking issue before the run's first
+dispatch when any open child's body has one, ask the operator about them per
+`references/operator-steps.md`.
 
 **The author**, at once, prompted with the recipe below. The claim you made is
 already the author's: a subagent shares your session id, so its pickup reads
@@ -229,12 +217,11 @@ step 4 read as cleared and the second, with its rows, for one read as pending.
 The operator-steps line goes in for an issue with an `Operator steps` row.
 The stack line goes in for a child the ready set gave a `base`, with that
 branch and its `base_pr` (`references/stacked.md`).
-The next line goes in only for an open PR
-that step 3 found as `closes` or `sibling`, that the operator handed over, or
-that a dead author left; the one after only for a worktree that step 3 found or
-a dead author left; the next only when replacing a dead author, with each of
-its parts that applies; and the last only for `decided` rows the body does not
-yet carry.
+The `Continue`, worktree and died-mid-task lines go in only for a predecessor:
+an open PR that step 3 found or the operator handed over, a worktree step 3
+found, or a dead author you are replacing. `references/predecessor.md` says
+which goes in when. The last line goes in only for `decided` rows the body
+does not yet carry.
 
 **The reviewer**, when the author's turn ends with its PR URL at
 send-to-review, or at once when step 3 found the PR already out of draft. Skip
@@ -296,20 +283,8 @@ watch from the last `── re-arm ──` line it printed. Otherwise continue i
 with what the state shows is still owed.
 
 **An agent died on an error** when its task ends `failed` on an API or usage
-limit error rather than with a report. Resume it with `SendMessage`, telling it
-to carry on from where it stopped, since its context survives: after a usage
-limit, once the reset time the error names has passed; after any other API
-error, after a few minutes. Wait on a background `sleep`
-with `timeout: 7200000`, and when it returns before the reset time, sleep
-again rather than resume. If it fails the same way again, ask the
-operator. Dispatch a fresh agent in its role only when `SendMessage` cannot
-reach it. For an author, fill the recipe's predecessor lines from the dead
-one's state: its worktree and unpushed commits (`git -C <worktree> log HEAD
---not --remotes`), which `pr-sources.sh` cannot see, the review round it was
-answering, and any scratch issues or labels it created. A replaced agent leaves
-no close-out: "Asking the agents for one" in
-`<skill-dir>/../process-review/references/retrospective.md` says what the Stop
-report does about it.
+limit error rather than with a report: resume or replace it per
+`references/predecessor.md`.
 
 Stop a background task of yours, such as a watch or a subagent, with the
 harness's task-stop tool by its id, never with `pkill -f` or a pattern:
@@ -425,24 +400,8 @@ An issue can stay open after its last merge, as when a PR only references it or
 a closing keyword did not fire, and the reviewer then waits on it. So once
 the author's final report and the reviewer's close-out on each PR that
 report names are in, read the issue's state (`gh issue view <n> --repo
-<owner>/<repo> --json state`). Still open, ask the operator with
-`AskUserQuestion`, "`<issue URL>` is still open after its last PR merged. Close
-it?":
-
-1. **"Close it (Recommended)"** — close it (`gh issue close <n> --repo
-   <owner>/<repo>`, under "Write as the orchestrator"). The reviewer's issue
-   wait wakes on the close and reaches its end, and Stop continues on that
-   report.
-2. **"Leave it open"** — tell the reviewer with `SendMessage` that the issue
-   stays open, so it ends its assignment. Stop continues on its end report as
-   for a closed issue, and your report says the issue is still open.
-
-Without `AskUserQuestion`, an answer your prompt gives settles it, as under
-"Run it as the main session"; otherwise take "Leave it open" rather than
-posting the question. Say in the report which you took. Under a tracking issue
-each child gets this question, saying that a child left open holds back the
-parent's closeout, since the loop reaches it only once every child is closed
-(`references/multi-issue.md`).
+<owner>/<repo> --json state`). Still open, ask the operator whether to close it,
+per `references/still-open.md`.
 
 In each sibling the author's final report names, mark shipped the items it
 lists, with the PR's URL, as `issue-workflow`'s "Maintaining issues" does,

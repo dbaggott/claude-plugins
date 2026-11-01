@@ -1682,7 +1682,7 @@ MD
 # published as its own. Every site that reads a drafted body file therefore
 # names it as a placeholder and says, in its own paragraph or the one leading
 # into its fenced block, that it is in the agent's draft directory, which only
-# that agent writes (git-workflow's "Draft files").
+# that agent writes (git-workflow's references/draft-files.md).
 #
 # draft_file_violations <file>... prints `<file>:<line>: <why>` per violation.
 # A site is `--body-file`, gh's `-F <file>` short form, `--input`, `body=@` or

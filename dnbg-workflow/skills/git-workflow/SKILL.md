@@ -35,7 +35,7 @@ applies on any forge.
 1. `git fetch origin` — fetches all refs so later diffs against other branches don't surprise you with stale data.
 2. `gh pr list --repo <repo> --state open` — if any open PR might touch the files you're about to change, check its diff (`gh pr diff <num>`) and either coordinate or hold off. Independent staleness check from the fetch above: that one catches a stale base, this one catches concurrent work — without it, two PRs against the same node in the same file can both rebase cleanly and one becomes a wasted no-op the moment the other merges.
 3. Re-read any files you touched in a prior session — code may have changed.
-4. `git worktree add .worktrees/<branch-name> -b <branch-name> origin/<default-branch>` — the default branch comes from the settings read below; don't assume `main`. If the change spans repos, the branch name is the pairing key; see "Multi-repo changes" below before picking it. Then point the worktree's pushes at the author role, per "Acting as the author" below:
+4. `git worktree add .worktrees/<branch-name> -b <branch-name> origin/<default-branch>` — the default branch comes from the settings read below; don't assume `main`. If the change spans repos, the branch name is the pairing key; read `references/multi-repo.md` before picking it. Then point the worktree's pushes at the author role, per "Acting as the author" below:
 
    ```bash
    "<skill-dir>/../../scripts/git-credential-as-role.sh" --install author <worktree-path>
@@ -43,25 +43,19 @@ applies on any forge.
 
    Run it on every worktree you work in, one you take over or continue included. It reads `result=OK`; on `result=ERROR`, stop and say what it named.
 
-   When your prompt names a branch to stack on, that branch is the base: `origin/<that branch>` stands in for `origin/<default-branch>` here and in step 7's ranges. Note `git rev-parse origin/<that branch>` now, as the recorded base head step 8 writes down.
+   When your prompt names a branch to stack on, read `references/stacked-branch.md` before this step's `git worktree add`: it changes this step, step 7's ranges and step 8.
 
-   In a sandboxed Claude Code session, three calls write the main checkout's `.git/config`, which the sandbox refuses whatever its settings: `git worktree add` from `origin/<default-branch>`, which records the upstream; the install's first run in a repository; and step 8's `git push -u`. Run those outside the sandbox. On a worktree you take over or continue, in a repository where the install has run before, the install writes nothing there and runs sandboxed. Pushes and `gh` calls also need network access to `github.com` and `api.github.com`, which the sandbox refuses unless `sandbox.network.allowedDomains` or its prompt allows them.
+   In a sandboxed Claude Code session, read `references/sandbox.md` before this step's `git worktree add`.
 5. Make changes in the worktree.
 6. Commit.
-7. **Self-review the branch, and address what it finds** — before pushing. When the issue declares an operator check before review, that check comes first and moves the push and the draft PR ahead of this step: see "Operator check before review" below.
+7. **Self-review the branch, and address what it finds** — before pushing. When the issue declares an operator check before review, that check comes first and moves the push and the draft PR ahead of this step: read `references/operator-check.md`.
    - **Against the standards** — the set the always-on "Coding standards stack" rule had you load. `git -C <worktree-path> diff origin/<default-branch>...<branch-name>`, where `<worktree-path>` is the absolute path of the worktree step 4 created, read against those files re-opened rather than recalled: you wrote the diff from memory of them, so memory is what needs checking. Where a standard names something countable, grep the diff for it instead of eyeballing.
    - **For defects, with the harness's code-review tool.** In Claude Code that is `/code-review <worktree-path> origin/<default-branch>...<branch-name>`. The tool runs git from the session's working directory, which may be the main checkout, where `HEAD` is not your branch, or another repo, where your branch does not exist; the path points it at the worktree. Name both ends of the range too: the branch's upstream stops meaning the base once the branch is pushed. Leave the effort level to whatever the operator last chose, except never `ultra`, which is a billed cloud run the operator starts themselves. Don't pass `--fix` — findings need triage, not blanket application. The tool may run in the background and return its result later as a notification: wait for that result before step 8. A dispatched author that ends its turn to wait says in that turn's report that it is waiting on the background review. A result that is an error rather than findings ends the wait, and the standards pass becomes the whole stage, as below.
 
    Fix a finding in this branch by default. Decline one that is wrong or out of scope, with a one-line reason. One pass: the fixes go to the reviewer with everything else rather than back through the tool.
 
-   The standards pass is the whole stage when the harness has no code-review tool, or when every hunk of the diff is one of these:
-
-   - **Generated or data files** with no logic in them. Config a program acts on, such as hook matchers or CI conditions, is logic.
-   - **Prose no agent follows as instructions**, such as a user-facing README or a changelog fragment. Prose that instructs an agent is logic: a SKILL.md and its references, a rules file, an agent definition, a CLAUDE.md, and any file one of those sends an agent to for what to do, such as a CONTRIBUTING.md.
-   - **A rename the issue specifies in full**, in any file, as long as each hunk only swaps the old name for the new one or rewraps the line it lands on. Its standards pass checks that the new name was not already taken, and greps the tree for the old one, which may stay only in released history such as CHANGELOG.md.
-
-   Size alone never qualifies. Say the defect pass was skipped, and why, when you announce the PR and in the PR description, which names the files for generated, data or prose hunks and the issue for a rename.
-8. Push, and **open the PR as a draft**, its description drafted at `<file>`, which is `<draft directory>/pr-body.md` ("Draft files"). On a stacked branch, add `--base <that branch>` to `gh pr create`, and keep the line `Stacked on <branch> of <PR URL>, recorded base head <sha>.` in the as-built section of each rewrite of the description while the PR stays stacked:
+   The standards pass is the whole stage when the harness has no code-review tool, or when every hunk of the diff is generated or data files with no logic in them, prose no agent follows as instructions, or a rename the issue specifies in full. For those three, read `references/defect-pass-exemptions.md`, which says what each covers, before you skip the tool. Say the defect pass was skipped, and why, when you announce the PR and in the PR description.
+8. Push, and **open the PR as a draft**, its description drafted at `<file>`, which is `<draft directory>/pr-body.md` (`references/draft-files.md`):
 
    ```bash
    git -C <worktree-path> push -u origin <branch-name>
@@ -69,15 +63,8 @@ applies on any forge.
      gh pr create --draft --repo <owner>/<repo> --head <branch-name> --title "<title>" --body-file <file>
    ```
 
-   On a stacked branch, then put the PR in its base PR's GitHub stack, as the author, with the base PR your prompt's stack line named. In a stack, GitHub rebases the PR itself when its base merges, and one merge lands it with the PRs below it (`references/merge.md`, "A PR in a stack"):
-
-   ```bash
-   "<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
-     "<skill-dir>/../../scripts/stack-prs.sh" <owner>/<repo> <number> --onto=<base PR number>
-   ```
-
-   `result=OK stack=<n>` adds the line `GitHub stack <n>.` under the stacked one, kept in every rewrite of the description for as long as the PR is open: a PR stays in its stack after its base merges, and the stack decides its merge command. Any `result=ERROR` adds nothing, and the PR takes the rebase in `references/merge-wait.md`, "A stacked PR whose base moved", when its base merges. `not-top`, `not-default-base` and `unsupported-forge` are by design: another PR already sits on the base, the base PR's own chain was never stacked, or the forge has no stacks. The rest name a call that failed: say so when you announce the PR, so the operator can have it retried.
-9. After each commit, push, and update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description. The new description goes in your draft directory too, per "Draft files": `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh pr edit <number> --repo <owner>/<repo> --body-file <file>`.
+   On a stacked branch, `references/stacked-branch.md` adds a flag to this call and a step after it.
+9. After each commit, push, and update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description. The new description goes in your draft directory too, per `references/draft-files.md`: `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh pr edit <number> --repo <owner>/<repo> --body-file <file>`.
 10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker. Without `AskUserQuestion`, follow `<skill-dir>/../issue-workflow/references/delegated.md`.
 11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`"<skill-dir>/../../scripts/as-role.sh" author <repo> -- gh pr ready <number> --repo <repo>`) and start watching for the first review — see `references/review-rounds.md`, which carries the watch, and `references/watch-results.md` for what each of its results means. A review that comes in goes to `references/review-received.md`, findings to `references/review-findings.md`, and a clean verdict to `references/merge.md` for the handoff.
 12. Never merge. Only a human merges PRs.
@@ -120,42 +107,6 @@ an SSH `origin`, pushes then go over HTTPS with `gh`'s own token, which needs
 the `workflow` scope to push a change under `.github/workflows/`: `gh auth
 status` lists the scopes, and `gh auth refresh -s workflow` adds it.
 
-## Operator check before review
-
-An issue can reserve a look at the work for the operator before it is polished
-and reviewed, in a `## Operator check before review` section carrying the recipe
-for bringing the work up and what to look at (`issue-workflow`'s
-`references/creating.md`). The stop comes when the work is complete, at the point
-step 7 would otherwise start; an open draft PR is its precondition, not its
-trigger. With the check declared, the order is: commit, push, open the draft PR
-(already open for an orchestrated author), the check, the self-review (step 7),
-a push of its fixes, then steps 9 and 10; step 8 has already run.
-
-1. Start the recipe as a background task in the worktree. A server never exits,
-   so its task never wakes you: start a second background task that exits once
-   the first's output file carries the line naming how to reach it, bounded,
-   such as `for i in $(seq 1 120); do grep -q 'port' <output file> && exit 0;
-   sleep 0.5; done; exit 1`. When it exits non-zero the recipe did not come
-   up: read the recipe task's output and ask about that, in place of the URL
-   below. Read the port from the announced line rather than from the recipe:
-   several worktrees can be serving at once, so the port asked for is not
-   necessarily the one got.
-2. Announce the PR URL, what to look at, and how to reach it. Then call
-   `AskUserQuestion` with two options (the tool auto-appends "Other", which
-   carries the feedback):
-   1. **"Proceed"** — "Stop the server and go on to the self-review."
-   2. **"Changes needed"** — "Say what to change; the work comes back for
-      another look."
-3. On "Changes needed", rework, commit, push, restart the recipe unless it
-   reloads on its own (stop the task by its id, start it again, re-read the
-   port), and ask again. On "Proceed", stop the server task by its id and
-   continue to step 7.
-
-Without `AskUserQuestion`, post the same as a `Delegated question:` and end the
-turn with it, per `<skill-dir>/../issue-workflow/references/delegated.md`,
-leaving the server running: its URL has to be reachable when the answer
-arrives.
-
 ## Know the repo's merge settings
 
 Later steps depend on how this particular repo is configured: which branch to fork from, how the merge command is composed, whether a push dismisses an approval, and what the post-merge cleanup still has to do. **Read them, don't assume them** — these settings vary between an org's repos and a personal account's, and between two repos in the same account.
@@ -177,21 +128,9 @@ gh api repos/<owner>/<repo> --jq \
 
 Throughout this skill and its references, `<skill-dir>` is the **Base directory** announced when the skill loads — not the directory of the file you are reading. The scripts sit beside the skills rather than inside one, so the same `../../scripts/` reaches them from every skill that shares them.
 
-**Don't read branch protection to find out whether an approval still counts.** `dismiss_stale_reviews` needs admin, so on a repo you only have write on it answers 403 or 404 and tells you nothing — and where it does answer, it still doesn't say whether HEAD is approved. Ask that question directly:
-
-```bash
-"<skill-dir>/../../scripts/pr-verdict.sh" <owner>/<repo> <num>
-```
-
-HEAD is approved **iff** the result line reads `verdict=APPROVED at_head=1 reviewed_after_head=1` — necessary always, and sufficient only where `review_decision` prints empty, which is where no approval is required.
-
-**Where `review_decision` carries a value, it must read `APPROVED` too.** It says approvals are *required* here, and it models what the comparison cannot: supersession, and more than one required reviewer. Neither field subsumes the other — a repo that requires approvals without dismissing stale ones keeps `review_decision=APPROVED` across a push, which is the state `reviewed_after_head` exists to catch.
-
-Anything less is an approval of a diff nobody is merging — `APPROVED at_head=1` alone included, which a force-push produces over a tree nobody read. Use this wherever the answer matters: before telling the operator a PR is ready to merge, and before merging one yourself if you ever have cause to.
-
-These returns need a decision rather than a retry. **`reviewed_after_head=unknown`** is not a `1` and no verdict clears it — surface it and let the operator decide. **`result=ERROR`** means the check could not see; it is not a verdict of "not approved". Any other shortfall resolves itself: `reviewer` re-verdicts unprompted on a HEAD move, so the fresh verdict arrives without prompting.
-
-**Don't hand-roll the query** — `tests/pr-verdict.bats` pins each case.
+**Whether HEAD is approved** is `pr-verdict.sh`'s answer, never branch
+protection's: read `references/approval.md` before telling the operator a PR is
+ready to merge, or merging one.
 
 For a multi-repo change, read this **per repo**. Siblings genuinely differ, and a setting borrowed from the wrong one produces a merge command that fails or a cleanup step that silently does nothing.
 
@@ -205,8 +144,8 @@ The description reflects the **as-built** state, rewritten after each commit —
 - **Claim only the scope you checked.** The over-claim usually starts one step earlier, as an unexamined assumption written up as fact: that a change generalizes, that it fixes the root cause (not just the symptom you reproduced), that the correlation you saw is the cause, that nothing else is affected. Verify the assumption, or state the scope you actually verified ("fixes the observed case; other inputs unchecked"; "removes the symptom — root cause not confirmed"). An assumption is not a result.
 - **Surface gaps, not just wins.** Known limitations, unverified branches, and deferred follow-ups belong in the body — these are as-built facts about the result, not the development narrative ruled out above; omitting them reads as "all handled," and the next reader inherits the surprise.
 
-Draft the description as `pr-body.md` in your draft directory, per "Draft
-files" below.
+Draft the description as `pr-body.md` in your draft directory, per
+`references/draft-files.md`.
 
 When unsure whether a claim is earned, weaken it or cut it — a description a reviewer can trust line-for-line is worth more than an impressive one they have to second-guess.
 
@@ -227,50 +166,15 @@ Re-state it on every rewrite, with the rewriting session's version. With no note
 ## Draft files
 
 Every PR description, issue body, comment and review you draft in a file before
-posting it goes in **your draft directory**, under a fixed name for its purpose:
-`pr-body.md`, `issue-body.md`, `comment.md`, `review.md`, numbered when two of
-one purpose are drafted at once, such as a review's inline comments
-(`inline-1.md`, `inline-2.md`). Only you write the directory, so a fixed name
-cannot collide with another agent's draft, and you find a draft again by its
-name. Never find one by listing the scratchpad: a dispatched agent shares its
-dispatcher's, and the newest file there may be a sibling's.
-
-- **Which directory.** The one your prompt names on its `Your draft directory:
-  <path>` line. When nothing names one, as in a session nobody dispatched,
-  create it at your first draft with `mktemp -d <scratchpad>/drafts.XXXXXX`
-  (plain `mktemp -d` when the harness names no scratchpad directory), and state
-  its path in your next message, so it stays in your context across Bash calls.
-  If you lose the path, create another the same way rather than look for it.
-- **Before writing a draft**, run `mkdir -p <draft directory>`: the harness's
-  scratchpad can vanish mid-session.
-- **Posting one**: check it is non-empty first (`test -s <file>`), stopping
-  rather than posting an empty body, and delete it once it is posted (`rm
-  <file>`). A fixed name is reused next round, so a draft you failed to rewrite
-  would otherwise post last round's text. To change a posted body, read it back
-  from GitHub.
-- **Round files**: a review watch you arm with `--round-dir=<draft directory>`
-  writes each round it fetches there as `pr-round-*`. Delete one (`rm <file>`)
-  once you have handled its round.
-
-**When you dispatch an agent** with the Agent tool, create its directory first,
-`mktemp -d <scratchpad>/<role>-<n>.XXXXXX`, where `<role>` is `author` or
-`reviewer` and `<n>` the number of the issue or PR it works on (the first, for a
-set), and end its prompt with the line `Your draft directory: <path>`.
+posting it goes in your draft directory, and every agent you dispatch gets one:
+read `references/draft-files.md` before your first draft or dispatch.
 
 ## Multi-repo changes
 
-When one logical change spans repos (e.g. an infrastructure change plus the application change it enables), pair the PRs so a list view shows what goes with what:
-
-1. **Same branch name in every repo.** Pick the branch name once and reuse it verbatim for each repo's worktree. It's the join key: it exists before any PR does (no ordering problem), it shows in `gh pr list`, and `gh search prs --owner <owner> head:<branch-name>` returns the whole set.
-2. **Shared title tag.** Prefix every sibling PR's title with the branch name in brackets — `[<branch-name>] <title>`. github.com's PR list doesn't show branch names, so the tag is what makes the pairing visible there. The tag *is* the branch name, not a separate slug — one join key, derivable in both directions.
-
-3. **Every sibling references the issue by full URL; exactly one closes it.** When the set resolves an issue, put the issue URL in *each* PR's body — the sibling's opening line is a good home ("The infrastructure half of `<issue URL>`"). Only the PR that actually completes the work carries a closing keyword (`Closes <issue URL>`); the others just mention it.
-
-   The mention is the only thing that makes a sibling discoverable from the issue — every route back to it is driven by the mention, so a sibling that omits it cannot be found from the issue at all, and anyone working from that issue sees a set that looks complete and is not. The branch name pairs the PRs to each other; the issue URL ties the set to the issue. Both are needed.
-
-Single-repo PRs (the common case) stay untagged, apart from the project tag below — a tag that is a branch name is itself the signal that siblings exist in other repos.
-
-If a change turns multi-repo midway — the first PR is already open when you discover a second repo needs to change — reuse its branch name for the new worktree and retitle the open PR to add the tag (`"<skill-dir>/../../scripts/as-role.sh" author <repo> -- gh pr edit <num> --repo <repo> --title "..."`), replacing any project tag below, when you open the sibling.
+When one logical change spans repos, or a change turns multi-repo midway, read
+`references/multi-repo.md` before picking the branch name or opening the next
+repo's PR: it pairs the PRs by branch name and title tag, and says which one
+closes the issue.
 
 ## Project tag
 

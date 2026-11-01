@@ -168,7 +168,7 @@ One body edit, after the last child is filed:
     set to applied, already in the body and every child`, naming a row whose ID
     is `—` by the opening words of its Entry, one comment carrying a line for
     each, as the author, from a file in your draft directory
-    (`git-workflow`'s "Draft files"):
+    (`<skill-dir>/../git-workflow/references/draft-files.md`):
 
     ```bash
     "<skill-dir>/../../scripts/as-role.sh" author <owner/repo> -- \

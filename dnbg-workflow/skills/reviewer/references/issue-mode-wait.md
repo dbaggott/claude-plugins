@@ -9,8 +9,9 @@ writes-as-the-bot rule that file opens with covers this file too.
 ⚠️ **Discovery is continuous, not one-shot — the set is never frozen.** `issue-mode.md`'s
 whole-set rule guards the *spatial* miss (reviewing one PR of a pair). The
 *temporal* miss is the likelier one and needs its own guard: siblings are paired
-by branch name rather than by when they open (see `git-workflow`, "Multi-repo
-changes"), so an infra PR and its app sibling routinely go up hours or days
+by branch name rather than by when they open (see
+`<skill-dir>/../git-workflow/references/multi-repo.md`), so an infra PR and its
+app sibling routinely go up hours or days
 apart. Discover once and the failure is
 worse than missing a PR: the first one merges, you clean up and report the review
 complete, and the PR that joins the issue the next day is never looked at. That
@@ -100,7 +101,8 @@ failing.
 **The wait polls `issue-mode.md`'s sources 1 and 2, not source 1 alone.** It has to: source
 1 lists only PRs carrying a closing keyword, so a wait built on it is strictly
 narrower than the discovery it exists to trigger, and the shape it misses is the
-one "Multi-repo changes" *mandates* — exactly one sibling closes the issue, the
+one `git-workflow`'s `references/multi-repo.md` *mandates* — exactly one
+sibling closes the issue, the
 rest merely reference it. A real resolving PR that links the issue in prose then
 never wakes the watch, and the deadline path below reports it as a probably-wrong
 issue number: a diagnosis that cannot be confirmed, because the issue resolves

@@ -43,7 +43,7 @@ If at any point the operator says "stop" / "pause" / "let me drive", drop the au
 
 ## Responding to reviewers
 
-Address comments to the reviewer using `@username` mentions. A PR comment goes up as the author, like every write (`SKILL.md`'s "Acting as the author"), drafted in your draft directory (`SKILL.md`'s "Draft files"):
+Address comments to the reviewer using `@username` mentions. A PR comment goes up as the author, like every write (`SKILL.md`'s "Acting as the author"), drafted in your draft directory (`references/draft-files.md`):
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- \
