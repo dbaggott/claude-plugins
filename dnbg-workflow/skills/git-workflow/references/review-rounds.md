@@ -39,9 +39,11 @@ Both watchers trace themselves to `${TMPDIR:-/tmp}/dnbg-watch/<script>-<pid>.log
 
 **Do not hand-roll this loop.** It filters your own activity out, settles before reporting so a burst arrives whole, and polls on the SHA you last handled rather than current HEAD — a hand-written version gets each of these wrong in ways that surface as a review silently lost or a stale one reported as fresh. `tests/watch-pr.bats` pins them.
 
-**What each result means is in `references/watch-results.md`.** Read it when the
-watch returns, before branching on what it said. Each result there says whether
-to re-arm; `## Re-arming` below says how.
+**What each result means is in `references/watch-results.md`.** Read it on the
+watch's first return of the session, before branching on what it said, and
+again when a result is `ERROR`, when a watch returns no `result=` line, or when
+the context has been compacted since. Each result there says whether to re-arm;
+`## Re-arming` below says how.
 
 ## Re-arming
 

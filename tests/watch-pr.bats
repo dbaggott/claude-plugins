@@ -678,13 +678,13 @@ EOF
 @test "a merged PR stops the watch" {
   echo MERGED > "$PRSTATE"
   INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
-  [[ "${lines[-1]}" == "result=CLOSED state=MERGED" ]]
+  [[ "${lines[-1]}" == "result=CLOSED state=MERGED act=cleanup" ]]
 }
 
 @test "a PR closed without merging stops the watch" {
   echo CLOSED > "$PRSTATE"
   INTERVAL=1 WINDOW=4 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
-  [[ "${lines[-1]}" == "result=CLOSED state=CLOSED" ]]
+  [[ "${lines[-1]}" == "result=CLOSED state=CLOSED act=cleanup" ]]
 }
 
 @test "a conflict with base reports DIRTY to the author" {
@@ -931,7 +931,7 @@ EOF
   printf '2026-10-16T02:12:47Z \033[31mnot ok 390 - it'"'"'s red, twice\033[0m\n' >> "$RUNLOG"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
     run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
-  [[ "${lines[-1]}" == "result=CHECKS checks='test (ubuntu, 20)' failed_tests='the reaper kills a process; it'\\''s red, twice' now="* ]]
+  [[ "${lines[-1]}" == "result=CHECKS checks='test (ubuntu, 20)' failed_tests='the reaper kills a process; it'\\''s red, twice' act=fix now="* ]]
   grep -q "api --allow-escape-sequences repos/o/r/actions/jobs/22/logs" "$CALLS"
 }
 
@@ -941,7 +941,7 @@ EOF
   printf '2026-10-16T02:12:45Z not ok 1 never read\n' > "$RUNLOG"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
     run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
-  [[ "${lines[-1]}" == "result=CHECKS checks='ci/legacy' now="* ]]
+  [[ "${lines[-1]}" == "result=CHECKS checks='ci/legacy' act=fix now="* ]]
   ! grep -q "actions/jobs" "$CALLS"
 }
 
@@ -950,7 +950,7 @@ EOF
   echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/o/r/actions/runs/11/job/22"}]' > "$ROLLUP"
   INTERVAL=1 SETTLE=1 WINDOW=10 \
     run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=author
-  [[ "${lines[-1]}" == "result=CHECKS checks='ci' now="* ]]
+  [[ "${lines[-1]}" == "result=CHECKS checks='ci' act=fix now="* ]]
 }
 
 # --- a block only a human clears is not a state to re-arm on -------------------
@@ -1059,7 +1059,7 @@ EOF
   local rearm; rearm=$(printf '%s\n' "$output" | grep -A1 're-arm' | tail -1)
   [[ "$rearm" == *"2026-01-01T00:00:00Z"* ]]
   # And the result line says so, for a caller that reads it rather than the line.
-  [[ "${lines[-1]}" == *" since=2026-01-01T00:00:00Z now="* ]]
+  [[ "${lines[-1]}" == *" since=2026-01-01T00:00:00Z act=rearm now="* ]]
 }
 
 # A quiet IDLE still advances, which is the whole re-arm contract.
@@ -1473,19 +1473,19 @@ EOF2
     run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
   [ "$(cat "$CLOCK")" -le 30 ]
-  [[ "${lines[-1]}" == "result=IDLE window_left=21570 now="* ]]
+  [[ "${lines[-1]}" == "result=IDLE window_left=21570 act=rearm now="* ]]
   local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
   [[ "$rearm" == "WINDOW=21600 WINDOW_LEFT=21570 \""* ]]
 
   WINDOW_CEILING=30 INTERVAL=7 run eval "$rearm"
-  [[ "${lines[-1]}" == "result=IDLE window_left=21540 now="* ]]
+  [[ "${lines[-1]}" == "result=IDLE window_left=21540 act=rearm now="* ]]
 }
 
 @test "the run that exhausts the window reports a bare IDLE and re-arms a full one" {
   WINDOW=21600 WINDOW_LEFT=10 WINDOW_CEILING=30 INTERVAL=1 \
     run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot --role=reviewer
   [ "$status" -eq 0 ]
-  [[ "${lines[-1]}" == "result=IDLE now="* ]]
+  [[ "${lines[-1]}" == "result=IDLE act=rearm now="* ]]
   local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
   [[ "$rearm" == "WINDOW=21600 \""* ]]
 }
@@ -1564,4 +1564,130 @@ author_watch() {  # an author-side watch with no slug: the resolver supplies it
   pr_comment operator
   author_watch
   [[ "$output" == *"result=ERROR reason=role"* ]]
+}
+
+# --- act=: the branch the caller's reference prescribes -----------------------
+#
+# One case per result × role × stage that the references handle differently:
+# `reviewer/references/watch.md` for the reviewer, `watch-results.md` and
+# `merge-wait.md` for the author. Each table there agrees with these. Where a
+# reference branches on something the watch cannot see, the value is `read`.
+
+# Sets the stub up so the watch returns <state>.
+arrange() {  # <state>
+  case "$1" in
+    COMMITS)  echo 1 > "$HEADCOUNT" ;;
+    ACTIVITY) printf '%s' '[{"state":"COMMENTED","submittedAt":"2026-06-01T00:00:00Z","author":{"login":"someone"},"commit":{"oid":"x"}}]' > "$REVIEWS" ;;
+    CHECKS)   echo '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"}]' > "$ROLLUP" ;;
+    CLOSED)   echo MERGED > "$PRSTATE" ;;
+    DIRTY)    echo DIRTY > "$MERGESTATE" ;;
+    BEHIND)   echo BEHIND > "$MERGESTATE" ;;
+    BLOCKED)  echo BLOCKED > "$MERGESTATE"; echo APPROVED > "$REVIEWDECISION"
+              echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP" ;;
+    ERROR)    touch "$FAIL_PRVIEW" ;;
+    READY|IDLE) ;;   # READY comes from --was-draft on a PR that is not a draft
+  esac
+}
+
+# Runs the watch on one arranged state and checks the result and its act=.
+expect_act() {  # <state> <result-prefix> <act> <watch flags...>
+  arrange "$1"; local want=$2 act=$3; shift 3
+  INTERVAL=1 SETTLE=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 WINDOW=10 \
+    run "$WATCH" o/r 1 "$(sha40 0)" 2026-01-01T00:00:00Z bot "$@"
+  [[ "${lines[-1]}" == "result=$want"* ]]
+  [[ "${lines[-1]} " == *" act=$act "* ]]
+}
+
+@test "act: a reviewer's COMMITS is a round" {
+  expect_act COMMITS COMMITS round --role=reviewer
+}
+@test "act: a reviewer's ACTIVITY is a round" {
+  expect_act ACTIVITY ACTIVITY round --role=reviewer
+}
+@test "act: a reviewer's READY is a round" {
+  expect_act READY READY round --role=reviewer --was-draft
+}
+@test "act: a reviewer's CHECKS is a re-arm" {
+  expect_act CHECKS "CHECKS checks='ci'" rearm --role=reviewer
+}
+# watch.md: in issue mode CLOSED is the trigger to re-discover, and the watch
+# cannot see the mode.
+@test "act: a reviewer's CLOSED sends it to the reference" {
+  expect_act CLOSED "CLOSED state=MERGED" read --role=reviewer
+}
+@test "act: a reviewer's IDLE is a re-arm" {
+  expect_act IDLE IDLE rearm --role=reviewer
+}
+@test "act: a reviewer's ERROR sends it to the reference" {
+  expect_act ERROR ERROR read --role=reviewer
+}
+
+@test "act: an author's ACTIVITY is a round, at either stage" {
+  expect_act ACTIVITY ACTIVITY round --role=author
+  expect_act ACTIVITY ACTIVITY round --role=author --merge-stage
+}
+@test "act: an author's READY is a round" {
+  expect_act READY READY round --role=author --was-draft
+}
+@test "act: an author's CHECKS is a fix, at either stage" {
+  expect_act CHECKS "CHECKS checks='ci'" fix --role=author
+  expect_act CHECKS "CHECKS checks='ci'" fix --role=author --merge-stage
+}
+@test "act: an author's CLOSED is the cleanup, at either stage" {
+  expect_act CLOSED "CLOSED state=MERGED" cleanup --role=author
+  expect_act CLOSED "CLOSED state=MERGED" cleanup --role=author --merge-stage
+}
+@test "act: an author's CLOSED unmerged is the cleanup too" {
+  echo CLOSED > "$PRSTATE"
+  expect_act IDLE "CLOSED state=CLOSED" cleanup --role=author
+}
+# A stacked PR whose base moved is rebased rather than asked about, and the
+# watch cannot see that the PR is stacked.
+@test "act: an author's DIRTY sends it to the reference, at either stage" {
+  expect_act DIRTY "DIRTY " read --role=author
+  expect_act DIRTY "DIRTY " read --role=author --merge-stage
+}
+# The round comes first; the bare stop follows on the next run.
+@test "act: a burst carrying merge=DIRTY is a round" {
+  arrange DIRTY
+  expect_act ACTIVITY ACTIVITY round --role=author
+  [[ "${lines[-1]}" == *"merge=DIRTY"* ]]
+}
+@test "act: an author's terminal BLOCKED is a report" {
+  expect_act BLOCKED "BLOCKED cause=terminal" report --role=author --merge-stage
+}
+# watch-results.md: at the review stage, do not silently re-arm.
+@test "act: an author's review-stage IDLE is a report, merge= or not" {
+  expect_act IDLE IDLE report --role=author
+  expect_act BEHIND "IDLE merge=behind" report --role=author
+}
+# merge-wait.md: six hours with no merge is reported; an IDLE whose merge=
+# names a cause is re-armed.
+@test "act: an author's bare merge-stage IDLE is a report" {
+  expect_act IDLE IDLE report --role=author --merge-stage
+}
+@test "act: an author's merge-stage IDLE naming a cause is a re-arm" {
+  expect_act BEHIND "IDLE merge=behind" rearm --role=author --merge-stage
+}
+@test "act: a merge-stage IDLE naming an unconfirmed block is a re-arm" {
+  echo APPROVED > "$REVIEWDECISION"
+  echo '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]' > "$ROLLUP"
+  AT_TICK=2 AT_TICK_FILE="$MERGESTATE" AT_TICK_VALUE=BLOCKED \
+    INTERVAL=5 WINDOW=5 run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot \
+    --role=author --merge-stage
+  [[ "${lines[-1]}" == "result=IDLE merge=blocked"*" act=rearm "* ]]
+}
+@test "act: an IDLE cut short at the ceiling is a re-arm for every role and stage" {
+  local flags
+  for flags in --role=reviewer --role=author "--role=author --merge-stage"; do
+    # shellcheck disable=SC2086  # flags is a deliberately split list
+    WINDOW=21600 WINDOW_CEILING=30 INTERVAL=7 \
+      run "$WATCH" o/r 1 "$(sha40 0)" 2999-01-01T00:00:00Z bot $flags
+    [[ "${lines[-1]}" == "result=IDLE window_left="*" act=rearm now="* ]]
+  done
+}
+@test "act: an author's ERROR sends it to the reference, whatever the reason" {
+  expect_act ERROR ERROR read --role=author
+  rm "$FAIL_PRVIEW"
+  expect_act IDLE "ERROR reason=bad-args" read --role=author --bogus
 }

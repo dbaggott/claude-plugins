@@ -1,7 +1,10 @@
 # Reviewer: issue mode, the discovery loop and the wait
 
 Part of the `reviewer` skill. Read this straight after `references/issue-mode.md`'s
-first discovery pass, on every issue-scoped assignment. The reads-as-you,
+first discovery pass, on every issue-scoped assignment, before its first wait,
+and act on that copy at later waits and returns. Read it again when a result is
+`ERROR`, when a watch returns no `result=` line, or when the context has been
+compacted since you read it. The reads-as-you,
 writes-as-the-bot rule that file opens with covers this file too.
 ⚠️ **Discovery is continuous, not one-shot — the set is never frozen.** `issue-mode.md`'s
 whole-set rule guards the *spatial* miss (reviewing one PR of a pair). The
@@ -120,6 +123,15 @@ Excluding a PR is not dismissing it. It means "already looked at, verdict
 recorded" — a PR held back as a draft is watched by its own `watch-pr.sh` and
 belongs in the exclusion list too, or the issue wait re-wakes for it on every tick
 while that watcher is doing the real work.
+
+Every result line carries `act=`, the branch below that its result takes for a
+reviewer:
+
+| `act=` | Results | What to do |
+|---|---|---|
+| `count` | `IDLE` with no `window_left=` | Count the empty window and re-arm from the printed line; tell the operator after the second. |
+| `rearm` | `IDLE` with `window_left=` | Re-arm from the printed line, without counting it. |
+| `read` | `ACTIVITY`, `CLOSED`, `ERROR`, and any result with `missing=` | Read its entry before acting. |
 
 On return, dispatch on the result — **including `ERROR`, which must not fall to
 the catch-all**:

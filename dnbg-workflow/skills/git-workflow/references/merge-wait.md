@@ -196,4 +196,5 @@ on. A handoff that already carried the stack's command stands as it is.
 The head moved, so the review is no longer clean: arm the review watch, per
 `references/review-rounds.md`, not the merge watch. The reviewer re-verdicts on
 the new head, which reaches you as `ACTIVITY`, and `references/merge.md`'s
-handoff follows as after any clean review.
+handoff follows as after any clean review, composed from the copy you read for
+the first one.

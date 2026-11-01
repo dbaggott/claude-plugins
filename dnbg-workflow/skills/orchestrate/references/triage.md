@@ -1,7 +1,8 @@
 # Orchestrate: triage and the decision log
 
 Part of the `orchestrate` skill. Read this before answering the first question
-an author asks; `SKILL.md` says when one arrives.
+an author asks, and answer later ones from that copy, reading it again only when
+the context has been compacted since. `SKILL.md` says when one arrives.
 
 ## What you may decide alone
 

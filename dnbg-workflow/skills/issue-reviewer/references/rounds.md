@@ -137,6 +137,11 @@ passing the bot's is what stops your own round waking you. Watching
 the whole set costs one call per tick, so waiting on every issue you were handed
 is no more expensive than waiting on one.
 
+The result line's `act=` is `count` on an `IDLE` that came back empty and
+`rearm` on one cut short at the ceiling, as the `IDLE` entry below handles
+them. On every other result, and on any naming a `missing=` issue, it is
+`read`: the entries below decide.
+
 Dispatch on the result — **including `ERROR`, which must not fall to the
 catch-all**:
 

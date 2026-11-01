@@ -464,7 +464,7 @@ EOF
 # after it through duplicates `now=`.
 @test "a refused forge reports one now= field, not two" {
   FORGE=gitlab run "$WATCH" o/r 163 --role=reviewer --slug=bot
-  [[ "${lines[-1]}" == "result=ERROR reason=unsupported-forge now="* ]]
+  [[ "${lines[-1]}" == "result=ERROR reason=unsupported-forge act=read now="* ]]
   [ "$(grep -o 'now=' <<<"${lines[-1]}" | wc -l | tr -d ' ')" = 1 ]
 }
 
@@ -610,7 +610,7 @@ EOF
   INTERVAL=1 SETTLE=1 WINDOW=10 \
     run "$WATCH" o/r 163 --role=author --since=2026-01-01T00:00:00Z --exclude-login=helper
   local result="${lines[-1]}" rearm since
-  [[ "$result" == *" watching=163 wake-on=body-edit,close,comment,linked-pr exclude=https://github.com/o/r/pull/9 exclude-login=helper now="* ]]
+  [[ "$result" == *" watching=163 wake-on=body-edit,close,comment,linked-pr exclude=https://github.com/o/r/pull/9 exclude-login=helper act=read now="* ]]
   rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
   since=$(grep -o -- '--since=[^ ]*' <<<"$rearm"); since=${since#--since=}
   [ "$since" = "${result##* now=}" ]
@@ -620,14 +620,14 @@ EOF
   repo "$(issue 163)"
   INTERVAL=1 WINDOW=3 \
     run "$WATCH" o/r 163 --role=reviewer --slug=bot --since=2026-01-01T00:00:00Z
-  [[ "${lines[-1]}" == "result=IDLE watching=163 wake-on=body-edit,close,comment,linked-pr now="* ]]
+  [[ "${lines[-1]}" == "result=IDLE watching=163 wake-on=body-edit,close,comment,linked-pr act=count now="* ]]
 }
 
 @test "a result with no re-arm line carries no re-arm fields" {
   repo "$(issue 163 '[]' '[]' CLOSED)"
   INTERVAL=1 WINDOW=4 \
     run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
-  [[ "${lines[-1]}" == "result=CLOSED issues=163 now="* ]]
+  [[ "${lines[-1]}" == "result=CLOSED issues=163 act=read now="* ]]
 }
 
 # The fields carry the set the next run watches, which a closure narrows: a
@@ -647,7 +647,7 @@ EOF
     run "$WATCH" o/r 163 --role=reviewer --since=2026-01-01T00:00:00Z --slug=bot
   [ "$status" -eq 0 ]
   [ "$(cat "$CLOCK")" -le 30 ]
-  [[ "${lines[-1]}" == result=IDLE*" window_left=21570 now="* ]]
+  [[ "${lines[-1]}" == result=IDLE*" window_left=21570 act=rearm now="* ]]
   local rearm; rearm=$(grep -A1 '── re-arm ──' <<<"$output" | tail -1)
   [[ "$rearm" == "WINDOW=21600 WINDOW_LEFT=21570 \""* ]]
 }
@@ -708,4 +708,87 @@ author_issue_watch() {  # <comment-login> — an author-side watch with no --slu
   export DNBG_AUTHOR_APP_ID=7   # configured, with no slug: no-login
   author_issue_watch operator
   [[ "${lines[-1]}" == "result=ERROR reason=role"* ]]
+}
+
+# --- act=: the branch the caller's reference prescribes -----------------------
+#
+# `reviewer/references/issue-mode-wait.md` tables the reviewer's values and
+# `issue-workflow/references/spec-review-wait.md` the author's; each agrees with
+# these. Three references wait with the reviewer role and each handles ACTIVITY
+# and CLOSED its own way, so those are `read` for a reviewer.
+
+# Runs the watch on issue 163 and checks the result and its act=.
+expect_act() {  # <result-prefix> <act> <watch flags...>
+  local want=$1 act=$2; shift 2
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 --since=2026-01-01T00:00:00Z "$@"
+  [[ "${lines[-1]}" == "result=$want"* ]]
+  [[ "${lines[-1]} " == *" act=$act "* ]]
+}
+
+@test "act: a reviewer's ACTIVITY and CLOSED send it to the reference" {
+  repo "$(issue 163 "$(comment human 2026-01-02T00:00:00Z)")"
+  expect_act "ACTIVITY issues=163 kinds=comment " read --role=reviewer --slug=bot
+  repo "$(issue 163 '[]' '[]' CLOSED)"
+  expect_act CLOSED read --role=reviewer --slug=bot
+}
+
+@test "act: a comment on an author's wait is the round" {
+  repo "$(issue 163 "$(comment human 2026-01-02T00:00:00Z)" '[]' OPEN 2026-01-02T00:00:00Z)"
+  expect_act "ACTIVITY issues=163 kinds=body-edit,comment " round --role=author
+}
+
+# spec-review-wait.md names only the comment; a body edit alone is not a round.
+@test "act: an author's ACTIVITY with no comment sends it to the reference" {
+  repo "$(issue 163 '[]' '[]' OPEN 2026-01-02T00:00:00Z)"
+  expect_act "ACTIVITY issues=163 kinds=body-edit " read --role=author
+}
+
+@test "act: an author's CLOSED is a stop" {
+  repo "$(issue 163 '[]' '[]' CLOSED)"
+  expect_act CLOSED stop --role=author
+}
+
+# The closure has to be said, which the round alone does not do.
+@test "act: an ACTIVITY carrying closed= sends either role to the reference" {
+  repo "$(issue 163 "$(comment human 2026-01-02T00:00:00Z)")" "$(issue 164 '[]' '[]' CLOSED)"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 164 --role=author --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=ACTIVITY issues=163 kinds=comment "*" closed=164 "*" act=read "* ]]
+}
+
+@test "act: an empty window is counted, for either role" {
+  repo "$(issue 163)"
+  expect_act IDLE count --role=reviewer --slug=bot
+  expect_act IDLE count --role=author
+}
+
+@test "act: an IDLE cut short at the ceiling is a re-arm, for either role" {
+  repo "$(issue 163)"
+  local flags
+  for flags in "--role=reviewer --slug=bot" --role=author; do
+    # shellcheck disable=SC2086  # flags is a deliberately split list
+    WINDOW=21600 WINDOW_CEILING=30 INTERVAL=7 \
+      run "$WATCH" o/r 163 $flags --since=2026-01-01T00:00:00Z
+    [[ "${lines[-1]}" == result=IDLE*" window_left=21570 act=rearm now="* ]]
+  done
+}
+
+# A missing issue has to be named, whatever else the result says.
+@test "act: a result naming a missing issue sends either role to the reference" {
+  jq -cn '{data:{repository:{i163:{number:163,state:"OPEN",lastEditedAt:null,
+     comments:{totalCount:0,nodes:[]},
+     closedByPullRequestsReferences:{nodes:[]}, timelineItems:{nodes:[]}},
+     i999:null}}}' > "$GQL"
+  INTERVAL=1 WINDOW=6 \
+    run "$WATCH" o/r 163 999 --role=author --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=IDLE missing=999 "*" act=read "* ]]
+}
+
+@test "act: an ERROR sends either role to the reference" {
+  echo '{"data":{"repository":{"i999":null}}}' > "$GQL"
+  : > "$GQL_EXIT"
+  INTERVAL=1 WINDOW=30 FAIL_MAX=2 FAIL_MIN_SECONDS=0 \
+    run "$WATCH" o/r 999 --role=author --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=ERROR reason=issue-query act=read now="* ]]
 }
