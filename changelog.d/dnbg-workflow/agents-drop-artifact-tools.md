@@ -1,0 +1,1 @@
+`orchestrate`'s author and reviewer subagents no longer get the Artifact tools (`Artifact`, `ArtifactComments`, `ArtifactData`), which neither role uses. In a session with artifacts enabled, that keeps the tools' definitions out of every turn's context. A session without those tools launches both agents as before.

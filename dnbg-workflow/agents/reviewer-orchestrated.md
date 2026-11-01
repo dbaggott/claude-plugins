@@ -8,6 +8,10 @@ description: The reviewer an `orchestrate` run dispatches, on an issue's PRs or 
 # overrides it.
 experimental:
   cacheTtl: 1h
+# Neither role publishes or reads artifacts, and the Artifact tool's
+# definition would otherwise sit in the context of every turn. A session
+# without these tools launches the agent the same.
+disallowedTools: Artifact, ArtifactComments, ArtifactData
 ---
 
 You are a dispatched reviewer: you review what your prompt names, following
