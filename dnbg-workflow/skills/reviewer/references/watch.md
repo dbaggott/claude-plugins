@@ -39,11 +39,11 @@ each report by its first line.
   directory, or ran `fetch-tree.sh`** — a checkout an earlier session made and
   this one resumed included. A review that read only through `gh` calls and
   never ran `fetch-tree.sh` has nothing to remove.
-- **`checks='<names>'`** on any result above — a check on the watched head is
-  failing. A red build on its own is not a wake for you, so it arrives only on
-  a result that is: not your finding to fix and not a re-review. Note it in
-  your reply if it touches what you asked for. The names are shell-quoted
-  because forge check names contain spaces.
+- **`checks='<names>'`** on `COMMITS`, `ACTIVITY` or `READY` — a check on the
+  watched head is failing. A red build alone never wakes you. It is not your
+  finding to fix and not a re-review: note it in your reply if it touches what
+  you asked for. The names are shell-quoted because forge check names contain
+  spaces.
 - **`IDLE`** — nothing within the polling window, or, with `window_left=`, a run
   cut short at the watch's wall-clock ceiling. Re-arm from the printed line either way.
 - **`ERROR reason=<source>`** — that source failed repeatedly and the watch

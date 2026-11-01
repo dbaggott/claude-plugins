@@ -328,10 +328,10 @@ report_idle() {
   echo "result=IDLE${idle_merge:+ merge=$idle_merge}$held$(poll_window_field "$split_left") act=$(act_for IDLE "$split_left") now=$NOW"; exit 0
 }
 
-# Whether a failing check is a wake on its own. A red build is the author's to
-# fix; the reviewer's handling of one is a no-op, so for that role the failure
-# is held and rides on its next real burst as `checks=`, and a window with
-# nothing else in it ends on IDLE with the baseline unadvanced.
+# Whether a failing check is a wake on its own. Only the author acts on a red
+# build alone; for the reviewer the failure is held to ride on its next burst as
+# `checks=`, and a window with nothing else in it ends on IDLE, the baseline
+# unadvanced.
 checks_wake() { [ "$ROLE" = author ]; }
 
 # Whether anything is still worth waking the caller for. A settle can outlive its
