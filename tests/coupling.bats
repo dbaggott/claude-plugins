@@ -435,6 +435,23 @@ DISCOVERY="$ROOT/dnbg-workflow/scripts/pr-sources.sh"
   done
 }
 
+# issue-workflow's pickup skips claiming.md on the dispatch prompt's claim
+# sentence, so a reworded sentence in either dispatch recipe silently sends
+# every orchestrated author back through the full claim read. The files wrap
+# and blockquote the sentences, so each is read as one line with `>` dropped.
+@test "the pickup's claimed-exception names both dispatch recipes' claim sentence" {
+  flat() { tr '\n' ' ' < "$1" | tr -d '>' | tr -s ' '; }
+  flat "$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md" \
+    | grep -qF 'The issue is already claimed under your session id.' || {
+    echo "orchestrate's dispatch recipe no longer says the issue is already claimed under your session id"; false; }
+  flat "$ROOT/dnbg-workflow/skills/orchestrate/references/several-issues.md" \
+    | grep -qF 'The issues are already claimed under your session id.' || {
+    echo "several-issues.md's one-author recipe no longer says the issues are already claimed under your session id"; false; }
+  flat "$ROOT/dnbg-workflow/skills/issue-workflow/SKILL.md" \
+    | grep -qF 'the issue is, or the issues are, already claimed under your session id' || {
+    echo "issue-workflow's pickup exception no longer names both claim sentences"; false; }
+}
+
 # A site file in the shape the extractor expects: commands inside a fence, everything
 # else prose. Shaped as `.md` because that is the harder case — a script has no prose
 # for a mention to hide in.

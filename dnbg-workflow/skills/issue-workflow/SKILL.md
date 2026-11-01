@@ -58,11 +58,22 @@ with almost no overlap, so each lives in its own file. Read the one you are on:
   checking it is not already claimed, asking once when it belongs to a
   project (`references/project-pickup.md`), then claiming it. Then
   `references/resolving.md`: the freshness probe, the critical review of the
-  issue itself, and the link-following discipline.
+  issue itself, and the link-following discipline. The exception to "On
+  pickup" below skips `references/claiming.md`.
 
 **On pickup, read `references/claiming.md` before touching any file or
 opening a worktree.** Claiming comes first, and an issue already being worked by
 someone else is a stop, not a merge conflict to discover later.
+
+**The one exception: your prompt says the issue is, or the issues are, already
+claimed under your session id**, as an orchestrator's dispatch does. Then run
+only `"<skill-dir>/../../scripts/claim-issue.sh" <owner>/<repo> <n> --as=author`,
+once for each issue the prompt asks you to resolve. When every one reads
+`result=OWN`, go straight to `references/resolving.md` without reading
+`references/claiming.md` or running `pr-sources.sh`: the orchestrator ran those
+checks before dispatch, and any open PR you are to continue is in your prompt.
+Any other result sends you to `references/claiming.md` for that issue, followed
+as written.
 
 Everything below applies to both.
 
