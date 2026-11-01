@@ -1,0 +1,15 @@
+{"_captured":{"claude_code":"2.1.316 (Claude Code)","date":"2026-11-01"}}
+{"type":"assistant","isSidechain":false,"message":{"usage":{"input_tokens":2,"cache_creation_input_tokens":707,"cache_read_input_tokens":67884,"output_tokens":148,"output_tokens_details":{"thinking_tokens":15},"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":707,"ephemeral_5m_input_tokens":0},"inference_geo":"global","iterations":[{"input_tokens":2,"output_tokens":148,"cache_read_input_tokens":67884,"cache_creation_input_tokens":707,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":707},"type":"message"}],"speed":"standard","fallback_credit":null}}}
+{"type":"user","isSidechain":false}
+{"type":"api-request"}
+{"type":"last-prompt"}
+{"type":"ai-title"}
+{"type":"mode"}
+{"type":"permission-mode"}
+{"type":"atis-latch"}
+{"type":"assistant","isSidechain":false,"message":{"usage":{"input_tokens":2,"cache_creation_input_tokens":3956,"cache_read_input_tokens":68591,"output_tokens":85,"output_tokens_details":{"thinking_tokens":43},"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":3956,"ephemeral_5m_input_tokens":0},"inference_geo":"global","iterations":[{"input_tokens":2,"output_tokens":85,"cache_read_input_tokens":68591,"cache_creation_input_tokens":3956,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":3956},"type":"message"}],"speed":"standard","fallback_credit":null}}}
+{"type":"assistant","isSidechain":false,"message":{"usage":{"input_tokens":2,"cache_creation_input_tokens":3956,"cache_read_input_tokens":68591,"output_tokens":85,"output_tokens_details":{"thinking_tokens":43},"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":3956,"ephemeral_5m_input_tokens":0},"inference_geo":"global","iterations":[{"input_tokens":2,"output_tokens":85,"cache_read_input_tokens":68591,"cache_creation_input_tokens":3956,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":3956},"type":"message"}],"speed":"standard","fallback_credit":null}}}
+{"type":"system","isSidechain":false}
+{"type":"tools-used"}
+{"type":"tools-used"}
+{"type":"tools-used"}

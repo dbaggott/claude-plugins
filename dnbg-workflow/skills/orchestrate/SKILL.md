@@ -382,9 +382,27 @@ handoff: continue the author and ask for one.
 
 ## Restart on schedule
 
-Every wake re-sends this session's whole context, so after 40 wakes, or at the
-first context compaction, hand over to a fresh session. Wait until every author
-in flight has a PR open or is waiting on the operator, so a fresh author can
+Every wake re-sends this session's whole context, so a large one is paid for on
+every wake that follows. The **restart size** is 150K tokens.
+
+At the top of each wake, read the size of your context:
+
+```bash
+"<skill-dir>/../../scripts/context-size.sh"
+```
+
+A restart is due at the first of these:
+
+- it answers `result=OK tokens=<n>` with `<n>` at the restart size or more;
+- it answers `result=UNKNOWN` on a wake that is your 20th or later;
+- the first context compaction.
+
+Without `AskUserQuestion`, a restart stops the run until the operator returns
+to start your successor, so skip the script: a restart is due after 40 wakes
+or at the first context compaction.
+
+Once a restart is due, dispatch no new author, and wait until every author in
+flight has a PR open or is waiting on the operator, so a fresh author can
 continue the pushed work. Then check every decision is on the issue,
 and in the parent under a tracking issue, stop your subagents, and
 tell the operator that you are restarting and why: they start a fresh session on

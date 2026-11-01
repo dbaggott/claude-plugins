@@ -12,8 +12,8 @@ Both cases share these:
 - **An escalation holds only the issue it came from**, as `references/multi-issue.md`'s
   "An escalation" says for a child: the other agents' reports are handled as
   they arrive.
-- **"Restart on schedule" counts this session's wakes across every issue**,
-  waits until every author in flight has a PR open or is waiting on the
+- **"Restart on schedule" reads this session's context size and counts its
+  wakes across every issue**, waits until every author in flight has a PR open or is waiting on the
   operator, and tells the operator to start the fresh session on every issue
   URL still open, naming the case.
 
