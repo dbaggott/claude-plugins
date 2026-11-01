@@ -99,7 +99,9 @@ author.
 
 Once the parent and every reached open child match the decision, and every
 re-review is `READY`, change the row's state cell to `applied`, giving each row
-as it reads now (the text you appended, or read on start):
+as it reads now: the text you appended with `log-row.sh`, the row
+`decision-row.sh`'s header gives for one it appended, dated by its comment, or
+the row as read on start:
 
 ```bash
 "<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --table="Decision log" \
