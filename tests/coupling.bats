@@ -1682,7 +1682,7 @@ MD
 # published as its own. Every site that reads a drafted body file therefore
 # names it as a placeholder and says, in its own paragraph or the one leading
 # into its fenced block, that it is in the agent's draft directory, which only
-# that agent writes (git-workflow's "Draft files").
+# that agent writes (git-workflow's references/draft-files.md).
 #
 # draft_file_violations <file>... prints `<file>:<line>: <why>` per violation.
 # A site is `--body-file`, gh's `-F <file>` short form, `--input`, `body=@` or
@@ -2000,8 +2000,11 @@ collector_prefixes() {  # <file> -> each prefix the file filters comments on, qu
 # prompt, since they are not on the forge.
 @test "orchestrate resumes a dead agent, and its replacement's prompt names the unpushed commits" {
   local orch="$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md" prompt
-  grep -q '^\*\*An agent died on an error\*\*' "$orch" || {
-    echo "orchestrate no longer handles an agent that died on an error"; false; }
+  local dead="$ROOT/dnbg-workflow/skills/orchestrate/references/predecessor.md"
+  grep -q '^\*\*An agent died on an error\*\*' "$orch" && grep -q 'references/predecessor\.md' "$orch" || {
+    echo "orchestrate no longer points at its handling of an agent that died on an error"; false; }
+  grep -q '^\*\*An agent died on an error\*\*' "$dead" && grep -q 'Resume it with `SendMessage`' "$dead" || {
+    echo "predecessor.md no longer resumes an agent that died on an error"; false; }
   prompt=$(sed -n '/^> Resolve `<issue URL>`/,/^$/p' "$orch")
   grep -q 'unpushed commits' <<<"$prompt" && grep -q '`<review URL>`' <<<"$prompt" || {
     echo "orchestrate's dispatch prompt no longer carries a dead author's unpushed commits and review round"; false; }

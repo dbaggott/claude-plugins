@@ -62,10 +62,10 @@ the steps below.
 ## 4. Re-review what changed materially
 
 When the ready set's `parent.spec_review` is true, dispatch `issue-reviewer`, as
-`dnbg-workflow:reviewer-orchestrated`, on the children whose acceptance
-criteria changed, or whose body changed in a section their `Covers` line cites,
-with its draft directory line (`git-workflow`'s "Draft files"). The rest are not
-re-reviewed.
+`dnbg-workflow:reviewer-orchestrated`, on the children whose acceptance criteria
+changed, or whose body changed in a section their `Covers` line cites, with its
+draft directory line (`<skill-dir>/../git-workflow/references/draft-files.md`).
+The rest are not re-reviewed.
 
 > Review `<child URLs>` as a set against their parent `<parent URL>`. This is a
 > re-review after the design change in `<row link>`.

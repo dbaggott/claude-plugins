@@ -142,10 +142,10 @@ since which side wins is the operator's call.
 ### A stacked PR whose base moved
 
 The one exception is a stacked PR, whose description records a base head
-(`SKILL.md`, step 8), when its base PR merged or was rebased. A squash or a
-rebase rewrites the base's commits, so the PR still carries the old ones: on
-`result=DIRTY`, or when told the base PR merged, rebase it past them. Its
-merge may not conflict, so the message is the trigger as often as the watch.
+(`references/stacked-branch.md`), when its base PR merged or was rebased. A
+squash or a rebase rewrites the base's commits, so the PR still carries the old
+ones: on `result=DIRTY`, or when told the base PR merged, rebase it past them.
+Its merge may not conflict, so the message is the trigger as often as the watch.
 
 When the description records `GitHub stack <n>`, GitHub rebases the PR itself,
 and the forge head is what moves: your worktree's `HEAD` still carries the old

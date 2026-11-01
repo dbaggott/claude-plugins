@@ -25,11 +25,11 @@ be restarted and an unpushed branch is the one state its successor cannot see.
 The self-review, including the wait for the code-review tool's result, still
 comes before you ask to send the PR to review.
 
-At an operator check before review (`git-workflow`, "Operator check before
-review"), the recipe runs as a background task, which outlives your turn as a
-watch does, so the URL you post stays reachable while the orchestrator asks.
-Your turn does not end until the task's output names the port, which your
-report carries: a server never exits, so no wake would come.
+At an operator check before review (`git-workflow`'s
+`references/operator-check.md`), the recipe runs as a background task, which
+outlives your turn as a watch does, so the URL you post stays reachable while
+the orchestrator asks. Your turn does not end until the task's output names the
+port, which your report carries: a server never exits, so no wake would come.
 
 When your prompt names a PR to continue, work on its branch rather than a new
 one: in the worktree the prompt names, reading `git status` and `git diff`

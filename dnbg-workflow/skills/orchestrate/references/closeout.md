@@ -61,11 +61,11 @@ the bullets the log does not already carry. The bullets come from two places:
 
 `<doc path>` is `docs/design/<name>.md`, where `<name>` is the parent's
 description — its title without any `[<slug>] Tracking issue: ` prefix — as a
-lowercase-dashed slug. If the repo already keeps designs somewhere else
-under `docs/`, use that location instead. Open the PR as a draft per
-`git-workflow`, self-review included, drafting its description in your draft
-directory per that skill's "Draft files". The description opens with `Closes
-<parent URL>`, so the merge closes the parent.
+lowercase-dashed slug. If the repo already keeps designs somewhere else under
+`docs/`, use that location instead. Open the PR as a draft per `git-workflow`,
+self-review included, drafting its description in your draft directory per
+`<skill-dir>/../git-workflow/references/draft-files.md`. The description opens
+with `Closes <parent URL>`, so the merge closes the parent.
 
 The doc is the parent body as built, not as planned:
 
@@ -160,7 +160,7 @@ disposition question posted on the parent, which are the orchestrator's.
 Send it to review per `git-workflow`'s "After opening a draft PR". When it is
 out of draft, dispatch `reviewer` on the parent as
 `dnbg-workflow:reviewer-orchestrated`, in the background, with its draft
-directory line (`git-workflow`'s "Draft files"):
+directory line (`<skill-dir>/../git-workflow/references/draft-files.md`):
 
 > Act as the reviewer on `<parent URL>`, in `reviewer`'s issue mode. It is a
 > tracking issue, so grade the whole project on its closeout PR.

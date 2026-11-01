@@ -7,6 +7,12 @@ and `references/resolving.md` cover picking an issue up.
 
 ## Creating issues
 
+An issue is a handoff: the session that creates it has rich context (the conversation, the code just read, the direction just agreed), and the session that resolves it has only the issue body. Whoever resolves it — a fresh interactive session, an automated agent, a human — reads that body cold. The failure modes this skill exists to prevent:
+
+- **Wasted research.** An issue body full of unlabeled cross-references forces the resolver to either follow every link (burning context budget before any code changes) or skip them (and maybe miss the one that mattered).
+- **Wrong implementation path.** An issue that was perfectly clear *in the context of its creation* reads as open-ended to a cold resolver, who then picks a different approach than the one everyone had in mind. The resolution should not depend on which agent happens to pick the issue up.
+- **Rotted handoff.** The body was accurate at creation, then the world changed — part of the work shipped, a referenced PR closed, new evidence landed in a comment — and a cold resolver faithfully implements stale truth.
+
 Issues must be **self-documenting** — a cold reader should understand the problem, the intended direction, and what "done" looks like without clicking through to other issues, PRs, or docs.
 
 A **tracking issue** — a body that is a project's design, parent of the issues implementing it — has its own shape and IDs: `references/tracking-issue.md`. Turning an accepted one into its children is `references/decomposing.md`.
@@ -72,9 +78,9 @@ project skill, or the port; and what to look at>
 ```
 
 The resolver stops there once the work is complete, before its self-review
-(`git-workflow`, "Operator check before review"), and the operator's feedback
-goes back to it until they say proceed. The section is a declaration, not an
-acceptance criterion: the reviewer grades nothing in it (`reviewer`'s
+(`<skill-dir>/../git-workflow/references/operator-check.md`), and the operator's
+feedback goes back to it until they say proceed. The section is a declaration,
+not an acceptance criterion: the reviewer grades nothing in it (`reviewer`'s
 `references/issue-mode.md`). The recipe's command is an anchor, verified before
 filing like any other.
 
