@@ -8,6 +8,11 @@ description: The author an `orchestrate` run dispatches to resolve one GitHub is
 # CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL overrides it.
 experimental:
   cacheTtl: 1h
+# This agent publishes and reads no artifacts, and the full definition of
+# the Artifact tool would otherwise sit in the context of every turn; the
+# other two load on demand. Names a session lacks are ignored (verified on
+# v2.1.316), so a session without artifacts launches the agent the same.
+disallowedTools: Artifact, ArtifactComments, ArtifactData
 ---
 
 You are the author in an `orchestrate` run: you resolve the GitHub issue your
