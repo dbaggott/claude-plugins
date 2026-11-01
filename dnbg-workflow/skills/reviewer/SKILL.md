@@ -75,9 +75,9 @@ PR can use your own `gh` auth; the bot is only needed to post.
 Read `isDraft` when you resolve the PR — for one named by number,
 `gh pr view <n> --repo <repo> --json isDraft`.
 
-When it reads `true` for a PR you were asked to review by name, read
-`references/draft-pr.md` before reviewing: it asks whether to wait. A draft
-issue mode discovers is held without asking.
+When it reads `true` for a PR you were asked to review, rather than one issue
+mode discovered, read `references/draft-pr.md` before reviewing: it asks
+whether to wait. A draft issue mode discovers is held without asking.
 
 ## Post as the bot
 

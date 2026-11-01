@@ -101,8 +101,7 @@ failing.
 **The wait polls `issue-mode.md`'s sources 1 and 2, not source 1 alone.** It has to: source
 1 lists only PRs carrying a closing keyword, so a wait built on it is strictly
 narrower than the discovery it exists to trigger, and the shape it misses is the
-one `git-workflow`'s `references/multi-repo.md` *mandates* — exactly one
-sibling closes the issue, the
+one `multi-repo.md` *mandates* — exactly one sibling closes the issue, the
 rest merely reference it. A real resolving PR that links the issue in prose then
 never wakes the watch, and the deadline path below reports it as a probably-wrong
 issue number: a diagnosis that cannot be confirmed, because the issue resolves

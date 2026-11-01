@@ -1,7 +1,8 @@
 # Reviewer: a draft PR you were asked to review
 
-Part of the `reviewer` skill. Read this when a PR the operator or your prompt
-named reads `isDraft` true, before reviewing it. A draft that issue mode
+Part of the `reviewer` skill. Read this when a PR you were asked to review,
+whether named or resolved from the current branch, reads `isDraft` true, before
+reviewing it. A draft that issue mode
 discovers is held without asking (`references/issue-mode.md`), so it never
 comes here.
 
