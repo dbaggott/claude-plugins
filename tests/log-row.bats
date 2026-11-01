@@ -215,6 +215,169 @@ bad() { run "$LOG" "$@"; [[ "$output" == "result=ERROR reason=bad-args "* ]] || 
   [ ! -s "$CALLS" ]
 }
 
+# --- --set-state -------------------------------------------------------------
+
+# D1 has two rows, one per child, so the ID alone does not pick one out.
+STATES='# Project
+
+## Decision log
+
+| Date | ID | Child | Entry | State |
+| --- | --- | --- | --- | --- |
+| 2026-10-01 | D1 | https://github.com/o/r/issues/2 | First | decided |
+| 2026-10-02 | D1 | https://github.com/o/r/issues/3 | First | decided |
+| 2026-10-03 | D2 | — | Second | proposed |
+
+## Related
+
+- after
+'
+D1_2='| 2026-10-01 | D1 | https://github.com/o/r/issues/2 | First | decided |'
+D1_3='| 2026-10-02 | D1 | https://github.com/o/r/issues/3 | First | decided |'
+D2='| 2026-10-03 | D2 | — | Second | proposed |'
+
+@test "--set-state changes one row's last cell and no other byte" {
+  body "$STATES"
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row="$D1_2"
+  [ "$output" = "result=OK updated=1 body_edited=2026-10-14T00:00:00Z body_chars=$(jq -Rrs length "$BODY")" ]
+  diff "$BODY" <(printf '%s' "${STATES/"$D1_2"/${D1_2%decided |}applied |}")
+  [ "$(edits)" = 1 ]
+}
+
+@test "--set-state keeps the last cell's own spacing" {
+  body $'## Decision log\n| a | b |\n| --- | --- |\n| x |decided|\n| y |   decided  |\n'
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row='| x |decided|' --row='| y |   decided  |'
+  [[ "$output" == "result=OK updated=2 "* ]]
+  [ "$(cat "$BODY")" = $'## Decision log\n| a | b |\n| --- | --- |\n| x |applied|\n| y |   applied  |' ]
+}
+
+@test "--set-state changes several rows in one write" {
+  body "$STATES"
+  run "$LOG" o/r 7 --table="Decision log" --set-state=decided --row="$D1_3" --row="$D2"
+  [[ "$output" == "result=OK updated=1 "* ]]
+  [ "$(edits)" = 1 ]
+  body "$STATES"; : > "$CALLS"
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row="$D1_3" --row="$D2"
+  [[ "$output" == "result=OK updated=2 "* ]]
+  [ "$(edits)" = 1 ]
+  grep -qx '| 2026-10-02 | D1 | https://github.com/o/r/issues/3 | First | applied |' "$BODY"
+  grep -qx '| 2026-10-03 | D2 | — | Second | applied |' "$BODY"
+  grep -qx "$D1_2" "$BODY"
+}
+
+@test "--set-state on a row already in the target state is done, and writes nothing" {
+  body "$STATES"
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row="$D1_2"
+  : > "$CALLS"
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row="$D1_2"
+  [[ "$output" == "result=OK updated=0 "* ]]
+  [ "$(edits)" = 0 ]
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied \
+    --row='| 2026-10-01 | D1 | https://github.com/o/r/issues/2 | First | applied |'
+  [[ "$output" == "result=OK updated=0 "* ]]
+  [ "$(edits)" = 0 ]
+}
+
+@test "--set-state on a row that matches nothing is row-missing, and writes nothing" {
+  body "$STATES"
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row='| 2026-10-09 | D9 | — | None | decided |'
+  [[ "$output" == "result=ERROR reason=row-missing body_edited=2026-10-14T00:00:00Z now="* ]]
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row="$D1_2" --row='| 2026-10-09 | D9 | — | None | decided |'
+  [[ "$output" == "result=ERROR reason=row-missing "* ]]
+  [ "$(edits)" = 0 ]
+  diff "$BODY" <(printf '%s' "$STATES")
+}
+
+@test "--set-state leaves a matching line in a code fence or under another heading" {
+  body $'## Decision log\n\n| a | b |\n| --- | --- |\n| x | decided |\n\n```\n| x | decided |\n```\n\n## Other\n\n| x | decided |\n'
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row='| x | decided |'
+  [[ "$output" == "result=OK updated=1 "* ]]
+  [ "$(sed -n 5p "$BODY")" = '| x | applied |' ]
+  [ "$(grep -cx '| x | decided |' "$BODY")" = 2 ]
+}
+
+@test "--set-state on a fenced line alone is row-missing" {
+  body $'## Decision log\n\n| a | b |\n| --- | --- |\n\n```\n| x | decided |\n```\n'
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row='| x | decided |'
+  [[ "$output" == "result=ERROR reason=row-missing "* ]]
+  [ "$(edits)" = 0 ]
+}
+
+@test "--set-state keeps CRLF on the changed line" {
+  body $'## Decision log\r\n| a | b |\r\n| x | decided |\r\n'
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row='| x | decided |'
+  [[ "$output" == "result=OK updated=1 "* ]]
+  [ "$(od -An -c "$BODY" | tr -d ' \n')" = '##Decisionlog\r\n|a|b|\r\n|x|applied|\r\n' ]
+}
+
+@test "--set-state on a body with no final newline adds none" {
+  body $'## Decision log\n| a | b |\n| x | decided |'
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row='| x | decided |'
+  [[ "$output" == "result=OK updated=1 "* ]]
+  [ "$(od -An -c "$BODY" | tr -d ' \n')" = '##Decisionlog\n|a|b|\n|x|applied|' ]
+}
+
+@test "--set-state remakes a write a concurrent writer replaced, and confirms it" {
+  body "$STATES"
+  LOSE=1 run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row="$D2"
+  [[ "$output" == "result=OK updated=1 "* ]]
+  [ "$(edits)" = 2 ]
+  [ "$(grep -c '^api graphql' "$CALLS")" = 3 ]
+  grep -qx '| 2026-10-03 | D2 | — | Second | applied |' "$BODY"
+}
+
+@test "--set-state reports a write that never lands as lost" {
+  body "$STATES"
+  LOSE=99 MAX_WRITES=2 run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row="$D2"
+  [[ "$output" == "result=ERROR reason=write-lost "* ]]
+  [ "$(edits)" = 2 ]
+}
+
+@test "--set-state changes every identical line a given row matches" {
+  body $'## Decision log\n| a | b |\n| x | decided |\n| y | decided |\n| x | decided |\n'
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row='| x | decided |'
+  [[ "$output" == "result=OK updated=2 "* ]]
+  [ "$(cat "$BODY")" = $'## Decision log\n| a | b |\n| x | applied |\n| y | decided |\n| x | applied |' ]
+}
+
+@test "--set-state counts a line once when its row is given twice" {
+  body "$STATES"
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row="$D2" --row="$D2"
+  [[ "$output" == "result=OK updated=1 "* ]]
+}
+
+# The stub's write lands, then a concurrent writer replaces the body with one
+# that no longer holds the row; the confirming read finds it gone.
+@test "--set-state reports a row removed after its write landed as row-missing" {
+  body "$STATES"
+  export GONE="$BATS_TEST_TMPDIR/gone"
+  printf '%s' "${STATES/"$D2"$'\n'/}" > "$GONE"
+  cat > "$STUB/gh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CALLS"
+case "$1 $2" in
+  "api graphql")
+    jq -n --rawfile b "$BODY" \
+      '{data: {repository: {issue: {body: $b, lastEditedAt: "2026-10-15T00:00:00Z"}}}}' ;;
+  "issue edit") cp "$GONE" "$BODY" ;;
+esac
+EOF
+  run "$LOG" o/r 7 --table="Decision log" --set-state=applied --row="$D2"
+  [[ "$output" == "result=ERROR reason=row-missing body_edited=2026-10-15T00:00:00Z now="* ]]
+  [ "$(edits)" = 1 ]
+}
+
+@test "--set-state with a bullet section, an unknown state, or twice is a bad argument" {
+  body "$STATES"
+  bad o/r 7 --bullet="Findings log" --set-state=applied --text='x'
+  bad o/r 7 --set-state=applied --bullet="Findings log" --text='x'
+  bad o/r 7 --table="Decision log" --set-state=done --row="$D2"
+  bad o/r 7 --table="Decision log" --set-state= --row="$D2"
+  bad o/r 7 --table="Decision log" --set-state=applied --set-state=applied --row="$D2"
+  bad o/r 7 --table="Decision log" --set-state=applied
+  [ ! -s "$CALLS" ]
+}
+
 # --- --as=<role> -------------------------------------------------------------
 #
 # A copy of the scripts beside the shipped orchestrator role (role-tree.bash).
@@ -288,4 +451,20 @@ STUB
   run --separate-stderr "$LOG" acme/r 7 --bullet="Findings log" --text='x' --as=reviewer
   [[ "$output" == "result=ERROR reason=role now="* ]]
   ! grep -q '^gh ' "$NET_LOG"
+}
+
+@test "--as passes --set-state through, and its result carries the as= tail" {
+  as_tree
+  configure_role orchestrator 9 agent-orchestrator-t
+  run --separate-stderr "$LOG" acme/r 7 --table="Decision log" --set-state=applied \
+    --row='| 2026-10-01 | D1 | — | First | decided |' --as=orchestrator
+  [[ "$output" == "result=OK updated=1 "*" as=agent-orchestrator-t" ]]
+  grep -qx '| 2026-10-01 | D1 | — | First | applied |' "$BODY"
+}
+
+@test "--as passes row-missing through with its body_edited field" {
+  as_tree
+  run --separate-stderr "$LOG" acme/r 7 --table="Decision log" --set-state=applied \
+    --row='| 2026-10-09 | D9 | — | None | decided |' --as=orchestrator
+  [[ "$output" == "result=ERROR reason=row-missing body_edited=2026-10-14T00:00:00Z now="* ]]
 }

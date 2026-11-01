@@ -129,15 +129,16 @@ Every `decided` row, an answer to one child's question included, is finished
 through `references/design-change.md`, whose last step marks it `applied`.
 A row of the operator check before review (`references/triage.md`, "The row")
 whose feedback changes no design section has nothing to sweep: set it `applied`
-with the one-line note `design-change.md` gives for a row already in the body.
+as `design-change.md`'s step 6 does, and post the one-line note it gives for a
+row already in the body.
 
 You are the parent body's only writer. A child's body is its author's, per
 `SKILL.md`; you edit one only in a design change's sweep of a child not yet
 dispatched (`references/design-change.md`), or in a merge's sweep of a child no
 one holds (below). Any other
-body edit, a row's state cell included, is reading the body, changing it, and
-writing it back with the body edit in `SKILL.md`'s "Write as the orchestrator",
-re-read just before each write. A sweep's edit of a child's body is the same.
+body edit is reading the body, changing it, and writing it back with the body
+edit in `SKILL.md`'s "Write as the orchestrator", re-read just before each
+write. A sweep's edit of a child's body is the same.
 
 **An escalation** waits on the operator. With `AskUserQuestion`, ask with it:
 the loop pauses until they answer, and the events that arrived meanwhile are

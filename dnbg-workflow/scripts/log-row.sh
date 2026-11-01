@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Append rows to a table, or bullets to a list, under one heading of an issue's
-# body — a tracking issue's decision log or findings log.
+# body — a tracking issue's decision log or findings log — or set the last
+# (State) cell of rows the table already holds.
 #
 #   log-row.sh <owner/repo> <n> --table=<heading>  --row='| … |' [--row=…] [--as=<role>]
 #   log-row.sh <owner/repo> <n> --bullet=<heading> --text='…'    [--text=…] [--as=<role>]
+#   log-row.sh <owner/repo> <n> --table=<heading>  --set-state=proposed|decided|applied \
+#     --row='| … |' [--row=…] [--as=<role>]
 #
 # The section is the heading whose text is exactly <heading>, at any level, down
 # to the next heading of the same or a higher level; a heading inside a code
@@ -11,7 +14,9 @@
 # (`- <text>`) after its last non-blank line, set off by a blank line when that
 # line is not part of a list. Prints exactly one result line, then exits 0:
 #   result=OK appended=<k> body_edited=<iso|none> body_chars=<n>
+#   result=OK updated=<k> body_edited=<iso|none> body_chars=<n>        (--set-state)
 #   result=ERROR reason=bad-args|unsupported-forge|issue-query|section-missing|table-missing|write|write-lost|role now=<iso>
+#   result=ERROR reason=row-missing body_edited=<iso|none> now=<iso>   (--set-state)
 #
 # A line the section already holds outside a code fence is not appended again,
 # nor is one given twice, so `appended` can be less than the lines given, and
@@ -19,10 +24,21 @@
 # length after the write, the figure the tracking issue's archive threshold is
 # measured against.
 #
+# `--set-state` takes each `--row` as the row reads now, matched as a whole line
+# by the same rules, and replaces only the text of its last cell with the state,
+# keeping the cell's spacing (one space each side when the cell holds none) and
+# every other byte. Every line matching a given
+# row changes, and `updated` counts the lines this run changed. A given row whose
+# last cell already reads the state is done, so a re-run is safe here too.
+# `row-missing` means a given row is in the section in neither its given state
+# nor the target one: nothing is written when the first read shows it, and when
+# a later read does, after a write landed, `body_edited` is that read's.
+#
 # Body writes replace the whole body, so a concurrent writer can replace this
 # one. Each write is confirmed by fetching the body again, and lines found
-# missing are appended to the new body, up to MAX_WRITES writes; `write-lost`
-# means they were still missing after the last.
+# missing are appended to the new body, or rows found in their given state set
+# again, up to MAX_WRITES writes; `write-lost` means some were still undone
+# after the last.
 #
 # `--as=<role>` makes the reads and writes under that role, through one
 # `as-role.sh` call, so a role mints once for the whole run. The OK line then
@@ -52,10 +68,14 @@ shift 2
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 case "$N" in ''|0*|*[!0-9]*) fail bad-args ;; esac
 
-MODE=""; HEADING=""; LINES=(); AS=""; ARGS=()
+MODE=""; HEADING=""; LINES=(); AS=""; ARGS=(); STATE=""
 for a in "$@"; do
   case "$a" in
     --as=?*) AS="${a#--as=}"; continue ;;
+    --set-state=*)
+      [ -z "$STATE" ] || fail bad-args
+      STATE="${a#--set-state=}"
+      case "$STATE" in proposed|decided|applied) ;; *) fail bad-args ;; esac ;;
     --table=*|--bullet=*)
       [ -z "$MODE" ] || fail bad-args
       MODE="${a%%=*}"; MODE="${MODE#--}"; HEADING="${a#*=}" ;;
@@ -66,6 +86,7 @@ for a in "$@"; do
   ARGS+=("$a")
 done
 [ -n "$HEADING" ] && [ "${#LINES[@]}" -gt 0 ] || fail bad-args
+[ -z "$STATE" ] || [ "$MODE" = table ] || fail bad-args
 NL=$'\n'; CR=$'\r'
 for l in "${LINES[@]}"; do
   case "$l" in *"$NL"*|*"$CR"*) fail bad-args ;; esac
@@ -105,6 +126,17 @@ MAX_WRITES=${MAX_WRITES:-3}
 
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 printf '%s\n' "${LINES[@]}" > "$WORK/lines"
+# The row with its last cell's text replaced by the state, the cell's leading
+# and trailing spaces kept.
+with_state() {
+  local row="${1%|}" cell lead trail
+  cell="${row##*|}"; row="${row%|*}"
+  lead="${cell%%[![:space:]]*}"; trail="${cell##*[![:space:]]}"
+  [ "$lead" != "$cell" ] || { lead=" "; trail=" "; }
+  printf '%s|%s%s%s|\n' "$row" "$lead" "$STATE" "$trail"
+}
+: > "$WORK/targets"
+if [ -n "$STATE" ]; then for l in "${LINES[@]}"; do with_state "$l" >> "$WORK/targets"; done; fi
 
 # shellcheck disable=SC2016  # GraphQL variables, bound by the flags below.
 Q='query($owner:String!, $repo:String!, $n:Int!) {
@@ -122,15 +154,20 @@ fetch() {
     jq -r '.data.repository.issue | "\(.lastEditedAt // "none") \(.body | length)"')
 }
 
-# Writes the body with the missing lines inserted to "$WORK/new", and their
-# count to "$WORK/count". A CRLF body keeps CRLF on the inserted lines, and a
-# body with no final newline gains none.
+# Writes the body with the missing lines inserted, or under --set-state the
+# rows' states set, to "$WORK/new", and the count of lines it inserted or
+# changed to "$WORK/count". A CRLF body keeps CRLF on those lines, and a body
+# with no final newline gains none.
 merge() {
   local rc=0 trail=0
   [ -z "$(tail -c1 "$WORK/body")" ] && [ -s "$WORK/body" ] && trail=1
-  HEADING="$HEADING" awk -v mode="$MODE" -v trail="$trail" \
-    -v lines="$WORK/lines" -v count="$WORK/count" '
-    BEGIN { heading = ENVIRON["HEADING"]; while ((getline l < lines) > 0) add[++na] = l }
+  HEADING="$HEADING" awk -v mode="$MODE" -v trail="$trail" -v setstate="${STATE:+1}" \
+    -v lines="$WORK/lines" -v targets="$WORK/targets" -v count="$WORK/count" '
+    BEGIN {
+      heading = ENVIRON["HEADING"]
+      while ((getline l < lines) > 0) add[++na] = l
+      while ((getline l < targets) > 0) to[++nt] = l
+    }
     { raw[NR] = $0; p = $0; sub(/\r$/, "", p); plain[NR] = p; cr[NR] = (p == $0) ? "" : "\r" }
     END {
       # A fence closes only on its own character, so ~~~ inside ``` stays code.
@@ -159,6 +196,22 @@ merge() {
         for (j = 1; j <= na; j++) if (plain[i] == add[j]) have[j] = 1
       }
       if (!anchor && mode == "table") exit 4
+      if (setstate) {
+        k = 0
+        for (i = start + 1; i < stop; i++) {
+          if (code[i]) continue
+          for (j = 1; j <= na; j++) {
+            if (plain[i] == to[j]) { done[j] = 1; continue }
+            if (plain[i] != add[j]) continue
+            done[j] = 1
+            if (!(i in setto)) { setto[i] = to[j] cr[i]; k++ }
+          }
+        }
+        for (j = 1; j <= na; j++) if (!done[j]) exit 5
+        for (i = 1; i <= NR; i++) printf "%s%s", (i in setto) ? setto[i] : raw[i], (i < NR || trail) ? "\n" : ""
+        print k > count
+        exit 0
+      }
       if (!anchor) anchor = start
       # A first bullet under the heading or under prose starts its own block.
       lead = mode == "bullet" && (anchor == start || plain[anchor] !~ /^([-*+][ \t]|[ \t])/)
@@ -174,12 +227,16 @@ merge() {
       for (i = 1; i <= no; i++) printf "%s%s", out[i], (i < no || trail) ? "\n" : ""
       print k > count
     }' "$WORK/body" > "$WORK/new" || rc=$?
-  case "$rc" in 0) ;; 3) fail section-missing ;; 4) fail table-missing ;; *) fail issue-query ;; esac
+  case "$rc" in
+    0) ;; 3) fail section-missing ;; 4) fail table-missing ;;
+    5) echo "result=ERROR reason=row-missing body_edited=$EDITED now=$(now_iso)"; exit 0 ;;
+    *) fail issue-query ;;
+  esac
   K=$(cat "$WORK/count")
 }
 
 fetch; merge
-APPENDED=$K
+DONE=$K
 writes=0
 while [ "$K" != 0 ]; do
   [ "$writes" -lt "$MAX_WRITES" ] || fail write-lost
@@ -188,4 +245,5 @@ while [ "$K" != 0 ]; do
   fetch; merge
 done
 
-echo "result=OK appended=$APPENDED body_edited=$EDITED body_chars=$CHARS"
+VERB=appended; [ -z "$STATE" ] || VERB=updated
+echo "result=OK $VERB=$DONE body_edited=$EDITED body_chars=$CHARS"
