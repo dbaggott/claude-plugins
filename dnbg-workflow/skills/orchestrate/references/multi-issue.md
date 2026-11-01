@@ -40,7 +40,8 @@ driven by `SKILL.md`'s single-issue flow, changed only where this file says.
 
 Run it after start and after every event that can change the answer: a child
 closing, a child leaving flight (below), a row reaching `applied`, a spec
-verdict on a child. On a child closing, first collect that child's rows (below).
+verdict on a child, a bookkeeping subagent's reply (below). On a child
+closing, first collect that child's rows (below).
 
 1. **Finish every `decided` row not yet `applied`**, per
    `references/design-change.md`.
@@ -171,10 +172,10 @@ reads are larger than that or would otherwise sit through many later wakes:
 - **The cross-child scan**: always in a subagent.
 
 Dispatch it with the Agent tool, in the background, as `general-purpose`, with
-no `model` and the step's prompt below. Fill each `<…>` but the `<its …>`
-ones, which the subagent takes from each URL, and give `<scripts>` as the
-absolute path of `<skill-dir>/../../scripts`, since the subagent loads no
-skill. The sweep, the one that drafts bodies, also gets a draft directory,
+no `model` and the step's prompt below. Fill the prompt's inputs: the parent,
+the PR, `<scripts>` as the absolute path of `<skill-dir>/../../scripts`, since
+the subagent loads no skill, and the lines the prompt closes on. The subagent fills the rest
+from what it reads. The sweep, the one that drafts bodies, also gets a draft directory,
 from `mktemp -d <scratchpad>/bookkeeping-<parent>.XXXXXX`. It ends its turn
 on its reply: a result line, then one line per item. You act on the reply and stay the one who decides: every
 question, escalation, row other than the step's own, and message to an author
