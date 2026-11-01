@@ -714,7 +714,7 @@ author_issue_watch() {  # <comment-login> — an author-side watch with no --slu
 #
 # `reviewer/references/issue-mode-wait.md` tables the reviewer's values and
 # `issue-workflow/references/spec-review-wait.md` the author's; each agrees with
-# these. Three references wait with the reviewer role and each handles ACTIVITY
+# these. Several references wait with the reviewer role and each handles ACTIVITY
 # and CLOSED its own way, so those are `read` for a reviewer.
 
 # Runs the watch on issue 163 and checks the result and its act=.
@@ -747,6 +747,14 @@ expect_act() {  # <result-prefix> <act> <watch flags...>
 @test "act: an author's CLOSED is a stop" {
   repo "$(issue 163 '[]' '[]' CLOSED)"
   expect_act CLOSED stop --role=author
+}
+
+# The closure is reported and the open issue re-armed, which a stop would drop.
+@test "act: an author's CLOSED with an issue still watched sends it to the reference" {
+  repo "$(issue 163)" "$(issue 164 '[]' '[]' CLOSED)"
+  INTERVAL=1 SETTLE=1 WINDOW=10 \
+    run "$WATCH" o/r 163 164 --role=author --since=2026-01-01T00:00:00Z
+  [[ "${lines[-1]}" == "result=CLOSED issues=164 watching=163 "*" act=read now="* ]]
 }
 
 # The closure has to be said, which the round alone does not do.

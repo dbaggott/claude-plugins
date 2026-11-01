@@ -35,10 +35,10 @@ the author:
 | `act=` | Results | What to do |
 |---|---|---|
 | `round` | `ACTIVITY` with `comment` in `kinds=` | Read the round. |
-| `stop` | `CLOSED` | Stop. |
+| `stop` | `CLOSED` with no re-arm line | Stop. |
 | `count` | `IDLE` with no `window_left=` | Count the empty window and re-arm from the printed line; tell the operator after the second. |
 | `rearm` | `IDLE` with `window_left=` | Re-arm from the printed line, without counting it. |
-| `read` | `ERROR`, any other `ACTIVITY`, and any result with `missing=` or `closed=` | `ERROR` takes its entry below. For the rest, read the issues before acting, and say which issues a `missing=` or `closed=` names. |
+| `read` | `ERROR`, any other `ACTIVITY`, a `CLOSED` that re-arms the issues still open, and any result with `missing=` or `closed=` | `ERROR` takes its entry below. For the rest, read the issues before acting, say which issues closed or are missing, and re-arm from any printed line. |
 
 Dispatch on the result:
 

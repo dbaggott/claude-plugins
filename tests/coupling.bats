@@ -802,6 +802,33 @@ remote_read_calls() {  # <SKILL.md>
   [ "$bad" -eq 0 ]
 }
 
+# A watcher's `act=` values and the tables its callers act on are one mapping,
+# written twice: a token the script prints that no table defines is a hint
+# nobody can follow, and a table row for a token the script never prints is a
+# branch nobody takes. Checked as sets per script, over the union of its tables.
+act_tokens_script() {  # <script>
+  awk '/^act_for\(\)/ { on = 1 } on { print } on && /^}/ { exit }' "$1" \
+    | grep -o 'echo [a-z]*' | sed 's/^echo //' | sort -u
+}
+act_tokens_tables() {  # <reference>...
+  sed -n 's/^| `\([a-z]*\)` |.*/\1/p' "$@" | sort -u
+}
+
+@test "each watcher's act= values are the ones its callers' tables define" {
+  local w="$ROOT/dnbg-workflow/scripts" s="$ROOT/dnbg-workflow/skills"
+  local script tables
+  script=$(act_tokens_script "$w/watch-pr.sh")
+  tables=$(act_tokens_tables "$s/reviewer/references/watch.md" \
+    "$s/git-workflow/references/watch-results.md")
+  [ -n "$script" ] || { echo "no act= values found in watch-pr.sh"; false; }
+  [ "$script" = "$tables" ] || { echo "watch-pr.sh: script [$script] tables [$tables]"; false; }
+  script=$(act_tokens_script "$w/watch-issue.sh")
+  tables=$(act_tokens_tables "$s/reviewer/references/issue-mode-wait.md" \
+    "$s/issue-workflow/references/spec-review-wait.md")
+  [ -n "$script" ] || { echo "no act= values found in watch-issue.sh"; false; }
+  [ "$script" = "$tables" ] || { echo "watch-issue.sh: script [$script] tables [$tables]"; false; }
+}
+
 # A tracking issue's parent resolves through the closeout PR its orchestrator
 # authors, so the operator has no second command to give at the end of a
 # project. A site still telling them to say "close out" sends them to an entry

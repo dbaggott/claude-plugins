@@ -42,7 +42,8 @@ closeout PR, the one PR that closes the parent (`orchestrate`'s
    progress, not an ending: go back to step 1, and re-arm from the printed line
    only while a child is still open. When they name the parent, the assignment
    ends. A `linked-pr` wake needs no triage here, since each child's PRs are its
-   own reviewer's. A child whose URL names another repo of the same owner needs its own watch on that repo,
+   own reviewer's. Whatever a result's `act=` says, step 1 comes first on every
+   return. A child whose URL names another repo of the same owner needs its own watch on that repo,
    because the script watches one repo.
 3. **Collect the merged PRs.** Run `pr-sources.sh` once per child, taking
    `<owner>/<repo>` and the number from the child's own `url`, and once on the

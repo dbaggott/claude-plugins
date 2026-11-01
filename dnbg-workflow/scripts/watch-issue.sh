@@ -210,10 +210,11 @@ missing_field() { [ -n "$seen_missing" ] && printf ' missing=%s' "$seen_missing"
 # `issue-workflow/references/spec-review-wait.md` for an author, each of which
 # tables the values. Where the reference branches on something this script cannot
 # see, the value is `read`, which sends the caller back to it. A reviewer's
-# ACTIVITY and CLOSED are always that: three references wait with this role, and
-# each handles those two its own way. So is any result naming a missing issue or,
-# on ACTIVITY, a closed one, which the caller has to say something about.
-act_for() {  # <result> [window_left] [closed]
+# ACTIVITY and CLOSED are always that: several references wait with this role,
+# and each handles those two its own way. So is any result naming a missing
+# issue or, on ACTIVITY, a closed one, which the caller has to say something
+# about.
+act_for() {  # <result> [window_left | remaining, on CLOSED] [closed]
   if [ -n "$seen_missing" ] || [ -n "${3:-}" ]; then echo read; return; fi
   case "$1:$ROLE" in
     # Every caller re-arms an IDLE. A full window that came back empty is also
@@ -222,7 +223,9 @@ act_for() {  # <result> [window_left] [closed]
     IDLE:*) if [ -n "${2:-}" ]; then echo rearm; else echo count; fi ;;
     ACTIVITY:author)
       case " $hit_kinds " in *" comment "*) echo round ;; *) echo read ;; esac ;;
-    CLOSED:author) echo stop ;;
+    # Only once nothing is left to watch: with issues still open the closure is
+    # reported and the rest re-armed.
+    CLOSED:author) if [ -n "${2:-}" ]; then echo read; else echo stop; fi ;;
     *) echo read ;;
   esac
 }
@@ -361,7 +364,7 @@ while :; do
     if [ -n "$remaining" ]; then
       watch_rearm "$(rearm_cmd " $remaining")"; fields=$(rearm_fields " $remaining")
     fi
-    echo "result=CLOSED issues=$closed_issues$(missing_field)$fields act=$(act_for CLOSED) now=$NOW"; exit 0
+    echo "result=CLOSED issues=$closed_issues$(missing_field)$fields act=$(act_for CLOSED "$remaining") now=$NOW"; exit 0
   fi
 
   # Counted rather than merely present, so a SECOND comment extends the window

@@ -19,7 +19,7 @@ the stage the watch was armed for:
 | `round` | `ACTIVITY`, `READY` | Run the `── next ──` command and go to `references/review-received.md`. |
 | `fix` | `CHECKS` | Read the failure, rerunning it once if the diff doesn't touch the test, per its entry below; re-arm from the printed line. |
 | `cleanup` | `CLOSED` | Go to `references/post-merge.md`. |
-| `report` | `BLOCKED`; `IDLE` at the review stage; a merge-stage `IDLE` with no `merge=` | Tell the operator, per the result's entry here or in `references/merge-wait.md`, and don't re-arm. |
+| `report` | `BLOCKED`; `IDLE` at the review stage; a merge-stage `IDLE` with no `merge=` | Run the checks the result's entry here or in `references/merge-wait.md` makes first (`pr-verdict.sh` on an `IDLE`, the cause read off `pr-threads.sh` and `pr-verdict.sh` on `BLOCKED`), then tell the operator, and don't re-arm. |
 | `rearm` | `IDLE` with `window_left=`; a merge-stage `IDLE` with `merge=` | Re-arm from the printed line, saying what a `merge=` field names. |
 | `read` | `DIRTY`, `ERROR` | Read its entry before acting: a stacked PR's `DIRTY` is rebased rather than asked about, and the `ERROR` reasons take opposite remedies. |
 
