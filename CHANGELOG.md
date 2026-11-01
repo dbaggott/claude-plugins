@@ -10,6 +10,18 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.11.6 — 2026-11-01
+
+A reviewer's PR watch no longer wakes it for a red build alone. The failing
+checks now arrive as the `checks=` field on its next push, comment or review,
+and a window with nothing else in it ends quietly. The author's watch still
+wakes on a red build.
+
+In issue mode, a reviewer no longer re-runs PR discovery after a PR watch
+comes back idle. It still runs after every other return, and always when the
+PR closes.
+
+
 ## dnbg-workflow 2026.11.5 — 2026-11-01
 
 On a tracking issue, the orchestrator now marks a decision-log row `applied`
