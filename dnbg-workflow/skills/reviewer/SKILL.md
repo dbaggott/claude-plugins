@@ -18,14 +18,10 @@ the whole point, and it buys two things nothing else does:
   what a human merger weighs — and, where the repo requires reviews at all, what
   can satisfy that requirement.
 
-**This skill is GitHub-only, and the repo that decides is the one holding the
-PR** — not your working directory. GitHub Apps have no equivalent on GitLab or
-Bitbucket, so there is nothing to degrade to. Judge the target you were given:
-if the PR named for review lives somewhere other than `github.com`, say that
-reviewing is GitHub-only, name the host, and stop — don't attempt `gh` against
-it. Reviewing a GitHub PR *from* a checkout of some other forge's repo is fine
-and needs no check; nothing here reads `git remote get-url origin` to decide
-whether to run.
+**This skill is GitHub-only, judged by the host of the PR you were given, never
+your working directory.** If that PR is not on `github.com`, say that reviewing
+is GitHub-only, name the host, and stop without running `gh` against it. A
+GitHub PR reviewed from another forge's checkout needs no check.
 
 Invoking this skill is your authorization to post directly: verdict and inline
 comments go to GitHub in one pass.
@@ -128,9 +124,9 @@ command:
 "<skill-dir>/../../scripts/as-role.sh" reviewer <repo> -- gh …
 ```
 
-`<skill-dir>` is the **Base directory** shown when this skill loads. Prefix the
-write itself, not a block around it: the reads that lead up to a write
-(`gh pr diff`, `gh pr view`, `gh pr checks`) run under your own auth.
+`<skill-dir>` is the **Base directory** shown when this skill loads. Prefix each
+write, not a block around it; reads (`gh pr diff`, `gh pr view`, `gh pr checks`)
+run under your own auth.
 
 The resolver never runs the command as anyone but the bot. When it cannot, it
 exits 125 without running it, after a stderr line
@@ -815,10 +811,7 @@ content is the verdict.
 ## Style
 
 - Reference files and lines as `api/server.go:42`, not "in api/server.go".
-- Reference issues and PRs by full GitHub URL
-  (`https://github.com/<owner>/<repo>/pull/35`), never bare `#35` — bare numbers
-  are ambiguous outside their home repo and unclickable in the terminals reviews
-  get read in (`gh pr view`).
+- Reference issues and PRs by full URL, per the always-on rule.
 - Be concrete: "this returns `nil` when `lookup()` fails on line 67" beats
   "consider error handling".
 - Be brief. Long reviews lose attention.

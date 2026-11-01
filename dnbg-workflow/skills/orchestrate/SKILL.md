@@ -80,12 +80,10 @@ A body edit, from a body file in your draft directory too:
 The write scripts, `claim-issue.sh` and `log-row.sh`, take
 `--as=orchestrator` instead and end their `result=OK` line with `as=<login>`.
 
-The resolver's stderr line, `as-role.sh: result=OK as=<login>
-fallback=<none|unconfigured>`, says whom a call ran as. On `as-role.sh:
-result=ERROR`, or a script's `reason=role`, nothing was written: tell the
-operator the reason it gives. Never make the write again without the resolver,
-since that posts as the operator past an App that is set up. Reads stay under
-your own `gh` auth, with no resolver.
+The stderr line says whom a call ran as. On `result=ERROR`, or a script's
+`reason=role`, nothing was written: tell the operator the reason it gives, and
+never make the write another way. Reads stay under your own `gh` auth.
+`git-workflow`'s "Acting as the author" carries the resolver in full.
 
 The closeout PR's own writes, its pushes, `gh pr create` and `gh pr ready
 --undo`, and its follow-up filing, including closing a dropped follow-up, are

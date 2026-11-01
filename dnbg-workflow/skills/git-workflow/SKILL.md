@@ -11,29 +11,22 @@ the main checkout directly; always work in a worktree.
 
 ## This flow is GitHub-only
 
-Every step below drives `gh` — `gh pr`, `gh api`, GraphQL `reviewThreads` — so
-on another forge it is not merely degraded, it cannot run at all. Before step 1,
-read the host of the repo you are about to change:
+Every step below drives `gh`, so on another forge it cannot run at all. Before
+step 1, read the host of the repo you are about to change:
 
 ```bash
 git remote get-url origin
 ```
 
 **If the host is not `github.com`, stop and decline.** Say that this flow is
-GitHub-only, name the host you actually found, and fall back to whatever flow
-the project already uses. Do not run a `gh` command against it first, and do not
-translate the flow to `glab` or another forge's CLI.
+GitHub-only, name the host you found, and fall back to the flow the project
+already uses, without running a `gh` command against it first or translating
+the flow to `glab` or another forge's CLI.
 
-These are **not** a decline:
-
-- **No `origin`.** A local-only repo, or one whose remotes are named something
-  else, makes no forge claim either way. Don't degrade and don't assume GitHub —
-  proceed and let the operator direct.
-- **Several remotes.** `origin` decides, matching what the enforcement hooks do.
-
-`velocity-tradeoff` ships in this same plugin and is **not** GitHub-only — it
-mentions no forge and applies wherever you are. Declining is per skill, never
-per plugin.
+Not a decline: **no `origin`** makes no forge claim, so proceed without assuming
+GitHub and let the operator direct; with **several remotes**, `origin` decides,
+as the enforcement hooks do. Declining is per skill: `velocity-tradeoff`
+applies on any forge.
 
 ## Starting a change
 
@@ -229,7 +222,7 @@ When unsure whether a claim is earned, weaken it or cut it — a description a r
 <!-- dnbg-workflow <version> -->
 ```
 
-It renders invisibly. Re-state it on every rewrite, carrying the rewriting session's version rather than the original. With no note, leave the stamp off — do not take the version from the manifest or from memory, since nothing downstream can tell a guessed version from a read one.
+Re-state it on every rewrite, with the rewriting session's version. With no note, leave it off.
 
 ## Draft files
 
@@ -310,10 +303,5 @@ Always review incoming changes after rebasing or merging. Don't assume the prior
 
 ## Related skills
 
-Optional — everything above is actionable without them.
-
-- **Your project's coding standards.** The comment bar and the
-  `enforceable > prose > nothing` ordering used in `references/review-findings.md` come
-  from somewhere; if your project has no standards of its own, `dnbg-practices`
-  is a **separate plugin** in this marketplace that carries them —
-  `/plugin install dnbg-practices@dnbg`. Nothing here assumes you have it.
+Optional: if your project has no coding standards of its own, the separate
+`dnbg-practices` plugin carries them (`/plugin install dnbg-practices@dnbg`).

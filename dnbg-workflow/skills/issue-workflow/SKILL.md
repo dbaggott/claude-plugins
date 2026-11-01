@@ -13,22 +13,34 @@ An issue is a handoff: the session that creates it has rich context (the convers
 
 ## This flow is GitHub-only
 
-Everything below is `gh issue` and GitHub's own labels, assignees, and linked-PR fields, so on another forge it cannot run rather than merely running worse.
+Everything below is `gh issue` and GitHub's own labels, assignees and linked-PR
+fields, so on another forge it cannot run. **Judge the host of the repo the
+issue lives in, which is not always where you are standing**, from the most
+specific input you have:
 
-**The host to judge belongs to the repo the issue lives in, which is not always where you are standing.** Resolve it from the most specific input you have:
-
-1. **An issue named by full URL** — the host is in the URL, so read it there and stop. `https://github.com/dbaggott/claude-plugins/issues/23` is GitHub even from a GitLab checkout, and `https://gitlab.com/acme/api/-/issues/7` is GitLab even from a GitHub one. **Do not consult the working directory in this case**; it has no bearing on where the issue lives.
-2. **A bare issue number, or creating an issue in place** — the input carries no host, so the issue belongs to the repo you are in. Only here, fall back to reading it:
+1. **An issue named by full URL**: the host is in the URL, so read it there and
+   stop, without consulting the working directory.
+   `https://github.com/dbaggott/claude-plugins/issues/23` is GitHub even from a
+   GitLab checkout, and `https://gitlab.com/acme/api/-/issues/7` is GitLab even
+   from a GitHub one.
+2. **A bare issue number, or creating an issue in place**: the input carries no
+   host, so the issue belongs to the repo you are in. Only here, fall back to
+   reading it:
 
    ```bash
    git remote get-url origin
    ```
 
-The URL case is the common one, not the exception: the always-on rule requires issues be referenced by full URL, so a bare number is the unusual input. Getting the precedence backwards breaks the normal path in both directions — a cwd gate would refuse `work on <GitHub issue URL>` from a GitLab checkout, which is a coherent request that works fine, and would equally wave a GitLab issue URL through from a GitHub checkout straight into the `gh issue view` error cascade this section exists to prevent.
+Route 1 is the common path, since issues are referenced by full URL.
 
-**If the host you resolved is not `github.com`, stop and decline.** Say that this flow is GitHub-only, name the host you actually found, and fall back to whatever issue tracker that project already uses. Don't attempt a `gh` call against it — a clear statement is the entire benefit, and one failing command replaces it with the confusing errors this rule exists to prevent. Don't translate the flow to `glab` or another tracker's CLI either.
+**If the host you resolved is not `github.com`, stop and decline.** Say that
+this flow is GitHub-only, name the host you found, and fall back to the issue
+tracker that project already uses. Make no `gh` call against it, and don't
+translate the flow to `glab` or another tracker's CLI.
 
-Two cases that are **not** a decline, both reachable only on route 2: a repo with **no `origin`** makes no forge claim either way, so proceed and let the operator direct rather than assuming a host; and where **several remotes** exist, `origin` decides, matching the enforcement hooks.
+Not a decline, and reachable only on route 2: a repo with **no `origin`** makes
+no forge claim, so proceed and let the operator direct rather than assuming a
+host; with **several remotes**, `origin` decides, as the enforcement hooks do.
 
 ## Separate paths, and they need different things
 
@@ -74,15 +86,11 @@ draft directory (`git-workflow`'s "Draft files"):
   gh issue comment <n> --repo <owner>/<repo> --body-file <file>
 ```
 
-`<skill-dir>` is this skill's Base directory. The resolver runs the one command
-with the author App's token in place, or as the operator's own account when no
-author App is set up, and says which on stderr (`as-role.sh: result=OK
-as=<login> fallback=<none|unconfigured>`). Reads run under your own auth. When
-it refuses, it exits 125 without running the command, and a `credential`
-refusal is an App that is set up and could not mint: fix what it names rather
-than writing another way. The write scripts take the role as a flag instead
-(`claim-issue.sh --as=author`), and `git-workflow`'s "Acting as the author"
-carries the same rule for PRs and pushes.
+`<skill-dir>` is this skill's Base directory. The stderr line says whom it ran
+as; on `result=ERROR` nothing ran, so do what it prints, and never make the
+write another way. The write scripts take the role as a flag instead
+(`claim-issue.sh --as=author`). `git-workflow`'s "Acting as the author" carries
+the resolver in full.
 
 ## Maintaining issues
 
@@ -108,22 +116,11 @@ This sweep is maintenance, not context exploration, so the depth-1 reading cap i
 
 ## Referencing issues and PRs
 
-Always use the full GitHub URL (`https://github.com/<owner>/<repo>/issues/19`, `https://github.com/<owner>/<repo>/pull/35`) — never bare `#19` or `<owner>/<repo>#35`. Two reasons:
-
-- **Ambiguity.** A bare number only resolves inside the repo it was written in; the same text pasted into chat, another repo's issue, or a summary file points nowhere.
-- **Clickability.** Only full URLs are clickable on every surface. Chat's markdown renderer does link `owner/repo#N`, but raw terminal text (`gh pr view` / `gh issue view` output, commit messages) gets only the terminal's URL matcher, which generally requires a scheme. References get copied between surfaces, so the chat-only form degrades in transit.
-
-Nothing is lost on the web side: github.com renders full URLs to its own issues/PRs as the short `#19`-style link automatically.
-
-When constructing a URL from a bare number of unknown type, use the `/issues/N` path — github.com redirects `/issues/N` ↔ `/pull/N` in both directions, so the path segment never has to match the artifact type.
-
-This applies to every user-facing surface — chat, issue bodies, PR descriptions, commit messages, comments. Memory files are the exception (Claude-context, not rendered to users).
+Full GitHub URLs, always, per the always-on rule "Reference issues and PRs by
+full URL". From a bare number of unknown type, build the `/issues/N` path:
+github.com redirects `/issues/N` and `/pull/N` to each other.
 
 ## Related skills
 
-Optional — everything above is actionable without them.
-
-- **Your project's coding standards.** The bar this skill holds issue bodies to
-  is the same one applied to code; if your project has no standards of its own,
-  `dnbg-practices` is a **separate plugin** in this marketplace that carries them
-  — `/plugin install dnbg-practices@dnbg`. Nothing here assumes you have it.
+Optional: if your project has no coding standards of its own, the separate
+`dnbg-practices` plugin carries them (`/plugin install dnbg-practices@dnbg`).
