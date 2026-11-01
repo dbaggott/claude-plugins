@@ -7,10 +7,9 @@ nothing beyond the asking child's body runs only steps 3 and 6. Such a row is wo
 checks the current state rather than assuming it is first to run. A row whose
 entry the parent's body and every child it reaches already carry (step 2,
 whose set serves every row of the pass) is not swept: set its state to
-`applied` with `log-row.sh --set-state` (`references/multi-issue.md`, "Triage
-and the log") and post one line on the parent, `Decision log: <date> <ID> set to
-applied, already in the body and every child`, as the orchestrator, from a
-file in your draft directory:
+`applied` as step 6 does and post one line on the parent, `Decision log: <date>
+<ID> set to applied, already in the body and every child`, as the orchestrator,
+from a file in your draft directory:
 
 ```bash
 "<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
@@ -99,6 +98,19 @@ author.
 ## 6. Mark the row applied
 
 Once the parent and every reached open child match the decision, and every
-re-review is `READY`, change the row's state cell to `applied` with
-`log-row.sh --set-state` (`references/multi-issue.md`, "Triage and the log").
-Rows a pass applies together take one call, a `--row` for each.
+re-review is `READY`, change the row's state cell to `applied`, giving each row
+as it reads now (the text you appended, or read on start):
+
+```bash
+"<skill-dir>/../../scripts/log-row.sh" <owner>/<repo> <parent> --table="Decision log" \
+  --set-state=applied \
+  --row='| <date> | <ID> | <child URL or —> | <entry> | decided |' [--row=…] --as=orchestrator
+```
+
+It rewrites only each given row's state cell, the rows a pass applies together
+in one write. `result=OK` means each row reads `applied`, so a re-run is safe;
+other failures are handled as `references/multi-issue.md`'s append handles
+them. `row-missing` means a row given is in the table in neither state: the
+text you hold may be stale, as after a compaction, so read the parent's
+decision-log table once and run it again with the rows as they read there.
+Escalate if a row is not in the table, or the second run fails too.

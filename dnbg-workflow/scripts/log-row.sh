@@ -26,7 +26,8 @@
 #
 # `--set-state` takes each `--row` as the row reads now, matched as a whole line
 # by the same rules, and replaces only the text of its last cell with the state,
-# keeping the cell's spacing and every other byte. Every line matching a given
+# keeping the cell's spacing (one space each side when the cell holds none) and
+# every other byte. Every line matching a given
 # row changes, and `updated` counts the lines this run changed. A given row whose
 # last cell already reads the state is done, so a re-run is safe here too.
 # `row-missing` means a given row is in the section in neither its given state
@@ -35,8 +36,9 @@
 #
 # Body writes replace the whole body, so a concurrent writer can replace this
 # one. Each write is confirmed by fetching the body again, and lines found
-# missing are appended to the new body, up to MAX_WRITES writes; `write-lost`
-# means they were still missing after the last.
+# missing are appended to the new body, or rows found in their given state set
+# again, up to MAX_WRITES writes; `write-lost` means some were still undone
+# after the last.
 #
 # `--as=<role>` makes the reads and writes under that role, through one
 # `as-role.sh` call, so a role mints once for the whole run. The OK line then
@@ -66,13 +68,13 @@ shift 2
 case "$REPO" in */*/*|/*|*/) fail bad-args ;; */*) ;; *) fail bad-args ;; esac
 case "$N" in ''|0*|*[!0-9]*) fail bad-args ;; esac
 
-MODE=""; HEADING=""; LINES=(); AS=""; ARGS=(); STATE=""; SET=0
+MODE=""; HEADING=""; LINES=(); AS=""; ARGS=(); STATE=""
 for a in "$@"; do
   case "$a" in
     --as=?*) AS="${a#--as=}"; continue ;;
     --set-state=*)
-      [ "$SET" = 0 ] || fail bad-args
-      SET=1; STATE="${a#--set-state=}"
+      [ -z "$STATE" ] || fail bad-args
+      STATE="${a#--set-state=}"
       case "$STATE" in proposed|decided|applied) ;; *) fail bad-args ;; esac ;;
     --table=*|--bullet=*)
       [ -z "$MODE" ] || fail bad-args
@@ -84,7 +86,7 @@ for a in "$@"; do
   ARGS+=("$a")
 done
 [ -n "$HEADING" ] && [ "${#LINES[@]}" -gt 0 ] || fail bad-args
-[ "$SET" = 0 ] || [ "$MODE" = table ] || fail bad-args
+[ -z "$STATE" ] || [ "$MODE" = table ] || fail bad-args
 NL=$'\n'; CR=$'\r'
 for l in "${LINES[@]}"; do
   case "$l" in *"$NL"*|*"$CR"*) fail bad-args ;; esac
@@ -134,7 +136,7 @@ with_state() {
   printf '%s|%s%s%s|\n' "$row" "$lead" "$STATE" "$trail"
 }
 : > "$WORK/targets"
-if [ "$SET" = 1 ]; then for l in "${LINES[@]}"; do with_state "$l" >> "$WORK/targets"; done; fi
+if [ -n "$STATE" ]; then for l in "${LINES[@]}"; do with_state "$l" >> "$WORK/targets"; done; fi
 
 # shellcheck disable=SC2016  # GraphQL variables, bound by the flags below.
 Q='query($owner:String!, $repo:String!, $n:Int!) {
@@ -159,7 +161,7 @@ fetch() {
 merge() {
   local rc=0 trail=0
   [ -z "$(tail -c1 "$WORK/body")" ] && [ -s "$WORK/body" ] && trail=1
-  HEADING="$HEADING" awk -v mode="$MODE" -v trail="$trail" -v setstate="$SET" \
+  HEADING="$HEADING" awk -v mode="$MODE" -v trail="$trail" -v setstate="${STATE:+1}" \
     -v lines="$WORK/lines" -v targets="$WORK/targets" -v count="$WORK/count" '
     BEGIN {
       heading = ENVIRON["HEADING"]
@@ -234,7 +236,7 @@ merge() {
 }
 
 fetch; merge
-APPENDED=$K
+DONE=$K
 writes=0
 while [ "$K" != 0 ]; do
   [ "$writes" -lt "$MAX_WRITES" ] || fail write-lost
@@ -243,5 +245,5 @@ while [ "$K" != 0 ]; do
   fetch; merge
 done
 
-VERB=appended; [ "$SET" = 0 ] || VERB=updated
-echo "result=OK $VERB=$APPENDED body_edited=$EDITED body_chars=$CHARS"
+VERB=appended; [ -z "$STATE" ] || VERB=updated
+echo "result=OK $VERB=$DONE body_edited=$EDITED body_chars=$CHARS"
