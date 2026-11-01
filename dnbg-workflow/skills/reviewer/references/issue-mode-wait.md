@@ -25,10 +25,11 @@ So the assignment is a loop, not a pass:
    you were watching another joins the set here. **Skip it while an issue-level
    wait is armed** — that wait finds everything a discovery pass would, and sooner
    (see the source-3 note below), so a PR watcher's return need only handle its
-   own PR. Discover unconditionally with no issue wait armed, at any `CLOSED`, and
-   on the issue wait's own `ACTIVITY`. A PR watch's `IDLE` says nothing happened
-   on its PR, so it gets no pass: a sibling opened in a quiet stretch is found
-   at that watch's next wake, or at its `CLOSED`, which step 4 makes a pass.
+   own PR. Discover unconditionally with no issue wait armed (a PR watch's
+   `IDLE` aside), at any `CLOSED`, and on the issue wait's own `ACTIVITY`. A PR
+   watch's `IDLE` says nothing happened on its PR, so it gets no pass: a sibling
+   opened in a quiet stretch is found at that watch's next wake, or at its
+   `CLOSED`.
 4. **End only when a fresh discovery pass finds no open PR *and* the issue is
    closed.** An open issue with everything merged means more work may still be
    coming; that is not completion. A dispatcher's message that the issue stays
@@ -52,9 +53,8 @@ one back as a draft.** A PR triaged as not resolving the issue is not one to
 review. While every PR to review is one you review and watch with its own
 `watch-pr.sh` (the single-PR case an orchestrated reviewer starts in), arm none:
 step 3 re-discovers at each return of that watch but `IDLE`, its `CLOSED`
-included, and a
-later pass that leaves no PR to review, or a draft to hold, arms it then, its
-`since` taken under the first-arm rule as below. The same test decides each
+included, and a later pass that leaves no PR to review, or a draft to hold, arms
+it then, its `since` taken under the first-arm rule as below. The same test decides each
 re-arm, and when the last held draft is marked ready, stop the wait by its task
 id.
 
