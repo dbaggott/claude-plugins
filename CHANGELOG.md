@@ -10,6 +10,11 @@ tagged, and their versions used a two-component scheme that predates the current
 
 <!-- releases below -->
 
+## dnbg-workflow 2026.11.10 — 2026-11-01
+
+`git-workflow`, `orchestrate`, `reviewer` and `issue-workflow` load less text. Branches most runs skip, or first need late, now sit in reference files read only when their condition holds: draft files, the operator check before review, multi-repo changes, stacked branches, sandboxed sessions, the defect-pass exemptions and the approval check in `git-workflow`; operator steps, a dead or predecessor agent and an issue still open after its merge in `orchestrate`; the draft-PR picker in `reviewer`. Skills that send an agent to draft files now point at `git-workflow/references/draft-files.md` instead of the whole `git-workflow` skill.
+
+
 ## dnbg-workflow 2026.11.9 — 2026-11-01
 
 Under a tracking issue, the orchestrator now runs its larger bookkeeping reads
