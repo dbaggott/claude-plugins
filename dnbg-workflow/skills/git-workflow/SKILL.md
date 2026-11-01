@@ -222,7 +222,7 @@ When unsure whether a claim is earned, weaken it or cut it — a description a r
 <!-- dnbg-workflow <version> -->
 ```
 
-Re-state it on every rewrite, with the rewriting session's version. With no note, leave it off.
+Re-state it on every rewrite, with the rewriting session's version. With no note, leave it off, taking the version from nowhere else.
 
 ## Draft files
 

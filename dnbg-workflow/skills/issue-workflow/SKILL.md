@@ -86,9 +86,12 @@ draft directory (`git-workflow`'s "Draft files"):
   gh issue comment <n> --repo <owner>/<repo> --body-file <file>
 ```
 
-`<skill-dir>` is this skill's Base directory. The stderr line says whom it ran
-as; on `result=ERROR` nothing ran, so do what it prints, and never make the
-write another way. The write scripts take the role as a flag instead
+`<skill-dir>` is this skill's Base directory. Reads run under your own auth.
+The stderr line, `as-role.sh: result=OK as=<login>
+fallback=<none|unconfigured>`, says whom it ran as. On `result=ERROR` nothing
+ran, so do what it prints; a `credential` refusal is an App that is set up and
+could not mint, so fix what it names. Never make the write another way. The
+write scripts take the role as a flag instead
 (`claim-issue.sh --as=author`). `git-workflow`'s "Acting as the author" carries
 the resolver in full.
 
