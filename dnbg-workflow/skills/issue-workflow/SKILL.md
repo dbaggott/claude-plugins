@@ -54,12 +54,12 @@ with almost no overlap, so each lives in its own file. Read the one you are on:
   your state from, and waiting on the next round
   (`references/spec-review-wait.md`). The reviewer's side is the
   `issue-reviewer` skill.
-- **Picking up an issue to resolve it** → `references/claiming.md` first,
-  unless the exception to "On pickup" below applies:
+- **Picking up an issue to resolve it** → `references/claiming.md` first:
   checking it is not already claimed, asking once when it belongs to a
   project (`references/project-pickup.md`), then claiming it. Then
   `references/resolving.md`: the freshness probe, the critical review of the
-  issue itself, and the link-following discipline.
+  issue itself, and the link-following discipline. The exception to "On
+  pickup" below skips `references/claiming.md`.
 
 **On pickup, read `references/claiming.md` before touching any file or
 opening a worktree.** Claiming comes first, and an issue already being worked by
