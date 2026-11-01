@@ -77,7 +77,7 @@ A body edit, from a body file in your draft directory too:
   gh issue edit <n> --repo <owner>/<repo> --body-file <file>
 ```
 
-The write scripts, `claim-issue.sh` and `log-row.sh`, take
+The write scripts, `claim-issue.sh`, `log-row.sh` and `decision-row.sh`, take
 `--as=orchestrator` instead and end their `result=OK` line with `as=<login>`.
 
 The stderr line, `as-role.sh: result=OK as=<login>
@@ -196,8 +196,8 @@ dispatch`, the answer, and **Basis** `operator`, in session. The operator's
 answer to an author's stop at a step is a later row of the same ID. An issue
 that already carries one is not asked again, and the latest row is the answer.
 The answer changes no design: it is not promoted into the body, and a tracking
-issue's table row for it is written as `applied`. Dispatch does not wait on
-"Not yet", since most steps are needed late.
+issue's table row for it is written as `applied`, with `--table-state=applied`.
+Dispatch does not wait on "Not yet", since most steps are needed late.
 
 **The author**, at once, prompted with the recipe below. The claim you made is
 already the author's: a subagent shares your session id, so its pickup reads

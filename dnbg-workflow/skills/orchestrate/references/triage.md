@@ -163,17 +163,23 @@ Decision log: D4 — applied
 **Basis:** allowlist (a). D4's rationale, "body edits are whole-body replaces and two writers clobber each other", names this case.
 ```
 
-Post it under the orchestrator role (`SKILL.md`, "Write as the orchestrator"),
-from a body file in your draft directory:
+Post it under the orchestrator role with one call, which composes the row
+above from its values, each quoted for the shell (a `'` inside one as `'\''`):
 
 ```bash
-"<skill-dir>/../../scripts/as-role.sh" orchestrator <owner>/<repo> -- \
-  gh issue comment <n> --repo <owner>/<repo> --body-file <file>
+"<skill-dir>/../../scripts/decision-row.sh" <owner>/<repo> <n> \
+  --id='<ID>' --state=<state> --question='<question>' \
+  --answer='<answer>' --basis='<basis>' --as=orchestrator
 ```
 
+`result=OK comment=<url>` gives the row's URL. A re-run reuses an identical
+comment rather than posting a second, so on `reason=comment` run it once more,
+and escalate if it fails again.
+
 Under a tracking issue you orchestrate, each row is also a row of the parent's
-decision-log table, per `references/multi-issue.md`. Orchestrating only a child,
-write the comment alone: the parent's orchestrator collects it from the child
+decision-log table, which the same call writes with `--parent`, per
+`references/multi-issue.md`. Orchestrating only a child, write the comment
+alone: the parent's orchestrator collects it from the child
 (`issue-workflow`'s `references/tracking-issue.md`, "Who writes the body").
 
 An operator who will be away can delegate a class of question to you, such as
@@ -184,7 +190,9 @@ the rows that apply it have its URL to cite. A later question inside that class 
 delegation says, with **Basis** `operator, delegated at <that row's URL>`.
 Anything outside every recorded delegation escalates as before, and the
 operator being away widens nothing on the allowlist. A delegation changes no
-design, so under a tracking issue its table row is written as `applied`.
+design, so under a tracking issue its table row is written as `applied`: the
+call names the parent as both the issue and `--parent`, with
+`--table-state=applied`.
 
 An escalation gets two rows: `proposed` when you ask, and `decided` with the
 operator's answer when it arrives. A restart reads a `proposed` row with nothing
