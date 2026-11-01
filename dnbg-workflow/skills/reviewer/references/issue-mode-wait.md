@@ -20,16 +20,12 @@ So the assignment is a loop, not a pass:
 
 1. **Discover** — re-run `pr-sources.sh` as `issue-mode.md` does.
 2. **Review and watch** every open PR found that you haven't already reviewed.
-3. **On every watcher return but a PR watch's `IDLE`** — `CLOSED` *or* any other
-   re-arm — **discover again** before deciding anything. A PR that appeared while
-   you were watching another joins the set here. **Skip it while an issue-level
-   wait is armed** — that wait finds everything a discovery pass would, and sooner
-   (see the source-3 note below), so a PR watcher's return need only handle its
-   own PR. Discover unconditionally with no issue wait armed (a PR watch's
-   `IDLE` aside), at any `CLOSED`, and on the issue wait's own `ACTIVITY`. A PR
-   watch's `IDLE` says nothing happened on its PR, so it gets no pass: a sibling
-   opened in a quiet stretch is found at that watch's next wake, or at its
-   `CLOSED`.
+3. **On every watcher return but a PR watch's `IDLE`, discover again** before
+   deciding anything. A PR that appeared while you were watching another joins the
+   set here. **Skip it while an issue-level wait is armed** — that wait finds
+   everything a discovery pass would, and sooner (see the source-3 note below), so
+   a PR watcher's return need only handle its own PR. Discover with no issue wait
+   armed, at any `CLOSED`, and on the issue wait's own `ACTIVITY`.
 4. **End only when a fresh discovery pass finds no open PR *and* the issue is
    closed.** An open issue with everything merged means more work may still be
    coming; that is not completion. A dispatcher's message that the issue stays
@@ -54,9 +50,9 @@ review. While every PR to review is one you review and watch with its own
 `watch-pr.sh` (the single-PR case an orchestrated reviewer starts in), arm none:
 step 3 re-discovers at each return of that watch but `IDLE`, its `CLOSED`
 included, and a later pass that leaves no PR to review, or a draft to hold, arms
-it then, its `since` taken under the first-arm rule as below. The same test decides each
-re-arm, and when the last held draft is marked ready, stop the wait by its task
-id.
+it then, its `since` taken under the first-arm rule as below. The same test
+decides each re-arm, and when the last held draft is marked ready, stop the wait
+by its task id.
 
 **When discovery finds nothing yet, wait — and load `SKILL.md` step 1's standards
 during that wait**, not when the first PR lands: the wait is the one stretch of
