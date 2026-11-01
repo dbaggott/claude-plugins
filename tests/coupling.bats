@@ -784,22 +784,24 @@ remote_read_calls() {  # <SKILL.md>
 }
 
 # A reference is read whole, in one call, at the moment its flow needs it. This
-# cap guards against that read being lost, and nothing else: token usage is
-# measured elsewhere. Measured 2026-11-01 on Claude Code 2.1.316, a dispatched
-# subagent matching the main session:
-# - Bash output (`cat`) is the limit that binds, and it counts bytes. The
-#   harness prints no threshold: 29,618 bytes came through whole and 30,658
-#   went to a saved file with about 2 KB shown inline, so the agent gets a
-#   near-empty result, not a half-read.
-# - The Read tool cuts at 25,000 tokens, a cap its notice names. This repo's
-#   prose runs about 2.7 bytes per token, roughly 66 KB.
-# The cap is two thirds of the Bash limit, leaving room for line-number
-# prefixes, the shell's trailing notices and a small second file in the same
-# call. Re-measure with numbered 80-byte lines ending in a sentinel line, at
-# sizes stepping down from 150 KB toward 12 KB, read with the Read tool and with
-# `cat` from the main session and from a dispatched subagent, stopping once two
-# consecutive sizes read whole. Globbed over every plugin so a new file is
-# covered.
+# cap guards against that read being lost, and nothing else: token usage is not
+# its concern. Measured 2026-11-01 on Claude Code 2.1.316, a dispatched subagent
+# matching the main session:
+# - Bash output (`cat`) is the limit that binds, and it is a size, not a token
+#   count (probed with ASCII only, so bytes and characters were not told
+#   apart). The harness prints no threshold: 29,618 bytes came through whole and
+#   30,658 went to a saved file with only a short preview inline, so the agent
+#   gets a near-empty result, not a half-read.
+# - The Read tool cuts at 25,000 tokens, a cap its notice names, and returns the
+#   lines before the cut. This repo's prose runs about 2.7 bytes per token,
+#   roughly 66 KB.
+# The cap is about two thirds of the Bash limit, leaving room for the shell's
+# trailing notices and a small second file in the same call. Re-measure with
+# numbered 80-byte lines ending in a sentinel line, at sizes stepping down from
+# 150 KB toward 12 KB and bisecting the first gap between a cut and a whole
+# read, with the Read tool and with `cat`, each from the main session and from a
+# dispatched subagent, stopping each of the four once two consecutive sizes read
+# whole. Globbed over every plugin so a new file is covered.
 @test "no skill reference is too long to read in one call" {
   local f size bad=0 found=0
   shopt -s nullglob
