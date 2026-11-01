@@ -628,6 +628,55 @@ STUB
   [ -z "$(find "$TMPDIR" -name 'pr-round-*')" ]
 }
 
+# pr-round.sh answers in its last line, so a file ending on anything else, an
+# ERROR included, is not a round to read.
+@test "a round fetch that ends on result=ERROR prints the pr-round.sh call instead" {
+  fake_round <<'STUB'
+echo result=ERROR reason=bad-args
+STUB
+  review_burst
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$SCRIPTS/watch-pr.sh" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"── round ──"* ]]
+  [[ "$output" == *"── next ──"* ]]
+}
+
+# The same burst, reported because GitHub reads keep failing: a fetch then would
+# fail too, so the caller is handed the call to make once GitHub answers.
+@test "a burst reported over failing reads does not fetch the round" {
+  fake_round <<'STUB'
+echo ran >> "$ROUND_CALLS"
+echo result=OK
+STUB
+  { echo "#!$BASH"; cat; } > "$STUB/gh" <<'STUB'
+case "$1 $2" in
+  "pr view") echo '{"state":"OPEN","isDraft":false,"headRefOid":"0000000000000000000000000000000000000009","reviews":[],"comments":[]}' ;;
+  *) exit 1 ;;
+esac
+STUB
+  chmod +x "$STUB/gh"
+  INTERVAL=1 FAIL_MAX=3 FAIL_MIN_SECONDS=0 SETTLE=120 SETTLE_MAX=120 WINDOW=60 \
+    run "$SCRIPTS/watch-pr.sh" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer
+  [[ "${lines[-1]}" == result=COMMITS* ]]
+  [[ "$output" == *"── next ──"* ]]
+  [[ "$output" != *"── round ──"* ]]
+  [ ! -e "$ROUND_CALLS" ]
+}
+
+# The caller reads the path and re-arms from the line in later Bash calls, whose
+# working directory need not be this one.
+@test "a relative --round-dir is made absolute, and a missing one is created" {
+  review_burst
+  cd "$BATS_TEST_TMPDIR"
+  INTERVAL=1 SETTLE=1 WINDOW=10 run "$WATCH" o/r 1 "$(sha40 0)" 1970-01-01T00:00:00Z bot --role=reviewer \
+    --round-dir=new/drafts
+  [ "$status" -eq 0 ]
+  local f; f=$(round_file)
+  [[ "$f" == "$PWD/new/drafts"/pr-round-1-* ]]
+  [ -s "$f" ]
+  [[ "$output" == *"--round-dir='$PWD/new/drafts'"* ]]
+}
+
 @test "--round-dir places the round file and is carried on the re-arm line" {
   review_burst
   local dir="$BATS_TEST_TMPDIR/drafts dir"; mkdir -p "$dir"

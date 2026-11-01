@@ -49,8 +49,8 @@
 # header. A burst that is not checks-only also carries `── round ── <path>`: the
 # watch runs pr-round.sh for the burst itself and writes its output to a
 # `mktemp` file under `--round-dir` (default `${TMPDIR:-/tmp}`). When that fetch
-# fails, the burst carries `── next ──` in its place, the pr-round.sh call to
-# run by hand. CLOSED, ERROR, DIRTY and BLOCKED carry
+# fails, or the burst is reported over failing reads, the burst carries
+# `── next ──` in its place, the pr-round.sh call to run by hand. CLOSED, ERROR, DIRTY and BLOCKED carry
 # neither — none of the four clears without a human, so a re-armed watch would
 # report the same state on its next tick for as long as it kept being re-armed.
 #
@@ -136,6 +136,9 @@ sha_ok "$LAST_HEAD" || bad=1
 sha_ok "$LAST_VERDICT" || bad=1
 sha_ok "$LAST_CHECKS_HEAD" || bad=1
 [ -n "$SINCE" ] || SINCE="1970-01-01T00:00:00Z"
+# Absolute, so the `── round ──` path and the re-arm line mean the same file from
+# whatever directory the caller reads or re-arms them in.
+case $ROUND_DIR in /*|'') ;; *) ROUND_DIR="$PWD/$ROUND_DIR" ;; esac
 
 # The author's login comes from the resolver. A reviewer's is its bot's, which
 # its caller reads from the same resolver and passes, so that role has to be told.
@@ -233,25 +236,42 @@ emit_activity() {
   } | jq -c "$ACTIVITY_JQ_SUMMARY" 2>/dev/null || true
 }
 
+# The burst's pr-round.sh call, which emit_round makes and emit_next prints.
+# `<since-sha>` is the one argument that may be empty.
+round_args() { ROUND_ARGS=("$REPO" "$PR" "$LAST_HEAD" "$SINCE" "$SLUG"); }
+
 emit_next() {
+  local a out=""
+  round_args
+  for a in "${ROUND_ARGS[@]}"; do out="$out ${a:-\"\"}"; done
   printf '── next ──\n'
-  printf '"%s/pr-round.sh" %s %s %s %s %s\n' \
-    "$HERE" "$REPO" "$PR" "${LAST_HEAD:-\"\"}" "$SINCE" "$SLUG"
+  printf '"%s/pr-round.sh"%s\n' "$HERE" "$out"
 }
 
+# 0 when the burst is reported because GitHub reads are failing, where a fetch
+# now would fail too, so the caller is handed the call to make later.
+fetch_round=1
+
 # The round emit_next names, fetched here so the caller's first turn reads it
-# instead of spending a turn on the fetch. Any failure falls back to emit_next,
-# which hands the caller the same call to make by hand.
+# instead of spending a turn on the fetch. A fetch that fails, writes nothing, or
+# ends on anything but `result=OK` falls back to emit_next. A source pr-round.sh
+# names as failed is still `result=OK`: its `_src` fields say so to the reader.
 emit_round() {
   local dir="${ROUND_DIR:-${TMPDIR:-/tmp}}" head="${obs_head:-none}" f=""
-  if f=$(mktemp "$dir/pr-round-$PR-${head:0:12}.XXXXXX" 2>/dev/null) \
-     && "$HERE/pr-round.sh" "$REPO" "$PR" "$LAST_HEAD" "$SINCE" "$SLUG" > "$f" \
-     && [ -s "$f" ]; then
+  if [ "$fetch_round" = 0 ]; then
+    echo "watch-pr.sh: GitHub reads are failing, so the round is not fetched; the call to run follows" >&2
+    emit_next; return 0
+  fi
+  round_args
+  if mkdir -p "$dir" 2>/dev/null \
+     && f=$(mktemp "$dir/pr-round-$PR-${head:0:12}.XXXXXX" 2>/dev/null) \
+     && "$HERE/pr-round.sh" "${ROUND_ARGS[@]}" > "$f" \
+     && tail -1 "$f" | grep -q '^result=OK'; then
     printf '── round ── %s\n' "$f"
     return 0
   fi
   if [ -n "$f" ] && [ ! -s "$f" ]; then rm -f "$f"; f=""; fi
-  echo "watch-pr.sh: the round fetch failed, so the call to run follows${f:+; partial output in $f}" >&2
+  echo "watch-pr.sh: the round fetch failed, so the call to run follows${f:+; its output is in $f}" >&2
   emit_next
 }
 
@@ -319,6 +339,7 @@ have_burst() {
 # instead sends the caller to re-arm straight back into the failure having
 # silently dropped what was already seen.
 report_error() {
+  fetch_round=0
   if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] && have_burst; then
     report_burst
   fi
@@ -439,6 +460,7 @@ while :; do
     poll_reset
     if [ "$settle_until" != 0 ] && [ "$holding_draft" = 0 ] \
        && [ "$tick_at" -ge "$settle_cap" ] && have_burst; then
+      fetch_round=0
       report_burst
     fi
     { [ "$settle_until" = 0 ] || [ "$holding_draft" = 1 ]; } && poll_timed_out && report_idle

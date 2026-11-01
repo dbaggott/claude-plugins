@@ -255,6 +255,9 @@ dispatcher's, and the newest file there may be a sibling's.
   <file>`). A fixed name is reused next round, so a draft you failed to rewrite
   would otherwise post last round's text. To change a posted body, read it back
   from GitHub.
+- **Round files**: a review watch you arm with `--round-dir=<draft directory>`
+  writes each round it fetches there as `pr-round-*`. Delete one (`rm <file>`)
+  once you have handled its round.
 
 **When you dispatch an agent** with the Agent tool, create its directory first,
 `mktemp -d <scratchpad>/<role>-<n>.XXXXXX`, where `<role>` is `author` or

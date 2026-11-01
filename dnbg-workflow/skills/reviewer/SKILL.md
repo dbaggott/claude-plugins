@@ -711,8 +711,9 @@ When the watcher surfaces `ACTIVITY`, the round is the source: the packet's
 `── next ──` command when the watch could not fetch it). **That is what you
 read; don't go fetching the comment endpoints yourself.** The watcher's own
 JSON lines carry no bodies — they say what landed and from whom, not what it
-said — so they route you to the packet rather than standing in for it. Everything is already in that packet, so a fan-out across the
-endpoints can only re-fetch what you hold — and with no inline threads of your
+said — so they route you to the packet rather than standing in for it.
+Everything is already in that packet, so a fan-out across the endpoints can
+only re-fetch what you hold — and with no inline threads of your
 own filed, the first case below cannot fire at all. Respond only when there's
 something substantive to add — never "I agree" filler. An inline object carries
 the `id` the reply below needs as `in_reply_to`. Replies post as the bot, so each
