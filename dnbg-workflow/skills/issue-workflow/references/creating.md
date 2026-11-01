@@ -7,7 +7,7 @@ and `references/resolving.md` cover picking an issue up.
 
 ## Creating issues
 
-An issue is a handoff: the session that creates it has rich context (the conversation, the code just read, the direction just agreed), and the session that resolves it has only the issue body. Whoever resolves it — a fresh interactive session, an automated agent, a human — reads that body cold. The failure modes a body written per this file prevents:
+An issue is a handoff: the session that creates it has rich context (the conversation, the code just read, the direction just agreed), and the session that resolves it has only the issue body. Whoever resolves it — a fresh interactive session, an automated agent, a human — reads that body cold. The failure modes this skill exists to prevent:
 
 - **Wasted research.** An issue body full of unlabeled cross-references forces the resolver to either follow every link (burning context budget before any code changes) or skip them (and maybe miss the one that mattered).
 - **Wrong implementation path.** An issue that was perfectly clear *in the context of its creation* reads as open-ended to a cold resolver, who then picks a different approach than the one everyone had in mind. The resolution should not depend on which agent happens to pick the issue up.
@@ -78,10 +78,9 @@ project skill, or the port; and what to look at>
 ```
 
 The resolver stops there once the work is complete, before its self-review
-(`<skill-dir>/../git-workflow/references/operator-check.md`), and the
-operator's feedback
-goes back to it until they say proceed. The section is a declaration, not an
-acceptance criterion: the reviewer grades nothing in it (`reviewer`'s
+(`<skill-dir>/../git-workflow/references/operator-check.md`), and the operator's
+feedback goes back to it until they say proceed. The section is a declaration,
+not an acceptance criterion: the reviewer grades nothing in it (`reviewer`'s
 `references/issue-mode.md`). The recipe's command is an anchor, verified before
 filing like any other.
 

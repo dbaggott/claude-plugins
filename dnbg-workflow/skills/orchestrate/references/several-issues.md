@@ -46,7 +46,7 @@ One run drives the set, with these changes to `SKILL.md`'s flow:
   step 3 reads as `closes` or `sibling` on any issue is the set's PR; two
   different ones, or only a `mention`, go to the operator as step 3 says.
 - **Operator steps** are asked once for every issue together, as under a
-  tracking issue. An operator check before review declared on any issue makes
+  tracking issue (`references/operator-steps.md`). An operator check before review declared on any issue makes
   the dispatch line's check phrase, carrying each issue's recipe.
 - **One author**, dispatched with the recipe's first line naming every issue:
 

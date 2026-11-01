@@ -2000,8 +2000,11 @@ collector_prefixes() {  # <file> -> each prefix the file filters comments on, qu
 # prompt, since they are not on the forge.
 @test "orchestrate resumes a dead agent, and its replacement's prompt names the unpushed commits" {
   local orch="$ROOT/dnbg-workflow/skills/orchestrate/SKILL.md" prompt
-  grep -q '^\*\*An agent died on an error\*\*' "$orch" || {
-    echo "orchestrate no longer handles an agent that died on an error"; false; }
+  local dead="$ROOT/dnbg-workflow/skills/orchestrate/references/predecessor.md"
+  grep -q '^\*\*An agent died on an error\*\*' "$orch" && grep -q 'references/predecessor\.md' "$orch" || {
+    echo "orchestrate no longer points at its handling of an agent that died on an error"; false; }
+  grep -q '^\*\*An agent died on an error\*\*' "$dead" && grep -q 'Resume it with `SendMessage`' "$dead" || {
+    echo "predecessor.md no longer resumes an agent that died on an error"; false; }
   prompt=$(sed -n '/^> Resolve `<issue URL>`/,/^$/p' "$orch")
   grep -q 'unpushed commits' <<<"$prompt" && grep -q '`<review URL>`' <<<"$prompt" || {
     echo "orchestrate's dispatch prompt no longer carries a dead author's unpushed commits and review round"; false; }

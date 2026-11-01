@@ -748,10 +748,11 @@ Don't post comments that are neither actionable nor informative — no "Reviewed
 looks good, posting approval" filler. The verdict and body carry the signal.
 
 This does **not** cover a re-verdict (`references/re-review.md`), on a moved
-HEAD or after the last blocker is answered on an unmoved one, even when its
-body is a single sentence: it is the only thing that attaches an `APPROVED`
-`commit_id` to a moved HEAD, or replaces a `CHANGES_REQUESTED` you no longer
-stand behind.
+HEAD or after the last blocker is answered on an unmoved one. It is informative
+even when its body is a single sentence: it is the only thing that attaches an
+`APPROVED` `commit_id` to a moved HEAD, or replaces a `CHANGES_REQUESTED` you no
+longer stand behind. The rule bans content-free commentary, not a verdict whose
+content is the verdict.
 
 ## When to ask, when to skip
 

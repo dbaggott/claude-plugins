@@ -217,11 +217,11 @@ step 4 read as cleared and the second, with its rows, for one read as pending.
 The operator-steps line goes in for an issue with an `Operator steps` row.
 The stack line goes in for a child the ready set gave a `base`, with that
 branch and its `base_pr` (`references/stacked.md`).
-The `Continue`, worktree and died-mid-task lines go in only for a predecessor:
-an open PR that step 3 found or the operator handed over, a worktree step 3
-found, or a dead author you are replacing. `references/predecessor.md` says
-which goes in when. The last line goes in only for `decided` rows the body
-does not yet carry.
+The `Continue`, worktree and died-mid-task lines are a predecessor's, and
+`references/predecessor.md` says when each goes in: read it whenever step 3
+found a PR or a worktree, the operator handed one over, or you are replacing a
+dead author. The last line goes in only for `decided` rows the body does not
+yet carry.
 
 **The reviewer**, when the author's turn ends with its PR URL at
 send-to-review, or at once when step 3 found the PR already out of draft. Skip

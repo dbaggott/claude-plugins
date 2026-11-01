@@ -1,8 +1,8 @@
 # Git workflow: a stacked branch
 
 Part of the `git-workflow` skill. Read this when your prompt names a branch to
-stack on, before step 4's `git worktree add`. It changes `SKILL.md`'s steps 4,
-7 and 8 where it says, and nothing else.
+stack on, before step 4's calls, including on a worktree or PR you continue. It
+changes `SKILL.md`'s steps 4, 7, 8 and 9 where it says, and nothing else.
 
 ## Step 4: the base
 

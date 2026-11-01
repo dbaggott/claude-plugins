@@ -1,7 +1,7 @@
 # Git workflow: whether HEAD is approved
 
-Part of the `git-workflow` skill. Read this before telling the operator a PR is
-ready to merge, and before merging one yourself if you ever have cause to.
+Part of the `git-workflow` skill. Read this whenever you need to know whether a
+PR's HEAD is approved.
 `SKILL.md`'s "Know the repo's merge settings" carries the repo's settings, and
 `<skill-dir>` is that skill's Base directory.
 

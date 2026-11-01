@@ -43,9 +43,9 @@ applies on any forge.
 
    Run it on every worktree you work in, one you take over or continue included. It reads `result=OK`; on `result=ERROR`, stop and say what it named.
 
-   When your prompt names a branch to stack on, read `references/stacked-branch.md` before this step's `git worktree add`: it changes this step, step 7's ranges and step 8.
+   When your prompt names a branch to stack on, read `references/stacked-branch.md` before this step's calls, on a worktree or PR you continue too: it changes this step, step 7's ranges, step 8, and what step 9 keeps in the description.
 
-   In a sandboxed Claude Code session, read `references/sandbox.md` before this step's `git worktree add`.
+   In a sandboxed Claude Code session, read `references/sandbox.md` before this step's calls, on a worktree you take over or continue too.
 5. Make changes in the worktree.
 6. Commit.
 7. **Self-review the branch, and address what it finds** — before pushing. When the issue declares an operator check before review, that check comes first and moves the push and the draft PR ahead of this step: read `references/operator-check.md`.
@@ -64,7 +64,7 @@ applies on any forge.
    ```
 
    On a stacked branch, `references/stacked-branch.md` adds a flag to this call and a step after it.
-9. After each commit, push, and update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description. The new description goes in your draft directory too, per `references/draft-files.md`: `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh pr edit <number> --repo <owner>/<repo> --body-file <file>`.
+9. After each commit, push, and update the PR description if needed so it reflects the **as-built** state, written per **"Writing the PR description"** below — we do not narrate the development history in the description. On a stacked branch, keep the lines `references/stacked-branch.md` names. The new description goes in your draft directory too, per `references/draft-files.md`: `"<skill-dir>/../../scripts/as-role.sh" author <owner>/<repo> -- gh pr edit <number> --repo <owner>/<repo> --body-file <file>`.
 10. **Announce the PR and call `AskUserQuestion`** to ask whether to send it to review — see "After opening a draft PR" below for the exact two-option picker. Do **not** mark it ready yourself, and do **not** substitute a prose question for the picker. Without `AskUserQuestion`, follow `<skill-dir>/../issue-workflow/references/delegated.md`.
 11. When the operator picks "Send to review" (or later says "ready" / "go"), mark it ready (`"<skill-dir>/../../scripts/as-role.sh" author <repo> -- gh pr ready <number> --repo <repo>`) and start watching for the first review — see `references/review-rounds.md`, which carries the watch, and `references/watch-results.md` for what each of its results means. A review that comes in goes to `references/review-received.md`, findings to `references/review-findings.md`, and a clean verdict to `references/merge.md` for the handoff.
 12. Never merge. Only a human merges PRs.
