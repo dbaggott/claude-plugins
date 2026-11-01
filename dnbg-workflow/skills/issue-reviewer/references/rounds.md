@@ -145,7 +145,9 @@ them. On every other result, and on any naming a `missing=` issue, it is
 Dispatch on the result — **including `ERROR`, which must not fall to the
 catch-all**:
 
-- **`ACTIVITY`** — `kinds=` says what landed. `comment` is a response to read;
+- **`ACTIVITY`** — `kinds=` says what landed. `comment` is a response to read,
+  except one whose first line is `Usage:`, a close-out's usage record, which
+  needs no answer;
   `body-edit` without a comment is the new round the quiescence rule above says
   the author still owes a comment on. `edited=` carries each issue's body-edit
   stamp, so the ordering check costs no extra call.
